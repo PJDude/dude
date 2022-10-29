@@ -1,0 +1,59 @@
+#########################################################################
+F1              - show this help
+F2              - show settings dialog
+
+F3/Return       - try to open file with associated program
+
+s               - show scan dialog
+Tab             - switch between panels
+
+Left,Right,
+Pg Up,PG Down   
+Home, End       - move the cursor
+
+Left,Right      - move the cursor to nearest marked file
+
+Delete          - show confirmation dialog for delete files "Locally"
+Shift+Delete    - show confirmation dialog for delete all marked files
+
+Insert          - Replace marked files with soft links to selected file
+Shift+Insert    - Hard link marked files
+
+Backspace       - go to folder with highest duplicates size sum
+
+
+#########################################################################
+Local Mark Actions ( CRC Group / Selected Path )
+
+space           - toggle file mark
+Ctrl + LMB      - toggle file mark
+
+A               - mark all
+N               - mark none
+
+Y               - toggle mark on youngest file (only on CRC Group)
+O               - toggle mark on oldest file (only on CRC Group)
+
+i               - invert marks
+
+Ctrl+P          - mark all files on selected path
+#########################################################################
+Global Mark Actions (All files)
+
+Ctrl+A          - mark all
+Ctrl+N          - mark none
+
+Ctrl+Y          - mark youngest files
+Ctrl+O          - mark oldest files
+
+Ctrl+Shift+ Y   - unmark youngest files
+Ctrl+Shift+ O   - unmark oldest files
+
+Ctrl+i / *      - invert marks
+
++               - mark by regular expression on path+file 
+-               - unmark by regular expression on path+file 
+#########################################################################
+
+
+
