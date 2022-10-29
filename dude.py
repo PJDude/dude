@@ -2768,7 +2768,7 @@ if __name__ == "__main__":
 
     logginLevel = LoggingLevels[MESSAGE_LEVEL] if MESSAGE_LEVEL in LoggingLevels else logging.INFO
 
-    print('logging started:',log)
+    print('Logging started:',log)
     logging.basicConfig(level=logginLevel,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
 
     try:
