@@ -587,7 +587,6 @@ class CORE:
 CFG_KEY_STARTUP_ADD_CWD='add_cwd_at_startup'
 CFG_KEY_STARTUP_SCAN='scan_at_startup'
 CFG_KEY_SHOW_OTHERS='show_other'
-CFG_KEY_ERASE_EMPTY='erase_empty'
 CFG_KEY_FULLCRC='show_full_crc'
 CFG_KEY_FULLPATHS='show_full_paths'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
@@ -1188,9 +1187,6 @@ class Gui:
         self.showothers = tk.BooleanVar()
         self.showothers.set(self.cfg.Get(CFG_KEY_SHOW_OTHERS,False))
 
-        self.eraseEmptyDirs = tk.BooleanVar()
-        self.eraseEmptyDirs.set(self.cfg.Get(CFG_KEY_ERASE_EMPTY,False))
-
         self.fullCRC = tk.BooleanVar()
         self.fullCRC.set(self.cfg.Get(CFG_KEY_FULLCRC,False))
 
@@ -1223,7 +1219,6 @@ class Gui:
         self.StartScanCB.grid(row=row,column=0,sticky='wens') ; row+=1
 
         ttk.Checkbutton(fr, text = 'Show other files on Directory pane', variable=self.showothers               ).grid(row=row,column=0,sticky='wens') ; row+=1
-        ttk.Checkbutton(fr, text = 'Erase Empty Folders', variable=self.eraseEmptyDirs                          ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.fullCRC                                       ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Show full paths', variable=self.fullPaths                                   ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Create relative Symbolic links', variable=self.relSymlinks                  ).grid(row=row,column=0,sticky='wens') ; row+=1
@@ -1933,7 +1928,6 @@ class Gui:
         self.addCwdAtStartup.set(True)
         self.scanAtStartup.set(True)
         self.showothers.set(False)
-        self.eraseEmptyDirs.set(False)
         self.fullCRC.set(False)
         self.fullPaths.set(False)
         self.relSymlinks.set(False)
