@@ -1,6 +1,6 @@
 # DUDE (DUplicates DEtector)
 
-GUI utility for finding identical files, delete or link them to save space.
+GUI utility for finding duplicated files, delete or link them to save space.
 
 ## Features
 - **scanning for duplicated with multiple criteria**
