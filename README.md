@@ -41,6 +41,24 @@ GUI utility for finding duplicated files, delete or link them to save space.
 - **included scripts to create single standalone executable with PyInstaller**
 - **MIT license**
 
+## How to start dude
+run dude.py in python3 interpreter with Tkinter
+
+- *pip install -r requirements.txt*
+- *python3 ./dude.py*
+
+or prepare standalone executable:
+
+## How to create standalone exe with pyinstaller
+- *build.pyinstaller.sh*
+- *build.pyinstaller.bat*
+
+## How to use
+- **open Scan dialog** (S)
+- **specify paths to scan** (Add Paths Alt+A)
+- **scan for duplicate files** (Alt+S)
+- **mark files for processing** (Try Tab, space, arrows, A, I etc. )
+- **take action on marked files** (D Hotkey for Delete files)
 
 ###### main window:
 ![image info](./screenshots/main.png)
