@@ -89,6 +89,7 @@ T=G*1024
 multDict={'k':k,'K':k,'M':M,'G':G,'T':T}
 
 windows = (os.name=='nt')
+nums='①②③④⑤⑥⑦⑧⑨⑩' if windows else '⓵⓶⓷⓸⓹⓺⓻⓼⓽⓾'
 
 def bytes2str(num):
     kb=num/k
@@ -138,8 +139,6 @@ class CORE:
         self.limit=0
         self.CrcCutLen=128
         self.crccut={}
-        self.minsize=0
-        self.maxsize=0
         self.ScannedPaths=[]
 
     def __init__(self):
@@ -155,33 +154,11 @@ class CORE:
     def setLimit(self,limit):
         self.limit=limit
 
-    def setSizes(self,minsize,maxsize):
-        self.minsizeM1=minsize-1
-        self.maxsizeP1=maxsize+1
-
     def Path2ScanFull(self,pathnr,path,file):
         return os.path.join(self.Paths2Scan[pathnr]+path,file)
 
     def ScannedPathFull(self,pathnr,path,file):
         return os.path.join(self.ScannedPaths[pathnr]+path,file)
-
-    def addFileData(self,pathnr,path,file):
-        try:
-            stat = os.stat(self.Path2ScanFull(pathnr,path,file))
-        except Exception as e:
-            logging.error(e)
-            return str(e)
-        else:
-            if stat.st_nlink!=1:
-                return f'hardlinks {stat.st_nlink} - {pathnr},{path},{file}'
-            if self.minsizeM1 < stat.st_size < self.maxsizeP1:
-                if not stat.st_size in self.filesOfSize:
-                    self.filesOfSize[stat.st_size]=set()
-
-                self.filesOfSize[stat.st_size].add( tuple([pathnr,path,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino]) )
-                return False
-            else:
-                return f'size {stat.st_size} - {pathnr},{path},{file}'
 
     def SetPathsToScan(self,paths):
         pathsLen=len(paths)
@@ -215,6 +192,7 @@ class CORE:
 
         pathNr=0
         counter=0
+        SizeSum=0
 
         keepGoing=1
 
@@ -229,28 +207,27 @@ class CORE:
                         file=entry.name
                         try:
                             if os.path.islink(entry) :
-                                logging.info(f'skippping link: {path} / {file}')
+                                logging.debug(f'skippping link: {path} / {file}')
                             elif entry.is_dir():
                                 loopList.append(os.path.join(path,file))
                             elif entry.is_file():
                                 try:
                                     stat = os.stat(os.path.join(path,file))
                                 except Exception as e:
-                                    logging.error(f'scan skipp{e}')
+                                    logging.error(f'scan skipp {e}')
                                 else:
                                     if stat.st_nlink!=1:
-                                        logging.info(f'scan skipp - hardlinks {stat.st_nlink} - {pathNr},{path},{file}')
-                                    if self.minsizeM1 < stat.st_size < self.maxsizeP1:
-                                        if not stat.st_size in self.filesOfSize:
-                                            self.filesOfSize[stat.st_size]=set()
-
-                                        self.filesOfSize[stat.st_size].add( tuple([pathNr,subpath,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino]) )
+                                        logging.debug(f'scan skipp - hardlinks {stat.st_nlink} - {pathNr},{path},{file}')
                                     else:
-                                        logging.info(f'scan skipp - size {stat.st_size} - {pathNr},{path},{file}')
-                                        
+                                        if stat.st_size>0:
+                                            SizeSum+=stat.st_size
+                                            if not stat.st_size in self.filesOfSize:
+                                                self.filesOfSize[stat.st_size]=set()
+                                            self.filesOfSize[stat.st_size].add( tuple([pathNr,subpath,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino]) )
+                                            
                                 counter+=1
                                 
-                                keepGoing = updateCallback(('      ' + str(counter))[-8:] + '       ','unprog')
+                                keepGoing = updateCallback(nums[pathNr] + '\n' + PathToScan + '\n' + str(counter) + '\n' + bytes2str(SizeSum),'unprog')
                                 if not keepGoing:
                                     break
 
@@ -300,8 +277,6 @@ class CORE:
         ######################################################################
 
     def CheckCRC(self):
-        #stream=subprocess.Popen([self.CRCExec,self.CRCExecParams,__file__], stdout=PIPE, stderr=PIPE,bufsize=1,universal_newlines=True)
-        stream=subprocess.Popen([self.CRCExec,self.CRCExecParams,log], stdout=PIPE, stderr=PIPE,bufsize=1,universal_newlines=True)
         stream=subprocess.Popen([self.CRCExec,self.CRCExecParams,os.path.join(os.path.dirname(__file__),'LICENSE')], stdout=PIPE, stderr=PIPE,bufsize=1,universal_newlines=True)
 
         stdout, stderr = stream.communicate()
@@ -316,13 +291,11 @@ class CORE:
             exit(11)
         else:
             logging.debug(f"all fine. stdout:{stdout} crc:{self.GetCrc(stdout)}")
-
-    def crcCalc(self,updateCallback):
-        ####################################################
-        #cache read
-        CRCCache={}
+    
+    def ReadCRCCache(self):
+        self.CRCCache={}
         for dev in self.devs:
-            CRCCache[dev]=dict()
+            self.CRCCache[dev]=dict()
             try:
                 logging.debug(f'reading cache:{CACHE_DIR}:device:{dev}')
                 with open(os.sep.join([CACHE_DIR,str(dev)]),'r' ) as cfile:
@@ -331,76 +304,111 @@ class CORE:
                         if crc==None or crc=='None' or crc=='':
                             logging.warning(f"CRCCache read error:{inode},{mtime},{crc}")
                         else:
-                            CRCCache[dev][tuple([int(inode),int(mtime)])]=crc
+                            self.CRCCache[dev][tuple([int(inode),int(mtime)])]=crc
 
             except Exception as e:
                 logging.warning(e)
-                CRCCache[dev]=dict()
-        ####################################################
+                self.CRCCache[dev]=dict()
+        
+    def WriteCRCCache(self):
+        pathlib.Path(CACHE_DIR).mkdir(parents=True,exist_ok=True)
+        for dev in self.CRCCache:
+            logging.debug(f'writing cache:{CACHE_DIR}:device:{dev}')
+            with open(os.sep.join([CACHE_DIR,str(dev)]),'w' ) as cfile:
+                for (inode,mtime),crc in self.CRCCache[dev].items():
+                    cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
+                    
+    def SingleCrc(self,size,sizeBytesInfo,sumSizeStr,pathnr,path,file,mtime,ctime,dev,inode,updateCallback):
+        FileValid=True
+        CacheKey=tuple([int(inode),int(mtime)])
+        self.fileNr+=1
 
-        sizeDone=0
+        if CacheKey in self.CRCCache[dev]:
+            crc=self.CRCCache[dev][CacheKey]
+            self.sizeDone+=size
+            keepGoing=True
+        else:
+            fullpath=self.Path2ScanFull(pathnr,path,file)
+
+            ProgSize=100.0*self.sizeDone/self.sumSize
+            ProgQuant=100.0*self.fileNr/self.total
+
+            (keepGoing,crc)=self.GetFileCrc(fullpath,lambda : updateCallback('\ngroups found:' + self.FoundSumStr + sizeBytesInfo,ProgSize,ProgQuant,progress1Right=bytes2str(self.sizeDone) + sumSizeStr,progress2Right=str(self.fileNr) + self.totalStr) )
+
+            if FileValid:=crc:
+                self.CRCCache[dev][CacheKey]=crc
+                self.sizeDone+=size
+
+        if keepGoing and FileValid:
+            if size not in self.filesOfSizeOfCRC:
+                self.filesOfSizeOfCRC[size]={}
+
+            if crc not in self.filesOfSizeOfCRC[size]:
+                self.filesOfSizeOfCRC[size][crc]=set()
+
+            self.filesOfSizeOfCRC[size][crc].add( tuple([pathnr,path,file,ctime,dev,inode]) )
+        return keepGoing
+            
+    def crcCalc(self,writeLog,updateCallback):
+        self.ReadCRCCache()
+
+        self.sizeDone=0
 
         keepGoing=1
         FoundSum=0
-        fileNr=0
+        self.fileNr=0
 
-        total = len([ 1 for size in self.filesOfSize for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size] ])
-        totalStr = '/' + str(total)
+        self.total = len([ 1 for size in self.filesOfSize for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size] ])
+        self.totalStr = '/' + str(self.total)
 
         sumSizeStr='/' + bytes2str(self.sumSize)
-        FoundSumStr='0'
+        self.FoundSumStr='0'
 
+        SizeDone=set()
+        PathsToRecheckSet=set()
+        
+        LimitReached=False
         for size in list(sorted(self.filesOfSize,reverse=True)):
-            sizeBytesInfo='\ncurrent size: ' + bytes2str(size)
             if keepGoing:
+                sizeBytesInfo='\ncurrent size: ' + bytes2str(size)
+                SizeDone.add(size)
                 for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size]:
-                    FileValid=True
                     if keepGoing:
-                        CacheKey=tuple([int(inode),int(mtime)])
-                        fileNr+=1
-
-                        if CacheKey in CRCCache[dev]:
-                            crc=CRCCache[dev][CacheKey]
-                            sizeDone+=size
-                        else:
-                            fullpath=self.Path2ScanFull(pathnr,path,file)
-
-                            ProgSize=100.0*sizeDone/self.sumSize
-                            ProgQuant=100.0*fileNr/total
-
-                            (keepGoing,crc)=self.GetFileCrc(fullpath,lambda : updateCallback('\ngroups found:' + FoundSumStr + sizeBytesInfo,ProgSize,ProgQuant,progress1Right=bytes2str(sizeDone) + sumSizeStr,progress2Right=str(fileNr) + totalStr) )
-
-                            if FileValid:=crc:
-                                CRCCache[dev][CacheKey]=crc
-                                sizeDone+=size
-
-                        if keepGoing and FileValid:
-                            if size not in self.filesOfSizeOfCRC:
-                                self.filesOfSizeOfCRC[size]={}
-
-                            if crc not in self.filesOfSizeOfCRC[size]:
-                                self.filesOfSizeOfCRC[size][crc]=set()
-
-                            self.filesOfSizeOfCRC[size][crc].add( tuple([pathnr,path,file,ctime,dev,inode]) )
+                        if (not LimitReached) or (LimitReached and (pathnr,path) in PathsToRecheckSet):
+                            keepGoing=self.SingleCrc(size,sizeBytesInfo,sumSizeStr,pathnr,path,file,mtime,ctime,dev,inode,updateCallback)
+                
                 if keepGoing:
                     ######################################################################
                     if size in self.filesOfSizeOfCRC:
                         self.CheckCrcPoolAndPrune(size)
+                
                     if size in self.filesOfSizeOfCRC:
                         if self.limit:
                             FoundSum+=len(self.filesOfSizeOfCRC[size])
-                            FoundSumStr=str(FoundSum)
+                            self.FoundSumStr=str(FoundSum)
                             if FoundSum>=self.limit:
-                                keepGoing=0
-
+                                LimitReached=True
+                        
+                        if not LimitReached:
+                            for crc in self.filesOfSizeOfCRC[size]:
+                                 for (pathnr,path,file,ctime,dev,inode) in self.filesOfSizeOfCRC[size][crc]:
+                                    PathsToRecheckSet.add(tuple([pathnr,path]))
+                else:
+                    break
+    
         self.filesOfSize.clear()
 
         self.ScannedPaths=self.Paths2Scan.copy()
 
         self.CalcCrcMinLen()
-
-        #######################################################
-        #log data
+        
+        self.WriteCRCCache()
+        
+        if writeLog:
+            self.LogScanResults()
+        
+        
+    def LogScanResults(self):
         logging.info('#######################################################')
         logging.info('scan and crc calculation complete')
         logging.info('')
@@ -416,17 +424,7 @@ class CORE:
                 for IndexTuple in self.filesOfSizeOfCRC[size][crc]:
                     logging.info('    ' + ' '.join( [str(elem) for elem in list(IndexTuple) ]))
         logging.info('#######################################################')
-
-        #######################################################
-        #cache save
-        pathlib.Path(CACHE_DIR).mkdir(parents=True,exist_ok=True)
-        for dev in CRCCache:
-            logging.debug(f'writing cache:{CACHE_DIR}:device:{dev}')
-            with open(os.sep.join([CACHE_DIR,str(dev)]),'w' ) as cfile  :
-                for (inode,mtime),crc in CRCCache[dev].items():
-                    cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
-        #######################################################
-
+    
     def GetFileCrc(self,Fullpath,updateCallbackFn):
         (thread := Runner()).go([self.CRCExec,self.CRCExecParams,Fullpath])
 
@@ -797,7 +795,6 @@ class LongActionDialog:
 ###########################################################
 
 class Gui:
-    nums='①②③④⑤⑥⑦⑧⑨⑩' if windows else '⓵⓶⓷⓸⓹⓺⓻⓼⓽⓾'
 
     MAX_PATHS=10
 
@@ -878,6 +875,7 @@ class Gui:
 
         self.StatusVarAllSize=tk.StringVar()
         self.StatusVarAllQuant=tk.StringVar()
+        self.StatusVarGroups=tk.StringVar()
         self.StatusVarPathSize=tk.StringVar()
         self.StatusVarPathQuant=tk.StringVar()
 
@@ -904,12 +902,15 @@ class Gui:
         self.main.bind('<KeyPress>', self.KeyPressGlobal )
 
         (UpperStatusFrame := ttk.Frame(FrameTop)).pack(side='bottom', fill='x')
-
+        self.StatusVarGroups.set('0')
+        
         tk.Label(UpperStatusFrame,relief='flat',foreground='green',borderwidth=2,bg=self.bg,width=84,anchor='w').pack(fill='x',expand=1,side='left')
-        tk.Label(UpperStatusFrame,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='left')
         tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarAllQuant,borderwidth=2,bg=self.bg,relief='groove',foreground='red',anchor='w').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=16,text="All marked files # ",relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarAllSize,borderwidth=2,bg=self.bg,relief='groove',foreground='red',anchor='w').pack(fill='x',expand=0,side='right')
+        tk.Label(UpperStatusFrame,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
+        tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarGroups,borderwidth=2,bg=self.bg,relief='groove',anchor='w').pack(fill='x',expand=0,side='right')
+        tk.Label(UpperStatusFrame,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
 
         (LowerStatusFrame := ttk.Frame(FrameBottom)).pack(side='bottom',fill='both')
 
@@ -1121,10 +1122,10 @@ class Gui:
         self.sizeMinVar=tk.StringVar()
         self.sizeMaxVar=tk.StringVar()
         self.ResultsLimitVar=tk.StringVar()
+        self.WriteScanToLog=tk.BooleanVar()
 
-        self.sizeMinVar.set(self.cfg.Get('minsize','100k'))
-        self.sizeMaxVar.set(self.cfg.Get('maxsize','999GB'))
         self.ResultsLimitVar.set(self.cfg.Get('resultsLimit','1000'))
+        self.WriteScanToLog.set(False)
 
         self.ScanDialogMainFrame.grid_columnconfigure(0, weight=1)
         self.ScanDialogMainFrame.grid_rowconfigure(0, weight=1)
@@ -1148,20 +1149,10 @@ class Gui:
         self.pathsFrame.grid_columnconfigure(1, weight=1)
         self.pathsFrame.grid_rowconfigure(99, weight=1)
 
-        ##############
-        sizeframe = tk.LabelFrame(self.ScanDialogMainFrame,text='File Size Range:',borderwidth=2,bg=self.bg)
-        sizeframe.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
-
-        tk.Label(sizeframe,width=6,text="Min:",bg=self.bg,anchor='e' ).grid(row=0,column=0,padx=1,pady=1,sticky='ewns')
-        ttk.Button(sizeframe,textvariable=self.sizeMinVar,command=self.setMinSize,width=10).grid(row=0,column=1,sticky='wens',padx=2,pady=3)
-        tk.Label(sizeframe,width=6,text="Max:",bg=self.bg,anchor='e' ).grid(row=0,column=2,padx=1,pady=1,sticky='ewns')
-        ttk.Button(sizeframe,textvariable=self.sizeMaxVar,command=self.setMaxSize,width=10).grid(row=0,column=3,sticky='wens',padx=2,pady=3)
-
-        sizeframe.grid_columnconfigure(0, weight=1)
-        sizeframe.grid_columnconfigure(2, weight=1)
-
-        tk.Label(self.ScanDialogMainFrame,text='Limit scan groups results number to biggest:',borderwidth=2,anchor='w',bg=self.bg).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=3)
+        tk.Label(self.ScanDialogMainFrame,text='Limit scan groups main results number to biggest:',borderwidth=2,anchor='w',bg=self.bg).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=3)
         ttk.Button(self.ScanDialogMainFrame,textvariable=self.ResultsLimitVar,command=self.setResultslimit,width=10).grid(row=2,column=3,sticky='wens',padx=8,pady=3)
+        
+        ttk.Checkbutton(self.ScanDialogMainFrame,text='Write scan results to application log',variable=self.WriteScanToLog).grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
         frame2 = ttk.Frame(self.ScanDialogMainFrame)
         frame2.grid(row=6,column=0,sticky='news',padx=4,pady=4,columnspan=4)
@@ -1257,14 +1248,14 @@ class Gui:
             row=0
             MarkCascadePath.delete(0,END)
             for path in self.D.ScannedPaths:
-                MarkCascadePath.add_command(label = self.nums[row] + '  =  ' + path,    command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.SetMark)  )
+                MarkCascadePath.add_command(label = nums[row] + '  =  ' + path,    command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.SetMark)  )
                 row+=1
 
         def UnmarkCascadePathFill():
             UnmarkCascadePath.delete(0,END)
             row=0
             for path in self.D.ScannedPaths:
-                UnmarkCascadePath.add_command(label = self.nums[row] + '  =  ' + path,  command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.UnsetMark)  )
+                UnmarkCascadePath.add_command(label = nums[row] + '  =  ' + path,  command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.UnsetMark)  )
                 row+=1
 
         MainCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
@@ -1684,19 +1675,6 @@ class Gui:
         self.UpdatePathsToScan()
 
     def Scan(self):
-        minsizeStr=self.sizeMinVar.get()
-        minsize = str2bytes(minsizeStr)
-
-        if not minsize:
-            self.DialogWithEntryScan('Error','Min Size wrong format: \'' + minsizeStr + '\'',parent=self.ScanDialog,OnlyInfo=True)
-            return
-
-        maxsizeStr=self.sizeMaxVar.get()
-        maxsize = str2bytes(maxsizeStr)
-        if not maxsize:
-            self.DialogWithEntryScan('Error','Max Size wrong format: \'' + maxsizeStr + '\'',parent=self.ScanDialog,OnlyInfo=True)
-            return
-
         resultslimitStr=self.ResultsLimitVar.get()
 
         try:
@@ -1705,8 +1683,6 @@ class Gui:
             self.DialogWithEntryScan('Error','Results limit wrong format: \'' + resultslimitStr + '\'\n' + e,parent=self.ScanDialog,OnlyInfo=True)
             return
 
-        self.cfg.Set('minsize',minsizeStr)
-        self.cfg.Set('maxsize',maxsizeStr)
         self.cfg.Set('resultslimit',resultslimitStr)
 
         self.cfg.Write()
@@ -1714,7 +1690,6 @@ class Gui:
         self.D.INIT()
         self.ShowData()
 
-        self.D.setSizes(minsize,maxsize)
         self.D.setLimit(resultslimit)
 
         PathsToScanFromEntry = [var.get() for var in self.PathsToScanEntryVar.values()]
@@ -1730,16 +1705,13 @@ class Gui:
 
         self.main.update()
         if LongActionDialog(self.ScanDialogMainFrame,'scanning files ...',lambda UpdateCallback : self.D.scan(UpdateCallback)).NaturalEnd:
-            #,'indeterminate'
             
             if self.D.sumSize==0:
                 self.DialogWithEntryScan('Cannot Proceed.','No Duplicates.',parent=self.ScanDialog,OnlyInfo=True)
-            elif LongActionDialog(self.ScanDialogMainFrame,'crc calculation ...',lambda UpdateCallback : self.D.crcCalc(UpdateCallback),'determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:').NaturalEnd:
+            elif LongActionDialog(self.ScanDialogMainFrame,'crc calculation ...',lambda UpdateCallback : self.D.crcCalc(self.WriteScanToLog.get(),UpdateCallback),'determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:').NaturalEnd:
 
                 self.ShowData()
                 self.ScanDialogClose()
-            
-            #self.main.config(cursor="")
 
     def ScanDialogShow(self):
         if self.D.ScannedPaths:
@@ -1774,7 +1746,7 @@ class Gui:
             (fr:=ttk.Frame(self.pathsFrame)).grid(row=row,column=0,sticky='news',columnspan=3)
             self.PathsToScanFrames.append(fr)
 
-            tk.Label(fr,text=' ' + self.nums[row] + ' ' , relief='groove',bg=self.bg).pack(side='left',padx=2,pady=1,fill='y')
+            tk.Label(fr,text=' ' + nums[row] + ' ' , relief='groove',bg=self.bg).pack(side='left',padx=2,pady=1,fill='y')
 
             self.PathsToScanEntryVar[row]=tk.StringVar(value=path)
             ttk.Entry(fr,textvariable=self.PathsToScanEntryVar[row]).pack(side='left',expand=1,fill='both',pady=1)
@@ -1843,12 +1815,6 @@ class Gui:
 
     def setResultslimit(self):
         self.setConfVar("Results Quantity Limit (0 - 10000)","value:",self.ScanDialog,self.ResultsLimitVar,self.ResultsLimitVar.get(),'resultslimit',lambda x : True if str2bytes(x) and int(x)<10001 and int(x)>0 else False)
-
-    def setMinSize(self):
-        self.setConfVar("Minimum size","value:",self.ScanDialog,self.sizeMinVar,self.sizeMinVar.get(),'minsize',str2bytes)
-
-    def setMaxSize(self):
-        self.setConfVar("maximum size","value:",self.ScanDialog,self.sizeMaxVar,self.sizeMaxVar.get(),'maxsize',str2bytes)
 
     def setPathRegExp(self):
         pass
@@ -1967,10 +1933,13 @@ class Gui:
 
     def tree1ItemsUpdate(self):
         self.tree1Items=[]
+        groupsQuant=0
         for crc in self.tree1.get_children():
             self.tree1Items.append(crc)
+            groupsQuant+=1
             for item in self.tree1.get_children(crc):
                 self.tree1Items.append(item)
+        self.StatusVarGroups.set(groupsQuant)
 
     def InitialFocus(self):
         if self.tree1.get_children():
@@ -1991,7 +1960,7 @@ class Gui:
         logging.debug('self.idfunc=' + self.idfunc.__name__)
 
         self.tree1.delete(*self.tree1.get_children())
-
+        
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
                 crcitem=self.tree1.insert(parent='', index=END,iid=crc, values=('','','',str(size),bytes2str(size),'','','',crc,len(crcDict),'',CRC),tags=[CRC],open=True)
@@ -2009,7 +1978,7 @@ class Gui:
                                                             crc,\
                                                             '',\
                                                             time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) ,FILE),tags=[])
-
+        
         self.ByPathCacheUpdate()
         self.CalcMarkStatsAll()
         self.tree1ItemsUpdate()
@@ -2027,7 +1996,7 @@ class Gui:
             for crc,crcDict in sizeDict.items():
                 self.tree1.item(crc,text=crc if fullcrc else self.D.crccut[crc])
                 for pathnr,path,file,ctime,dev,inode in crcDict:
-                    self.tree1.item(self.idfunc(inode,dev),text=self.D.ScannedPaths[pathnr] if fullPaths else self.nums[pathnr])
+                    self.tree1.item(self.idfunc(inode,dev),text=self.D.ScannedPaths[pathnr] if fullPaths else nums[pathnr])
 
     def UpdateMainTreeNone(self):
         self.tree1.selection_remove(self.tree1.selection())
@@ -2049,7 +2018,7 @@ class Gui:
 
         fullpaths = self.cfg.Get(CFG_KEY_FULLPATHS,False) == 'True'
 
-        self.SelectedSearchPathCode.set(self.nums[pathnr])
+        self.SelectedSearchPathCode.set(nums[pathnr])
         self.SelectedSearchPath.set(pathnrstr)
 
         fullcrc = self.cfg.Get(CFG_KEY_FULLCRC,False) == 'True'
