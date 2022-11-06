@@ -34,6 +34,8 @@ from subprocess import Popen, PIPE
 import pyperclip
 import logging
 
+import psutil
+
 class Runner(Thread):
     exitCode=0
 
@@ -44,7 +46,7 @@ class Runner(Thread):
     stream=None
     res=None
     resValid=False
-
+    
     def __INIT__(self):
         super().__init__()
         self.res=None
@@ -54,7 +56,7 @@ class Runner(Thread):
     def run(self):
         self.resValid=True
         try:
-            self.stream=subprocess.Popen(self.command, stdout=PIPE, stderr=PIPE,bufsize= 1,universal_newlines=True )
+            self.stream=subprocess.Popen(self.command, stdout=PIPE, stderr=PIPE,bufsize= 1,universal_newlines=True,shell=windows )
             stdout, stderr = self.stream.communicate()
             self.res=stdout
             if stderr:
@@ -126,7 +128,6 @@ class CORE:
     @staticmethod
     def CRCStdout2CRC(string):
         return string[:40]
-        #return string.split()[0]
 
     @staticmethod
     def getStdout2CrcCertuitil(string):
@@ -140,7 +141,9 @@ class CORE:
         self.CrcCutLen=128
         self.crccut={}
         self.ScannedPaths=[]
-
+        self.ExcludeRegExp=False
+        self.ExcludeList=[]
+        
     def __init__(self):
         self.CRCExec='certutil' if windows else 'sha1sum'
         self.CRCExecParams='-hashfile' if windows else '-b'
@@ -186,10 +189,29 @@ class CORE:
         self.Paths2Scan=abspaths
         return False
 
+    def SetExcludeMasks(self,RegExp,MasksList):
+        self.ExcludeRegExp=RegExp
+        
+        if RegExp:
+            self.ExclFn = lambda expr,string : re.search(expr,string)
+        else:
+            self.ExclFn = lambda expr,string : fnmatch.fnmatch(string,expr)
+            
+        teststring='abc'
+        for exclmask in MasksList:
+            try:
+                self.ExclFn(exclmask,teststring)
+            except Exception as e:
+                return "Expression: '" + exclmask + "' ERROR:" + str(e)
+        
+        self.ExcludeList=MasksList
+        return False
+        
     def scan(self,updateCallback):
         logging.info('')
         logging.info('SCANNING')
-
+        logging.info('ExcludeList:' + ' '.join(self.ExcludeList))
+        
         pathNr=0
         counter=0
         SizeSum=0
@@ -205,14 +227,22 @@ class CORE:
                 try:
                     for entry in os.scandir(path):
                         file=entry.name
+                        fullpath=os.path.join(path,file)
+                        if self.ExcludeList:
+                            if any({self.ExclFn(expr,fullpath) for expr in self.ExcludeList}):
+                                logging.info(f'skipping by Exclude Mask:{fullpath}')
+                                continue
+                        
                         try:
                             if os.path.islink(entry) :
                                 logging.debug(f'skippping link: {path} / {file}')
                             elif entry.is_dir():
                                 loopList.append(os.path.join(path,file))
                             elif entry.is_file():
+                                
+                                    
                                 try:
-                                    stat = os.stat(os.path.join(path,file))
+                                    stat = os.stat(fullpath)
                                 except Exception as e:
                                     logging.error(f'scan skipp {e}')
                                 else:
@@ -277,7 +307,7 @@ class CORE:
         ######################################################################
 
     def CheckCRC(self):
-        stream=subprocess.Popen([self.CRCExec,self.CRCExecParams,os.path.join(os.path.dirname(__file__),'LICENSE')], stdout=PIPE, stderr=PIPE,bufsize=1,universal_newlines=True)
+        stream=subprocess.Popen([self.CRCExec,self.CRCExecParams,os.path.join(os.path.dirname(__file__),'LICENSE')], stdout=PIPE, stderr=PIPE,bufsize=1,universal_newlines=True, shell=windows)
 
         stdout, stderr = stream.communicate()
         res=stdout
@@ -593,6 +623,9 @@ CFG_KEY_USE_REG_EXPR='use_reg_expr'
 CFG_KEY_GEOMETRY='geometry'
 CFG_KEY_GEOMETRY_DIALOG='geometry_dialog'
 
+CFG_KEY_EXCLUDE='exclude'
+CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
+
 MARK='M'
 FILE='2'
 SINGLE='3'
@@ -823,6 +856,7 @@ class Gui:
         self.cfg.Read()
 
         self.PathsToScanFrames=[]
+        self.ExcludeFrames=[]
 
         self.PathsToScanFromDialog=[]
 
@@ -876,6 +910,7 @@ class Gui:
         self.StatusVarAllSize=tk.StringVar()
         self.StatusVarAllQuant=tk.StringVar()
         self.StatusVarGroups=tk.StringVar()
+        self.StatusVarFullPath=tk.StringVar()
         self.StatusVarPathSize=tk.StringVar()
         self.StatusVarPathQuant=tk.StringVar()
 
@@ -903,14 +938,17 @@ class Gui:
 
         (UpperStatusFrame := ttk.Frame(FrameTop)).pack(side='bottom', fill='x')
         self.StatusVarGroups.set('0')
+        self.StatusVarFullPath.set('')
         
-        tk.Label(UpperStatusFrame,relief='flat',foreground='green',borderwidth=2,bg=self.bg,width=84,anchor='w').pack(fill='x',expand=1,side='left')
         tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarAllQuant,borderwidth=2,bg=self.bg,relief='groove',foreground='red',anchor='w').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=16,text="All marked files # ",relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarAllSize,borderwidth=2,bg=self.bg,relief='groove',foreground='red',anchor='w').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarGroups,borderwidth=2,bg=self.bg,relief='groove',anchor='w').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
+        tk.Label(UpperStatusFrame,width=12,text='Full file path: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='left')
+        tk.Label(UpperStatusFrame,textvariable=self.StatusVarFullPath,relief='flat',borderwidth=2,bg=self.bg,anchor='w').pack(fill='x',expand=1,side='left')
+        #foreground='green'
 
         (LowerStatusFrame := ttk.Frame(FrameBottom)).pack(side='bottom',fill='both')
 
@@ -1129,12 +1167,19 @@ class Gui:
 
         self.ScanDialogMainFrame.grid_columnconfigure(0, weight=1)
         self.ScanDialogMainFrame.grid_rowconfigure(0, weight=1)
+        self.ScanDialogMainFrame.grid_rowconfigure(1, weight=1)
 
         self.ScanDialog.bind('<Escape>', self.ScanDialogClose)
         self.ScanDialog.bind('<Alt_L><a>',lambda event : self.AddPathDialog())
         self.ScanDialog.bind('<Alt_L><A>',lambda event : self.AddPathDialog())
         self.ScanDialog.bind('<Alt_L><s>',lambda event : self.Scan())
         self.ScanDialog.bind('<Alt_L><S>',lambda event : self.Scan())
+    
+        self.ScanDialog.bind('<Alt_L><D>',lambda event : self.AddDrives())
+        self.ScanDialog.bind('<Alt_L><d>',lambda event : self.AddDrives())
+        
+        self.ScanDialog.bind('<Alt_L><E>',lambda event : self.AddExckludeMaskDialog())
+        self.ScanDialog.bind('<Alt_L><e>',lambda event : self.AddExckludeMaskDialog())
 
         ##############
         self.pathsFrame = tk.LabelFrame(self.ScanDialogMainFrame,text='Paths To Scan:',borderwidth=2,bg=self.bg)
@@ -1142,13 +1187,33 @@ class Gui:
 
         self.AddPathButton = ttk.Button(self.pathsFrame,width=10,text="Add Path ...",command=self.AddPathDialog,underline=0)
         self.AddPathButton.grid(column=0, row=100,pady=4,padx=4)
+        
+        self.AddDrivesButton = ttk.Button(self.pathsFrame,width=10,text="Add Drives",command=self.AddDrives,underline=4)
+        self.AddDrivesButton.grid(column=1, row=100,pady=4,padx=4)
 
         self.ClearListButton=ttk.Button(self.pathsFrame,width=10,text="Clear List",command=self.ClearPaths )
         self.ClearListButton.grid(column=2, row=100,pady=4,padx=4)
 
         self.pathsFrame.grid_columnconfigure(1, weight=1)
         self.pathsFrame.grid_rowconfigure(99, weight=1)
+        
+        ##############
+        self.ScanExcludeRegExpr=tk.BooleanVar()
+        self.ScanExcludeRegExpr.set(self.cfg.Get(CFG_KEY_EXCLUDE_REGEXP,False) == 'True')
+        
+        self.ExcludeFRame = tk.LabelFrame(self.ScanDialogMainFrame,text='Exclude from scan:',borderwidth=2,bg=self.bg)
+        self.ExcludeFRame.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
+        self.AddExckludeMaskButton = ttk.Button(self.ExcludeFRame,width=16,text="Add Exclude Mask ...",command=self.AddExckludeMaskDialog,underline=4)
+        self.AddExckludeMaskButton.grid(column=0, row=100,pady=4,padx=4)
+
+        self.ClearExcludeListButton=ttk.Button(self.ExcludeFRame,width=10,text="Clear List",command=self.ClearExcludeMasks )
+        self.ClearExcludeListButton.grid(column=2, row=100,pady=4,padx=4)
+
+        self.ExcludeFRame.grid_columnconfigure(1, weight=1)
+        self.ExcludeFRame.grid_rowconfigure(99, weight=1)
+        ##############
+        
         tk.Label(self.ScanDialogMainFrame,text='Limit scan groups main results number to biggest:',borderwidth=2,anchor='w',bg=self.bg).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=3)
         ttk.Button(self.ScanDialogMainFrame,textvariable=self.ResultsLimitVar,command=self.setResultslimit,width=10).grid(row=2,column=3,sticky='wens',padx=8,pady=3)
         
@@ -1345,7 +1410,6 @@ class Gui:
             self.addPath(cwd)
 
         self.ScanDialogShow()
-        #if (self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,'True')=='True' or self.cfg.Get(CFG_KEY_STARTUP_SCAN,'True')=='True'):
 
         if (self.cfg.Get(CFG_KEY_STARTUP_SCAN,'True')=='True'):
             self.ScanDialogMainFrame.after(0, self.Scan)
@@ -1671,8 +1735,11 @@ class Gui:
         tree.heading(colname, command=lambda : self.ColumnSort(tree, colname, col, not reverse,asnumber,level2 ), text=self.OrgLabel[colname] + ' ' + str(u'\u25BC' if reverse else u'\u25B2') )
 
     def addPath(self,path):
-        self.PathsToScanFromDialog.append(path)
-        self.UpdatePathsToScan()
+        if len(self.PathsToScanFromDialog)<10:
+            self.PathsToScanFromDialog.append(path)
+            self.UpdatePathsToScan()
+        else:
+            logging.error(f'cant add:{path}. limit exceeded')
 
     def Scan(self):
         resultslimitStr=self.ResultsLimitVar.get()
@@ -1693,7 +1760,10 @@ class Gui:
         self.D.setLimit(resultslimit)
 
         PathsToScanFromEntry = [var.get() for var in self.PathsToScanEntryVar.values()]
-
+        
+        ExcludeVarsFromEntry = [var.get() for var in self.ExcludeEntryVar.values()]
+        #[elem for elem in self.cfg.Get(CFG_KEY_EXCLUDE,'').split('|') if elem !='']
+        
         if not PathsToScanFromEntry:
             self.DialogWithEntryScan('Error. No paths to scan.','Add paths to scan.',parent=self.ScanDialog,OnlyInfo=True)
 
@@ -1701,8 +1771,10 @@ class Gui:
             self.Info('Error. Fix paths selection.',res,self.ScanDialog)
             return
 
-        #self.main.config(cursor="watch")
-
+        if res:=self.D.SetExcludeMasks(self.cfg.Get(CFG_KEY_EXCLUDE_REGEXP,False) == 'True',ExcludeVarsFromEntry):
+            self.Info('Error. Fix Exclude masks.',res,self.ScanDialog)
+            return
+            
         self.main.update()
         if LongActionDialog(self.ScanDialogMainFrame,'scanning files ...',lambda UpdateCallback : self.D.scan(UpdateCallback)).NaturalEnd:
             
@@ -1716,7 +1788,9 @@ class Gui:
     def ScanDialogShow(self):
         if self.D.ScannedPaths:
             self.PathsToScanFromDialog=self.D.ScannedPaths.copy()
-
+        
+        self.UpdateExcludeMasks()
+        
         self.ScanDialog.deiconify()
         if windows:
             SetDefaultGeometry(self.ScanDialog,self.main)
@@ -1760,15 +1834,61 @@ class Gui:
             self.ClearListButton.focus_set()
         else:
             self.AddPathButton.configure(state=NORMAL,text='Add path ...')
+    
+    def ScanExcludeRegExprCommand(self):
+        self.cfg.Set(CFG_KEY_EXCLUDE_REGEXP,str(self.ScanExcludeRegExpr.get()))
 
+    def UpdateExcludeMasks(self) :
+        for subframe in self.ExcludeFrames:
+            subframe.destroy()
+
+        self.ExcludeFrames=[]
+        self.ExcludeEntryVar={}
+
+        ttk.Checkbutton(self.ExcludeFRame,text='Use regular expressions matching',variable=self.ScanExcludeRegExpr,command=lambda : self.ScanExcludeRegExprCommand()).grid(row=0,column=0,sticky='news',columnspan=3)
+        
+        row=1
+        
+        for entry in self.cfg.Get(CFG_KEY_EXCLUDE,'').split('|'):
+            if entry:
+                (fr:=ttk.Frame(self.ExcludeFRame)).grid(row=row,column=0,sticky='news',columnspan=3)
+                self.ExcludeFrames.append(fr)
+
+                self.ExcludeEntryVar[row]=tk.StringVar(value=entry)
+                ttk.Entry(fr,textvariable=self.ExcludeEntryVar[row]).pack(side='left',expand=1,fill='both',pady=1)
+
+                ttk.Button(fr,text='❌',command=lambda entrypar=entry: self.RemoveExcludeMask(entrypar),width=3).pack(side='right',padx=2,pady=1,fill='y')
+
+                row+=1
+
+    def AddDrives(self):
+        for (device,mountpoint,fstype,opts,maxfile,maxpath) in psutil.disk_partitions():
+            if fstype != 'squashfs':
+                self.addPath(mountpoint)
+        
     def AddPathDialog(self):
         if res:=tk.filedialog.askdirectory(title='select Directory',initialdir=self.cwd,parent=self.ScanDialogMainFrame):
             self.addPath(res)
 
+    def AddExckludeMaskDialog(self):
+        if (mask := self.DialogWithEntryMain(title=f'Specify Exclude Expression',prompt='Expression:', initialvalue='',parent=self.main)):
+            orglist=self.cfg.Get(CFG_KEY_EXCLUDE,'').split('|')
+            orglist.append(mask)
+            self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(orglist))
+            self.UpdateExcludeMasks()
+            
     def RemovePath(self,path) :
         self.PathsToScanFromDialog.remove(path)
         self.UpdatePathsToScan()
-
+    
+    def RemoveExcludeMask(self,mask) :
+        orglist=self.cfg.Get(CFG_KEY_EXCLUDE,'').split('|')
+        orglist.remove(mask)
+        if '' in orglist:
+            orglist.remove('')
+        self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(orglist))
+        self.UpdateExcludeMasks()
+        
     def FocusOut(self,event):
         self.ScandirCache={}
         self.StatCache={}
@@ -1816,12 +1936,10 @@ class Gui:
     def setResultslimit(self):
         self.setConfVar("Results Quantity Limit (0 - 10000)","value:",self.ScanDialog,self.ResultsLimitVar,self.ResultsLimitVar.get(),'resultslimit',lambda x : True if str2bytes(x) and int(x)<10001 and int(x)>0 else False)
 
-    def setPathRegExp(self):
-        pass
-
-    def setFileRegExp(self):
-        pass
-
+    def ClearExcludeMasks(self):
+        self.cfg.Set(CFG_KEY_EXCLUDE,'')
+        self.UpdateExcludeMasks()
+        
     def ClearPaths(self):
         self.PathsToScanFromDialog.clear()
         self.UpdatePathsToScan()
@@ -2220,6 +2338,7 @@ class Gui:
 
     regexp={'file':'.','path':'.','both':'.'}
     regexpDesc={'file':'file','path':'subpath','both':'entire file path'}
+    
     def MarkExpression(self,field,action,ActionLabel):
         tree=self.main.focus_get()
 
@@ -2641,13 +2760,17 @@ class Gui:
 
         if path!=self.PrevPath or pathnr!=self.PrevPathNr:
             self.PrevPath,self.PrevPathNr = path,pathnr
-
+            
             if self.tree1.set(item,'kind')==FILE:
+                self.StatusVarFullPath.set(os.sep.join([self.D.ScannedPaths[int(pathnr)]+path,self.tree1.set(item,'file')]))
                 self.UpdatePathTree(item)
             else:
+                self.StatusVarFullPath.set("")
                 self.UpdatePathTreeNone()
+                
 
     def Tree2SelChange(self,item):
+        self.StatusVarFullPath.set(os.sep.join([self.D.ScannedPaths[int(self.tree2.set(item,'pathnr'))]+self.tree2.set(item,'path'),self.tree2.set(item,'file')]))
         if self.tree2.set(item,'kind')==FILE:
             self.UpdateMainTree(item)
         else:
