@@ -199,6 +199,8 @@ class CORE:
             
         teststring='abc'
         for exclmask in MasksList:
+            if '|' in exclmask:
+                return f"mask:'{exclmask}' - character:'|' not allowed."
             try:
                 self.ExclFn(exclmask,teststring)
             except Exception as e:
@@ -1762,7 +1764,6 @@ class Gui:
         PathsToScanFromEntry = [var.get() for var in self.PathsToScanEntryVar.values()]
         
         ExcludeVarsFromEntry = [var.get() for var in self.ExcludeEntryVar.values()]
-        #[elem for elem in self.cfg.Get(CFG_KEY_EXCLUDE,'').split('|') if elem !='']
         
         if not PathsToScanFromEntry:
             self.DialogWithEntryScan('Error. No paths to scan.','Add paths to scan.',parent=self.ScanDialog,OnlyInfo=True)
@@ -1774,7 +1775,9 @@ class Gui:
         if res:=self.D.SetExcludeMasks(self.cfg.Get(CFG_KEY_EXCLUDE_REGEXP,False) == 'True',ExcludeVarsFromEntry):
             self.Info('Error. Fix Exclude masks.',res,self.ScanDialog)
             return
-            
+        
+        self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(ExcludeVarsFromEntry))
+        
         self.main.update()
         if LongActionDialog(self.ScanDialogMainFrame,'scanning files ...',lambda UpdateCallback : self.D.scan(UpdateCallback)).NaturalEnd:
             
