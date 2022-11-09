@@ -7,7 +7,6 @@ import shutil
 import os
 import os.path
 import pathlib
-#from pathlib import Path
 from appdirs import *
 import re
 
@@ -20,13 +19,9 @@ import time
 
 from tkinter.filedialog import askdirectory
 
-#import datetime
-#from datetime import datetime
-
 import configparser
 
 from threading import Thread
-#import threading
 
 import subprocess
 from subprocess import Popen, PIPE
@@ -255,7 +250,7 @@ class CORE:
                                             SizeSum+=stat.st_size
                                             if not stat.st_size in self.filesOfSize:
                                                 self.filesOfSize[stat.st_size]=set()
-                                            self.filesOfSize[stat.st_size].add( tuple([pathNr,subpath,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino]) )
+                                            self.filesOfSize[stat.st_size].add( (pathNr,subpath,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino) )
                                             
                                 counter+=1
                                 
@@ -282,7 +277,7 @@ class CORE:
         knownDevInodes={}
         for size,data in self.filesOfSize.items():
             for pathnr,path,file,mtime,ctime,dev,inode in data:
-                index=tuple([dev,inode])
+                index=(dev,inode)
                 if index not in knownDevInodes:
                     knownDevInodes[index]=1
                 else:
@@ -292,9 +287,9 @@ class CORE:
 
         for size in list(self.filesOfSize):
             for pathnr,path,file,mtime,ctime,dev,inode in list(self.filesOfSize[size]):
-                index=tuple([dev,inode])
+                index=(dev,inode)
                 if index in self.blacklistedInodes:
-                    thisIndex=tuple([pathnr,path,file,mtime,ctime,dev,inode])
+                    thisIndex=(pathnr,path,file,mtime,ctime,dev,inode)
                     logging.warning('ignoring conflicting inode entry:' + str(thisIndex))
                     self.filesOfSize[size].remove(thisIndex)
 
@@ -336,7 +331,7 @@ class CORE:
                         if crc==None or crc=='None' or crc=='':
                             logging.warning(f"CRCCache read error:{inode},{mtime},{crc}")
                         else:
-                            self.CRCCache[dev][tuple([int(inode),int(mtime)])]=crc
+                            self.CRCCache[dev][(int(inode),int(mtime))]=crc
 
             except Exception as e:
                 logging.warning(e)
@@ -352,7 +347,7 @@ class CORE:
                     
     def SingleCrc(self,size,sizeBytesInfo,sumSizeStr,pathnr,path,file,mtime,ctime,dev,inode,updateCallback):
         FileValid=True
-        CacheKey=tuple([int(inode),int(mtime)])
+        CacheKey=(int(inode),int(mtime))
         self.fileNr+=1
 
         if CacheKey in self.CRCCache[dev]:
@@ -378,7 +373,7 @@ class CORE:
             if crc not in self.filesOfSizeOfCRC[size]:
                 self.filesOfSizeOfCRC[size][crc]=set()
 
-            self.filesOfSizeOfCRC[size][crc].add( tuple([pathnr,path,file,ctime,dev,inode]) )
+            self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
         return keepGoing
             
     def crcCalc(self,writeLog,updateCallback):
@@ -424,7 +419,7 @@ class CORE:
                         if not LimitReached:
                             for crc in self.filesOfSizeOfCRC[size]:
                                  for (pathnr,path,file,ctime,dev,inode) in self.filesOfSizeOfCRC[size][crc]:
-                                    PathsToRecheckSet.add(tuple([pathnr,path]))
+                                    PathsToRecheckSet.add((pathnr,path))
                 else:
                     break
     
@@ -438,7 +433,6 @@ class CORE:
         
         if writeLog:
             self.LogScanResults()
-        
         
     def LogScanResults(self):
         logging.info('#######################################################')
@@ -637,25 +631,6 @@ CRC='C'
 
 VERSION='0.90'
 
-def SetDefaultGeometry(widget,parent=None):
-    if parent:
-        parent.update()
-    widget.update()
-
-    if widget.state() == 'withdrawn':
-        height = widget.winfo_reqwidth()
-        width = widget.winfo_reqheight()
-    else:
-        height = widget.winfo_height()
-        width = widget.winfo_width()
-
-    if parent:
-        geometry='+%d+%d' % (parent.winfo_rootx()+0.5*(parent.winfo_width()-width),parent.winfo_rooty()+0.5*(parent.winfo_height()-height))
-    else:
-        geometry='+%d+%d' % (0.5*(widget.winfo_screenwidth()*0.5-width),0.5*(widget.winfo_screenheight()-height))
-
-    widget.geometry(geometry)
-
 class Config:
     def __init__(self,ConfigDir):
         logging.debug(f'Initializing config: {ConfigDir}')
@@ -772,15 +747,11 @@ class LongActionDialog:
 
         self.LastTimeNoSign=now
 
-        if windows:
-            SetDefaultGeometry(self.dialog,parent)
-
         self.dialog.grab_set()
 
         prevParentCursor=parent.cget('cursor')
         parent.config(cursor="watch")
-        #parent.update()
-      
+        
         ####################
         self.KeepGoing=1
         self.NaturalEnd=1
@@ -829,6 +800,8 @@ class LongActionDialog:
         return self.KeepGoing
 ###########################################################
 
+raw = lambda x : x 
+
 class Gui:
 
     MAX_PATHS=10
@@ -869,9 +842,6 @@ class Gui:
         self.main.minsize(1200, 800)
         self.main.bind('<FocusOut>', self.FocusOut)
 
-        if windows:
-            SetDefaultGeometry(self.main,self.main)
-
         global iconphoto
         iconphoto = PhotoImage(file = os.path.join(os.path.dirname(__file__),'icon.png'))
         self.main.iconphoto(False, iconphoto)
@@ -884,16 +854,12 @@ class Gui:
             self.bg = style.lookup('TFrame', 'background')
             style.theme_use("dummy")
         else:
-            #('winnative', 'clam', 'alt', 'default', 'classic', 'vista', 'xpnative')
-            #style.theme_create("dummy", parent='alt')
             style.theme_use("xpnative")
 
             self.bg = style.lookup('TTButton', 'background')
 
         ttk.Style().configure("TButton", anchor = "center")
 
-        #style.configure('TButton', font=('Helvetica', 11))
-        #style.configure('TButton', borderwidth=2)
         style.map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
         style.map("TButton",  fg=[('disabled',"gray"),('',"black")] )
 
@@ -950,7 +916,6 @@ class Gui:
         tk.Label(UpperStatusFrame,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=12,text='Full file path: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='left')
         tk.Label(UpperStatusFrame,textvariable=self.StatusVarFullPath,relief='flat',borderwidth=2,bg=self.bg,anchor='w').pack(fill='x',expand=1,side='left')
-        #foreground='green'
 
         (LowerStatusFrame := ttk.Frame(FrameBottom)).pack(side='bottom',fill='both')
 
@@ -1017,10 +982,9 @@ class Gui:
         self.OrgLabel['ctimeH']='Change Time'
 
         self.tree1["columns"]=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','ctimeH','kind')
+        
         #pathnr,path,file,ctime,dev,inode
-        self.IndexTupleIndexes={}
-
-        self.IndexTupleIndexes[self.tree1]=tuple([0,1,2,5,6,7])
+        self.IndexTupleIndexesWithFnCommon=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
 
         self.tree1["displaycolumns"]=('path','file','sizeH','instances','ctimeH')
 
@@ -1072,11 +1036,7 @@ class Gui:
         self.tree2=ttk.Treeview(FrameBottom,takefocus=True,selectmode='none')
 
         self.tree2['columns']=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','instancesnum','ctimeH','kind')
-        #pathnr,path,file,ctime,dev,inode
-        self.IndexTupleIndexes[self.tree2]=tuple([0,1,2,5,6,7])
-
-        self.IndexTupleIndexesInt=[0,3,4,5]
-
+        
         self.tree2['displaycolumns']=('file','sizeH','instances','ctimeH')
 
         self.tree2.column('#0', width=120, minwidth=100, stretch=tk.NO)
@@ -1098,7 +1058,6 @@ class Gui:
                 if col in self.OrgLabel:
                     tree.heading(col,text=self.OrgLabel[col])
 
-        #exception
         self.tree2.heading('sizeH', text='Size \u25BC')
 
         vsb2 = tk.Scrollbar(FrameBottom, orient='vertical', command=self.tree2.yview,takefocus=False,bg=self.bg)
@@ -1137,16 +1096,17 @@ class Gui:
         self.tree2.tag_configure(DIR, foreground='blue2')
         self.tree2.tag_configure(LINK, foreground='darkgray')
 
-        self.GeometryRestore(self.main)
+        self.SetDefaultGeometryAndShow(self.main,None)
 
         #######################################################################
         #scan dialog
 
         self.ScanDialog = tk.Toplevel(self.main)
-        self.ScanDialog.wm_transient(self.main)
-        self.ScanDialog.withdraw()
         self.ScanDialog.protocol("WM_DELETE_WINDOW", self.ScanDialogClose)
-        self.ScanDialog.minsize(400, 300)
+        self.ScanDialog.minsize(600, 400)
+        self.ScanDialog.wm_transient(self.main)
+        self.ScanDialog.update()
+        self.ScanDialog.withdraw()
         self.ScanDialog.iconphoto(False, iconphoto)
 
         self.ScanDialogMainFrame = ttk.Frame(self.ScanDialog)
@@ -1190,7 +1150,7 @@ class Gui:
         self.AddPathButton = ttk.Button(self.pathsFrame,width=10,text="Add Path ...",command=self.AddPathDialog,underline=0)
         self.AddPathButton.grid(column=0, row=100,pady=4,padx=4)
         
-        self.AddDrivesButton = ttk.Button(self.pathsFrame,width=10,text="Add Drives",command=self.AddDrives,underline=4)
+        self.AddDrivesButton = ttk.Button(self.pathsFrame,width=10,text="Add drives",command=self.AddDrives,underline=4)
         self.AddDrivesButton.grid(column=1, row=100,pady=4,padx=4)
 
         self.ClearListButton=ttk.Button(self.pathsFrame,width=10,text="Clear List",command=self.ClearPaths )
@@ -1230,10 +1190,11 @@ class Gui:
         #######################################################################
         #Settings Dialog
         self.SetingsDialog = tk.Toplevel(self.main)
-        self.SetingsDialog.wm_transient(self.main)
-        self.SetingsDialog.withdraw()
         self.SetingsDialog.protocol("WM_DELETE_WINDOW", self.SettingsDialogClose)
         self.SetingsDialog.minsize(400, 300)
+        self.SetingsDialog.wm_transient(self.main)
+        self.SetingsDialog.update()
+        self.SetingsDialog.withdraw()
         self.SetingsDialog.iconphoto(False, iconphoto)
 
         self.addCwdAtStartup = tk.BooleanVar()
@@ -1429,14 +1390,8 @@ class Gui:
     def GetIndexTupleTree2(self,item):
         return self.GetIndexTuple(item,self.tree2)
 
-
     def GetIndexTuple(self,item,tree):
-        tempList=[tree.item(item)['values'][index] for index in self.IndexTupleIndexes[tree]]
-
-        for i in self.IndexTupleIndexesInt :
-            tempList[i]=int(tempList[i])
-
-        return tuple(tempList)
+        return tuple([ fn(tree.item(item)['values'][index]) for fn,index in self.IndexTupleIndexesWithFnCommon ])
 
     def exit(self):
         self.GeometryStore(self.main)
@@ -1445,49 +1400,54 @@ class Gui:
         self.StoreSplitter()
         exit()
 
-    def GeometryStore(self,widget,cfgid='default'):
-        if widget.state() != 'withdrawn':
-            self.cfg.Set(cfgid.replace(' ','_'),str(widget.geometry()))
-            self.cfg.Write()
-
-    def GetDefaultGeometry(self,widget,parent=None):
-        x = (widget.winfo_screenwidth() - widget.winfo_reqwidth()) / 2
-        y = (widget.winfo_screenheight() - widget.winfo_reqheight()) / 2
-
+    def WidgetId(self,widget):
+        wid=widget.wm_title()
+        wid=wid.replace(' ','_')
+        wid=wid.replace('!','')
+        wid=wid.replace('?','')
+        wid=wid.replace('(','')
+        wid=wid.replace(')','')
+        wid=wid.replace('.','')
+        wid=wid.replace('_','')
+        return wid
+        
+    def SetDefaultGeometryAndShow(self,widget,parent):
         if parent :
-            if match := re.search('^([0-9]+)x([0-9]+)\+([0-9]+)\+([0-9]+)$',parent.geometry() ):
-                x0 = int(match.group(1))
-                y0 = int(match.group(2))
-                x1 = int(match.group(3))
-                y1 = int(match.group(4))
-
-                x = (x0/2+x1-widget.winfo_reqwidth()/2)
-                y = (y0/2+y1-widget.winfo_reqheight()/2)
-
-        return '+%d+%d' % (x, y)
-
-    def GeometryRestore(self,widget,cfgid='default',parent=None):
-        g=self.cfg.Get(cfgid.replace(' ','_'),self.GetDefaultGeometry(widget,parent))
-        widget.geometry(g)
-    
-    @WatchCursor
-    def DialogWithEntryScan(self,*args,**kwargs):
-        return self.DialogWithEntry(*args,**kwargs)
+            parent.update()
+        widget.update()
         
-    @WatchCursor
-    def DialogWithEntryMain(self,*args,**kwargs):
-        return self.DialogWithEntry(*args,**kwargs)
-        
+        if (geometry:=self.cfg.Get(self.WidgetId(widget),None)) != 'None':
+            widget.geometry(geometry)
+        else:
+            if parent :
+                x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
+                y = int(parent.winfo_rooty()+0.5*(parent.winfo_height()-widget.winfo_height()))
+            else:
+                x = int(0.5*(widget.winfo_screenwidth()-widget.winfo_width()))
+                y = int(0.5*(widget.winfo_screenheight()-widget.winfo_height()))
+                
+            widget.geometry(f'+{x}+{y}')
+            
+        widget.update()
+        widget.deiconify()
+
+    def GeometryStore(self,widget):
+        if widget.state() != 'withdrawn':
+            self.cfg.Set(self.WidgetId(widget),str(widget.geometry()))
+            self.cfg.Write()
+        else:
+            print('WTF ?! GeometryStore',widget,cfgid)
+
     def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False):
-        dialog = tk.Toplevel(parent)
-        dialog.withdraw()
-        dialog.lower()
-        dialog.minsize(400, 140)
-        dialog.wm_title(title)
-
-        dialog.config(bd=2, relief=FLAT,bg=self.bg)
+        parent.config(cursor="watch")
         
+        dialog = tk.Toplevel(parent)
+        dialog.minsize(400, 140)
         dialog.wm_transient(parent)
+        dialog.update()
+        dialog.withdraw()
+        dialog.wm_title(title)
+        dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, iconphoto)
         
         res=set()
@@ -1495,8 +1455,9 @@ class Gui:
         EntryVar=tk.StringVar(value=initialvalue)
 
         def over():
-            self.GeometryStore(dialog,title)
+            self.GeometryStore(dialog)
             dialog.destroy()
+            parent.config(cursor="")
             try:
                 dialog.update()
             except Exception as e:
@@ -1526,7 +1487,7 @@ class Gui:
             else:
                 No()
 
-        (lab:=ttk.Label(dialog,text=prompt,anchor='n',justify='center')).grid(sticky='news',row=0,column=0,padx=5,pady=5)
+        ttk.Label(dialog,text=prompt,anchor='n',justify='center').grid(sticky='news',row=0,column=0,padx=5,pady=5)
         if not OnlyInfo:
             (entry:=ttk.Entry(dialog,textvariable=EntryVar)).grid(sticky='news',row=1,column=0,padx=5,pady=5)
         
@@ -1535,9 +1496,6 @@ class Gui:
         if OnlyInfo:
             ok=default=ttk.Button(bfr, text='OK', width=10 ,command=No )
             ok.pack()
-            
-            #just for focus
-            entry=ok
         else:
             ok=ttk.Button(bfr, text='OK', width=10, command=Yes)
             ok.pack(side='left', anchor='e',padx=5,pady=5)
@@ -1550,17 +1508,16 @@ class Gui:
         dialog.bind('<Escape>', No)
         dialog.bind('<KeyPress-Return>', ReturnPressed)
         
-        dialog.deiconify()
-        
-        #self.GeometryRestore(dialog,title,parent)
-        if windows:
-            SetDefaultGeometry(dialog,parent)
-            
-        entry.focus_set()
-
         PrevGrab = dialog.grab_current() 
+        
+        self.SetDefaultGeometryAndShow(dialog,parent)
+            
+        if OnlyInfo:
+            ok.focus_set()
+        else:
+            entry.focus_set()
+        
         dialog.grab_set()
-        dialog.after_idle(dialog.lift)
         parent.wait_window(dialog)
         
         if PrevGrab:
@@ -1571,22 +1528,23 @@ class Gui:
         return next(iter(res))
         
     def dialog(self,parent,title,message,OnlyInfo=False):
-        dialog = tk.Toplevel(parent)
-        dialog.withdraw()
-        dialog.lower()
-        dialog.minsize(400, 100)
-        dialog.wm_title(title)
-
-        dialog.config(bd=2, relief=FLAT,bg=self.bg)
+        parent.config(cursor="watch")
         
+        dialog = tk.Toplevel(parent)
+        dialog.minsize(400, 100)
         dialog.wm_transient(parent)
+        dialog.update()
+        dialog.withdraw()
+        dialog.wm_title(title)
+        dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, iconphoto)
         
         res=set()
-
+        
         def over():
-            self.GeometryStore(dialog,title)
+            self.GeometryStore(dialog)
             dialog.destroy()
+            parent.config(cursor="")
             try:
                 dialog.update()
             except Exception as e:
@@ -1638,18 +1596,13 @@ class Gui:
 
         dialog.bind('<Escape>', No)
         dialog.bind('<KeyPress-Return>', ReturnPressed)
-
-        dialog.deiconify()
         
-        #self.GeometryRestore(dialog,title,parent)
-        
-        if windows:
-            SetDefaultGeometry(dialog,parent)
-
         PrevGrab = dialog.grab_current() 
+        
+        self.SetDefaultGeometryAndShow(dialog,parent)
+        
         dialog.grab_set()
         default.focus_set()
-        dialog.after_idle(dialog.lift)
         parent.wait_window(dialog)
         
         if PrevGrab:
@@ -1711,7 +1664,6 @@ class Gui:
             pass
 
     def ColumnSort(self, tree, colname, col, reverse, asnumber=0,level2=False):
-        #print('ColumnSort', tree, colname, col, reverse, asnumber,level2)
         prev_colname,prev_col,prev_reverse,prev_asnumber,prev_level2=self.ColumnSortLastParams[tree]
         self.ColumnSortLastParams[tree]=[colname,col,reverse,asnumber,level2]
 
@@ -1749,7 +1701,7 @@ class Gui:
         try:
             resultslimit = int(resultslimitStr)
         except Exception as e:
-            self.DialogWithEntryScan('Error','Results limit wrong format: \'' + resultslimitStr + '\'\n' + e,parent=self.ScanDialog,OnlyInfo=True)
+            self.DialogWithEntry(title='Error',prompt='Results limit wrong format: \'' + resultslimitStr + '\'\n' + e,parent=self.ScanDialog,OnlyInfo=True)
             return
 
         self.cfg.Set('resultslimit',resultslimitStr)
@@ -1766,7 +1718,7 @@ class Gui:
         ExcludeVarsFromEntry = [var.get() for var in self.ExcludeEntryVar.values()]
         
         if not PathsToScanFromEntry:
-            self.DialogWithEntryScan('Error. No paths to scan.','Add paths to scan.',parent=self.ScanDialog,OnlyInfo=True)
+            self.DialogWithEntry(title='Error. No paths to scan.',prompt='Add paths to scan.',parent=self.ScanDialog,OnlyInfo=True)
 
         if res:=self.D.SetPathsToScan(PathsToScanFromEntry):
             self.Info('Error. Fix paths selection.',res,self.ScanDialog)
@@ -1782,7 +1734,7 @@ class Gui:
         if LongActionDialog(self.ScanDialogMainFrame,'scanning files ...',lambda UpdateCallback : self.D.scan(UpdateCallback)).NaturalEnd:
             
             if self.D.sumSize==0:
-                self.DialogWithEntryScan('Cannot Proceed.','No Duplicates.',parent=self.ScanDialog,OnlyInfo=True)
+                self.DialogWithEntry(title='Cannot Proceed.',prompt='No Duplicates.',parent=self.ScanDialog,OnlyInfo=True)
             elif LongActionDialog(self.ScanDialogMainFrame,'crc calculation ...',lambda UpdateCallback : self.D.crcCalc(self.WriteScanToLog.get(),UpdateCallback),'determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:').NaturalEnd:
 
                 self.ShowData()
@@ -1793,19 +1745,18 @@ class Gui:
             self.PathsToScanFromDialog=self.D.ScannedPaths.copy()
         
         self.UpdateExcludeMasks()
-        
-        self.ScanDialog.deiconify()
-        if windows:
-            SetDefaultGeometry(self.ScanDialog,self.main)
+        self.UpdatePathsToScan()
 
         self.ScanDialog.grab_set()
         self.main.config(cursor="watch")
-        self.UpdatePathsToScan()
 
+        self.SetDefaultGeometryAndShow(self.ScanDialog,self.main)
+        
     def ScanDialogClose(self,event=None):
         self.ScanDialog.grab_release()
-        self.ScanDialog.withdraw()
         self.main.config(cursor="")
+        
+        self.ScanDialog.withdraw()
         try:
             self.ScanDialog.update()
         except Exception as e:
@@ -1834,9 +1785,11 @@ class Gui:
 
         if len(self.PathsToScanFromDialog)==self.MAX_PATHS:
             self.AddPathButton.configure(state=DISABLED,text='')
+            self.AddDrivesButton.configure(state=DISABLED,text='')
             self.ClearListButton.focus_set()
         else:
             self.AddPathButton.configure(state=NORMAL,text='Add path ...')
+            self.AddDrivesButton.configure(state=NORMAL,text='Add drives ...')
     
     def ScanExcludeRegExprCommand(self):
         self.cfg.Set(CFG_KEY_EXCLUDE_REGEXP,str(self.ScanExcludeRegExpr.get()))
@@ -1874,7 +1827,7 @@ class Gui:
             self.addPath(res)
 
     def AddExckludeMaskDialog(self):
-        if (mask := self.DialogWithEntryMain(title=f'Specify Exclude Expression',prompt='Expression:', initialvalue='',parent=self.main)):
+        if (mask := self.DialogWithEntry(title=f'Specify Exclude Expression',prompt='Expression:', initialvalue='',parent=self.ScanDialog)):
             orglist=self.cfg.Get(CFG_KEY_EXCLUDE,'').split('|')
             orglist.append(mask)
             self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(orglist))
@@ -1920,7 +1873,7 @@ class Gui:
         self.Info('Keyboard Shortcuts',self.keyboardshortcuts,self.main)
     
     def setConfVar(self,title,prompt,parent,tkvar,initialvalue,configkey,validation):
-        if (res := self.DialogWithEntryScan(title,prompt, initialvalue=initialvalue,parent=parent)):
+        if (res := self.DialogWithEntry(title,prompt, initialvalue=initialvalue,parent=parent)):
             if (validation(res)):
                 tkvar.set(res)
                 self.cfg.Set(configkey,res)
@@ -1949,13 +1902,13 @@ class Gui:
 
     def SettingsDialogShow(self):
         self.preFocus=self.main.focus_get()
-        self.SetingsDialog.deiconify()
-        if windows:
-            SetDefaultGeometry(self.SetingsDialog,self.main)
-
+        
         self.SetingsDialog.grab_set()
+        self.main.config(cursor="watch")
+
+        self.SetDefaultGeometryAndShow(self.SetingsDialog,self.main)
+        
         self.SetingsDialogDefault.focus_set()
-        self.main.wait_window(self.SetingsDialog)
 
     def SettingsDialogClose(self,event=None):
         self.SetingsDialog.grab_release()
@@ -1963,7 +1916,8 @@ class Gui:
             self.preFocus.focus_set()
         else:
             self.main.focus_set()
-
+        
+        self.main.config(cursor="")
         self.SetingsDialog.withdraw()
         try:
             self.SetingsDialog.update()
@@ -2105,9 +2059,8 @@ class Gui:
         self.tree1ItemsUpdate()
 
         self.InitialFocus();
-
+        
         self.ColumnSort(self.tree1,*self.ColumnSortLastParams[self.tree1])
-
 
     def Tree1CrcAndPathUpdate(self):
         fullcrc = self.cfg.Get(CFG_KEY_FULLCRC,False) == 'True'
@@ -2133,7 +2086,7 @@ class Gui:
     StatCache={}
 
     def RedrawPathTree(self,pathnr,path):
-        CacheIndex=tuple([pathnr,path])
+        CacheIndex=(pathnr,path)
         pathnr=int(pathnr)
         pathnrstr=self.D.ScannedPaths[pathnr]
 
@@ -2180,10 +2133,10 @@ class Gui:
 
             elif ShowOthers:
                 if os.path.islink(DirEntry) :
-                    itemsToInsert.append( tuple([ '➝',file,size,0,0,0,'','',1,0,LINK,LINK,istr+'L','' ]) )
+                    itemsToInsert.append( ( '➝',file,size,0,0,0,'','',1,0,LINK,LINK,istr+'L','' ) )
                     i+=1
                 elif DirEntry.is_dir():
-                    itemsToInsert.append( tuple(['⛁',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'L','' ]) )
+                    itemsToInsert.append( ('⛁',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'L','' ) )
                     i+=1
                 elif DirEntry.is_file():
                     if (FullFilePath:=os.path.join(fullpath,file)) not in self.StatCache:
@@ -2195,7 +2148,7 @@ class Gui:
                         self.StatCache[FullFilePath] = tuple([ ctime:=round(stat.st_ctime) , dev:=stat.st_dev , inode:=stat.st_ino , size:=stat.st_size , FILEID:=self.idfunc(inode,dev) ])
                     else:
                         ctime,dev,inode,size,FILEID = self.StatCache[FullFilePath]
-                    itemsToInsert.append( tuple([ '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ]) )
+                    itemsToInsert.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ) )
                     i+=1
                 else:
                     logging.error(file,'what is it ?')
@@ -2254,7 +2207,7 @@ class Gui:
         varSize.set(bytes2str(sum(int(tree.set(item,'size')) for item in marked)))
 
     def MarkInSpecifiedCRCGroupByCTime(self, action, crc, reverse,select=False):
-        item=sorted([tuple([item,self.tree1.set(item,'ctime')]) for item in self.tree1.get_children(crc)],key=lambda x : float(x[1]),reverse=reverse)[0][0]
+        item=sorted([ (item,self.tree1.set(item,'ctime') ) for item in self.tree1.get_children(crc)],key=lambda x : float(x[1]),reverse=reverse)[0][0]
         action(item,self.tree1)
         if select:
             self.tree1.see(item)
@@ -2333,7 +2286,7 @@ class Gui:
                     selCount+=1
 
         if selCount==0 :
-            self.DialogWithEntryMain('No files found for specified path', pathParam,parent=self.main,OnlyInfo=True)
+            self.DialogWithEntry(title='No files found for specified path', prompt=pathParam,parent=self.main,OnlyInfo=True)
         else:
             self.PathTreeUpdateMarks()
             self.CalcMarkStatsAll()
@@ -2356,7 +2309,7 @@ class Gui:
         
         prompt=ActionLabel + (' (regular expression syntax)' if UseRegExpr else ' (symplified syntax)')
         
-        if (regexp := self.DialogWithEntryMain(title=f'Specify Expression for {desc}.',prompt=prompt, initialvalue=initialvalue,parent=self.main)):
+        if (regexp := self.DialogWithEntry(title=f'Specify Expression for {desc}.',prompt=prompt, initialvalue=initialvalue,parent=self.main)):
             self.regexp[field]=regexp
             selCount=0
             if field=='file':
@@ -2368,7 +2321,7 @@ class Gui:
                                 action(item,self.tree1)
                                 selCount+=1
                         except Exception as e:
-                            self.DialogWithEntryMain('Expression Error !','                                                                \n' + str(e),parent=self.main,OnlyInfo=True)
+                            self.DialogWithEntry(title='Expression Error !',prompt='                                                                \n' + str(e),parent=self.main,OnlyInfo=True)
                             tree.focus_set()
                             return
             elif field=='path':
@@ -2380,7 +2333,7 @@ class Gui:
                                 action(item,self.tree1)
                                 selCount+=1
                         except Exception as e:
-                            self.DialogWithEntryMain('Expression Error !','                                                                \n' + str(e),parent=self.main,OnlyInfo=True)
+                            self.DialogWithEntry(title='Expression Error !',prompt='                                                                \n' + str(e),parent=self.main,OnlyInfo=True)
                             tree.focus_set()
                             return
             else:
@@ -2392,13 +2345,13 @@ class Gui:
                                 action(item,self.tree1)
                                 selCount+=1
                         except Exception as e:
-                            self.DialogWithEntryMain('Expression Error !','                                                                \n' + str(e),parent=self.main,OnlyInfo=True)
+                            self.DialogWithEntry(title='Expression Error !',prompt='                                                                \n' + str(e),parent=self.main,OnlyInfo=True)
                             tree.focus_set()
                             return
 
 
             if selCount==0 :
-                self.DialogWithEntryMain('No files found.', '                                                     \n'+regexp,parent=self.main,OnlyInfo=True)
+                self.DialogWithEntry(title='No files found.',prompt='                                                     \n'+regexp,parent=self.main,OnlyInfo=True)
             else:
                 self.PathTreeUpdateMarks()
                 self.CalcMarkStatsAll()
@@ -2460,7 +2413,7 @@ class Gui:
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
                 for pathnr,path,file,ctime,dev,inode in crcDict:
-                    pathindex=tuple([pathnr,path])
+                    pathindex=(pathnr,path)
                     PathStat[pathindex] = PathStat.get(pathindex,0) + (size if sizeFlag else 1)
                     if size>Biggest.get(path,0):
                         Biggest[path]=size
@@ -2551,7 +2504,7 @@ class Gui:
                         ProcessedItems[crc].append(item)
 
         if not ProcessedItems:
-            self.DialogWithEntryMain('No Files Marked For Processing !','            Mark files first.            ',parent=self.main,OnlyInfo=True)
+            self.DialogWithEntry(title='No Files Marked For Processing !',prompt='            Mark files first.            ',parent=self.main,OnlyInfo=True)
             return
 
         logging.info('Scope ' + ScopeTitle)
@@ -2566,7 +2519,7 @@ class Gui:
         if action=="hardlink":
             for crc in ProcessedItems:
                 if len(ProcessedItems[crc])==1:
-                    self.DialogWithEntryMain('Error - Cant hardlink single file.', "                    Mark more files.                    ",parent=self.main,OnlyInfo=True)
+                    self.DialogWithEntry(title='Error - Cant hardlink single file.',prompt="                    Mark more files.                    ",parent=self.main,OnlyInfo=True)
 
                     self.tree1.see(crc)
                     self.tree1.focus(crc)
@@ -2577,7 +2530,7 @@ class Gui:
         elif action in ("delete","softlink"):
             for crc in ProcessedItems:
                 if len(ToKeep[crc])==0:
-                    self.DialogWithEntryMain(f'        Error {action} - All files marked        ', "  Keep at least one file unmarked.  ",parent=self.main,OnlyInfo=True)
+                    self.DialogWithEntry(title=f'        Error {action} - All files marked        ',prompt="  Keep at least one file unmarked.  ",parent=self.main,OnlyInfo=True)
 
                     self.tree1.see(crc)
                     self.tree1.focus(crc)
@@ -2632,7 +2585,7 @@ class Gui:
                     message2=f"Files on multiple devices selected. Crc:{crc}"
                     logging.error(message1)
                     logging.error(message2)
-                    self.DialogWithEntryMain(message1,message2,parent=self.main,OnlyInfo=True)
+                    self.DialogWithEntry(title=message1,prompt=message2,parent=self.main,OnlyInfo=True)
                     return
 
         #####################################
