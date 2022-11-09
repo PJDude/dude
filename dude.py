@@ -1403,21 +1403,22 @@ class Gui:
     def WidgetId(self,widget):
         wid=widget.wm_title()
         wid=wid.replace(' ','_')
-        wid=wid.replace('!','')
-        wid=wid.replace('?','')
-        wid=wid.replace('(','')
-        wid=wid.replace(')','')
-        wid=wid.replace('.','')
-        wid=wid.replace('_','')
-        return wid
+        wid=wid.replace('!','_')
+        wid=wid.replace('?','_')
+        wid=wid.replace('(','_')
+        wid=wid.replace(')','_')
+        wid=wid.replace('.','_')
+        return 'geo_' + wid
         
     def SetDefaultGeometryAndShow(self,widget,parent):
         if parent :
             parent.update()
         widget.update()
         
-        if (geometry:=self.cfg.Get(self.WidgetId(widget),None)) != 'None':
-            widget.geometry(geometry)
+        CfgGeometry=self.cfg.Get(self.WidgetId(widget),None)
+        
+        if CfgGeometry != None and CfgGeometry != 'None':
+            widget.geometry(CfgGeometry)
         else:
             if parent :
                 x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -1432,11 +1433,8 @@ class Gui:
         widget.deiconify()
 
     def GeometryStore(self,widget):
-        if widget.state() != 'withdrawn':
-            self.cfg.Set(self.WidgetId(widget),str(widget.geometry()))
-            self.cfg.Write()
-        else:
-            print('WTF ?! GeometryStore',widget,cfgid)
+        self.cfg.Set(self.WidgetId(widget),str(widget.geometry()))
+        self.cfg.Write()
 
     def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False):
         parent.config(cursor="watch")
@@ -1755,6 +1753,7 @@ class Gui:
     def ScanDialogClose(self,event=None):
         self.ScanDialog.grab_release()
         self.main.config(cursor="")
+        self.GeometryStore(self.ScanDialog)
         
         self.ScanDialog.withdraw()
         try:
@@ -1918,6 +1917,8 @@ class Gui:
             self.main.focus_set()
         
         self.main.config(cursor="")
+        self.GeometryStore(self.SetingsDialog)
+        
         self.SetingsDialog.withdraw()
         try:
             self.SetingsDialog.update()
