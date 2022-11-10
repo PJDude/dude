@@ -146,7 +146,7 @@ class CORE:
         self.GetCrc=self.getStdout2CrcCertuitil if windows else self.CRCStdout2CRC
 
         self.CheckCRC()
-
+        
         self.INIT()
 
     def setLimit(self,limit):
@@ -836,7 +836,28 @@ class Gui:
                 return f(self,*args,**kwargs)
                 
         return wrapp
-        
+    
+    pyperclipOperational=True
+    
+    def CheckClipboard(self):
+        TestString='Dude-TestString'
+        try:
+            PrevVal=pyperclip.paste()
+            pyperclip.copy(TestString)
+        except Exception as e:
+            logging.error(e)
+            self.pyperclipOperational=False
+            logging.error('Clipboard test error. Copy options disabled.')
+        else:            
+            if pyperclip.paste() != TestString:
+                self.pyperclipOperational=False
+                logging.error('Clipboard test error. Copy options disabled.')
+                if not windows :
+                    logging.error('try to install xclip or xsel.')
+            else:
+                pyperclip.copy(PrevVal)
+                logging.info('pyperclip test passed.')
+    
     def __init__(self,cwd):
         self.D = CORE()
         self.cwd=cwd
@@ -848,6 +869,8 @@ class Gui:
         self.ExcludeFrames=[]
 
         self.PathsToScanFromDialog=[]
+        
+        self.CheckClipboard()
 
         ####################################################################
         self.main = tk.Tk()
@@ -964,9 +987,11 @@ class Gui:
         self.main.bind_class('Treeview','<P>',          lambda event : self.MarkLowerPane(self.UnsetMark) )
         self.main.bind_class('Treeview','<Control-j>',  lambda event : self.MarkLowerPane(self.InvertMark) )
         self.main.bind_class('Treeview','<Control-J>',  lambda event : self.MarkLowerPane(self.InvertMark) )
-        self.main.bind_class('Treeview','<Control-c>',  lambda event : self.ClipCopyPath() )
-        self.main.bind_class('Treeview','<Control-C>',  lambda event : self.ClipCopyFile() )
         self.main.bind_class('Treeview','<BackSpace>',  lambda event : self.GoToMaxFolder(1) )
+        
+        if self.pyperclipOperational:
+            self.main.bind_class('Treeview','<Control-c>',  lambda event : self.ClipCopyPath() )
+            self.main.bind_class('Treeview','<Control-C>',  lambda event : self.ClipCopyFile() )
 
         self.main.bind_class('Treeview','<Shift-BackSpace>',            lambda event : self.GoToMaxFolder(0) )
         self.main.bind_class('Treeview','<Control-BackSpace>',          lambda event : self.GoToMaxGroup(1) )
@@ -1313,8 +1338,8 @@ class Gui:
         MainCascade.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3 / Return")
         MainCascade.add_command(label = 'Open Folder',command = self.OpenFolder)
         MainCascade.add_separator()
-        MainCascade.add_command(label = 'Copy File Name To Clipboard',command = self.ClipCopyFile,accelerator="Ctrl+Shift+C")
-        MainCascade.add_command(label = 'Copy Path To Clipboard',command = self.ClipCopyPath,accelerator="Ctrl+C")
+        MainCascade.add_command(label = 'Copy File Name To Clipboard',command = self.ClipCopyFile,accelerator="Ctrl+Shift+C",state = 'normal' if self.pyperclipOperational else 'disabled')
+        MainCascade.add_command(label = 'Copy Path To Clipboard',command = self.ClipCopyPath,accelerator="Ctrl+C",state = 'normal' if self.pyperclipOperational else 'disabled')
         MainCascade.add_separator()
         MainCascade.add_command(label = 'Erase CRC Cache',command = self.CleanCache)
         MainCascade.add_separator()
@@ -2659,15 +2684,21 @@ class Gui:
     def ClipCopyPath(self):
         if tree:=self.main.focus_get():
             if item:=tree.focus():
-                pathnr=int(tree.set(item,'pathnr'))
-                path = tree.set(item,'path')
-                pyperclip.copy(self.D.ScannedPaths[pathnr]+path)
+                if path := tree.set(item,'path'):
+                    pathnr=int(tree.set(item,'pathnr'))
+                    pyperclip.copy(self.D.ScannedPaths[pathnr]+path)
+                else:
+                    crc=tree.set(item,'crc')
+                    pyperclip.copy(crc)
 
     def ClipCopyFile(self):
         if tree:=self.main.focus_get():
             if item:=tree.focus():
-                file=tree.set(item,'file')
-                pyperclip.copy(file)
+                if file:=tree.set(item,'file'):
+                    pyperclip.copy(file)
+                else:
+                    crc=tree.set(item,'crc')
+                    pyperclip.copy(crc)
 
     def OpenFolder(self):
         if tree:=self.main.focus_get():
