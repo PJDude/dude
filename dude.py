@@ -670,6 +670,18 @@ class Config:
             self.Set(key,str(default))
         return res
 
+def CenterToParentGeometry(widget,parent):
+    x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
+    y = int(parent.winfo_rooty()+0.5*(parent.winfo_height()-widget.winfo_height()))
+            
+    return f'+{x}+{y}'
+    
+def CenterToScreenGeometry(widget):
+    x = int(0.5*(widget.winfo_screenwidth()-widget.winfo_width()))
+    y = int(0.5*(widget.winfo_screenheight()-widget.winfo_height()))
+            
+    return f'+{x}+{y}'
+
 ###########################################################
 class LongActionDialog:
     progressSigns='◐◓◑◒'
@@ -748,6 +760,8 @@ class LongActionDialog:
         self.LastTimeNoSign=now
 
         self.dialog.grab_set()
+        self.dialog.update()
+        self.dialog.geometry(CenterToParentGeometry(self.dialog,parent))
 
         prevParentCursor=parent.cget('cursor')
         parent.config(cursor="watch")
@@ -1409,7 +1423,7 @@ class Gui:
         wid=wid.replace(')','_')
         wid=wid.replace('.','_')
         return 'geo_' + wid
-        
+    
     def SetDefaultGeometryAndShow(self,widget,parent):
         if parent :
             parent.update()
@@ -1419,15 +1433,10 @@ class Gui:
         
         if CfgGeometry != None and CfgGeometry != 'None':
             widget.geometry(CfgGeometry)
+        elif parent :
+            widget.geometry(CenterToParentGeometry(widget,parent))
         else:
-            if parent :
-                x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
-                y = int(parent.winfo_rooty()+0.5*(parent.winfo_height()-widget.winfo_height()))
-            else:
-                x = int(0.5*(widget.winfo_screenwidth()-widget.winfo_width()))
-                y = int(0.5*(widget.winfo_screenheight()-widget.winfo_height()))
-                
-            widget.geometry(f'+{x}+{y}')
+            widget.geometry(CenterToScreenGeometry(widget))
             
         widget.update()
         widget.deiconify()
@@ -1525,11 +1534,11 @@ class Gui:
 
         return next(iter(res))
         
-    def dialog(self,parent,title,message,OnlyInfo=False):
+    def dialog(self,parent,title,message,OnlyInfo=False,width=800,height=400):
         parent.config(cursor="watch")
         
         dialog = tk.Toplevel(parent)
-        dialog.minsize(400, 100)
+        dialog.minsize(width,height)
         dialog.wm_transient(parent)
         dialog.update()
         dialog.withdraw()
@@ -1570,7 +1579,7 @@ class Gui:
             else:
                 Yes()
                 
-        st=scrolledtext.ScrolledText(dialog,relief='groove', bd=2,bg=self.bg)
+        st=scrolledtext.ScrolledText(dialog,relief='groove', bd=2,bg=self.bg,width = 256 )
         st.frame.config(bg=self.bg,takefocus=False)
         st.vbar.config(bg=self.bg,takefocus=False)
 
@@ -1610,11 +1619,11 @@ class Gui:
 
         return next(iter(res))
 
-    def Ask(self,title,message,top):
-        return self.dialog(top,title,message,False)
+    def Ask(self,title,message,top,width=1000,height=400):
+        return self.dialog(top,title,message,False,width=width,height=height)
 
-    def Info(self,title,message,top):
-        return self.dialog(top,title,message,True)
+    def Info(self,title,message,top,width=400,height=200):
+        return self.dialog(top,title,message,True,width=width,height=height)
 
     def ToggleSelectedTag(self,tree, *items):
         for item in items:
