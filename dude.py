@@ -207,8 +207,10 @@ class CORE:
     def scan(self,updateCallback):
         logging.info('')
         logging.info('SCANNING')
-        logging.info('ExcludeList:' + ' '.join(self.ExcludeList))
         
+        if self.ExcludeList:
+            logging.info('ExcludeList:' + ' '.join(self.ExcludeList))
+
         pathNr=0
         counter=0
         SizeSum=0
@@ -1559,7 +1561,7 @@ class Gui:
 
         return next(iter(res))
         
-    def dialog(self,parent,title,message,OnlyInfo=False,width=800,height=400):
+    def dialog(self,parent,title,message,OnlyInfo=False,textwidth=128,width=800,height=400):
         parent.config(cursor="watch")
         
         dialog = tk.Toplevel(parent)
@@ -1604,7 +1606,7 @@ class Gui:
             else:
                 Yes()
                 
-        st=scrolledtext.ScrolledText(dialog,relief='groove', bd=2,bg=self.bg,width = 256 )
+        st=scrolledtext.ScrolledText(dialog,relief='groove', bd=2,bg=self.bg,width = textwidth )
         st.frame.config(bg=self.bg,takefocus=False)
         st.vbar.config(bg=self.bg,takefocus=False)
 
@@ -1647,8 +1649,8 @@ class Gui:
     def Ask(self,title,message,top,width=1000,height=400):
         return self.dialog(top,title,message,False,width=width,height=height)
 
-    def Info(self,title,message,top,width=400,height=200):
-        return self.dialog(top,title,message,True,width=width,height=height)
+    def Info(self,title,message,top,textwidth=128,width=400,height=200):
+        return self.dialog(top,title,message,True,textwidth=textwidth,width=width,height=height)
 
     def ToggleSelectedTag(self,tree, *items):
         for item in items:
@@ -1883,7 +1885,7 @@ class Gui:
         self.StatCache={}
 
     def License(self):
-        self.Info('License',self.license,self.main)
+        self.Info('License',self.license,self.main,textwidth=81,width=600)
 
     def About(self):
         info=[]
@@ -1900,10 +1902,10 @@ class Gui:
         info.append('SETTINGS DIRECTORY :  '+CONFIG_DIR)
         info.append('MESSAGE_LEVEL      :  '+ (MESSAGE_LEVEL if MESSAGE_LEVEL else 'INFO(Default)') )
 
-        self.Info('About DUDE','\n'.join(info),self.main)
+        self.Info('About DUDE','\n'.join(info),self.main,textwidth=81,width=600)
 
     def KeyboardShortcuts(self):
-        self.Info('Keyboard Shortcuts',self.keyboardshortcuts,self.main)
+        self.Info('Keyboard Shortcuts',self.keyboardshortcuts,self.main,textwidth=81,width=600)
     
     def setConfVar(self,title,prompt,parent,tkvar,initialvalue,configkey,validation):
         if (res := self.DialogWithEntry(title,prompt, initialvalue=initialvalue,parent=parent)):
@@ -2293,12 +2295,15 @@ class Gui:
         self.CalcMarkStatsPath()
 
     def MarkPathOfFile(self,action):
+        print('MarkPathOfFile')
         if item:=self.tree1.focus():
-            pathnr=int(self.tree1.set(item,'pathnr'))
-            path=self.tree1.set(item,'path')
+            print(item)
+            if pathnrStr:=self.tree1.set(item,'pathnr'):
+                pathnr=int(pathnrStr)
+                path=self.tree1.set(item,'path')
 
-            if pathnr and path:
-                self.ActionOnSpecifiedPath(self.D.ScannedPaths[pathnr]+path,action)
+                if pathnr and path:
+                    self.ActionOnSpecifiedPath(self.D.ScannedPaths[pathnr]+path,action)
 
     def SetMark(self,item,tree):
         tree.item(item,tags=[MARK])
@@ -2741,15 +2746,16 @@ class Gui:
         tree=event.widget
         tree.focus_set()
         item=tree.identify('item',event.x,event.y)
+        
+        if item:
+            if tree.identify("region", event.x, event.y) != 'heading':
+                if toggle:
+                    self.ToggleSelectedTag(tree,item)
 
-        if tree.identify("region", event.x, event.y) != 'heading':
-            if toggle:
-                self.ToggleSelectedTag(tree,item)
-
-            if tree==self.tree1:
-                self.Tree1SelChange(item)
-            else:
-                self.Tree2SelChange(item)
+                if tree==self.tree1:
+                    self.Tree1SelChange(item)
+                else:
+                    self.Tree2SelChange(item)
 
     def Tree1SelChange(self,item):
         pathnr=self.tree1.set(item,'pathnr')
