@@ -822,6 +822,13 @@ class Gui:
 
     MAX_PATHS=10
 
+    SelPathnr=None
+    SelPath=None
+    SelFile=None
+    SelCrc=None
+    
+    pyperclipOperational=True
+    
     def WatchCursor(f):
         def wrapp(self,*args,**kwargs):
             if 'parent' in kwargs.keys():
@@ -838,8 +845,6 @@ class Gui:
                 return f(self,*args,**kwargs)
                 
         return wrapp
-    
-    pyperclipOperational=True
     
     def CheckClipboard(self):
         TestString='Dude-TestString'
@@ -977,7 +982,7 @@ class Gui:
         self.main.unbind_class('Treeview', '<KeyPress-Left>')
         self.main.unbind_class('Treeview', '<KeyPress-Right>')
         self.main.unbind_class('Treeview', '<Double-Button-1>')
-
+        
         self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
         self.main.bind_class('Treeview','<Control-i>',  lambda event : self.MarkOnAll(self.InvertMark) )
         self.main.bind_class('Treeview','<Control-I>',  lambda event : self.MarkOnAll(self.InvertMark) )
@@ -990,6 +995,10 @@ class Gui:
         self.main.bind_class('Treeview','<Control-j>',  lambda event : self.MarkLowerPane(self.InvertMark) )
         self.main.bind_class('Treeview','<Control-J>',  lambda event : self.MarkLowerPane(self.InvertMark) )
         self.main.bind_class('Treeview','<BackSpace>',  lambda event : self.GoToMaxFolder(1) )
+        self.main.bind_class('Treeview','<FocusIn>',    self.TreeEventFocusIn )
+        self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOout )
+        self.main.bind_class('Treeview','<ButtonPress-1>',          self.TreeButtonPress)
+        self.main.bind_class('Treeview','<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
         
         if self.pyperclipOperational:
             self.main.bind_class('Treeview','<Control-c>',  lambda event : self.ClipCopyPath() )
@@ -1049,13 +1058,11 @@ class Gui:
         vsb1.pack(side='right',fill='y',expand=0)
         self.tree1.pack(fill='both',expand=1, side='left')
 
-        self.tree1.bind('<ButtonPress-1>',          self.TreeButtonPress)
-        self.tree1.bind('<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
+        
 
         self.tree1.bind('<KeyRelease>',             self.Tree1KeyRelease )
         self.tree1.bind('<Double-Button-1>',        self.TreeEventOpenFile)
-        self.tree1.bind('<FocusIn>',                self.TreeEventFocusIn )
-
+        
         self.tree1.bind('<Control-a>', lambda event : self.MarkOnAll(self.SetMark) )
         self.tree1.bind('<Control-A>', lambda event : self.MarkOnAll(self.SetMark) )
         self.tree1.bind('<Control-n>', lambda event : self.MarkOnAll(self.UnsetMark) )
@@ -1107,13 +1114,9 @@ class Gui:
         vsb2.pack(side='right',fill='y',expand=0)
         self.tree2.pack(fill='both',expand=1,side='left')
 
-        self.tree2.bind('<ButtonPress-1>',          self.TreeButtonPress )
-        self.tree2.bind('<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
-
         self.tree2.bind('<KeyRelease>',             self.Tree2KeyRelease )
         self.tree2.bind('<Double-Button-1>',        self.TreeEventOpenFile)
-        self.tree2.bind('<FocusIn>',                self.TreeEventFocusIn )
-
+        
         self.tree2.bind('<a>', lambda event : self.MarkLowerPane(self.SetMark) )
         self.tree2.bind('<A>', lambda event : self.MarkLowerPane(self.SetMark) )
         self.tree2.bind('<n>', lambda event : self.MarkLowerPane(self.UnsetMark) )
@@ -1663,10 +1666,7 @@ class Gui:
 
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
-
-    PrevPathNr=''
-    PrevPath=''
-
+    
     def KeyPressGlobal(self,event):
         if event.keysym=='F1':
             self.KeyboardShortcuts()
@@ -1674,7 +1674,61 @@ class Gui:
             self.SettingsDialogShow()
         elif event.keysym in ('s','S') :
             self.ScanDialogShow()
+    
+    def TreeEventFocusIn(self,event):
+        tree=event.widget
+        
+        item=tree.focus()
+        if not item:
+            item=tree.selection()
+        
+        tree.selection_remove(tree.selection())
 
+        if item:
+            if tree==self.tree1:
+                self.Tree1SelChange(item,True)
+            else:
+                self.Tree2SelChange(item)
+                
+            tree.see(item)
+            tree.focus(item)
+            tree.update()
+
+        if len(self.tree2.get_children())==0:
+            self.tree1.focus_set()
+            
+    def TreeFocusOout(self,event):
+        tree=event.widget
+        tree.selection_set(tree.focus())
+    
+    def TreeButtonPress(self,event,toggle=False):
+        tree=event.widget
+        tree.selection_remove(tree.selection())
+        
+        item=tree.identify('item',event.x,event.y)
+        
+        if item:
+            tree.focus(item)
+            
+        if self.main.focus_get()!=tree:
+            self.main.focus_set()
+            tree.focus_set()
+            SelChangeDone=True
+        else:
+            SelChangeDone=False
+        
+        if item:
+            if tree.identify("region", event.x, event.y) != 'heading':
+                
+                if not SelChangeDone:
+                    if tree==self.tree1:
+                        self.Tree1SelChange(item)
+                    else:
+                        self.Tree2SelChange(item)
+                
+                if toggle:
+                    self.ToggleSelectedTag(tree,item)
+                    
     def KeyPressTreeCommon(self,event):
         if event.keysym in ("Up",'Down') :
             return
@@ -1885,7 +1939,7 @@ class Gui:
         self.StatCache={}
 
     def License(self):
-        self.Info('License',self.license,self.main,textwidth=81,width=600)
+        self.Info('License',self.license,self.main,textwidth=80,width=600)
 
     def About(self):
         info=[]
@@ -1902,10 +1956,10 @@ class Gui:
         info.append('SETTINGS DIRECTORY :  '+CONFIG_DIR)
         info.append('MESSAGE_LEVEL      :  '+ (MESSAGE_LEVEL if MESSAGE_LEVEL else 'INFO(Default)') )
 
-        self.Info('About DUDE','\n'.join(info),self.main,textwidth=81,width=600)
+        self.Info('About DUDE','\n'.join(info),self.main,textwidth=80,width=600)
 
     def KeyboardShortcuts(self):
-        self.Info('Keyboard Shortcuts',self.keyboardshortcuts,self.main,textwidth=81,width=600)
+        self.Info('Keyboard Shortcuts',self.keyboardshortcuts,self.main,textwidth=80,width=600)
     
     def setConfVar(self,title,prompt,parent,tkvar,initialvalue,configkey,validation):
         if (res := self.DialogWithEntry(title,prompt, initialvalue=initialvalue,parent=parent)):
@@ -2122,20 +2176,21 @@ class Gui:
     ScandirCache={}
     StatCache={}
 
-    def RedrawPathTree(self,pathnr,path):
+    def RedrawPathTree(self):
+        pathnr=self.SelPathnr
+        path=self.SelPath
+        
         CacheIndex=(pathnr,path)
         pathnr=int(pathnr)
-        pathnrstr=self.D.ScannedPaths[pathnr]
+        
+        #pathnrstr=self.D.ScannedPaths[pathnr]
 
         fullpaths = self.cfg.Get(CFG_KEY_FULLPATHS,False) == 'True'
-
-        self.SelectedSearchPathCode.set(nums[pathnr])
-        self.SelectedSearchPath.set(pathnrstr)
 
         fullcrc = self.cfg.Get(CFG_KEY_FULLCRC,False) == 'True'
         ShowOthers = self.cfg.Get(CFG_KEY_SHOW_OTHERS,'False') == 'True'
 
-        fullpath=pathnrstr+path
+        fullpath=self.SelSearchPath+path
 
         if CacheIndex not in self.ScandirCache:
             try:
@@ -2222,10 +2277,10 @@ class Gui:
                 self.tree2.item( item,tags=self.tree1.item(item)['tags'] )
 
     def UpdatePathTree(self,item):
-        pathnr_par=self.tree1.set(item,'pathnr')
-        path_par=self.tree1.set(item,'path')
+        #pathnr_par=self.tree1.set(item,'pathnr')
+        #path_par=self.tree1.set(item,'path')
 
-        self.RedrawPathTree(pathnr_par,path_par)
+        self.RedrawPathTree()
 
         self.tree2.selection_set(item)
         self.tree2.see(item)
@@ -2295,15 +2350,8 @@ class Gui:
         self.CalcMarkStatsPath()
 
     def MarkPathOfFile(self,action):
-        print('MarkPathOfFile')
-        if item:=self.tree1.focus():
-            print(item)
-            if pathnrStr:=self.tree1.set(item,'pathnr'):
-                pathnr=int(pathnrStr)
-                path=self.tree1.set(item,'path')
-
-                if pathnr and path:
-                    self.ActionOnSpecifiedPath(self.D.ScannedPaths[pathnr]+path,action)
+        if self.SelSearchPath and self.SelPath:
+            self.ActionOnSpecifiedPath(self.SelSearchPath+self.SelPath,action)
 
     def SetMark(self,item,tree):
         tree.item(item,tags=[MARK])
@@ -2709,9 +2757,9 @@ class Gui:
         if tree:=self.main.focus_get():
             if item:=tree.focus():
                 pathnr=int(tree.set(item,'pathnr'))
-                pathnrstr=self.D.ScannedPaths[pathnr]
+                #pathnrstr=self.D.ScannedPaths[pathnr]
                 path = tree.set(item,'path')
-                os.system("xdg-open " + '"' + pathnrstr + path + '"')
+                os.system("xdg-open " + '"' + self.SelSearchPath + path + '"')
 
     def TreeEventOpenFile(self,event=None):
         if event :
@@ -2732,65 +2780,65 @@ class Gui:
 
             if kind!=CRC:
                 pathnr=int(tree.set(item,'pathnr'))
-                pathnrstr=self.D.ScannedPaths[pathnr]
+                #pathnrstr=self.D.ScannedPaths[pathnr]
                 path=tree.set(item,'path')
                 file=tree.set(item,'file')
 
                 if kind==FILE or kind==LINK or kind==SINGLE:
-                    os.system("xdg-open "+ '"' + os.sep.join([pathnrstr+path,file]) + '"')
+                    os.system("xdg-open "+ '"' + os.sep.join([self.SelSearchPath+path,file]) + '"')
                     #os.startfile()
                 elif kind==DIR:
-                    os.system("xdg-open " + '"' + pathnrstr + path + '"')
+                    os.system("xdg-open " + '"' + self.SelSearchPath + path + '"')
 
-    def TreeButtonPress(self,event,toggle=False):
-        tree=event.widget
-        tree.focus_set()
-        item=tree.identify('item',event.x,event.y)
+    def SetCommonVar(self,val=None):
+        self.StatusVarFullPath.set(os.sep.join([self.SelSearchPath+self.SelPath,self.SelFile]))
         
-        if item:
-            if tree.identify("region", event.x, event.y) != 'heading':
-                if toggle:
-                    self.ToggleSelectedTag(tree,item)
-
-                if tree==self.tree1:
-                    self.Tree1SelChange(item)
-                else:
-                    self.Tree2SelChange(item)
-
-    def Tree1SelChange(self,item):
+    def Tree1SelChange(self,item,force=False):
         pathnr=self.tree1.set(item,'pathnr')
         path=self.tree1.set(item,'path')
+        
+        self.SelFile = self.tree1.set(item,'file')
+        self.SelCrc = self.tree1.set(item,'crc')
 
-        if path!=self.PrevPath or pathnr!=self.PrevPathNr:
-            self.PrevPath,self.PrevPathNr = path,pathnr
+        if path!=self.SelPath or pathnr!=self.SelPathnr or force:
+            self.SelPathnr = pathnr
             
-            if self.tree1.set(item,'kind')==FILE:
-                self.StatusVarFullPath.set(os.sep.join([self.D.ScannedPaths[int(pathnr)]+path,self.tree1.set(item,'file')]))
+            if pathnr: #non crc node
+                pathnrInt= int(pathnr) 
+                self.SelSearchPath = self.D.ScannedPaths[pathnrInt]
+                self.SelectedSearchPathCode.set(nums[pathnrInt])
+                self.SelectedSearchPath.set(self.SelSearchPath)
+                self.SelPath = path
+            else :
+                pathnrInt= None
+                self.SelSearchPath = None
+                self.SelectedSearchPathCode.set(None)
+                self.SelectedSearchPath.set(None)
+                self.SelPath = None
+        
+            UpdateTree2=True
+        else:
+            UpdateTree2=False
+            
+        if self.tree1.set(item,'kind')==FILE:
+            self.SetCommonVar()
+            if UpdateTree2 :
                 self.UpdatePathTree(item)
-            else:
-                self.StatusVarFullPath.set("")
+        else:
+            self.StatusVarFullPath.set("")
+            if UpdateTree2 :
                 self.UpdatePathTreeNone()
-                
+            
 
     def Tree2SelChange(self,item):
-        self.StatusVarFullPath.set(os.sep.join([self.D.ScannedPaths[int(self.tree2.set(item,'pathnr'))]+self.tree2.set(item,'path'),self.tree2.set(item,'file')]))
+        self.SelCrc = self.tree2.set(item,'crc')
+        self.SelFile = self.tree2.set(item,'file')
+        self.SetCommonVar()
+        
         if self.tree2.set(item,'kind')==FILE:
             self.UpdateMainTree(item)
         else:
             self.UpdateMainTreeNone()
-
-    def TreeEventFocusIn(self,event):
-        tree=event.widget
-        item=tree.selection()
-        tree.selection_remove(item)
-
-        if item:
-            tree.see(item)
-            tree.focus(item)
-            tree.update()
-
-        if len(self.tree2.get_children())==0:
-            self.tree1.focus_set()
 
     def Tree1KeyRelease(self,event):
         item=self.tree1.focus()
