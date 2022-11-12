@@ -1048,19 +1048,38 @@ class Gui:
         self.tree1.column('ctimeH', width=150, minwidth=100, stretch=tk.NO)
 
         self.tree1.heading('#0',text='CRC / Scan Path',anchor=tk.W)
-        self.tree1.heading('path',anchor=tk.W,command=lambda : self.ColumnSort(self.tree1, 'path', 'path', False,False,True) )
-        self.tree1.heading('file',anchor=tk.W,command=lambda : self.ColumnSort(self.tree1, 'file','file', False,False,True) )
-        self.tree1.heading('sizeH',anchor=tk.W,command=lambda : self.ColumnSort(self.tree1,'sizeH', 'size', False,True,True))
-        self.tree1.heading('ctimeH',anchor=tk.W,command=lambda : self.ColumnSort(self.tree1, 'ctimeH','ctime', False,True,True))
-        self.tree1.heading('instances',anchor=tk.W,command=lambda : self.ColumnSort(self.tree1, 'instances', 'instances', False,True,False))
+        self.tree1.heading('path',anchor=tk.W )
+        self.tree1.heading('file',anchor=tk.W )
+        self.tree1.heading('sizeH',anchor=tk.W)
+        self.tree1.heading('ctimeH',anchor=tk.W)
+        self.tree1.heading('instances',anchor=tk.W)
+        
+        self.col2sortOf={}
+        self.col2sortOf['path'] = 'path'
+        self.col2sortOf['file'] = 'file'
+        self.col2sortOf['sizeH'] = 'size'
+        self.col2sortOf['ctimeH'] = 'ctime'
+        self.col2sortOf['instances'] = 'instances'
+        
+        self.col2sortNumeric={}
+        self.col2sortNumeric['path'] = False
+        self.col2sortNumeric['file'] = False
+        self.col2sortNumeric['sizeH'] = True
+        self.col2sortNumeric['ctimeH'] = True
+        self.col2sortNumeric['instances'] = True
+
+        self.col2sortLev2={}
+        self.col2sortLev2['path'] = True
+        self.col2sortLev2['file'] = True
+        self.col2sortLev2['sizeH'] = True
+        self.col2sortLev2['ctimeH'] = True
+        self.col2sortLev2['instances'] = False
 
         vsb1 = tk.Scrollbar(FrameTop, orient='vertical', command=self.tree1.yview,takefocus=False,bg=self.bg)
         self.tree1.configure(yscrollcommand=vsb1.set)
 
         vsb1.pack(side='right',fill='y',expand=0)
         self.tree1.pack(fill='both',expand=1, side='left')
-
-        
 
         self.tree1.bind('<KeyRelease>',             self.Tree1KeyRelease )
         self.tree1.bind('<Double-Button-1>',        self.TreeEventOpenFile)
@@ -1101,11 +1120,11 @@ class Gui:
 
         self.tree2.heading('#0',text='CRC',anchor=tk.W)
         self.tree2.heading('path',anchor=tk.W)
-        self.tree2.heading('file',anchor=tk.W,command=lambda : self.ColumnSort(self.tree2, 'file', 'file', False))
-        self.tree2.heading('sizeH',anchor=tk.W,command=lambda : self.ColumnSort(self.tree2, 'sizeH', 'size', False, 1))
-        self.tree2.heading('ctimeH',anchor=tk.W,command=lambda : self.ColumnSort(self.tree2, 'ctimeH', 'ctime', False,1))
-        self.tree2.heading('instances',anchor=tk.W,command=lambda : self.ColumnSort(self.tree2, 'instances', 'instancesnum', False,1))
-
+        self.tree2.heading('file',anchor=tk.W)
+        self.tree2.heading('sizeH',anchor=tk.W)
+        self.tree2.heading('ctimeH',anchor=tk.W)
+        self.tree2.heading('instances',anchor=tk.W)
+        
         for tree in [self.tree1,self.tree2]:
             for col in tree["displaycolumns"]:
                 if col in self.OrgLabel:
@@ -1286,7 +1305,7 @@ class Gui:
         self.StartScanCB=ttk.Checkbutton(fr, text = 'Start scanning at startup', variable=self.scanAtStartup,command=lambda : ScanAtStartupChange(self)                              )
         self.StartScanCB.grid(row=row,column=0,sticky='wens') ; row+=1
 
-        ttk.Checkbutton(fr, text = 'Show other files on directory tree', variable=self.showothers               ).grid(row=row,column=0,sticky='wens') ; row+=1
+        ttk.Checkbutton(fr, text = 'Show non-duplicate items on directory panel', variable=self.showothers               ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.fullCRC                                       ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.fullPaths                                   ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.relSymlinks                  ).grid(row=row,column=0,sticky='wens') ; row+=1
@@ -1429,8 +1448,8 @@ class Gui:
             self.ScanDialogMainFrame.after(0, self.Scan)
 
         self.ColumnSortLastParams={}
-        self.ColumnSortLastParams[self.tree1]=['sizeH','size',1,1,False]
-        self.ColumnSortLastParams[self.tree2]=['sizeH','size',1,1,True]
+        self.ColumnSortLastParams[self.tree1]=['sizeH',1]
+        self.ColumnSortLastParams[self.tree2]=['sizeH',1]
 
         self.ShowData()
         self.main.mainloop()
@@ -1823,13 +1842,7 @@ class Gui:
 
     def TreeButtonPress(self,event,toggle=False):
         tree=event.widget
-        tree.selection_remove(tree.selection())
         
-        item=tree.identify('item',event.x,event.y)
-        
-        if item:
-            tree.focus(item)
-            
         if self.main.focus_get()!=tree:
             self.main.focus_set()
             tree.focus_set()
@@ -1837,18 +1850,28 @@ class Gui:
         else:
             SelChangeDone=False
         
-        if item:
-            if tree.identify("region", event.x, event.y) != 'heading':
-                
-                if not SelChangeDone:
-                    if tree==self.tree1:
-                        self.Tree1SelChange(item)
-                    else:
-                        self.Tree2SelChange(item)
-                
-                if toggle:
-                    self.ToggleSelectedTag(tree,item)
-                    
+        if tree.identify("region", event.x, event.y) == 'heading':
+            colname=tree.column(tree.identify_column(event.x),'id')
+            
+            if colname in self.col2sortOf:
+                if tree==self.tree1:
+                    self.ColumnSort(self.tree1,colname)
+                else:
+                    self.ColumnSort(self.tree2,colname)
+            
+        elif item:=tree.identify('item',event.x,event.y):
+            tree.selection_remove(tree.selection())
+            
+            tree.focus(item)
+            if not SelChangeDone:
+                if tree==self.tree1:
+                    self.Tree1SelChange(item)
+                else:
+                    self.Tree2SelChange(item)
+            
+            if toggle:
+                self.ToggleSelectedTag(tree,item)
+
     def KeyPressTreeCommon(self,event):
         if event.keysym in ("Up",'Down') :
             return
@@ -1871,30 +1894,34 @@ class Gui:
             #print(event.keysym)
             pass
 
-    def ColumnSort(self, tree, colname, col, reverse, asnumber=0,level2=False):
-        prev_colname,prev_col,prev_reverse,prev_asnumber,prev_level2=self.ColumnSortLastParams[tree]
-        self.ColumnSortLastParams[tree]=[colname,col,reverse,asnumber,level2]
+    def ColumnSort(self, tree, colname):
+        prev_colname,prev_reverse=self.ColumnSortLastParams[tree]
+        tree.heading(prev_colname, text=self.OrgLabel[prev_colname])
+        
+        reverse = not prev_reverse
+        
+        self.ColumnSortLastParams[tree]=[colname,reverse]
 
-        l = [(tree.set(item,col), item) for item in tree.get_children('')]
-        l.sort(reverse=reverse,key=lambda x: (float(x[0]) if x[0].isdigit() else 0) if asnumber else x[0])
+        RealSortColumn=self.col2sortOf[colname]
+        
+        DIR0,DIR1 = (1,0) if reverse else (0,1)
+        
+        l = [((DIR0 if tree.set(item,'kind')==DIR else DIR1,tree.set(item,RealSortColumn)), item) for item in tree.get_children('')]
+        l.sort(reverse=reverse,key=lambda x: ( (x[0][0],float(x[0][1])) if x[0][1].isdigit() else (x[0][0],0) ) if self.col2sortNumeric[colname] else x[0])
 
-        for index, (val,k) in enumerate(l):
-            tree.move(k, '', index)
+        {tree.move(item, '', index) for index, (val,item) in enumerate(l)}
 
-        if level2:
+        if self.col2sortLev2[colname]:
             for topItem in tree.get_children():
-                l = [(tree.set(item,col), item) for item in tree.get_children(topItem)]
-                l.sort(reverse=reverse,key=lambda x: (float(x[0]) if x[0].isdigit() else 0) if asnumber else x[0])
+                l = [(tree.set(item,RealSortColumn), item) for item in tree.get_children(topItem)]
+                l.sort(reverse=reverse,key=lambda x: (float(x[0]) if x[0].isdigit() else 0) if self.col2sortNumeric[colname] else x[0])
 
-                for index, (val,item) in enumerate(l):
-                    tree.move(item, topItem, index)
+                {tree.move(item, topItem, index) for index, (val,item) in enumerate(l)}
 
         tree.see(tree.focus() if tree.focus() else tree.selection())
         tree.update()
 
-        # reverse sort next time + indicator
-        tree.heading(prev_colname, text=self.OrgLabel[prev_colname])
-        tree.heading(colname, command=lambda : self.ColumnSort(tree, colname, col, not reverse,asnumber,level2 ), text=self.OrgLabel[colname] + ' ' + str(u'\u25BC' if reverse else u'\u25B2') )
+        tree.heading(colname, text=self.OrgLabel[colname] + ' ' + str(u'\u25BC' if reverse else u'\u25B2') )
 
     def addPath(self,path):
         if len(self.PathsToScanFromDialog)<10:
@@ -2170,7 +2197,7 @@ class Gui:
             self.Tree1CrcAndPathUpdate()
         
         if update2:
-            if self.SelItem and self.SelFullPath:
+            if self.SelCrc and self.SelItem and self.SelFullPath:
                 self.UpdatePathTree(self.SelItem)
             else:
                 self.UpdatePathTreeNone()
@@ -2281,7 +2308,7 @@ class Gui:
 
         self.InitialFocus();
         
-        self.ColumnSort(self.tree1,*self.ColumnSortLastParams[self.tree1])
+        self.ColumnSort(self.tree1,self.ColumnSortLastParams[self.tree1][0])
 
     def Tree1CrcAndPathUpdate(self):
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
@@ -2363,22 +2390,27 @@ class Gui:
                 else:
                     logging.error(f'what is it: {DirEntry} ?')
 
-        #colnameSort,colSort,reverseSort,asnumberSort,level2Sort = self.ColumnSortLastParams[self.tree2]
-        colSort,reverseSort,asnumberSort = self.ColumnSortLastParams[self.tree2][1:4]
+        colSort,reverse = self.ColumnSortLastParams[self.tree2]
 
+        colSortReal=self.col2sortOf[colSort]
+        
         if colSort=='file':
             sortIndex=1
-        elif colSort=='size':
+        elif colSort=='sizeH':
             sortIndex=2
-        elif colSort=='ctime':
-            sortIndex=4
-        elif colSort=='instancesnum':
-            sortIndex=9
+        elif colSort=='ctimeH':
+            sortIndex=3
+        elif colSort=='instances':
+            sortIndex=8
         else :
             sortIndex=-1
-
+        
+        kindIndex=11
+        
+        DIR0,DIR1 = (1,0) if reverse else (0,1)
+        
         self.tree2.delete(*self.tree2.get_children())
-        for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(itemsToInsert,key=lambda x : float(x[sortIndex]) if asnumberSort else x[sortIndex],reverse=reverseSort):
+        for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(itemsToInsert,key=lambda x : (DIR0 if x[kindIndex]==DIR else DIR1,float(x[sortIndex])) if self.col2sortNumeric[colSort] else (DIR0 if x[kindIndex]==DIR else DIR1,x[sortIndex]),reverse=reverse):
             self.tree2.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE else '',kind),tags=tags)
 
         self.tree2.selection_set(item)
