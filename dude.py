@@ -826,6 +826,7 @@ class Gui:
     SelPath=None
     SelFile=None
     SelCrc=None
+    SelItem=None
     
     pyperclipOperational=True
     
@@ -996,9 +997,10 @@ class Gui:
         self.main.bind_class('Treeview','<Control-J>',  lambda event : self.MarkLowerPane(self.InvertMark) )
         self.main.bind_class('Treeview','<BackSpace>',  lambda event : self.GoToMaxFolder(1) )
         self.main.bind_class('Treeview','<FocusIn>',    self.TreeEventFocusIn )
-        self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOout )
-        self.main.bind_class('Treeview','<ButtonPress-1>',          self.TreeButtonPress)
+        self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOut )
+        self.main.bind_class('Treeview','<ButtonPress-1>', self.TreeButtonPress)
         self.main.bind_class('Treeview','<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
+        self.main.bind_class('Treeview','<ButtonPress-3>', self.TreeContexMenu)
         
         if self.pyperclipOperational:
             self.main.bind_class('Treeview','<Control-c>',  lambda event : self.ClipCopyPath() )
@@ -1318,16 +1320,16 @@ class Gui:
 
         def MarkCascadePathFill():
             row=0
-            MarkCascadePath.delete(0,END)
+            self.MarkCascadePath.delete(0,END)
             for path in self.D.ScannedPaths:
-                MarkCascadePath.add_command(label = nums[row] + '  =  ' + path,    command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.SetMark)  )
+                self.MarkCascadePath.add_command(label = nums[row] + '  =  ' + path,    command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.SetMark)  )
                 row+=1
 
         def UnmarkCascadePathFill():
-            UnmarkCascadePath.delete(0,END)
+            self.UnmarkCascadePath.delete(0,END)
             row=0
             for path in self.D.ScannedPaths:
-                UnmarkCascadePath.add_command(label = nums[row] + '  =  ' + path,  command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.UnsetMark)  )
+                self.UnmarkCascadePath.add_command(label = nums[row] + '  =  ' + path,  command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.UnsetMark)  )
                 row+=1
 
         MainCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
@@ -1351,74 +1353,76 @@ class Gui:
         MainCascade.add_command(label = 'Exit',command = self.exit)
         self.menubar.add_cascade(label = 'File',menu = MainCascade,accelerator="Alt+F")
 
-        MarkCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
-        MarkCascade.add_command(label = "All files",        command = lambda : self.MarkOnAll(self.SetMark),accelerator="Ctrl+A")
-        MarkCascade.add_separator()
-        MarkCascade.add_command(label = "Oldest files",     command = lambda : self.MarkOnAllByCTime('oldest',self.SetMark),accelerator="Ctrl+O")
-        MarkCascade.add_command(label = "Youngest files",   command = lambda : self.MarkOnAllByCTime('youngest',self.SetMark),accelerator="Ctrl+Y")
-        MarkCascade.add_separator()
-        MarkCascade.add_command(label = "Files on the same path",  command = lambda : self.MarkPathOfFile(self.SetMark),accelerator="Ctrl+P")
-        MarkCascade.add_command(label = "Specified Directory ...",   command = lambda : self.MarkSubpath(self.SetMark))
-        MarkCascadePath = Menu(self.menubar, tearoff = 0,postcommand=MarkCascadePathFill,bg=self.bg)
-        MarkCascade.add_cascade(label = "Scan path",             menu = MarkCascadePath)
-        MarkCascade.add_separator()
-        MarkCascade.add_command(label = "Expression on file  ...",          command = lambda : self.MarkExpression('file',self.SetMark,'Mark files'))
-        MarkCascade.add_command(label = "Expression on sub-path ...",       command = lambda : self.MarkExpression('path',self.SetMark,'Mark files'))
-        MarkCascade.add_command(label = "Expression on file with path ...", command = lambda : self.MarkExpression('both',self.SetMark,'Mark files'),accelerator="+")
+        self.MarkCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
+        self.MarkCascade.add_command(label = "All files",        command = lambda : self.MarkOnAll(self.SetMark),accelerator="Ctrl+A")
+        self.MarkCascade.add_separator()
+        self.MarkCascade.add_command(label = "Oldest files",     command = lambda : self.MarkOnAllByCTime('oldest',self.SetMark),accelerator="Ctrl+O")
+        self.MarkCascade.add_command(label = "Youngest files",   command = lambda : self.MarkOnAllByCTime('youngest',self.SetMark),accelerator="Ctrl+Y")
+        self.MarkCascade.add_separator()
+        self.MarkCascade.add_command(label = "Files on the same path",  command = lambda : self.MarkPathOfFile(self.SetMark),accelerator="Ctrl+P")
+        self.MarkCascade.add_command(label = "Specified Directory ...",   command = lambda : self.MarkSubpath(self.SetMark))
+        self.MarkCascadePath = Menu(self.menubar, tearoff = 0,postcommand=MarkCascadePathFill,bg=self.bg)
+        self.MarkCascade.add_cascade(label = "Scan path",             menu = self.MarkCascadePath)
+        self.MarkCascade.add_separator()
+        self.MarkCascade.add_command(label = "Expression on file  ...",          command = lambda : self.MarkExpression('file',self.SetMark,'Mark files'))
+        self.MarkCascade.add_command(label = "Expression on sub-path ...",       command = lambda : self.MarkExpression('path',self.SetMark,'Mark files'))
+        self.MarkCascade.add_command(label = "Expression on file with path ...", command = lambda : self.MarkExpression('both',self.SetMark,'Mark files'),accelerator="+")
 
-        UnmarkCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
-        UnmarkCascade.add_command(label = "All files",   command = lambda : self.MarkOnAll(self.UnsetMark),accelerator="Ctrl+Shift+A / Ctrl+N")
-        UnmarkCascade.add_separator()
-        UnmarkCascade.add_command(label = "Oldest files",         command = lambda : self.MarkOnAllByCTime('oldest',self.UnsetMark),accelerator="Ctrl+Shift+O")
-        UnmarkCascade.add_command(label = "Youngest files",       command = lambda : self.MarkOnAllByCTime('youngest',self.UnsetMark),accelerator="Ctrl+Shift+Y")
-        UnmarkCascade.add_separator()
-        UnmarkCascade.add_command(label = "Files on the same path",             command = lambda : self.MarkPathOfFile(self.UnsetMark),accelerator="Ctrl+Shift+P")
-        UnmarkCascade.add_command(label = "Specified Directory ...",            command = lambda : self.MarkSubpath(self.UnsetMark))
-        UnmarkCascadePath = Menu(self.menubar, tearoff = 0,postcommand=UnmarkCascadePathFill,bg=self.bg)
-        UnmarkCascade.add_cascade(label = "Scan path",             menu = UnmarkCascadePath)
-        UnmarkCascade.add_separator()
-        UnmarkCascade.add_command(label = "Expression on file ...",           command = lambda : self.MarkExpression('file',self.UnsetMark,'Unmark files'))
-        UnmarkCascade.add_command(label = "Expression on sub-path ...",       command = lambda : self.MarkExpression('path',self.UnsetMark,'Unmark files'))
-        UnmarkCascade.add_command(label = "Expression on file with path ...", command = lambda : self.MarkExpression('both',self.UnsetMark,'Unmark files'),accelerator="-")
+        self.UnmarkCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
+        self.UnmarkCascade.add_command(label = "All files",   command = lambda : self.MarkOnAll(self.UnsetMark),accelerator="Ctrl+Shift+A / Ctrl+N")
+        self.UnmarkCascade.add_separator()
+        self.UnmarkCascade.add_command(label = "Oldest files",         command = lambda : self.MarkOnAllByCTime('oldest',self.UnsetMark),accelerator="Ctrl+Shift+O")
+        self.UnmarkCascade.add_command(label = "Youngest files",       command = lambda : self.MarkOnAllByCTime('youngest',self.UnsetMark),accelerator="Ctrl+Shift+Y")
+        self.UnmarkCascade.add_separator()
+        self.UnmarkCascade.add_command(label = "Files on the same path",             command = lambda : self.MarkPathOfFile(self.UnsetMark),accelerator="Ctrl+Shift+P")
+        self.UnmarkCascade.add_command(label = "Specified Directory ...",            command = lambda : self.MarkSubpath(self.UnsetMark))
+        self.UnmarkCascadePath = Menu(self.menubar, tearoff = 0,postcommand=UnmarkCascadePathFill,bg=self.bg)
+        self.UnmarkCascade.add_cascade(label = "Scan path",             menu = self.UnmarkCascadePath)
+        self.UnmarkCascade.add_separator()
+        self.UnmarkCascade.add_command(label = "Expression on file ...",           command = lambda : self.MarkExpression('file',self.UnsetMark,'Unmark files'))
+        self.UnmarkCascade.add_command(label = "Expression on sub-path ...",       command = lambda : self.MarkExpression('path',self.UnsetMark,'Unmark files'))
+        self.UnmarkCascade.add_command(label = "Expression on file with path ...", command = lambda : self.MarkExpression('both',self.UnsetMark,'Unmark files'),accelerator="-")
 
         MarkingCommonCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
-        MarkingCommonCascade.add_cascade(label = 'Set',menu = MarkCascade)
-        MarkingCommonCascade.add_cascade(label = 'Unset',menu = UnmarkCascade)
+        MarkingCommonCascade.add_cascade(label = 'Set',menu = self.MarkCascade)
+        MarkingCommonCascade.add_cascade(label = 'Unset',menu = self.UnmarkCascade)
         MarkingCommonCascade.add_command(label = 'Invert',command = lambda : self.MarkOnAll(self.InvertMark),accelerator="Ctrl+I / *")
         self.menubar.add_cascade(label = 'Mark',menu = MarkingCommonCascade)
 
-        ActionCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
+        self.ActionCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
 
-        ActionCascade.add_command(label = 'Remove Local Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete")
-        ActionCascade.entryconfig(3,foreground='red',activeforeground='red')
-        ActionCascade.add_command(label = 'Remove All Marked Files',command=lambda : self.ProcessFiles('delete',1),accelerator="Shift+Delete")
-        ActionCascade.entryconfig(4,foreground='red',activeforeground='red')
-        ActionCascade.add_separator()
-        ActionCascade.add_command(label = 'Softlink Local Marked Files',command=lambda : self.ProcessFiles('softlink',0),accelerator="Insert")
-        ActionCascade.entryconfig(6,foreground='red',activeforeground='red')
-        ActionCascade.add_command(label = 'Softlink All Marked Files',command=lambda : self.ProcessFiles('softlink',1),accelerator="Shift+Insert")
-        ActionCascade.entryconfig(7,foreground='red',activeforeground='red')
-        ActionCascade.add_separator()
-        ActionCascade.add_command(label = 'Hardlink Local Marked Files',command=lambda : self.ProcessFiles('hardlink',0),accelerator="Ctrl+Insert")
-        ActionCascade.entryconfig(9,foreground='red',activeforeground='red')
-        ActionCascade.add_command(label = 'Hardlink All Marked Files',command=lambda : self.ProcessFiles('hardlink',1),accelerator="Shift+Ctrl+Insert")
-        ActionCascade.entryconfig(10,foreground='red',activeforeground='red')
-        self.menubar.add_cascade(label = 'Action',menu = ActionCascade)
+        self.ActionCascade.add_command(label = 'Remove Local Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete")
+        self.ActionCascade.entryconfig(3,foreground='red',activeforeground='red')
+        self.ActionCascade.add_command(label = 'Remove All Marked Files',command=lambda : self.ProcessFiles('delete',1),accelerator="Shift+Delete")
+        self.ActionCascade.entryconfig(4,foreground='red',activeforeground='red')
+        self.ActionCascade.add_separator()
+        self.ActionCascade.add_command(label = 'Softlink Local Marked Files',command=lambda : self.ProcessFiles('softlink',0),accelerator="Insert")
+        self.ActionCascade.entryconfig(6,foreground='red',activeforeground='red')
+        self.ActionCascade.add_command(label = 'Softlink All Marked Files',command=lambda : self.ProcessFiles('softlink',1),accelerator="Shift+Insert")
+        self.ActionCascade.entryconfig(7,foreground='red',activeforeground='red')
+        self.ActionCascade.add_separator()
+        self.ActionCascade.add_command(label = 'Hardlink Local Marked Files',command=lambda : self.ProcessFiles('hardlink',0),accelerator="Ctrl+Insert")
+        self.ActionCascade.entryconfig(9,foreground='red',activeforeground='red')
+        self.ActionCascade.add_command(label = 'Hardlink All Marked Files',command=lambda : self.ProcessFiles('hardlink',1),accelerator="Shift+Ctrl+Insert")
+        self.ActionCascade.entryconfig(10,foreground='red',activeforeground='red')
+        self.menubar.add_cascade(label = 'Action',menu = self.ActionCascade)
 
-        HelpCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
-        HelpCascade.add_command(label = 'About',command=self.About)
-        HelpCascade.add_command(label = 'Keyboard Shortcuts',command=self.KeyboardShortcuts,accelerator="F1")
-        HelpCascade.add_command(label = 'License',command=self.License)
-        self.menubar.add_cascade(label = 'Help',menu = HelpCascade)
-
+        self.HelpCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
+        self.HelpCascade.add_command(label = 'About',command=self.About)
+        self.HelpCascade.add_command(label = 'Keyboard Shortcuts',command=self.KeyboardShortcuts,accelerator="F1")
+        self.HelpCascade.add_command(label = 'License',command=self.License)
+        self.menubar.add_cascade(label = 'Help',menu = self.HelpCascade)
+        
         #######################################################################
 
-        if (self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,'True')=='True'):
+        self.SettingsSetBools()
+        
+        if self.AddCwdAtStartup:
             self.addPath(cwd)
-
+        
         self.ScanDialogShow()
 
-        if (self.cfg.Get(CFG_KEY_STARTUP_SCAN,'True')=='True'):
+        if self.ScanAtStarup:
             self.ScanDialogMainFrame.after(0, self.Scan)
 
         self.ColumnSortLastParams={}
@@ -1427,7 +1431,7 @@ class Gui:
 
         self.ShowData()
         self.main.mainloop()
-
+    
     def GetIndexTupleTree1(self,item):
         return self.GetIndexTuple(item,self.tree1)
 
@@ -1609,7 +1613,7 @@ class Gui:
             else:
                 Yes()
                 
-        st=scrolledtext.ScrolledText(dialog,relief='groove', bd=2,bg=self.bg,width = textwidth )
+        st=scrolledtext.ScrolledText(dialog,relief='groove', bd=2,bg=self.bg,width = textwidth,takefocus=True )
         st.frame.config(bg=self.bg,takefocus=False)
         st.vbar.config(bg=self.bg,takefocus=False)
 
@@ -1679,8 +1683,10 @@ class Gui:
         tree=event.widget
         
         item=tree.focus()
+        
         if not item:
             item=tree.selection()
+            #item=self.SelItem
         
         tree.selection_remove(tree.selection())
 
@@ -1697,10 +1703,102 @@ class Gui:
         if len(self.tree2.get_children())==0:
             self.tree1.focus_set()
             
-    def TreeFocusOout(self,event):
+    def TreeFocusOut(self,event):
         tree=event.widget
         tree.selection_set(tree.focus())
     
+    def PopupUnpost(self,event):
+        tree=event.widget
+        self.Popup.unpost()
+        tree.focus_set()
+    
+    def TreeContexMenu(self,event):
+        self.TreeButtonPress(event)
+        
+        try:
+            self.Popup.destroy()
+        except :
+            pass
+        finally:
+            pass
+            
+        self.Popup = Menu(self.main, tearoff=0)
+        tree=event.widget
+        
+        if tree==self.tree1:
+            cLocal = Menu(self.menubar,tearoff=0,bg=self.bg)
+            
+            cLocal.add_command(label = "Toggle Mark on selcted file",  command = lambda : self.ToggleSelectedTag(tree,self.SelItem),accelerator="space")
+            cLocal.add_separator()
+            cLocal.add_command(label = "Mark all files",        command = lambda : self.MarkInCRCGroup(self.SetMark),accelerator="A")
+            cLocal.add_command(label = "Unmark all files",        command = lambda : self.MarkInCRCGroup(self.UnsetMark),accelerator="N")
+            cLocal.add_separator()
+            
+            cLocal.add_command(label = "Toggle mark on oldest file",     command = lambda : self.MarkInCRCGroupByCTime('oldest',self.InvertMark),accelerator="O")
+            cLocal.add_command(label = "Toggle mark on youngest file",   command = lambda : self.MarkInCRCGroupByCTime('youngest',self.InvertMark),accelerator="Y")
+            cLocal.add_separator()
+            cLocal.add_command(label = "Invert marks",   command = lambda : self.MarkInCRCGroup(self.InvertMark),accelerator="I")
+            cLocal.add_separator()
+            
+            self.Popup.add_cascade(label = 'Local (this CRC group)',menu = cLocal)
+            self.Popup.add_separator()
+            cAll = Menu(self.menubar,tearoff=0,bg=self.bg)
+            
+            cAll.add_command(label = "Mark all files",        command = lambda : self.MarkOnAll(self.SetMark),accelerator="Ctrl+A")
+            cAll.add_command(label = "Unmark all files",        command = lambda : self.MarkOnAll(self.UnsetMark),accelerator="Ctrl+N")
+            cAll.add_separator()
+            cAll.add_command(label = "Oldest files",     command = lambda : self.MarkOnAllByCTime('oldest',self.SetMark),accelerator="Ctrl+O")
+            cAll.add_command(label = "Youngest files",   command = lambda : self.MarkOnAllByCTime('youngest',self.SetMark),accelerator="Ctrl+Y")
+            cAll.add_separator()
+
+            cAll.add_separator()
+            
+            self.Popup.add_cascade(label = 'All Files',menu = cAll)
+            
+        else:
+            cLocal = Menu(self.menubar,tearoff=0,bg=self.bg)
+            cLocal.add_command(label = "Mark all files",        command = lambda : self.MarkLowerPane(self.SetMark),accelerator="A")
+            cLocal.add_command(label = "Unmark all files",        command = lambda : self.MarkLowerPane(self.UnsetMark),accelerator="N")
+            self.Popup.add_cascade(label = 'Local (this folder)',menu = cLocal)
+            
+            self.Popup.add_separator()
+            cAll = Menu(self.menubar,tearoff=0,bg=self.bg)
+            self.Popup.add_cascade(label = 'All Files',menu = cAll)
+        self.Popup.add_separator()
+
+        if False:
+            self.Popup.add_cascade(label = 'Mark Set',menu = self.MarkCascade)
+            self.Popup.add_cascade(label = 'Mark Unset',menu = self.UnmarkCascade)
+            self.Popup.add_cascade(label = 'Action',menu = self.ActionCascade)
+            
+            self.Popup.add_command(label = "All files",        command = lambda : self.MarkOnAll(self.SetMark),accelerator="Ctrl+A")
+            self.Popup.add_separator()
+            
+            self.Popup.add_separator()
+            self.Popup.add_command(label = "Files on the same path",  command = lambda : self.MarkPathOfFile(self.SetMark),accelerator="Ctrl+P")
+            self.Popup.add_command(label = "Specified Directory ...",   command = lambda : self.MarkSubpath(self.SetMark))
+            self.Popup.add_separator()
+            self.Popup.add_command(label = "Expression on file  ...",          command = lambda : self.MarkExpression('file',self.SetMark,'Mark files'))
+            self.Popup.add_command(label = "Expression on sub-path ...",       command = lambda : self.MarkExpression('path',self.SetMark,'Mark files'))
+            self.Popup.add_command(label = "Expression on file with path ...", command = lambda : self.MarkExpression('both',self.SetMark,'Mark files'),accelerator="+")
+        
+        self.Popup.bind("<FocusOut>",self.PopupUnpost)
+        
+        #tree.event_generate("<<ButtonPress-1>>", when='now')
+        #item=tree.identify('item',event.x,event.y)
+
+        try:
+            #print(1)
+            self.Popup.tk_popup(event.x_root, event.y_root)
+            #self.Popup.post(event.x_root, event.y_root)
+            #print(2)
+        except Exception:
+            #print(3)
+            pass
+        #finally:
+            #print(4)
+        self.Popup.grab_release()
+
     def TreeButtonPress(self,event,toggle=False):
         tree=event.widget
         tree.selection_remove(tree.selection())
@@ -2044,17 +2142,31 @@ class Gui:
 
         self.cfg.Write()
 
+        self.SettingsSetBools()
+        
         if update1:
             self.Tree1CrcAndPathUpdate()
+        
         if update2:
-            item=self.tree1.focus()
-
-            if item and item!='' and self.tree1.set(item,'kind')==FILE:
-                self.UpdatePathTree(item)
+            if self.SelItem and self.SelFullPath:
+                self.UpdatePathTree(self.SelItem)
             else:
                 self.UpdatePathTreeNone()
-        self.SettingsDialogClose()
 
+        self.SettingsDialogClose()
+    
+    AddCwdAtStartup = False
+    ScanAtStarup = False
+    FullCRC = False
+    ShowOthers = False
+    FullPaths = False
+    
+    def SettingsSetBools(self):
+        self.AddCwdAtStartup = self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,'True') == 'True'
+        self.ScanAtStarup = self.cfg.Get(CFG_KEY_STARTUP_SCAN,'True') == 'True'
+        self.FullCRC = self.cfg.Get(CFG_KEY_FULLCRC,False) == 'True'
+        self.ShowOthers = self.cfg.Get(CFG_KEY_SHOW_OTHERS,'False') == 'True'
+        self.FullPaths = self.cfg.Get(CFG_KEY_FULLPATHS,False) == 'True'
 
     def SettingsDialogReset(self):
         self.addCwdAtStartup.set(True)
@@ -2073,7 +2185,7 @@ class Gui:
 
     def UpdateCrcNode(self,crc):
         size=int(self.tree1.set(crc,'size'))
-        logging.debug(f'UpdateCrcNode:{crc},{size}')
+        #logging.debug(f'UpdateCrcNode:{crc},{size}')
 
         if not size in self.D.filesOfSizeOfCRC:
             self.tree1.delete(crc)
@@ -2122,21 +2234,18 @@ class Gui:
     def ShowData(self):
         self.idfunc=self.fileid if len(self.D.devs)>1 else self.fileidSimple
 
-        logging.debug('self.D.devs=' + str(self.D.devs) )
-        logging.debug('self.idfunc=' + self.idfunc.__name__)
-
         self.tree1.delete(*self.tree1.get_children())
         
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
-                crcitem=self.tree1.insert(parent='', index=END,iid=crc, values=('','','',str(size),bytes2str(size),'','','',crc,len(crcDict),'',CRC),tags=[CRC],open=True)
+                crcitem=self.tree1.insert(parent='', index=END,iid=crc, values=('','','',size,bytes2str(size),'','','',crc,len(crcDict),'',CRC),tags=[CRC],open=True)
 
                 for pathnr,path,file,ctime,dev,inode in crcDict:
                     self.tree1.insert(parent=crcitem, index=END,iid=self.idfunc(inode,dev), values=(\
                                                             pathnr,\
                                                             path,\
                                                             file,\
-                                                            str(size),\
+                                                            size,\
                                                             '',\
                                                             ctime,\
                                                             dev,\
@@ -2154,14 +2263,11 @@ class Gui:
         self.ColumnSort(self.tree1,*self.ColumnSortLastParams[self.tree1])
 
     def Tree1CrcAndPathUpdate(self):
-        fullcrc = self.cfg.Get(CFG_KEY_FULLCRC,False) == 'True'
-        fullPaths = self.cfg.Get(CFG_KEY_FULLPATHS,False) == 'True'
-
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
-                self.tree1.item(crc,text=crc if fullcrc else self.D.crccut[crc])
+                self.tree1.item(crc,text=crc if self.FullCRC else self.D.crccut[crc])
                 for pathnr,path,file,ctime,dev,inode in crcDict:
-                    self.tree1.item(self.idfunc(inode,dev),text=self.D.ScannedPaths[pathnr] if fullPaths else nums[pathnr])
+                    self.tree1.item(self.idfunc(inode,dev),text=self.D.ScannedPaths[pathnr] if self.FullPaths else nums[pathnr])
 
     def UpdateMainTreeNone(self):
         self.tree1.selection_remove(self.tree1.selection())
@@ -2176,40 +2282,30 @@ class Gui:
     ScandirCache={}
     StatCache={}
 
-    def RedrawPathTree(self):
-        pathnr=self.SelPathnr
-        path=self.SelPath
-        
-        CacheIndex=(pathnr,path)
-        pathnr=int(pathnr)
-        
-        #pathnrstr=self.D.ScannedPaths[pathnr]
+    def UpdatePathTreeNone(self):
+        self.tree2.delete(*self.tree2.get_children())
+        self.CalcMarkStatsPath()
+        self.StatusVarPathSize.set('')
+        self.StatusVarPathQuant.set('')
+        self.SelectedSearchPath.set('')
+        self.SelectedSearchPathCode.set('')
 
-        fullpaths = self.cfg.Get(CFG_KEY_FULLPATHS,False) == 'True'
-
-        fullcrc = self.cfg.Get(CFG_KEY_FULLCRC,False) == 'True'
-        ShowOthers = self.cfg.Get(CFG_KEY_SHOW_OTHERS,'False') == 'True'
-
-        fullpath=self.SelSearchPath+path
-
-        if CacheIndex not in self.ScandirCache:
+    def UpdatePathTree(self,item):
+        if CacheIndex:=(self.SelPathnr,self.SelPath) not in self.ScandirCache:
             try:
-                self.ScandirCache[CacheIndex]=list(os.scandir(fullpath))
+                self.ScandirCache[CacheIndex]=list(os.scandir(self.SelFullPath))
             except Exception as e:
-                logging.error('ERROR!',e)
+                logging.error('ERROR:{e}')
                 return
 
         itemsToInsert=[]
         i=0
         for DirEntry in self.ScandirCache[CacheIndex]:
-            istr=str(i)
             file=DirEntry.name
-            #print('checking key:',(pathnr,path,file) )
-            if (pathnr,path,file) in self.ByPathCache:
-                size,ctime,dev,inode,crc,crccut = self.ByPathCache[(pathnr,path,file)]
+            if (self.SelPathnrInt,self.SelPath,file) in self.ByPathCache:
+                size,ctime,dev,inode,crc,crccut = self.ByPathCache[(self.SelPathnrInt,self.SelPath,file)]
 
-                #print('size,crc',size,crc)
-                itemsToInsert.append( tuple([ crc if fullcrc else crccut, \
+                itemsToInsert.append( tuple([ crc if self.FullCRC else crccut, \
                                             file\
                                             ,size\
                                             ,ctime\
@@ -2223,7 +2319,8 @@ class Gui:
                                             FILEID,\
                                             bytes2str(size) ]) )
 
-            elif ShowOthers:
+            elif self.ShowOthers:
+                istr=str(i)
                 if os.path.islink(DirEntry) :
                     itemsToInsert.append( ( '➝',file,size,0,0,0,'','',1,0,LINK,LINK,istr+'L','' ) )
                     i+=1
@@ -2231,19 +2328,20 @@ class Gui:
                     itemsToInsert.append( ('⛁',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'L','' ) )
                     i+=1
                 elif DirEntry.is_file():
-                    if (FullFilePath:=os.path.join(fullpath,file)) not in self.StatCache:
+                    if (FullFilePath:=os.path.join(self.SelFullPath,file)) in self.StatCache:
+                        ctime,dev,inode,size,FILEID = self.StatCache[FullFilePath]
+                    else:
                         try:
                             stat = os.stat(FullFilePath)
                         except Exception as e:
-                            logging.error('ERROR!',e)
+                            logging.error(f'ERROR: ,{e}')
                             continue
                         self.StatCache[FullFilePath] = tuple([ ctime:=round(stat.st_ctime) , dev:=stat.st_dev , inode:=stat.st_ino , size:=stat.st_size , FILEID:=self.idfunc(inode,dev) ])
-                    else:
-                        ctime,dev,inode,size,FILEID = self.StatCache[FullFilePath]
+                    
                     itemsToInsert.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ) )
                     i+=1
                 else:
-                    logging.error(file,'what is it ?')
+                    logging.error(f'what is it: {DirEntry} ?')
 
         #colnameSort,colSort,reverseSort,asnumberSort,level2Sort = self.ColumnSortLastParams[self.tree2]
         colSort,reverseSort,asnumberSort = self.ColumnSortLastParams[self.tree2][1:4]
@@ -2261,31 +2359,17 @@ class Gui:
 
         self.tree2.delete(*self.tree2.get_children())
         for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(itemsToInsert,key=lambda x : float(x[sortIndex]) if asnumberSort else x[sortIndex],reverse=reverseSort):
-            self.tree2.insert(parent="", index=END, iid=iid , text=text, values=(pathnr,path,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE else '',kind),tags=tags)
-
-    def UpdatePathTreeNone(self):
-        self.tree2.delete(*self.tree2.get_children())
-        self.CalcMarkStatsPath()
-        self.StatusVarPathSize.set('')
-        self.StatusVarPathQuant.set('')
-        self.SelectedSearchPath.set('')
-        self.SelectedSearchPathCode.set('')
-
-    def PathTreeUpdateMarks(self):
-        for item in self.tree2.get_children():
-            if self.tree2.set(item,'kind')==FILE:
-                self.tree2.item( item,tags=self.tree1.item(item)['tags'] )
-
-    def UpdatePathTree(self,item):
-        #pathnr_par=self.tree1.set(item,'pathnr')
-        #path_par=self.tree1.set(item,'path')
-
-        self.RedrawPathTree()
+            self.tree2.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE else '',kind),tags=tags)
 
         self.tree2.selection_set(item)
         self.tree2.see(item)
         self.CalcMarkStatsPath()
         self.tree2.update()
+    
+    def PathTreeUpdateMarks(self):
+        for item in self.tree2.get_children():
+            if self.tree2.set(item,'kind')==FILE:
+                self.tree2.item( item,tags=self.tree1.item(item)['tags'] )
 
     def CalcMarkStatsAll(self):
         self.CalcMarkStatsCore(self.tree1,self.StatusVarAllSize,self.StatusVarAllQuant)
@@ -2319,7 +2403,7 @@ class Gui:
     @WatchCursor
     def MarkInCRCGroupByCTime(self,orderStr,action):
         reverse=1 if orderStr=='oldest' else 0
-        self.MarkInSpecifiedCRCGroupByCTime(action,self.tree1.set(self.tree1.focus(),'crc'),reverse,True)
+        self.MarkInSpecifiedCRCGroupByCTime(action,self.SelCrc,reverse,True)
         self.PathTreeUpdateMarks()
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
@@ -2329,7 +2413,7 @@ class Gui:
 
     @WatchCursor
     def MarkInCRCGroup(self,action):
-        self.MarkInSpecifiedCRCGroup(action,self.tree1.set(self.tree1.focus(),'crc'))
+        self.MarkInSpecifiedCRCGroup(action,self.SelCrc)
         self.PathTreeUpdateMarks()
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
@@ -2338,7 +2422,6 @@ class Gui:
     def MarkOnAll(self,action):
         { self.MarkInSpecifiedCRCGroup(action,crc) for crc in self.tree1.get_children() }
         self.PathTreeUpdateMarks()
-
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
@@ -2524,12 +2607,12 @@ class Gui:
             self.UpdateMainTree(FILEID)
 
     def FullPath1(self,item):
-        return self.FullPath(item,self.tree1)
+        return self.GetFullPath(item,self.tree1)
 
     def FullPath2(self,item):
-        return self.FullPath(item,self.tree2)
+        return self.GetFullPath(item,self.tree2)
 
-    def FullPath(self,item,tree):
+    def GetFullPath(self,item,tree):
         pathnr=int(tree.set(item,'pathnr'))
         path=tree.set(item,'path')
         file=tree.set(item,'file')
@@ -2695,8 +2778,8 @@ class Gui:
             RelSymlink = True if self.cfg.Get(CFG_KEY_REL_SYMLINKS,False)=='True' else False
             for crc in ProcessedItems:
 
-                #toKeepItem=list(ToKeep[crc])[0]
-                toKeepItem.tree1.focus()
+                toKeepItem=list(ToKeep[crc])[0]
+                #self.tree1.focus()
                 IndexTupleRef=self.GetIndexTupleTree1(toKeepItem)
                 size=int(self.tree1.set(toKeepItem,'size'))
 
@@ -2799,22 +2882,26 @@ class Gui:
         
         self.SelFile = self.tree1.set(item,'file')
         self.SelCrc = self.tree1.set(item,'crc')
+        
+        self.SelItem = item
 
         if path!=self.SelPath or pathnr!=self.SelPathnr or force:
             self.SelPathnr = pathnr
             
             if pathnr: #non crc node
-                pathnrInt= int(pathnr) 
-                self.SelSearchPath = self.D.ScannedPaths[pathnrInt]
-                self.SelectedSearchPathCode.set(nums[pathnrInt])
+                self.SelPathnrInt= int(pathnr)
+                self.SelSearchPath = self.D.ScannedPaths[self.SelPathnrInt]
+                self.SelectedSearchPathCode.set(nums[self.SelPathnrInt])
                 self.SelectedSearchPath.set(self.SelSearchPath)
                 self.SelPath = path
+                self.SelFullPath=self.SelSearchPath+self.SelPath
             else :
-                pathnrInt= None
+                self.SelPathnrInt= 0
                 self.SelSearchPath = None
                 self.SelectedSearchPathCode.set(None)
                 self.SelectedSearchPath.set(None)
                 self.SelPath = None
+                self.SelFullPath= None
         
             UpdateTree2=True
         else:
@@ -2828,18 +2915,18 @@ class Gui:
             self.StatusVarFullPath.set("")
             if UpdateTree2 :
                 self.UpdatePathTreeNone()
-            
 
     def Tree2SelChange(self,item):
         self.SelCrc = self.tree2.set(item,'crc')
         self.SelFile = self.tree2.set(item,'file')
+        self.SelItem = item
         self.SetCommonVar()
         
         if self.tree2.set(item,'kind')==FILE:
             self.UpdateMainTree(item)
         else:
             self.UpdateMainTreeNone()
-
+            
     def Tree1KeyRelease(self,event):
         item=self.tree1.focus()
 
