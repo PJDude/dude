@@ -3,37 +3,23 @@
 GUI utility for finding duplicated files, delete or link them to save space.
 
 ## Features
-- **scanning for duplicated with multiple criteria**
-    - **on up to 8 specified paths**
-    - **with specified file size range**
-    - **limit scanning results to arbitrary number of groups of biggest files**
-
-    - **caching of calculated sha1 sums**
+- **scanning for duplicated files with multiple criteria**
+    - **up to 8 search paths**
+    - **limit scanning results number**
+    - **use of regular expressions to filter results**
     - **use of reliable and fast sha1 calculation tools**
-      - **sha1sum (linux)**
-      - **certutil (windows)**
-
+      - **sha1sum (Linux),certutil (Windows)**
+    - **caching of calculated sha1 sums**
 
 - **Files display on two synchronized panels**
-  - **files grouped by the same sha1 value**
-  - **directory content of selected file**
-
+  - **duplicated files grouped by the same sha1 value**
+  - **directory of selected file**
+  - **user actions possible on both panels**
 
 - **Two stage operation on found duplicated files**
-  - **marking of files**
-      - **Multiple files marking criteria**
-        - **by change time**
-        - **by common path**
-        - **by regular expression**
-        - **arbitrary manual**
+  - **marking of files with multiple criteria**
   - **taking action on marked files**
-
-    - **Multiple taken action ranges**
-      - **on all files**
-      - **on single duplicates group**
-      - **in single directory**
-
-    - **Confirmation required before any destructive action**
+  - **Confirmation required before any destructive action**
 
 - **Persistent Logging**
 - **Supported platforms: Linux, Windows**
