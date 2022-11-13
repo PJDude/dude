@@ -638,6 +638,7 @@ class Config:
         logging.debug(f'Initializing config: {ConfigDir}')
         self.config = configparser.ConfigParser()
         self.config.add_section('main')
+        self.config.add_section('geometry')
 
         self.path = ConfigDir
         self.file = self.path + '/cfg.ini'
@@ -659,17 +660,17 @@ class Config:
         else:
             logging.warning(f'no config file:{self.file}')
 
-    def Set(self,key,val):
-        self.config.set('main',key,val)
+    def Set(self,key,val,section='main'):
+        self.config.set(section,key,val)
 
-    def Get(self,key,default=None):
+    def Get(self,key,default=None,section='main'):
         try:
-            res=self.config.get('main',key)
+            res=self.config.get(section,key)
         except Exception as e:
             logging.warning(f'gettting config key {key}')
             logging.warning(e)
             res=default
-            self.Set(key,str(default))
+            self.Set(key,str(default),section=section)
         return res
 
 def CenterToParentGeometry(widget,parent):
@@ -936,7 +937,7 @@ class Gui:
         self.paned.add(paned_bottom)
 
         self.paned.update()
-        self.paned.sash_place(0,0,self.cfg.Get('sash_coord',400))
+        self.paned.sash_place(0,0,self.cfg.Get('sash_coord',400,section='geometry'))
 
         FrameTop = ttk.Frame(paned_top)
         FrameBottom = ttk.Frame(paned_bottom)
@@ -1477,14 +1478,14 @@ class Gui:
         wid=wid.replace('(','_')
         wid=wid.replace(')','_')
         wid=wid.replace('.','_')
-        return 'geo_' + wid
+        return wid
     
     def SetDefaultGeometryAndShow(self,widget,parent):
         if parent :
             parent.update()
         widget.update()
         
-        CfgGeometry=self.cfg.Get(self.WidgetId(widget),None)
+        CfgGeometry=self.cfg.Get(self.WidgetId(widget),None,section='geometry')
         
         if CfgGeometry != None and CfgGeometry != 'None':
             widget.geometry(CfgGeometry)
@@ -1497,7 +1498,7 @@ class Gui:
         widget.deiconify()
 
     def GeometryStore(self,widget):
-        self.cfg.Set(self.WidgetId(widget),str(widget.geometry()))
+        self.cfg.Set(self.WidgetId(widget),str(widget.geometry()),section='geometry')
         self.cfg.Write()
 
     def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False):
@@ -2099,11 +2100,14 @@ class Gui:
         info.append('                                                                              ')
         info.append('==============================================================================')
         info.append('                                                                              ')
-        info.append('CACHE DIRECTORY    :  '+CACHE_DIR)
         info.append('LOGS DIRECTORY     :  '+LOG_DIR)
         info.append('SETTINGS DIRECTORY :  '+CONFIG_DIR)
+        info.append('CACHE DIRECTORY    :  '+CACHE_DIR)
+        info.append('                                                                              ')
         info.append('MESSAGE_LEVEL      :  '+ (MESSAGE_LEVEL if MESSAGE_LEVEL else 'INFO(Default)') )
-
+        info.append('                                                                              ')
+        info.append('Current log file   :  '+log)
+        
         self.Info('About DUDE','\n'.join(info),self.main,textwidth=80,width=600)
 
     def KeyboardShortcuts(self):
@@ -2121,7 +2125,7 @@ class Gui:
     def StoreSplitter(self):
         try:
             coords=self.paned.sash_coord(0)
-            self.cfg.Set('sash_coord',str(coords[1]))
+            self.cfg.Set('sash_coord',str(coords[1]),section='geometry')
             self.cfg.Write()
         except Exception as e:
             logging.error(e)
