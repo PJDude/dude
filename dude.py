@@ -899,8 +899,15 @@ class Gui:
             self.bg = style.lookup('TFrame', 'background')
             style.theme_use("dummy")
         else:
-            style.theme_use("xpnative")
-            self.bg = style.lookup('TTButton', 'background')
+            style.theme_create("dummy", parent='vista')
+            #self.bg = style.lookup('TFrame', 'background')
+            #tk_setPalette 'blue'
+            self.bg='lightgray'
+            style.theme_use("dummy")
+            
+            #style.theme_use("classic")
+            #style.theme_use("xpnative")
+            #self.bg = style.lookup('TTButton', 'background')
 
         ttk.Style().configure("TButton", anchor = "center")
 
@@ -2565,7 +2572,7 @@ class Gui:
             self.tree2.see(item)
             self.CalcMarkStatsPath()
             self.tree2.update()
-    
+
     def PathTreeUpdateMarks(self):
         for item in self.tree2.get_children():
             if self.tree2.set(item,'kind')==FILE:
