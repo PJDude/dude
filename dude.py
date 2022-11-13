@@ -240,8 +240,6 @@ class CORE:
                             elif entry.is_dir():
                                 loopList.append(os.path.join(path,file))
                             elif entry.is_file():
-                                
-                                    
                                 try:
                                     stat = os.stat(fullpath)
                                 except Exception as e:
@@ -1501,11 +1499,11 @@ class Gui:
         self.cfg.Set(self.WidgetId(widget),str(widget.geometry()),section='geometry')
         self.cfg.Write()
 
-    def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False):
+    def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False,width=400,height=140):
         parent.config(cursor="watch")
         
         dialog = tk.Toplevel(parent)
-        dialog.minsize(400, 140)
+        dialog.minsize(width, height)
         dialog.wm_transient(parent)
         dialog.update()
         dialog.withdraw()
@@ -1634,12 +1632,21 @@ class Gui:
                 No()
             else:
                 Yes()
-                
+        
         st=scrolledtext.ScrolledText(dialog,relief='groove', bd=2,bg=self.bg,width = textwidth,takefocus=True )
         st.frame.config(bg=self.bg,takefocus=False)
         st.vbar.config(bg=self.bg,takefocus=False)
-
-        st.insert(END,message)
+            
+        st.tag_configure('RED', foreground='red')
+        st.tag_configure('GRAY', foreground='gray')
+        
+        for line in message.split('\n'):
+            lineSplitted=line.split('|')
+            tag=lineSplitted[1] if len(lineSplitted)>1 else None
+                
+            st.insert(END, lineSplitted[0] + "\n", tag)
+        
+        #st.insert(END,message)
         st.configure(state=DISABLED)
         st.grid(row=0,column=0,sticky='news',padx=5,pady=5)
 
@@ -2684,15 +2691,23 @@ class Gui:
         if ctimeCheck != (ctime:=self.tree1.set(item,'ctime')) :
             message = {f'ctime inconsistency {ctimeCheck} vs {ctime}'}
             return message
-
+    
+    def SelectFocusAndSeeCrcItemTree(self,crc):
+        lastChild=self.tree1.get_children(crc)[-1]
+        self.tree1.see(lastChild)
+        self.tree1.update()
+        self.tree1.see(crc)
+        self.tree1.focus(crc)
+        self.tree1.update()
+        self.Tree1SelChange(crc)
+        
     def ProcessFiles(self,action,all=0):
-        logging.info(f'ProcessFiles:{action},{all}')
-
         tree=self.main.focus_get()
         if not tree:
             return
 
         ProcessedItems={}
+        
         ShowFullPath=1
 
         if all:
@@ -2700,23 +2715,22 @@ class Gui:
             for crc in self.tree1.get_children():
                 if tempList:=[item for item in self.tree1.get_children(crc) if self.tree1.tag_has(MARK,item)]:
                     ProcessedItems[crc]=tempList
+                    
         else:
-            item=tree.focus()
-            if not item:
-                return
-
             if tree==self.tree1:
                 #tylko na gornym drzewie, na dolnym moze byc inny plik
-                crc=tree.set(item,'crc')
+                crc=self.SelCrc
+                
                 if not crc:
                     return
                 ScopeTitle='Single CRC group.'
-                if tempList:=[item for item in tree.get_children(crc) if tree.tag_has(MARK,item)]:
-                    ProcessedItems[crc]=tempList
+                if templist:= [item for item in tree.get_children(crc) if tree.tag_has(MARK,item)]:
+                    ProcessedItems[crc] = templist
+                    
             else:
                 #jezeli dzialamy na katalogu pozostale markniecia w crc nie sa uwzglednione
                 #ale w katalogu moze byc >1 tego samego crc
-                ScopeTitle='Selected Directory:\n' + self.FullPath2(item)
+                ScopeTitle='Selected Directory: ' + self.SelFullPath
                 #ShowFullPath=0
                 for item in tree.get_children():
                     if tree.tag_has(MARK,item):
@@ -2726,38 +2740,38 @@ class Gui:
                         ProcessedItems[crc].append(item)
 
         if not ProcessedItems:
-            self.DialogWithEntry(title='No Files Marked For Processing !',prompt='            Mark files first.            ',parent=self.main,OnlyInfo=True)
+            self.DialogWithEntry(title='No Files Marked For Processing !',prompt='Scope: ' + ScopeTitle + '\n\nMark files first.',parent=self.main,OnlyInfo=True,width=600,height=200)
             return
 
+        logging.info(f'ProcessFiles:{action},{all}')
         logging.info('Scope ' + ScopeTitle)
 
         #############################################
         #check remainings
-        ToKeep={}
-
-        for crc in ProcessedItems:
-            ToKeep[crc]=set(self.tree1.get_children(crc))-set(ProcessedItems[crc])
+        
+        #RemainingItems dla wszystkich (moze byc akcja z folderu)
+        #istotna kolejnosc
+        RemainingItems={}
+        for crc in self.tree1.get_children():
+            RemainingItems[crc]=[item for item in self.tree1.get_children(crc) if not self.tree1.tag_has(MARK,item)]
+        
+        #for crc in ProcessedItems:
+        #    ToKeep[crc]=set(self.tree1.get_children(crc))-set(ProcessedItems[crc])
 
         if action=="hardlink":
             for crc in ProcessedItems:
                 if len(ProcessedItems[crc])==1:
                     self.DialogWithEntry(title='Error - Cant hardlink single file.',prompt="                    Mark more files.                    ",parent=self.main,OnlyInfo=True)
-
-                    self.tree1.see(crc)
-                    self.tree1.focus(crc)
-                    self.Tree1SelChange(crc)
-                    self.tree1.update()
+                    
+                    self.SelectFocusAndSeeCrcItemTree(crc)
                     return
 
         elif action in ("delete","softlink"):
             for crc in ProcessedItems:
-                if len(ToKeep[crc])==0:
+                if len(RemainingItems[crc])==0:
                     self.DialogWithEntry(title=f'        Error {action} - All files marked        ',prompt="  Keep at least one file unmarked.  ",parent=self.main,OnlyInfo=True)
-
-                    self.tree1.see(crc)
-                    self.tree1.focus(crc)
-                    self.Tree1SelChange(crc)
-                    self.tree1.update()
+                    
+                    self.SelectFocusAndSeeCrcItemTree(crc)
                     return
 
         logging.warning('###########################################################################################')
@@ -2766,25 +2780,29 @@ class Gui:
         message=[]
         for crc in ProcessedItems:
             message.append('')
-            message.append('CRC:' + crc)
-            message.append('  marked:')
+            size=int(self.tree1.set(crc,'size'))
+            message.append('CRC:' + crc + ' size:' + bytes2str(size) + '|GRAY')
+            #message.append('  marked:')
             for item in ProcessedItems[crc]:
-                message.append('    ' + (self.FullPath1(item) if ShowFullPath else tree.set(item,'file')) )
+                message.append((self.FullPath1(item) if ShowFullPath else tree.set(item,'file')) + '|RED' )
 
-            if ToKeep[crc]:
-                message.append('')
-                message.append('  remaining:')
-                for item in ToKeep[crc]:
-                    message.append('    ' + (self.FullPath1(item) if ShowFullPath else self.tree1.set(item,'file')) )
+            if action=='softlink':
+                if RemainingItems[crc]:
+                    #message.append('')
+                    #message.append('  remaining:')
+                    #for item in RemainingItems[crc]:
+                    
+                    item = RemainingItems[crc][0]
+                    message.append('➝ ' + (self.FullPath1(item) if ShowFullPath else self.tree1.set(item,'file')) )
 
         if action=='delete':
             if not self.Ask('Delete marked files ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message),self.main):
                 return
         elif action=='softlink':
-            if not self.Ask('Soft-Link marked files ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message),self.main):
+            if not self.Ask('Soft-Link marked files to first unmarked file in group ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message),self.main):
                 return
         elif action=='hardlink':
-            if not self.Ask('Hard-Link marked files ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message),self.main):
+            if not self.Ask('Hard-Link marked files together in groups ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message),self.main):
                 return
 
         {logging.warning(line) for line in message}
@@ -2793,7 +2811,7 @@ class Gui:
 
         #############################################
         for crc in ProcessedItems:
-            for item in ToKeep[crc]:
+            for item in RemainingItems[crc]:
                 if res:=self.CheckFileState(item):
                     self.Info(res)
                     logging.error('aborting.')
@@ -2829,7 +2847,7 @@ class Gui:
             RelSymlink = True if self.cfg.Get(CFG_KEY_REL_SYMLINKS,False)=='True' else False
             for crc in ProcessedItems:
 
-                toKeepItem=list(ToKeep[crc])[0]
+                toKeepItem=list(RemainingItems[crc])[0]
                 #self.tree1.focus()
                 IndexTupleRef=self.GetIndexTupleTree1(toKeepItem)
                 size=int(self.tree1.set(toKeepItem,'size'))
@@ -2958,16 +2976,11 @@ class Gui:
         elif event.keysym in ("Prior","Next"):
             itemsPool=self.tree1.get_children()
             NextItem=itemsPool[(itemsPool.index(self.tree1.set(item,'crc'))+(1 if event.keysym=="Next" else -1)) % len(itemsPool)]
-            self.tree1.focus(NextItem)
-            self.tree1.see(NextItem)
-            self.Tree1SelChange(NextItem)
-            self.tree1.update()
+            
+            self.SelectFocusAndSeeCrcItemTree(NextItem)
         elif event.keysym in ("Home","End"):
             if NextItem:=self.tree1.get_children()[0 if event.keysym=="Home" else -1]:
-                self.tree1.focus(NextItem)
-                self.tree1.see(NextItem)
-                self.Tree1SelChange(NextItem)
-                self.tree1.update()
+                self.SelectFocusAndSeeCrcItemTree(NextItem)
         elif event.keysym == "space":
             if self.tree1.set(item,'kind')==CRC:
                 self.ToggleSelectedTag(self.tree1,*self.tree1.get_children(item))
