@@ -848,6 +848,8 @@ class Gui:
     
     def CheckClipboard(self):
         TestString='Dude-TestString'
+        
+        logging.info('pyperclip test start.')
         try:
             PrevVal=pyperclip.paste()
             pyperclip.copy(TestString)
@@ -894,22 +896,14 @@ class Gui:
         ####################################################################
         style = ttk.Style()
 
-        if os.name=='posix':
-            style.theme_create("dummy", parent='clam')
-            self.bg = style.lookup('TFrame', 'background')
-            style.theme_use("dummy")
-        else:
-            style.theme_create("dummy", parent='vista')
-            #self.bg = style.lookup('TFrame', 'background')
-            #tk_setPalette 'blue'
-            self.bg='lightgray'
-            style.theme_use("dummy")
-            
-            #style.theme_use("classic")
-            #style.theme_use("xpnative")
-            #self.bg = style.lookup('TTButton', 'background')
+        style.theme_create("dummy", parent='vista' if windows else 'clam' )
+        
+        self.bg = style.lookup('TFrame', 'background')
 
-        ttk.Style().configure("TButton", anchor = "center")
+        style.theme_use("dummy")
+        
+        style.configure("TButton", anchor = "center")
+        style.configure("TCheckbutton", background = self.bg)
 
         style.map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
         style.map("TButton",  fg=[('disabled',"gray"),('',"black")] )
@@ -917,10 +911,17 @@ class Gui:
         style.map("Treeview.Heading",  relief=[('','raised')] )
         style.configure("Treeview",rowheight=18)
 
-        style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('',self.bg)],fieldbackground=[('',self.bg)] )
+        #style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('',self.bg)])
+        style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('','white')])
+        
+        #fieldbackground=[('focus',"blue"),('',"red")] 
+        #fieldbackground=[('!disabled','red')]
 
-        ttk.Style().map("Treeview.Heading",background = [('pressed', '!focus', 'white'),('active', 'darkgray'),('disabled', '#ffffff')])
-
+        #style.map("Treeview.Heading",background = [('pressed', '!focus', 'white'),('active', 'darkgray'),('disabled', '#ffffff'),('',self.bg)])
+        
+        #works but not for every theme
+        #style.configure("Treeview", fieldbackground=self.bg)
+        
         #######################################################################
         self.menubar = tk.Menu(self.main,bg=self.bg,relief='raised')
         self.main.config(menu=self.menubar)
@@ -936,16 +937,16 @@ class Gui:
         self.paned = PanedWindow(self.main,orient=tk.VERTICAL,relief='sunken',showhandle=0,bd=0,bg=self.bg)
         self.paned.pack(fill='both',expand=1)
 
-        paned_top = ttk.Frame(self.paned)
+        paned_top = tk.Frame(self.paned,bg=self.bg)
         self.paned.add(paned_top)
-        paned_bottom = ttk.Frame(self.paned)
-        self.paned.add(paned_bottom)
+        paned_bottom = tk.Frame(self.paned,bg=self.bg)
+        self.paned.add(paned_bottom,)
 
         self.paned.update()
         self.paned.sash_place(0,0,self.cfg.Get('sash_coord',400,section='geometry'))
 
-        FrameTop = ttk.Frame(paned_top)
-        FrameBottom = ttk.Frame(paned_bottom)
+        FrameTop = tk.Frame(paned_top,bg=self.bg)
+        FrameBottom = tk.Frame(paned_bottom,bg=self.bg)
 
         FrameTop.grid(row=0,column=0,sticky='news')
         FrameBottom.grid(row=0,column=0,sticky='news')
@@ -955,7 +956,7 @@ class Gui:
 
         self.main.bind('<KeyPress>', self.KeyPressGlobal )
 
-        (UpperStatusFrame := ttk.Frame(FrameTop)).pack(side='bottom', fill='x')
+        (UpperStatusFrame := tk.Frame(FrameTop,bg=self.bg)).pack(side='bottom', fill='both')
         self.StatusVarGroups.set('0')
         self.StatusVarFullPath.set('')
         
@@ -968,7 +969,7 @@ class Gui:
         tk.Label(UpperStatusFrame,width=12,text='Full file path: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='left')
         tk.Label(UpperStatusFrame,textvariable=self.StatusVarFullPath,relief='flat',borderwidth=2,bg=self.bg,anchor='w').pack(fill='x',expand=1,side='left')
 
-        (LowerStatusFrame := ttk.Frame(FrameBottom)).pack(side='bottom',fill='both')
+        (LowerStatusFrame := tk.Frame(FrameBottom,bg=self.bg)).pack(side='bottom',fill='both')
 
         self.SelectedSearchPathCode=tk.StringVar()
         self.SelectedSearchPath=tk.StringVar()
@@ -1185,7 +1186,7 @@ class Gui:
         self.ScanDialog.withdraw()
         self.ScanDialog.iconphoto(False, iconphoto)
 
-        self.ScanDialogMainFrame = ttk.Frame(self.ScanDialog)
+        self.ScanDialogMainFrame = tk.Frame(self.ScanDialog,bg=self.bg)
         self.ScanDialogMainFrame.pack(expand=1, fill='both')
 
         self.ScanDialog.config(bd=0, relief=FLAT)
@@ -1257,7 +1258,7 @@ class Gui:
         
         ttk.Checkbutton(self.ScanDialogMainFrame,text='Write scan results to application log',variable=self.WriteScanToLog).grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
-        frame2 = ttk.Frame(self.ScanDialogMainFrame)
+        frame2 = tk.Frame(self.ScanDialogMainFrame,bg=self.bg)
         frame2.grid(row=6,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
         ttk.Button(frame2,width=12,text="Scan",command=self.Scan,underline=0).pack(side='right',padx=4,pady=4)
@@ -1296,7 +1297,7 @@ class Gui:
 
         self.SetingsDialog.wm_title('Settings')
 
-        fr=ttk.Frame(self.SetingsDialog)
+        fr=tk.Frame(self.SetingsDialog,bg=self.bg)
         fr.pack(expand=1,fill='both')
 
         def AddPathAtStartupChange(self):
@@ -1313,13 +1314,13 @@ class Gui:
         self.StartScanCB=ttk.Checkbutton(fr, text = 'Start scanning at startup', variable=self.scanAtStartup,command=lambda : ScanAtStartupChange(self)                              )
         self.StartScanCB.grid(row=row,column=0,sticky='wens') ; row+=1
 
-        ttk.Checkbutton(fr, text = 'Show non-duplicate items on directory panel', variable=self.showothers               ).grid(row=row,column=0,sticky='wens') ; row+=1
+        ttk.Checkbutton(fr, text = 'Show non-duplicate items on directory panel', variable=self.showothers      ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.fullCRC                                       ).grid(row=row,column=0,sticky='wens') ; row+=1
-        ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.fullPaths                                   ).grid(row=row,column=0,sticky='wens') ; row+=1
+        ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.fullPaths                              ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.relSymlinks                  ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Use regular expressions matching', variable=self.useRegExpr                 ).grid(row=row,column=0,sticky='wens') ; row+=1
 
-        bfr=ttk.Frame(fr)
+        bfr=tk.Frame(fr,bg=self.bg)
         fr.grid_rowconfigure(row, weight=1); row+=1
 
         bfr.grid(row=row,column=0) ; row+=1
@@ -1556,11 +1557,11 @@ class Gui:
             else:
                 No()
 
-        ttk.Label(dialog,text=prompt,anchor='n',justify='center').grid(sticky='news',row=0,column=0,padx=5,pady=5)
+        tk.Label(dialog,text=prompt,anchor='n',justify='center',bg=self.bg).grid(sticky='news',row=0,column=0,padx=5,pady=5)
         if not OnlyInfo:
             (entry:=ttk.Entry(dialog,textvariable=EntryVar)).grid(sticky='news',row=1,column=0,padx=5,pady=5)
         
-        (bfr:=ttk.Frame(dialog)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
+        (bfr:=tk.Frame(dialog,bg=self.bg)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
         
         if OnlyInfo:
             ok=default=ttk.Button(bfr, text='OK', width=10 ,command=No )
@@ -1658,7 +1659,7 @@ class Gui:
         st.configure(state=DISABLED)
         st.grid(row=0,column=0,sticky='news',padx=5,pady=5)
 
-        bfr=ttk.Frame(dialog)
+        bfr=tk.Frame(dialog,bg=self.bg)
         bfr.grid(row=2,column=0)
 
         if OnlyInfo:
@@ -2162,7 +2163,7 @@ class Gui:
 
         row=0
         for path in self.PathsToScanFromDialog:
-            (fr:=ttk.Frame(self.pathsFrame)).grid(row=row,column=0,sticky='news',columnspan=3)
+            (fr:=tk.Frame(self.pathsFrame,bg=self.bg)).grid(row=row,column=0,sticky='news',columnspan=3)
             self.PathsToScanFrames.append(fr)
 
             tk.Label(fr,text=' ' + nums[row] + ' ' , relief='groove',bg=self.bg).pack(side='left',padx=2,pady=1,fill='y')
@@ -2198,7 +2199,7 @@ class Gui:
         
         for entry in self.cfg.Get(CFG_KEY_EXCLUDE,'').split('|'):
             if entry:
-                (fr:=ttk.Frame(self.ExcludeFRame)).grid(row=row,column=0,sticky='news',columnspan=3)
+                (fr:=tk.Frame(self.ExcludeFRame,bg=self.bg)).grid(row=row,column=0,sticky='news',columnspan=3)
                 self.ExcludeFrames.append(fr)
 
                 self.ExcludeEntryVar[row]=tk.StringVar(value=entry)
