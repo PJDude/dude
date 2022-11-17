@@ -684,135 +684,7 @@ def CenterToScreenGeometry(widget):
     return f'+{x}+{y}'
 
 ###########################################################
-class LongActionDialog:
-    progressSigns='◐◓◑◒'
-    prevMessage=''
 
-    def getNow(self):
-        return time.time()*1000.0
-
-    def __init__(self,parent,title,LongActionCommand,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
-        now=self.getNow()
-        self.psIndex =0
-        self.CalcNextTime(now)
-
-        self.ProgressMode1=ProgressMode1
-        self.ProgressMode2=ProgressMode2
-
-        self.counter=0
-        self.AdaptiveCountLimit=1
-
-        self.dialog = tk.Toplevel(parent)
-        self.dialog.wm_transient(parent)
-
-        self.dialog.protocol("WM_DELETE_WINDOW", self.Abort)
-        self.dialog.bind('<Escape>', self.Abort)
-
-        self.dialog.wm_title(title)
-        self.dialog.iconphoto(False, iconphoto)
-
-        (f0:=ttk.Frame(self.dialog)).pack(expand=1,fill='both',side='top')
-        (f1:=ttk.Frame(self.dialog)).pack(expand=1,fill='both',side='top')
-
-        self.progr1var = DoubleVar()
-        self.progr1=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=ProgressMode1,variable=self.progr1var)
-        
-        if ProgressMode1:
-            self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')
-
-        self.progr1LabLeft=ttk.Label(f0,width=17)
-        if Progress1LeftText:
-            self.progr1LabLeft.grid(row=0,column=0,padx=1,pady=4)
-            self.progr1LabLeft.config(text=Progress1LeftText)
-
-        self.progr1LabRight=ttk.Label(f0,width=17)
-
-        if self.ProgressMode1=='determinate':
-            self.progr1LabRight.grid(row=0,column=2,padx=1,pady=4)
-            self.Progress1Func=(lambda progress1 : self.progr1var.set(progress1) )
-        elif self.ProgressMode1=='indeterminate':
-            self.Progress1Func=(lambda progress1 : self.progr1.start())
-        else :
-            self.Progress1Func=lambda args : None
-            
-        self.progr2var = DoubleVar()
-        self.progr2=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=ProgressMode2,variable=self.progr2var)
-        self.progr2LabRight=ttk.Label(f0,width=17)
-
-        if ProgressMode2:
-            self.dialog.minsize(550, 60)
-            self.progr2.grid(row=1,column=1,padx=1,pady=4,sticky='news')
-
-            if Progress2LeftText:
-                self.progr2LabLeft=ttk.Label(f0,width=17)
-                self.progr2LabLeft.grid(row=1,column=0,padx=1,pady=4)
-                self.progr2LabLeft.config(text=Progress2LeftText)
-
-            self.progr2LabRight.grid(row=1,column=2,padx=1,pady=4)
-        else:
-            self.dialog.minsize(300, 60)
-
-        f0.grid_columnconfigure(1, weight=1)
-
-        self.message=tk.StringVar()
-        ttk.Label(f1,textvariable=self.message,anchor='n',justify='center',width=20).pack(side='top',padx=8,pady=8,expand=1,fill='x')
-        ttk.Button(f1, text='Abort', width=10 ,command=self.Abort ).pack(side='bottom',padx=8,pady=8)
-
-        self.LastTimeNoSign=now
-
-        self.dialog.grab_set()
-        self.dialog.update()
-        self.dialog.geometry(CenterToParentGeometry(self.dialog,parent))
-
-        prevParentCursor=parent.cget('cursor')
-        parent.config(cursor="watch")
-        
-        ####################
-        self.KeepGoing=1
-        self.NaturalEnd=1
-        ####################
-        LongActionCommand(self.Update)
-        ####################
-        self.End()
-        
-        parent.config(cursor=prevParentCursor)
-
-    def CalcNextTime(self,now):
-        self.NextCallTime=now+50.0
-
-    def Abort(self,event=None):
-        self.NaturalEnd=0
-        self.End()
-
-    def End(self):
-        self.KeepGoing=0
-
-        self.dialog.grab_release()
-        self.dialog.destroy()
-
-    def Update(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None):
-        now=self.getNow()
-        if now>self.NextCallTime:
-            prefix=''
-            if self.prevMessage==message:
-                if now>self.LastTimeNoSign+1000.0:
-                    prefix=str(self.progressSigns[self.psIndex])
-                    self.psIndex=(self.psIndex+1)%4
-            else:
-                self.prevMessage=message
-                self.LastTimeNoSign=now
-
-                self.Progress1Func(progress1)
-                self.progr1LabRight.config(text=progress1Right)
-                self.progr2var.set(progress2)
-                self.progr2LabRight.config(text=progress2Right)
-
-            self.message.set(f'{prefix}\n{message}')
-            self.dialog.update()
-
-            self.CalcNextTime(now)
-
-        return self.KeepGoing
 ###########################################################
 
 raw = lambda x : x 
@@ -847,9 +719,11 @@ class Gui:
         return wrapp
     
     def CheckClipboard(self):
+        
         TestString='Dude-TestString'
         
         logging.info('pyperclip test start.')
+        return
         try:
             PrevVal=pyperclip.paste()
             pyperclip.copy(TestString)
@@ -866,7 +740,139 @@ class Gui:
             else:
                 pyperclip.copy(PrevVal)
                 logging.info('pyperclip test passed.')
-    
+   
+    #######################################################################
+    #LongActionDialog
+        
+    progressSigns='◐◓◑◒'
+    LADPrevMessage=''
+
+    def getNow(self):
+        return time.time()*1000.0
+
+    def LongAction(self,parent,title,LongActionCommand,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
+        now=self.getNow()
+        self.psIndex =0
+        self.LongActionDialogCalcNextTime(now)
+
+        self.ProgressMode1=ProgressMode1
+        self.ProgressMode2=ProgressMode2
+
+        self.LongActionDialog = tk.Toplevel(parent)
+        self.LongActionDialog.wm_transient(parent)
+
+        self.LongActionDialog.protocol("WM_DELETE_WINDOW", self.LongActionDialogAbort)
+        self.LongActionDialog.bind('<Escape>', self.LongActionDialogAbort)
+
+        self.LongActionDialog.wm_title(title)
+        self.LongActionDialog.iconphoto(False, iconphoto)
+
+        global bg
+        self.bg = bg
+        
+        (f0:=tk.Frame(self.LongActionDialog,bg=self.bg)).pack(expand=1,fill='both',side='top')
+        (f1:=tk.Frame(self.LongActionDialog,bg=self.bg)).pack(expand=1,fill='both',side='top')
+
+        self.progr1var = DoubleVar()
+        self.progr1=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=ProgressMode1,variable=self.progr1var)
+        
+        if ProgressMode1:
+            self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')
+        
+        self.progr1LabLeft=tk.Label(f0,width=17,bg=self.bg)
+        if Progress1LeftText:
+            self.progr1LabLeft.grid(row=0,column=0,padx=1,pady=4)
+            self.progr1LabLeft.config(text=Progress1LeftText)
+
+        self.progr1LabRight=tk.Label(f0,width=17,bg=self.bg)
+
+        if self.ProgressMode1=='determinate':
+            self.progr1LabRight.grid(row=0,column=2,padx=1,pady=4)
+            self.Progress1Func=(lambda progress1 : self.progr1var.set(progress1) )
+        elif self.ProgressMode1=='indeterminate':
+            self.Progress1Func=(lambda progress1 : self.progr1.start())
+        else :
+            self.Progress1Func=lambda args : None
+            
+        self.progr2var = DoubleVar()
+        self.progr2=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=ProgressMode2,variable=self.progr2var)
+        self.progr2LabRight=tk.Label(f0,width=17,bg=self.bg)
+
+        if ProgressMode2:
+            self.LongActionDialog.minsize(550, 60)
+            self.progr2.grid(row=1,column=1,padx=1,pady=4,sticky='news')
+
+            if Progress2LeftText:
+                self.progr2LabLeft=tk.Label(f0,width=17,bg=self.bg)
+                self.progr2LabLeft.grid(row=1,column=0,padx=1,pady=4)
+                self.progr2LabLeft.config(text=Progress2LeftText)
+
+            self.progr2LabRight.grid(row=1,column=2,padx=1,pady=4)
+        else:
+            self.LongActionDialog.minsize(300, 60)
+
+        f0.grid_columnconfigure(1, weight=1)
+
+        self.message=tk.StringVar()
+        tk.Label(f1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg).pack(side='top',padx=8,pady=8,expand=1,fill='x')
+        ttk.Button(f1, text='Abort', width=10 ,command=self.LongActionDialogAbort ).pack(side='bottom',padx=8,pady=8)
+
+        self.LastTimeNoSign=now
+
+        self.LongActionDialog.grab_set()
+        self.LongActionDialog.update()
+        self.LongActionDialog.geometry(CenterToParentGeometry(self.LongActionDialog,parent))
+
+        prevParentCursor=parent.cget('cursor')
+        parent.config(cursor="watch")
+        
+        ####################
+        self.KeepGoing=1
+        self.LongActionDialogNaturalEnd=1
+        ####################
+        LongActionCommand(self.LongActionDialogUpdate)
+        ####################
+        self.LongActionDialogEnd()
+        
+        parent.config(cursor=prevParentCursor)
+
+    def LongActionDialogCalcNextTime(self,now):
+        self.NextCallTime=now+50.0
+
+    def LongActionDialogAbort(self,event=None):
+        self.LongActionDialogNaturalEnd=0
+        self.LongActionDialogEnd()
+
+    def LongActionDialogEnd(self):
+        self.KeepGoing=0
+
+        self.LongActionDialog.grab_release()
+        self.LongActionDialog.destroy()
+
+    def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None):
+        now=self.getNow()
+        if now>self.NextCallTime:
+            prefix=''
+            if self.LADPrevMessage==message:
+                if now>self.LastTimeNoSign+1000.0:
+                    prefix=str(self.progressSigns[self.psIndex])
+                    self.psIndex=(self.psIndex+1)%4
+            else:
+                self.LADPrevMessage=message
+                self.LastTimeNoSign=now
+
+                self.Progress1Func(progress1)
+                self.progr1LabRight.config(text=progress1Right)
+                self.progr2var.set(progress2)
+                self.progr2LabRight.config(text=progress2Right)
+
+            self.message.set(f'{prefix}\n{message}')
+            self.LongActionDialog.update()
+
+            self.LongActionDialogCalcNextTime(now)
+
+        return self.KeepGoing
+         
     def __init__(self,cwd):
         self.D = CORE()
         self.cwd=cwd
@@ -899,10 +905,14 @@ class Gui:
         style.theme_create("dummy", parent='vista' if windows else 'clam' )
         
         self.bg = style.lookup('TFrame', 'background')
-
+        global bg
+        bg=self.bg
+        
         style.theme_use("dummy")
         
         style.configure("TButton", anchor = "center")
+        style.configure("TButton", background = self.bg)
+        
         style.configure("TCheckbutton", background = self.bg)
 
         style.map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
@@ -1174,7 +1184,7 @@ class Gui:
         self.tree2.tag_configure(LINK, foreground='darkgray')
 
         self.SetDefaultGeometryAndShow(self.main,None)
-
+        
         #######################################################################
         #scan dialog
 
@@ -2122,14 +2132,15 @@ class Gui:
         self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(ExcludeVarsFromEntry))
         
         self.main.update()
-        if LongActionDialog(self.ScanDialogMainFrame,'scanning files ...',lambda UpdateCallback : self.D.scan(UpdateCallback)).NaturalEnd:
-            
+        self.LongAction(self.ScanDialogMainFrame,'scanning files ...',lambda UpdateCallback : self.D.scan(UpdateCallback))
+        if self.LongActionDialogNaturalEnd:
             if self.D.sumSize==0:
                 self.DialogWithEntry(title='Cannot Proceed.',prompt='No Duplicates.',parent=self.ScanDialog,OnlyInfo=True)
-            elif LongActionDialog(self.ScanDialogMainFrame,'crc calculation ...',lambda UpdateCallback : self.D.crcCalc(self.WriteScanToLog.get(),UpdateCallback),'determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:').NaturalEnd:
-
-                self.ShowData()
-                self.ScanDialogClose()
+            else :
+                self.LongAction(self.ScanDialogMainFrame,'crc calculation ...',lambda UpdateCallback : self.D.crcCalc(self.WriteScanToLog.get(),UpdateCallback),'determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:')
+                if self.LongActionDialogNaturalEnd:
+                    self.ShowData()
+                    self.ScanDialogClose()
 
     def ScanDialogShow(self):
         if self.D.ScannedPaths:
