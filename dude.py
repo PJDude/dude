@@ -767,9 +767,6 @@ class Gui:
         self.LongActionDialog.wm_title(title)
         self.LongActionDialog.iconphoto(False, iconphoto)
 
-        global bg
-        self.bg = bg
-        
         (f0:=tk.Frame(self.LongActionDialog,bg=self.bg)).pack(expand=1,fill='both',side='top')
         (f1:=tk.Frame(self.LongActionDialog,bg=self.bg)).pack(expand=1,fill='both',side='top')
 
@@ -893,7 +890,6 @@ class Gui:
         self.main.protocol("WM_DELETE_WINDOW", self.exit)
         self.main.minsize(1200, 800)
         self.main.bind('<FocusIn>', self.FocusIn)
-        self.main.bind('<FocusOut>', self.FocusOut)
 
         global iconphoto
         iconphoto = PhotoImage(file = os.path.join(os.path.dirname(__file__),'icon.png'))
@@ -905,8 +901,6 @@ class Gui:
         style.theme_create("dummy", parent='vista' if windows else 'clam' )
         
         self.bg = style.lookup('TFrame', 'background')
-        global bg
-        bg=self.bg
         
         style.theme_use("dummy")
         
@@ -1187,7 +1181,14 @@ class Gui:
         
         #######################################################################
         #scan dialog
-
+        
+        def ScanDialogReturnPressed(event=None):
+            focus=self.ScanDialog.focus_get()
+            try:
+                focus.invoke()
+            finally:
+                pass
+                
         self.ScanDialog = tk.Toplevel(self.main)
         self.ScanDialog.protocol("WM_DELETE_WINDOW", self.ScanDialogClose)
         self.ScanDialog.minsize(600, 400)
@@ -1200,9 +1201,6 @@ class Gui:
         self.ScanDialogMainFrame.pack(expand=1, fill='both')
 
         self.ScanDialog.config(bd=0, relief=FLAT)
-
-        #font1 = font.Font(name='TkCaptionFont', exists=True)
-        #font1.config(family='courier new', size=10)
 
         self.ScanDialog.title('Scan')
 
@@ -1219,6 +1217,8 @@ class Gui:
         self.ScanDialogMainFrame.grid_rowconfigure(1, weight=1)
 
         self.ScanDialog.bind('<Escape>', self.ScanDialogClose)
+        self.ScanDialog.bind('<KeyPress-Return>', ScanDialogReturnPressed)
+        
         self.ScanDialog.bind('<Alt_L><a>',lambda event : self.AddPathDialog())
         self.ScanDialog.bind('<Alt_L><A>',lambda event : self.AddPathDialog())
         self.ScanDialog.bind('<Alt_L><s>',lambda event : self.Scan())
@@ -1271,9 +1271,10 @@ class Gui:
         frame2 = tk.Frame(self.ScanDialogMainFrame,bg=self.bg)
         frame2.grid(row=6,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        ttk.Button(frame2,width=12,text="Scan",command=self.Scan,underline=0).pack(side='right',padx=4,pady=4)
+        self.ScanButton = ttk.Button(frame2,width=12,text="Scan",command=self.Scan,underline=0)
+        self.ScanButton.pack(side='right',padx=4,pady=4)
         ttk.Button(frame2,width=12,text="Cancel",command=self.ScanDialogClose ).pack(side='left',padx=4,pady=4)
-
+        
         #######################################################################
         #Settings Dialog
         self.SetingsDialog = tk.Toplevel(self.main)
@@ -1665,7 +1666,6 @@ class Gui:
                 
             st.insert(END, lineSplitted[0] + "\n", tag)
         
-        #st.insert(END,message)
         st.configure(state=DISABLED)
         st.grid(row=0,column=0,sticky='news',padx=5,pady=5)
 
@@ -1690,8 +1690,9 @@ class Gui:
         
         self.SetDefaultGeometryAndShow(dialog,parent)
         
-        dialog.grab_set()
         default.focus_set()
+        
+        dialog.grab_set()
         parent.wait_window(dialog)
         
         if PrevGrab:
@@ -1729,9 +1730,6 @@ class Gui:
             self.SettingsDialogShow()
         elif event.keysym in ('s','S') :
             self.ScanDialogShow()
-    
-    LastFocus=None
-    #FocusOut=True
     
     def KeyPressTreeCommon(self,event):
         tree=event.widget
@@ -1816,14 +1814,6 @@ class Gui:
             
     def TreeButtonPress(self,event,toggle=False):
         tree=event.widget
-        #self.LastFocus=None
-        #print('TreeButtonPress')
-
-        #if self.main.focus_get()!=tree:
-            #self.main.focus_set()
-        #    SelChangeDone=True
-        #else:
-        #    SelChangeDone=False
         
         if tree.identify("region", event.x, event.y) == 'heading':
             if (colname:=tree.column(tree.identify_column(event.x),'id') ) in self.col2sortOf:
@@ -1840,8 +1830,6 @@ class Gui:
                 self.Tree1SelChange(item)
             else:
                 self.Tree2SelChange(item)
-            
-            #if not SelChangeDone:
             
             if toggle:
                 self.ToggleSelectedTag(tree,item)
@@ -1871,31 +1859,13 @@ class Gui:
                     
                 tree.see(item)
 
-        #print('TreeEventFocusIn')
-        
-        #if self.LastFocus:
-        #    item = self.SelItem
-        #else:
-        
-
-        #if self.FocusOut:
-        #else:
-            
-        #    tree.update()
-
         if len(self.tree2.get_children())==0:
             self.tree1.selection_remove(self.tree1.selection())
             self.tree1.focus_set()
         
-        #self.FocusOut=False
-    
     def TreeFocusOut(self,event):
         tree=event.widget
         tree.selection_set(tree.focus())
-        
-        self.LastFocus=tree
-        #print('TreeFocusOut LastFocus:',self.LastFocus)
-        #self.FocusOut=True
         
     def Tree1SelChange(self,item,force=False):
         pathnr=self.tree1.set(item,'pathnr')
@@ -2153,6 +2123,7 @@ class Gui:
         self.main.config(cursor="watch")
 
         self.SetDefaultGeometryAndShow(self.ScanDialog,self.main)
+        self.ScanButton.focus_set()
         
     def ScanDialogClose(self,event=None):
         self.ScanDialog.grab_release()
@@ -2249,15 +2220,9 @@ class Gui:
         self.UpdateExcludeMasks()
     
     def FocusIn(self,event):
-        #print('FocusIn')
         self.ScandirCache={}
         self.StatCache={}
-        self.LastFocus=None
         
-    def FocusOut(self,event):
-        #print('FocusOut LastFocus:',self.main.focus_get())
-        pass
-
     def License(self):
         self.Info('License',self.license,self.main,textwidth=80,width=600)
 
