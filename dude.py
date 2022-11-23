@@ -698,6 +698,7 @@ class Gui:
     SelFile=None
     SelCrc=None
     SelItem=None
+    SelTreeIndex=0
     
     pyperclipOperational=True
     
@@ -918,9 +919,6 @@ class Gui:
         #style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('',self.bg)])
         style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('','white')])
         
-        #fieldbackground=[('focus',"blue"),('',"red")] 
-        #fieldbackground=[('!disabled','red')]
-
         #style.map("Treeview.Heading",background = [('pressed', '!focus', 'white'),('active', 'darkgray'),('disabled', '#ffffff'),('',self.bg)])
         
         #works but not for every theme
@@ -938,7 +936,7 @@ class Gui:
         self.StatusVarPathSize=tk.StringVar()
         self.StatusVarPathQuant=tk.StringVar()
 
-        self.paned = PanedWindow(self.main,orient=tk.VERTICAL,relief='sunken',showhandle=0,bd=0,bg=self.bg)
+        self.paned = PanedWindow(self.main,orient=tk.VERTICAL,relief='sunken',showhandle=0,bd=0,bg=self.bg,sashwidth=2,sashrelief='flat')
         self.paned.pack(fill='both',expand=1)
 
         paned_top = tk.Frame(self.paned,bg=self.bg)
@@ -971,7 +969,8 @@ class Gui:
         tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarGroups,borderwidth=2,bg=self.bg,relief='groove',anchor='w').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=12,text='Full file path: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='left')
-        tk.Label(UpperStatusFrame,textvariable=self.StatusVarFullPath,relief='flat',borderwidth=2,bg=self.bg,anchor='w').pack(fill='x',expand=1,side='left')
+        self.StatusVarFullPathLabel = tk.Label(UpperStatusFrame,textvariable=self.StatusVarFullPath,relief='flat',borderwidth=2,bg=self.bg,anchor='w')
+        self.StatusVarFullPathLabel.pack(fill='x',expand=1,side='left')
 
         (LowerStatusFrame := tk.Frame(FrameBottom,bg=self.bg)).pack(side='bottom',fill='both')
 
@@ -1721,7 +1720,7 @@ class Gui:
 
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
-
+        
 #################################################
     def KeyPressGlobal(self,event):
         if event.keysym=='F1':
@@ -1875,6 +1874,7 @@ class Gui:
         self.SelCrc = self.tree1.set(item,'crc')
         self.SelKind = self.tree1.set(item,'kind')
         self.SelItem = item
+        self.SelTreeIndex=0
 
         if path!=self.SelPath or pathnr!=self.SelPathnr or force:
             self.SelPathnr = pathnr
@@ -1904,18 +1904,21 @@ class Gui:
         else:
             self.StatusVarFullPath.set("")
             self.UpdatePathTreeNone()
+            self.StatusVarFullPathLabel.config(fg = 'black')
 
     def Tree2SelChange(self,item):
         self.SelFile = self.tree2.set(item,'file')
         self.SelCrc = self.tree2.set(item,'crc')
         self.SelKind = self.tree2.set(item,'kind')
         self.SelItem = item
-        self.SetCommonVar()
+        self.SelTreeIndex=1
         
         if self.tree2.set(item,'kind')==FILE:
             self.UpdateMainTree(item)
+            self.SetCommonVar()
         else:
             self.UpdateMainTreeNone()
+            self.StatusVarFullPath.set("")
             
     def PopupUnpost(self,event):
         tree=event.widget
@@ -2366,13 +2369,7 @@ class Gui:
         self.fullPaths.set(False)
         self.relSymlinks.set(False)
         self.useRegExpr.set(False)
-
-    #def fileid(self,inode,dev):
-    #    return str(inode)+'-'+str(dev)
-
-    #def fileidSimple(self,inode,dev):
-    #    return inode
-
+        
     def UpdateCrcNode(self,crc):
         size=int(self.tree1.set(crc,'size'))
 
@@ -2557,7 +2554,8 @@ class Gui:
 
     def CalcMarkStatsAll(self):
         self.CalcMarkStatsCore(self.tree1,self.StatusVarAllSize,self.StatusVarAllQuant)
-
+        self.SetCommonVarFg()
+        
     def CalcMarkStatsPath(self):
         self.CalcMarkStatsCore(self.tree2,self.StatusVarPathSize,self.StatusVarPathQuant)
 
@@ -2830,7 +2828,6 @@ class Gui:
             for crc in self.tree1.get_children():
                 if tempList:=[item for item in self.tree1.get_children(crc) if self.tree1.tag_has(MARK,item)]:
                     ProcessedItems[crc]=tempList
-                    
         else:
             if tree==self.tree1:
                 #tylko na gornym drzewie, na dolnym moze byc inny plik
@@ -2846,7 +2843,6 @@ class Gui:
                 #jezeli dzialamy na katalogu pozostale markniecia w crc nie sa uwzglednione
                 #ale w katalogu moze byc >1 tego samego crc
                 ScopeTitle='Selected Directory: ' + self.SelFullPath
-                #ShowFullPath=0
                 for item in tree.get_children():
                     if tree.tag_has(MARK,item):
                         crc=tree.set(item,'crc')
@@ -2870,9 +2866,6 @@ class Gui:
         for crc in self.tree1.get_children():
             RemainingItems[crc]=[item for item in self.tree1.get_children(crc) if not self.tree1.tag_has(MARK,item)]
         
-        #for crc in ProcessedItems:
-        #    ToKeep[crc]=set(self.tree1.get_children(crc))-set(ProcessedItems[crc])
-
         if action=="hardlink":
             for crc in ProcessedItems:
                 if len(ProcessedItems[crc])==1:
@@ -2897,16 +2890,11 @@ class Gui:
             message.append('')
             size=int(self.tree1.set(crc,'size'))
             message.append('CRC:' + crc + ' size:' + bytes2str(size) + '|GRAY')
-            #message.append('  marked:')
             for item in ProcessedItems[crc]:
                 message.append((self.FullPath1(item) if ShowFullPath else tree.set(item,'file')) + '|RED' )
 
             if action=='softlink':
                 if RemainingItems[crc]:
-                    #message.append('')
-                    #message.append('  remaining:')
-                    #for item in RemainingItems[crc]:
-                    
                     item = RemainingItems[crc][0]
                     message.append('➝ ' + (self.FullPath1(item) if ShowFullPath else self.tree1.set(item,'file')) )
 
@@ -3016,16 +3004,23 @@ class Gui:
                 os.system("xdg-open " + '"' + self.SelFullPath + '"')
 
     def TreeEventOpenFile(self,event=None):
-        if self.SelKind==FILE or self.SelKind==LINK or self.SelKind==SINGLE:
-            if windows:
-                os.startfile(os.sep.join([self.SelFullPath,self.SelFile]))
-            else:
-                os.system("xdg-open "+ '"' + os.sep.join([self.SelFullPath,self.SelFile]) + '"')
-        elif self.SelKind==DIR:
-            self.OpenFolder()
+        tree=event.widget
+        
+        if tree.identify("region", event.x, event.y) != 'heading':
+            if self.SelKind==FILE or self.SelKind==LINK or self.SelKind==SINGLE:
+                if windows:
+                    os.startfile(os.sep.join([self.SelFullPath,self.SelFile]))
+                else:
+                    os.system("xdg-open "+ '"' + os.sep.join([self.SelFullPath,self.SelFile]) + '"')
+            elif self.SelKind==DIR:
+                self.OpenFolder()
 
     def SetCommonVar(self,val=None):
         self.StatusVarFullPath.set(os.sep.join([self.SelSearchPath+self.SelPath,self.SelFile]))
+        self.SetCommonVarFg()
+        
+    def SetCommonVarFg(self):
+        self.StatusVarFullPathLabel.config(fg = 'red' if (self.tree1,self.tree2)[self.SelTreeIndex].tag_has(MARK,self.SelItem) else 'black')
         
 LoggingLevels={'DEBUG':logging.DEBUG,'INFO':logging.INFO,'WARNING':logging.WARNING,'ERROR':logging.ERROR,'CRITICAL':logging.CRITICAL}
 
