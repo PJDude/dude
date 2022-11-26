@@ -5,7 +5,7 @@ name: CIrun
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main","test1" ]
 #  pull_request:
 #    branches: [ "main" ]
 
