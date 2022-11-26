@@ -26,9 +26,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install pyinstall
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+#        pip install flake8 pytest
 #    - name: Lint with flake8
 #      run: |
 #        # stop the build if there are Python syntax errors or undefined names
@@ -39,5 +39,7 @@ jobs:
 #      run: |
 #        pytest
     - name: pyinstall
-      run: ./pyinstaller.run.sh
+      run: pyinstaller --noconsole --onefile --clean  --add-data="LICENSE:." --add-data="keyboard.shortcuts.txt:." --add-data="icon.png:." --icon=icon.ico ./dude.py
+    - name: pyinstall2test
+      run: /root/.pyenv/shims/pyinstaller --noconsole --onefile --clean  --add-data="LICENSE:." --add-data="keyboard.shortcuts.txt:." --add-data="icon.png:." --icon=icon.ico ./dude.py
         
