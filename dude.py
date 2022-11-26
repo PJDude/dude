@@ -1758,6 +1758,7 @@ class Gui:
 
 #################################################
     def SelectFocusAndSeeCrcItemTree(self,crc):
+        self.tree1.focus_set()
         lastChild=self.tree1.get_children(crc)[-1]
         self.tree1.see(lastChild)
         self.tree1.update()
