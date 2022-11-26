@@ -42,7 +42,6 @@ jobs:
     - name: STAGE run pyinstaller
       run: "pyinstaller.run.sh"
 
-    - name: STAGE upload
     - uses: actions/upload-artifact@v3
       with:
         name: dude-linux
