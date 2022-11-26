@@ -40,11 +40,7 @@ jobs:
 #        pytest
 
     - name: STAGE run pyinstaller
-      run: |
-        pwd
-        ls
-        pyinstaller.run.sh
-      #run: pyinstaller --noconsole --onefile --clean  --add-data="LICENSE:." --add-data="keyboard.shortcuts.txt:." --add-data="icon.png:." --icon=icon.ico ./dude.py
+      run: bash "pyinstaller.run.sh"
 
     - name: STAGE Upload assets
       id: upload-release-asset 
