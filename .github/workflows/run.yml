@@ -40,7 +40,7 @@ jobs:
 #        pytest
 
     - name: STAGE run pyinstaller
-      run: "pyinstaller.run.sh"
+      run: bash "pyinstaller.run.sh"
 
     - uses: actions/upload-artifact@v3
       with:
