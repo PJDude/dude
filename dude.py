@@ -33,48 +33,7 @@ import logging
 
 import psutil
 
-class Runner(Thread):
-    exitCode=0
-
-    def go(self,command):
-        self.command=command
-        self.start()
-
-    stream=None
-    res=None
-    resValid=False
-    
-    def __INIT__(self):
-        super().__init__()
-        self.res=None
-        self.stream=None
-        self.exitCode=0
-
-    def run(self):
-        self.resValid=True
-        try:
-            self.stream=subprocess.Popen(self.command, stdout=PIPE, stderr=PIPE,bufsize= 1,universal_newlines=True,shell=windows )
-            stdout, stderr = self.stream.communicate()
-            self.res=stdout
-            if stderr:
-                logging.error(f"command:{self.command}->{stderr}")
-                self.resValid=False
-
-            self.exitCode=self.stream.poll()
-        except Exception as e:
-            self.resValid=False
-            logging.error(e)
-
-    def kill(self):
-        if self.stream:
-            self.stream.kill()
-            self.resValid=False
-
-    def GetRes(self):
-        if self.exitCode==0 and self.res!='' and self.resValid:
-            return self.res
-        else:
-            return None
+from collections import defaultdict
 
 CACHE_DIR = os.sep.join([user_cache_dir('dude'),"cache"])
 LOG_DIR = user_log_dir('dude')
@@ -116,8 +75,8 @@ def str2bytes(string):
         return None
 
 class CORE:
-    filesOfSize={}
-    filesOfSizeOfCRC={}
+    filesOfSize=defaultdict(set)
+    filesOfSizeOfCRC=defaultdict(lambda : defaultdict(set))
     cache={}
     sumSize=0
     devs=set()
@@ -131,8 +90,8 @@ class CORE:
         return string.split('\n')[1]
 
     def INIT(self):
-        self.filesOfSize={}
-        self.filesOfSizeOfCRC={}
+        self.filesOfSize=defaultdict(set)
+        self.filesOfSizeOfCRC=defaultdict(lambda : defaultdict(set))
         self.devs.clear()
         self.limit=0
         self.CrcCutLen=128
@@ -140,7 +99,7 @@ class CORE:
         self.ScannedPaths=[]
         self.ExcludeRegExp=False
         self.ExcludeList=[]
-        
+
     def __init__(self):
         self.CRCExec='certutil' if windows else 'sha1sum'
         self.CRCExecParams='-hashfile' if windows else '-b'
@@ -148,7 +107,7 @@ class CORE:
         self.GetCrc=self.getStdout2CrcCertuitil if windows else self.CRCStdout2CRC
 
         self.CheckCRC()
-        
+
         self.INIT()
 
     def setLimit(self,limit):
@@ -188,12 +147,12 @@ class CORE:
 
     def SetExcludeMasks(self,RegExp,MasksList):
         self.ExcludeRegExp=RegExp
-        
+
         if RegExp:
             self.ExclFn = lambda expr,string : re.search(expr,string)
         else:
             self.ExclFn = lambda expr,string : fnmatch.fnmatch(string,expr)
-            
+
         teststring='abc'
         for exclmask in MasksList:
             if '|' in exclmask:
@@ -202,30 +161,21 @@ class CORE:
                 self.ExclFn(exclmask,teststring)
             except Exception as e:
                 return "Expression: '" + exclmask + "' ERROR:" + str(e)
-        
+
         self.ExcludeList=MasksList
         return False
-        
-    def scan(self,updateCallback):
-        logging.info('')
-        logging.info('SCANNING')
-        
-        if self.ExcludeList:
-            logging.info('ExcludeList:' + ' '.join(self.ExcludeList))
 
+    def ScanInSubThread(self):
         pathNr=0
         counter=0
         SizeSum=0
-
-        keepGoing=1
 
         for PathToScan in self.Paths2Scan:
             loopList=[PathToScan]
 
             while loopList:
-                path = loopList.pop(0)
-                subpath=path.replace(PathToScan,'')
                 try:
+                    path = loopList.pop(0)
                     for entry in os.scandir(path):
                         file=entry.name
                         fullpath=os.path.join(path,file)
@@ -233,7 +183,6 @@ class CORE:
                             if any({self.ExclFn(expr,fullpath) for expr in self.ExcludeList}):
                                 logging.info(f'skipping by Exclude Mask:{fullpath}')
                                 continue
-                        
                         try:
                             if os.path.islink(entry) :
                                 logging.debug(f'skippping link: {path} / {file}')
@@ -250,40 +199,68 @@ class CORE:
                                     else:
                                         if stat.st_size>0:
                                             SizeSum+=stat.st_size
-                                            if not stat.st_size in self.filesOfSize:
-                                                self.filesOfSize[stat.st_size]=set()
+
+                                            subpath=path.replace(PathToScan,'')
                                             self.filesOfSize[stat.st_size].add( (pathNr,subpath,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino) )
-                                            
+
                                 counter+=1
-                                
-                                keepGoing = updateCallback(nums[pathNr] + '\n' + PathToScan + '\n' + str(counter) + '\n' + bytes2str(SizeSum),'unprog')
-                                if not keepGoing:
+
+                                self.info=nums[pathNr] + '\n' + PathToScan + '\n\n' + str(counter) + '\n' + bytes2str(SizeSum)
+
+                                if not self.ThreadKeepGoing:
                                     break
 
                         except Exception as e:
                             logging.error(e)
                 except Exception as e:
                     logging.error(e)
-            
-                if not keepGoing:
+
+                if not self.ThreadKeepGoing:
                     break
-            
+
             pathNr+=1
-            if not keepGoing:
+            if not self.ThreadKeepGoing:
                 break
+
+    def scan(self,updateCallback):
+        logging.info('')
+        logging.info('SCANNING')
+
+        if self.ExcludeList:
+            logging.info('ExcludeList:' + ' '.join(self.ExcludeList))
+
+        self.info=''
+
+        self.ProgSize=0
+        self.ProgQuant=0
+
+        self.progress1Right=''
+        self.progress2Right=''
+
+        self.ThreadKeepGoing=True
+
+        ScanThread=Thread(target=self.ScanInSubThread,daemon=True)
+        ScanThread.start()
+
+        while ScanThread.is_alive():
+            if updateCallback(self.info):
+                time.sleep(0.04)
+            else:
+                self.ThreadKeepGoing=False
+                self.Kill()
+                break
+
+        ScanThread.join()
 
         self.devs={dev for size,data in self.filesOfSize.items() for pathnr,path,file,mtime,ctime,dev,inode in data}
 
         ######################################################################
         #inodes collision detection
-        knownDevInodes={}
+        knownDevInodes=defaultdict(int)
         for size,data in self.filesOfSize.items():
             for pathnr,path,file,mtime,ctime,dev,inode in data:
                 index=(dev,inode)
-                if index not in knownDevInodes:
-                    knownDevInodes[index]=1
-                else:
-                    knownDevInodes[index]=knownDevInodes[index]+1
+                knownDevInodes[index]+=1
 
         self.blacklistedInodes = {index for index in knownDevInodes if knownDevInodes[index]>1}
 
@@ -320,7 +297,7 @@ class CORE:
             exit(11)
         else:
             logging.debug(f"all fine. stdout:{stdout} crc:{self.GetCrc(stdout)}")
-    
+
     def ReadCRCCache(self):
         self.CRCCache={}
         for dev in self.devs:
@@ -338,7 +315,7 @@ class CORE:
             except Exception as e:
                 logging.warning(e)
                 self.CRCCache[dev]=dict()
-        
+
     def WriteCRCCache(self):
         pathlib.Path(CACHE_DIR).mkdir(parents=True,exist_ok=True)
         for dev in self.CRCCache:
@@ -346,96 +323,134 @@ class CORE:
             with open(os.sep.join([CACHE_DIR,str(dev)]),'w' ) as cfile:
                 for (inode,mtime),crc in self.CRCCache[dev].items():
                     cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
-                    
-    def SingleCrc(self,size,sizeBytesInfo,sumSizeStr,pathnr,path,file,mtime,ctime,dev,inode,updateCallback):
-        FileValid=True
-        CacheKey=(int(inode),int(mtime))
-        self.fileNr+=1
 
-        if CacheKey in self.CRCCache[dev]:
-            crc=self.CRCCache[dev][CacheKey]
-            self.sizeDone+=size
-            keepGoing=True
-        else:
-            fullpath=self.Path2ScanFull(pathnr,path,file)
+    SubprocessStream=None
 
-            ProgSize=100.0*self.sizeDone/self.sumSize
-            ProgQuant=100.0*self.fileNr/self.total
+    def Run(self,command):
+        try:
+            self.SubprocessStream=subprocess.Popen(command, stdout=PIPE, stderr=PIPE,bufsize= 1,universal_newlines=True,shell=windows )
+            stdout, stderr = self.SubprocessStream.communicate()
 
-            (keepGoing,crc)=self.GetFileCrc(fullpath,lambda : updateCallback('\ngroups found:' + self.FoundSumStr + sizeBytesInfo,ProgSize,ProgQuant,progress1Right=bytes2str(self.sizeDone) + sumSizeStr,progress2Right=str(self.fileNr) + self.totalStr) )
+            if stderr:
+                logging.error(f"command:{command}->{stderr}")
+                return None
+            elif exitCode:=self.SubprocessStream.poll():
+                logging.error(f"command:{command}->exitCode:{exitCode}")
+                return None
 
-            if FileValid:=crc:
-                self.CRCCache[dev][CacheKey]=crc
-                self.sizeDone+=size
+        except Exception as e:
+            logging.error(e)
+            return None
 
-        if keepGoing and FileValid:
-            if size not in self.filesOfSizeOfCRC:
-                self.filesOfSizeOfCRC[size]={}
+        return self.GetCrc(stdout)
 
-            if crc not in self.filesOfSizeOfCRC[size]:
-                self.filesOfSizeOfCRC[size][crc]=set()
+    def Kill(self):
+        try:
+            if self.SubprocessStream:
+                self.SubprocessStream.kill()
+        except Exception as e:
+            logging.error(e)
 
-            self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
-        return keepGoing
-            
-    def crcCalc(self,writeLog,updateCallback):
-        self.ReadCRCCache()
-
-        self.sizeDone=0
-
-        keepGoing=1
+    def CrcCalcInSubThread(self):
         FoundSum=0
-        self.fileNr=0
+        fileNr=0
 
         self.total = len([ 1 for size in self.filesOfSize for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size] ])
+
+        self.StoBySumSize=100.0/self.sumSize
+        self.StoBytotal = 100.0/self.total
+
         self.totalStr = '/' + str(self.total)
 
         sumSizeStr='/' + bytes2str(self.sumSize)
         self.FoundSumStr='0'
 
-        SizeDone=set()
+        SizeDone=0
         PathsToRecheckSet=set()
-        
+
         LimitReached=False
         for size in list(sorted(self.filesOfSize,reverse=True)):
-            if keepGoing:
+            if self.ThreadKeepGoing:
                 sizeBytesInfo='\ncurrent size: ' + bytes2str(size)
-                SizeDone.add(size)
                 for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size]:
-                    if keepGoing:
+                    if self.ThreadKeepGoing:
                         if (not LimitReached) or (LimitReached and (pathnr,path) in PathsToRecheckSet):
-                            keepGoing=self.SingleCrc(size,sizeBytesInfo,sumSizeStr,pathnr,path,file,mtime,ctime,dev,inode,updateCallback)
-                
-                if keepGoing:
-                    ######################################################################
+                            self.info = '\ngroups found:' + self.FoundSumStr + sizeBytesInfo
+
+                            fileNr+=1
+                            SizeDone+=size
+
+                            self.ProgSize=self.StoBySumSize*SizeDone
+                            self.ProgQuant=self.StoBytotal*fileNr
+
+                            self.progress1Right=bytes2str(SizeDone) + sumSizeStr,
+                            self.progress2Right=str(fileNr) + self.totalStr
+
+                            CacheKey=(int(inode),int(mtime))
+                            if CacheKey in self.CRCCache[dev]:
+                                crc=self.CRCCache[dev][CacheKey]
+                            else:
+                                if crc:=self.Run([self.CRCExec,self.CRCExecParams,self.Path2ScanFull(pathnr,path,file)]):
+                                    self.CRCCache[dev][CacheKey]=crc
+
+                            if crc:
+                                self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
+
+                if self.ThreadKeepGoing:
                     if size in self.filesOfSizeOfCRC:
                         self.CheckCrcPoolAndPrune(size)
-                
+
                     if size in self.filesOfSizeOfCRC:
                         if self.limit:
                             FoundSum+=len(self.filesOfSizeOfCRC[size])
                             self.FoundSumStr=str(FoundSum)
                             if FoundSum>=self.limit:
                                 LimitReached=True
-                        
+
                         if not LimitReached:
                             for crc in self.filesOfSizeOfCRC[size]:
                                  for (pathnr,path,file,ctime,dev,inode) in self.filesOfSizeOfCRC[size][crc]:
                                     PathsToRecheckSet.add((pathnr,path))
                 else:
                     break
-    
+
         self.filesOfSize.clear()
+
+    def CrcCalc(self,writeLog,updateCallback):
+
+        self.ReadCRCCache()
 
         self.ScannedPaths=self.Paths2Scan.copy()
 
+        self.info=''
+        self.ProgSize=0
+        self.ProgQuant=0
+
+        self.progress1Right=''
+        self.progress2Right=''
+
+        self.ThreadKeepGoing=True
+
+        CRCThread=Thread(target=self.CrcCalcInSubThread,daemon=True)
+        CRCThread.start()
+
+        while CRCThread.is_alive():
+            if updateCallback(self.info,self.ProgSize,self.ProgQuant,self.progress1Right,self.progress2Right):
+                time.sleep(0.04)
+            else:
+                self.ThreadKeepGoing=False
+                self.Kill()
+                break
+
+        CRCThread.join()
+
         self.CalcCrcMinLen()
-        
+
         self.WriteCRCCache()
-        
+
         if writeLog:
             self.LogScanResults()
-        
+
     def LogScanResults(self):
         logging.info('#######################################################')
         logging.info('scan and crc calculation complete')
@@ -452,29 +467,6 @@ class CORE:
                 for IndexTuple in self.filesOfSizeOfCRC[size][crc]:
                     logging.info('    ' + ' '.join( [str(elem) for elem in list(IndexTuple) ]))
         logging.info('#######################################################')
-    
-    def GetFileCrc(self,Fullpath,updateCallbackFn):
-        (thread := Runner()).go([self.CRCExec,self.CRCExecParams,Fullpath])
-
-        UpdateCalled=False
-
-        while thread.is_alive():
-            UpdateCalled=True
-            if updateCallbackFn():
-                time.sleep(0.001)
-            else :
-                thread.kill()
-                return (None,None)
-
-        thread.join()
-        if not UpdateCalled:
-            updateCallbackFn()
-        if not (result:=thread.GetRes()):
-            return (True,None)
-        elif not (crc:=self.GetCrc(result)):
-            return (True,None)
-        else:
-            return (True,crc)
 
     def CheckCrcPoolAndPrune(self,size):
         for crc in list(self.filesOfSizeOfCRC[size]):
@@ -674,34 +666,36 @@ class Config:
 def CenterToParentGeometry(widget,parent):
     x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
     y = int(parent.winfo_rooty()+0.5*(parent.winfo_height()-widget.winfo_height()))
-            
+
     return f'+{x}+{y}'
-    
+
 def CenterToScreenGeometry(widget):
     x = int(0.5*(widget.winfo_screenwidth()-widget.winfo_width()))
     y = int(0.5*(widget.winfo_screenheight()-widget.winfo_height()))
-            
+
     return f'+{x}+{y}'
 
 ###########################################################
 
 ###########################################################
 
-raw = lambda x : x 
+raw = lambda x : x
 
 class Gui:
 
     MAX_PATHS=10
 
-    SelPathnr=None
-    SelPath=None
-    SelFile=None
-    SelCrc=None
-    SelItem=None
-    SelTreeIndex=0
-    
     pyperclipOperational=True
-    
+
+    def ResetSels(self):
+        self.SelPathnr=None
+        self.SelPath=None
+        self.SelFile=None
+        self.SelCrc=None
+        self.SelItem=None
+        self.SelTreeIndex=0
+        self.SelKind=None
+
     def WatchCursor(f):
         def wrapp(self,*args,**kwargs):
             if 'parent' in kwargs.keys():
@@ -711,18 +705,18 @@ class Gui:
                 parent.update()
 
                 res=f(self,*args,**kwargs)
-                
+
                 parent.config(cursor=prevParentCursor)
                 return res
             else:
                 return f(self,*args,**kwargs)
-                
+
         return wrapp
-    
+
     def CheckClipboard(self):
-        
+
         TestString='Dude-TestString'
-        
+
         logging.info('pyperclip test start.')
         return
         try:
@@ -732,7 +726,7 @@ class Gui:
             logging.error(e)
             self.pyperclipOperational=False
             logging.error('Clipboard test error. Copy options disabled.')
-        else:            
+        else:
             if pyperclip.paste() != TestString:
                 self.pyperclipOperational=False
                 logging.error('Clipboard test error. Copy options disabled.')
@@ -741,10 +735,10 @@ class Gui:
             else:
                 pyperclip.copy(PrevVal)
                 logging.info('pyperclip test passed.')
-   
+
     #######################################################################
     #LongActionDialog
-        
+
     progressSigns='◐◓◑◒'
     LADPrevMessage=''
 
@@ -754,7 +748,6 @@ class Gui:
     def LongAction(self,parent,title,LongActionCommand,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
         now=self.getNow()
         self.psIndex =0
-        self.LongActionDialogCalcNextTime(now)
 
         self.ProgressMode1=ProgressMode1
         self.ProgressMode2=ProgressMode2
@@ -773,10 +766,10 @@ class Gui:
 
         self.progr1var = DoubleVar()
         self.progr1=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=ProgressMode1,variable=self.progr1var)
-        
+
         if ProgressMode1:
             self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')
-        
+
         self.progr1LabLeft=tk.Label(f0,width=17,bg=self.bg)
         if Progress1LeftText:
             self.progr1LabLeft.grid(row=0,column=0,padx=1,pady=4)
@@ -791,7 +784,7 @@ class Gui:
             self.Progress1Func=(lambda progress1 : self.progr1.start())
         else :
             self.Progress1Func=lambda args : None
-            
+
         self.progr2var = DoubleVar()
         self.progr2=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=ProgressMode2,variable=self.progr2var)
         self.progr2LabRight=tk.Label(f0,width=17,bg=self.bg)
@@ -823,7 +816,7 @@ class Gui:
 
         prevParentCursor=parent.cget('cursor')
         parent.config(cursor="watch")
-        
+
         ####################
         self.KeepGoing=1
         self.LongActionDialogNaturalEnd=1
@@ -831,11 +824,8 @@ class Gui:
         LongActionCommand(self.LongActionDialogUpdate)
         ####################
         self.LongActionDialogEnd()
-        
-        parent.config(cursor=prevParentCursor)
 
-    def LongActionDialogCalcNextTime(self,now):
-        self.NextCallTime=now+50.0
+        parent.config(cursor=prevParentCursor)
 
     def LongActionDialogAbort(self,event=None):
         self.LongActionDialogNaturalEnd=0
@@ -849,29 +839,28 @@ class Gui:
 
     def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None):
         now=self.getNow()
-        if now>self.NextCallTime:
-            prefix=''
-            if self.LADPrevMessage==message:
-                if now>self.LastTimeNoSign+1000.0:
-                    prefix=str(self.progressSigns[self.psIndex])
-                    self.psIndex=(self.psIndex+1)%4
-            else:
-                self.LADPrevMessage=message
-                self.LastTimeNoSign=now
+        prefix=''
+        if self.LADPrevMessage==message:
+            if now>self.LastTimeNoSign+1000.0:
+                prefix=str(self.progressSigns[self.psIndex])
+                self.psIndex=(self.psIndex+1)%4
+        else:
+            self.LADPrevMessage=message
+            self.LastTimeNoSign=now
 
-                self.Progress1Func(progress1)
-                self.progr1LabRight.config(text=progress1Right)
-                self.progr2var.set(progress2)
-                self.progr2LabRight.config(text=progress2Right)
+            self.Progress1Func(progress1)
+            self.progr1LabRight.config(text=progress1Right)
+            self.progr2var.set(progress2)
+            self.progr2LabRight.config(text=progress2Right)
 
-            self.message.set(f'{prefix}\n{message}')
-            self.LongActionDialog.update()
-
-            self.LongActionDialogCalcNextTime(now)
+        self.message.set(f'{prefix}\n{message}')
+        self.LongActionDialog.update()
 
         return self.KeepGoing
-         
+
     def __init__(self,cwd):
+        self.ResetSels()
+
         self.D = CORE()
         self.cwd=cwd
 
@@ -882,7 +871,7 @@ class Gui:
         self.ExcludeFrames=[]
 
         self.PathsToScanFromDialog=[]
-        
+
         self.CheckClipboard()
 
         ####################################################################
@@ -900,14 +889,14 @@ class Gui:
         style = ttk.Style()
 
         style.theme_create("dummy", parent='vista' if windows else 'clam' )
-        
+
         self.bg = style.lookup('TFrame', 'background')
-        
+
         style.theme_use("dummy")
-        
+
         style.configure("TButton", anchor = "center")
         style.configure("TButton", background = self.bg)
-        
+
         style.configure("TCheckbutton", background = self.bg)
 
         style.map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
@@ -918,12 +907,12 @@ class Gui:
 
         #style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('',self.bg)])
         style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('','white')])
-        
+
         #style.map("Treeview.Heading",background = [('pressed', '!focus', 'white'),('active', 'darkgray'),('disabled', '#ffffff'),('',self.bg)])
-        
+
         #works but not for every theme
         #style.configure("Treeview", fieldbackground=self.bg)
-        
+
         #######################################################################
         self.menubar = tk.Menu(self.main,bg=self.bg,relief='raised')
         self.main.config(menu=self.menubar)
@@ -961,7 +950,7 @@ class Gui:
         (UpperStatusFrame := tk.Frame(FrameTop,bg=self.bg)).pack(side='bottom', fill='both')
         self.StatusVarGroups.set('0')
         self.StatusVarFullPath.set('')
-        
+
         tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarAllQuant,borderwidth=2,bg=self.bg,relief='groove',foreground='red',anchor='w').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=16,text="All marked files # ",relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarAllSize,borderwidth=2,bg=self.bg,relief='groove',foreground='red',anchor='w').pack(fill='x',expand=0,side='right')
@@ -993,7 +982,7 @@ class Gui:
         self.main.unbind_class('Treeview', '<KeyPress-Left>')
         self.main.unbind_class('Treeview', '<KeyPress-Right>')
         self.main.unbind_class('Treeview', '<Double-Button-1>')
-        
+
         self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
         self.main.bind_class('Treeview','<Control-i>',  lambda event : self.MarkOnAll(self.InvertMark) )
         self.main.bind_class('Treeview','<Control-I>',  lambda event : self.MarkOnAll(self.InvertMark) )
@@ -1010,12 +999,12 @@ class Gui:
         self.main.bind_class('Treeview','<ButtonPress-1>', self.TreeButtonPress)
         self.main.bind_class('Treeview','<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
         self.main.bind_class('Treeview','<ButtonPress-3>', self.TreeContexMenu)
-        
+
         self.main.bind_class('Treeview','<Shift-BackSpace>',            lambda event : self.GoToMaxGroup(1) )
         self.main.bind_class('Treeview','<Shift-Control-BackSpace>',    lambda event : self.GoToMaxGroup(0) )
         self.main.bind_class('Treeview','<BackSpace>',                  lambda event : self.GoToMaxFolder(1) )
         self.main.bind_class('Treeview','<Control-BackSpace>',          lambda event : self.GoToMaxFolder(0) )
-        
+
         if self.pyperclipOperational:
             self.main.bind_class('Treeview','<Control-c>',  lambda event : self.ClipCopy() )
             self.main.bind_class('Treeview','<Control-C>',  lambda event : self.ClipCopy() )
@@ -1044,7 +1033,7 @@ class Gui:
         self.OrgLabel['ctimeH']='Change Time'
 
         self.tree1["columns"]=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','ctimeH','kind')
-        
+
         #pathnr,path,file,ctime,dev,inode
         self.IndexTupleIndexesWithFnCommon=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
 
@@ -1063,14 +1052,14 @@ class Gui:
         self.tree1.heading('sizeH',anchor=tk.W)
         self.tree1.heading('ctimeH',anchor=tk.W)
         self.tree1.heading('instances',anchor=tk.W)
-        
+
         self.col2sortOf={}
         self.col2sortOf['path'] = 'path'
         self.col2sortOf['file'] = 'file'
         self.col2sortOf['sizeH'] = 'size'
         self.col2sortOf['ctimeH'] = 'ctime'
         self.col2sortOf['instances'] = 'instances'
-        
+
         self.col2sortNumeric={}
         self.col2sortNumeric['path'] = False
         self.col2sortNumeric['file'] = False
@@ -1093,15 +1082,15 @@ class Gui:
 
         self.tree1.bind('<KeyRelease>',             self.Tree1KeyRelease )
         self.tree1.bind('<Double-Button-1>',        self.TreeEventOpenFile)
-        
+
         self.tree1.bind('<Control-a>', lambda event : self.MarkOnAll(self.SetMark) )
         self.tree1.bind('<Control-A>', lambda event : self.MarkOnAll(self.SetMark) )
         self.tree1.bind('<Control-n>', lambda event : self.MarkOnAll(self.UnsetMark) )
         self.tree1.bind('<Control-N>', lambda event : self.MarkOnAll(self.UnsetMark) )
-        
+
         self.tree1.bind('<BackSpace>',          lambda event : self.GoToMaxGroup(1) )
         self.tree1.bind('<Control-BackSpace>',    lambda event : self.GoToMaxGroup(0) )
-        
+
         self.tree1.bind('<a>', lambda event : self.MarkInCRCGroup(self.SetMark) )
         self.tree1.bind('<A>', lambda event : self.MarkInCRCGroup(self.SetMark) )
         self.tree1.bind('<n>', lambda event : self.MarkInCRCGroup(self.UnsetMark) )
@@ -1111,14 +1100,14 @@ class Gui:
         self.tree1.bind('<O>', lambda event : self.MarkInCRCGroupByCTime('oldest',self.InvertMark) )
         self.tree1.bind('<y>', lambda event : self.MarkInCRCGroupByCTime('youngest',self.InvertMark) )
         self.tree1.bind('<Y>', lambda event : self.MarkInCRCGroupByCTime('youngest',self.InvertMark) )
-        
+
         self.tree1.bind('<i>', lambda event : self.MarkInCRCGroup(self.InvertMark) )
         self.tree1.bind('<I>', lambda event : self.MarkInCRCGroup(self.InvertMark) )
 
         self.tree2=ttk.Treeview(FrameBottom,takefocus=True,selectmode='none')
 
         self.tree2['columns']=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','instancesnum','ctimeH','kind')
-        
+
         self.tree2['displaycolumns']=('file','sizeH','instances','ctimeH')
 
         self.tree2.column('#0', width=120, minwidth=100, stretch=tk.NO)
@@ -1134,7 +1123,7 @@ class Gui:
         self.tree2.heading('sizeH',anchor=tk.W)
         self.tree2.heading('ctimeH',anchor=tk.W)
         self.tree2.heading('instances',anchor=tk.W)
-        
+
         for tree in [self.tree1,self.tree2]:
             for col in tree["displaycolumns"]:
                 if col in self.OrgLabel:
@@ -1150,7 +1139,7 @@ class Gui:
 
         self.tree2.bind('<KeyRelease>',             self.Tree2KeyRelease )
         self.tree2.bind('<Double-Button-1>',        self.TreeEventOpenFile)
-        
+
         self.tree2.bind('<a>', lambda event : self.MarkLowerPane(self.SetMark) )
         self.tree2.bind('<A>', lambda event : self.MarkLowerPane(self.SetMark) )
         self.tree2.bind('<n>', lambda event : self.MarkLowerPane(self.UnsetMark) )
@@ -1177,17 +1166,17 @@ class Gui:
         self.tree2.tag_configure(LINK, foreground='darkgray')
 
         self.SetDefaultGeometryAndShow(self.main,None)
-        
+
         #######################################################################
         #scan dialog
-        
+
         def ScanDialogReturnPressed(event=None):
             focus=self.ScanDialog.focus_get()
             try:
                 focus.invoke()
-            finally:
+            except:
                 pass
-                
+
         self.ScanDialog = tk.Toplevel(self.main)
         self.ScanDialog.protocol("WM_DELETE_WINDOW", self.ScanDialogClose)
         self.ScanDialog.minsize(600, 400)
@@ -1217,15 +1206,15 @@ class Gui:
 
         self.ScanDialog.bind('<Escape>', self.ScanDialogClose)
         self.ScanDialog.bind('<KeyPress-Return>', ScanDialogReturnPressed)
-        
+
         self.ScanDialog.bind('<Alt_L><a>',lambda event : self.AddPathDialog())
         self.ScanDialog.bind('<Alt_L><A>',lambda event : self.AddPathDialog())
         self.ScanDialog.bind('<Alt_L><s>',lambda event : self.Scan())
         self.ScanDialog.bind('<Alt_L><S>',lambda event : self.Scan())
-    
+
         self.ScanDialog.bind('<Alt_L><D>',lambda event : self.AddDrives())
         self.ScanDialog.bind('<Alt_L><d>',lambda event : self.AddDrives())
-        
+
         self.ScanDialog.bind('<Alt_L><E>',lambda event : self.AddExckludeMaskDialog())
         self.ScanDialog.bind('<Alt_L><e>',lambda event : self.AddExckludeMaskDialog())
 
@@ -1235,7 +1224,7 @@ class Gui:
 
         self.AddPathButton = ttk.Button(self.pathsFrame,width=10,text="Add Path ...",command=self.AddPathDialog,underline=0)
         self.AddPathButton.grid(column=0, row=100,pady=4,padx=4)
-        
+
         self.AddDrivesButton = ttk.Button(self.pathsFrame,width=10,text="Add drives",command=self.AddDrives,underline=4)
         self.AddDrivesButton.grid(column=1, row=100,pady=4,padx=4)
 
@@ -1244,11 +1233,11 @@ class Gui:
 
         self.pathsFrame.grid_columnconfigure(1, weight=1)
         self.pathsFrame.grid_rowconfigure(99, weight=1)
-        
+
         ##############
         self.ScanExcludeRegExpr=tk.BooleanVar()
         self.ScanExcludeRegExpr.set(self.cfg.Get(CFG_KEY_EXCLUDE_REGEXP,False) == 'True')
-        
+
         self.ExcludeFRame = tk.LabelFrame(self.ScanDialogMainFrame,text='Exclude from scan:',borderwidth=2,bg=self.bg)
         self.ExcludeFRame.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
@@ -1261,10 +1250,10 @@ class Gui:
         self.ExcludeFRame.grid_columnconfigure(1, weight=1)
         self.ExcludeFRame.grid_rowconfigure(99, weight=1)
         ##############
-        
+
         tk.Label(self.ScanDialogMainFrame,text='Limit scan groups main results number to biggest:',borderwidth=2,anchor='w',bg=self.bg).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=3)
         ttk.Button(self.ScanDialogMainFrame,textvariable=self.ResultsLimitVar,command=self.setResultslimit,width=10).grid(row=2,column=3,sticky='wens',padx=8,pady=3)
-        
+
         ttk.Checkbutton(self.ScanDialogMainFrame,text='Write scan results to application log',variable=self.WriteScanToLog).grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
         frame2 = tk.Frame(self.ScanDialogMainFrame,bg=self.bg)
@@ -1273,7 +1262,7 @@ class Gui:
         self.ScanButton = ttk.Button(frame2,width=12,text="Scan",command=self.Scan,underline=0)
         self.ScanButton.pack(side='right',padx=4,pady=4)
         ttk.Button(frame2,width=12,text="Cancel",command=self.ScanDialogClose ).pack(side='left',padx=4,pady=4)
-        
+
         #######################################################################
         #Settings Dialog
         self.SetingsDialog = tk.Toplevel(self.main)
@@ -1452,14 +1441,14 @@ class Gui:
         self.HelpCascade.add_command(label = 'Keyboard Shortcuts',command=self.KeyboardShortcuts,accelerator="F1")
         self.HelpCascade.add_command(label = 'License',command=self.License)
         self.menubar.add_cascade(label = 'Help',menu = self.HelpCascade)
-        
+
         #######################################################################
 
         self.SettingsSetBools()
-        
+
         if self.AddCwdAtStartup:
             self.addPath(cwd)
-        
+
         self.ScanDialogShow()
 
         if self.ScanAtStarup:
@@ -1471,7 +1460,7 @@ class Gui:
 
         self.ShowData()
         self.main.mainloop()
-    
+
     def GetIndexTupleTree1(self,item):
         return self.GetIndexTuple(item,self.tree1)
 
@@ -1497,20 +1486,20 @@ class Gui:
         wid=wid.replace(')','_')
         wid=wid.replace('.','_')
         return wid
-    
+
     def SetDefaultGeometryAndShow(self,widget,parent):
         CfgGeometry=self.cfg.Get(self.WidgetId(widget),None,section='geometry')
-        
+
         if CfgGeometry != None and CfgGeometry != 'None':
             widget.geometry(CfgGeometry)
         elif parent :
             widget.geometry(CenterToParentGeometry(widget,parent))
         else:
             widget.geometry(CenterToScreenGeometry(widget))
-            
+
         widget.deiconify()
-        
-        #prevent displacement 
+
+        #prevent displacement
         if CfgGeometry != None and CfgGeometry != 'None':
             widget.geometry(CfgGeometry)
 
@@ -1520,7 +1509,7 @@ class Gui:
 
     def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False,width=400,height=140):
         parent.config(cursor="watch")
-        
+
         dialog = tk.Toplevel(parent)
         dialog.minsize(width, height)
         dialog.wm_transient(parent)
@@ -1529,9 +1518,9 @@ class Gui:
         dialog.wm_title(title)
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, iconphoto)
-        
+
         res=set()
-        
+
         EntryVar=tk.StringVar(value=initialvalue)
 
         def over():
@@ -1555,12 +1544,12 @@ class Gui:
             res.add(False)
 
         dialog.protocol("WM_DELETE_WINDOW", No)
-        
+
         def ReturnPressed(event=None):
             nonlocal dialog
             nonlocal ok
             nonlocal entry
-            
+
             focus=dialog.focus_get()
             if focus==ok or focus==entry:
                 Yes()
@@ -1570,9 +1559,9 @@ class Gui:
         tk.Label(dialog,text=prompt,anchor='n',justify='center',bg=self.bg).grid(sticky='news',row=0,column=0,padx=5,pady=5)
         if not OnlyInfo:
             (entry:=ttk.Entry(dialog,textvariable=EntryVar)).grid(sticky='news',row=1,column=0,padx=5,pady=5)
-        
+
         (bfr:=tk.Frame(dialog,bg=self.bg)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
-        
+
         if OnlyInfo:
             ok=default=ttk.Button(bfr, text='OK', width=10 ,command=No )
             ok.pack()
@@ -1587,29 +1576,29 @@ class Gui:
 
         dialog.bind('<Escape>', No)
         dialog.bind('<KeyPress-Return>', ReturnPressed)
-        
-        PrevGrab = dialog.grab_current() 
-        
+
+        PrevGrab = dialog.grab_current()
+
         self.SetDefaultGeometryAndShow(dialog,parent)
-            
+
         if OnlyInfo:
             ok.focus_set()
         else:
             entry.focus_set()
-        
+
         dialog.grab_set()
         parent.wait_window(dialog)
-        
+
         if PrevGrab:
             PrevGrab.grab_set()
         else:
             dialog.grab_release()
 
         return next(iter(res))
-        
+
     def dialog(self,parent,title,message,OnlyInfo=False,textwidth=128,width=800,height=400):
         parent.config(cursor="watch")
-        
+
         dialog = tk.Toplevel(parent)
         dialog.minsize(width,height)
         dialog.wm_transient(parent)
@@ -1618,9 +1607,9 @@ class Gui:
         dialog.wm_title(title)
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, iconphoto)
-        
+
         res=set()
-        
+
         def over():
             self.GeometryStore(dialog)
             dialog.destroy()
@@ -1639,32 +1628,32 @@ class Gui:
             over()
             nonlocal res
             res.add(False)
-        
+
         dialog.protocol("WM_DELETE_WINDOW", No)
 
         def ReturnPressed(event=None):
             nonlocal dialog
             nonlocal default
-            
+
             focus=dialog.focus_get()
             if focus==default:
                 No()
             else:
                 Yes()
-        
-        st=scrolledtext.ScrolledText(dialog,relief='groove', bd=2,bg=self.bg,width = textwidth,takefocus=True )
+
+        st=scrolledtext.ScrolledText(dialog,relief='groove', bd=2,bg='white',width = textwidth,takefocus=True )
         st.frame.config(bg=self.bg,takefocus=False)
         st.vbar.config(bg=self.bg,takefocus=False)
 
         st.tag_configure('RED', foreground='red')
         st.tag_configure('GRAY', foreground='gray')
-        
+
         for line in message.split('\n'):
             lineSplitted=line.split('|')
             tag=lineSplitted[1] if len(lineSplitted)>1 else None
-                
+
             st.insert(END, lineSplitted[0] + "\n", tag)
-        
+
         st.configure(state=DISABLED)
         st.grid(row=0,column=0,sticky='news',padx=5,pady=5)
 
@@ -1684,16 +1673,16 @@ class Gui:
 
         dialog.bind('<Escape>', No)
         dialog.bind('<KeyPress-Return>', ReturnPressed)
-        
-        PrevGrab = dialog.grab_current() 
-        
+
+        PrevGrab = dialog.grab_current()
+
         self.SetDefaultGeometryAndShow(dialog,parent)
-        
+
         default.focus_set()
-        
+
         dialog.grab_set()
         parent.wait_window(dialog)
-        
+
         if PrevGrab:
             PrevGrab.grab_set()
         else:
@@ -1720,7 +1709,7 @@ class Gui:
 
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
-        
+
 #################################################
     def KeyPressGlobal(self,event):
         if event.keysym=='F1':
@@ -1729,11 +1718,11 @@ class Gui:
             self.SettingsDialogShow()
         elif event.keysym in ('s','S') :
             self.ScanDialogShow()
-    
+
     def KeyPressTreeCommon(self,event):
         tree=event.widget
         tree.selection_remove(tree.selection())
-        
+
         if event.keysym in ("Up",'Down') :
             return
         elif event.keysym == "Right":
@@ -1741,13 +1730,13 @@ class Gui:
         elif event.keysym == "Left":
             self.GotoNextMark(event.widget,-1)
         elif event.keysym == "Tab":
-            
+
             tree.selection_set(tree.focus())
             self.FromTabSwicth=True
         elif event.keysym=='KP_Multiply' or event.keysym=='asterisk':
             self.MarkOnAll(self.InvertMark)
         elif event.keysym=='F3' or event.keysym=='Return':
-            
+
             item=tree.focus()
             if item:
                 if tree.set(item,'kind')!=CRC:
@@ -1771,14 +1760,14 @@ class Gui:
     def Tree1KeyRelease(self,event):
         item=self.tree1.focus()
         #self.tree1.selection_remove(self.tree1.selection())
-        
+
         if event.keysym in ("Up","Down"):
             self.tree1.see(item)
             self.Tree1SelChange(item)
         elif event.keysym in ("Prior","Next"):
             itemsPool=self.tree1.get_children()
             NextItem=itemsPool[(itemsPool.index(self.tree1.set(item,'crc'))+(1 if event.keysym=="Next" else -1)) % len(itemsPool)]
-            
+
             self.SelectFocusAndSeeCrcItemTree(NextItem)
         elif event.keysym in ("Home","End"):
             if NextItem:=self.tree1.get_children()[0 if event.keysym=="Home" else -1]:
@@ -1811,66 +1800,69 @@ class Gui:
                 self.tree2.update()
         elif event.keysym == "space":
             self.ToggleSelectedTag(self.tree2,item)
-            
+
     def TreeButtonPress(self,event,toggle=False):
         tree=event.widget
+        
+        self.PopupUnpost()
         
         if tree.identify("region", event.x, event.y) == 'heading':
             if (colname:=tree.column(tree.identify_column(event.x),'id') ) in self.col2sortOf:
                 tree.focus_set()
                 self.ColumnSort(tree,colname)
-            
+
         elif item:=tree.identify('item',event.x,event.y):
             tree.selection_remove(tree.selection())
-            
+
             tree.focus_set()
             tree.focus(item)
-            
+
             if tree==self.tree1:
                 self.Tree1SelChange(item)
             else:
                 self.Tree2SelChange(item)
-            
+
             if toggle:
                 self.ToggleSelectedTag(tree,item)
-           
+
     FromTabSwicth=False
     def TreeEventFocusIn(self,event):
         tree=event.widget
-        
+
         item=None
-        
+
         if sel:=tree.selection():
             tree.selection_remove(sel)
             item=sel[0]
-        
+
         if not item:
             item=tree.focus()
-        
+
         if self.FromTabSwicth:
             self.FromTabSwicth=False
-            
+
             if item:
                 tree.focus(item)
                 if tree==self.tree1:
                     self.Tree1SelChange(item,True)
                 else:
                     self.Tree2SelChange(item)
-                    
+
                 tree.see(item)
 
         if len(self.tree2.get_children())==0:
             self.tree1.selection_remove(self.tree1.selection())
             self.tree1.focus_set()
-        
+
     def TreeFocusOut(self,event):
         tree=event.widget
         tree.selection_set(tree.focus())
-        
+
     def Tree1SelChange(self,item,force=False):
+        
         pathnr=self.tree1.set(item,'pathnr')
         path=self.tree1.set(item,'path')
-        
+
         self.SelFile = self.tree1.set(item,'file')
         self.SelCrc = self.tree1.set(item,'crc')
         self.SelKind = self.tree1.set(item,'kind')
@@ -1879,7 +1871,7 @@ class Gui:
 
         if path!=self.SelPath or pathnr!=self.SelPathnr or force:
             self.SelPathnr = pathnr
-            
+
             if pathnr: #non crc node
                 self.SelPathnrInt= int(pathnr)
                 self.SelSearchPath = self.D.ScannedPaths[self.SelPathnrInt]
@@ -1894,11 +1886,11 @@ class Gui:
                 self.SelectedSearchPath.set(None)
                 self.SelPath = None
                 self.SelFullPath= None
-        
+
             UpdateTree2=True
         else:
             UpdateTree2=False
-            
+
         if self.SelKind==FILE:
             self.SetCommonVar()
             self.UpdatePathTree(item)
@@ -1913,41 +1905,41 @@ class Gui:
         self.SelKind = self.tree2.set(item,'kind')
         self.SelItem = item
         self.SelTreeIndex=1
-        
+
         if self.tree2.set(item,'kind')==FILE:
             self.UpdateMainTree(item)
             self.SetCommonVar()
         else:
             self.UpdateMainTreeNone()
             self.StatusVarFullPath.set("")
-            
-    def PopupUnpost(self,event):
-        tree=event.widget
-        self.Popup.unpost()
-        tree.focus_set()
-    
+
+    def PopupUnpost(self,event=None):
+        try:
+            self.Popup.unpost()
+            self.Popup.destroy()
+        except:
+            pass
+        
     def TreeContexMenu(self,event):
         self.TreeButtonPress(event)
-        
+
         try:
             self.Popup.destroy()
         except :
             pass
-        finally:
-            pass
-            
-        self.Popup = Menu(self.main, tearoff=0)
+
+        self.Popup = Menu(self.main, tearoff=0,bg=self.bg)
         tree=event.widget
-        
+
         if tree==self.tree1:
             cLocal = Menu(self.menubar,tearoff=0,bg=self.bg)
-            
+
             cLocal.add_command(label = "Toggle Mark",  command = lambda : self.ToggleSelectedTag(tree,self.SelItem),accelerator="space")
             cLocal.add_separator()
             cLocal.add_command(label = "Mark all files",        command = lambda : self.MarkInCRCGroup(self.SetMark),accelerator="A")
             cLocal.add_command(label = "Unmark all files",        command = lambda : self.MarkInCRCGroup(self.UnsetMark),accelerator="N")
             cLocal.add_separator()
-            
+
             cLocal.add_command(label = "Toggle mark on oldest file",     command = lambda : self.MarkInCRCGroupByCTime('oldest',self.InvertMark),accelerator="O")
             cLocal.add_command(label = "Toggle mark on youngest file",   command = lambda : self.MarkInCRCGroupByCTime('youngest',self.InvertMark),accelerator="Y")
             cLocal.add_separator()
@@ -1959,13 +1951,13 @@ class Gui:
             cLocal.entryconfig(11,foreground='red',activeforeground='red')
             cLocal.add_command(label = 'Hardlink Marked Files',command=lambda : self.ProcessFiles('hardlink',0),accelerator="Ctrl+Insert")
             cLocal.entryconfig(12,foreground='red',activeforeground='red')
-            
-            
+
+
             self.Popup.add_cascade(label = 'Local (this CRC group)',menu = cLocal)
             self.Popup.add_separator()
-            
+
             cAll = Menu(self.menubar,tearoff=0,bg=self.bg)
-            
+
             cAll.add_command(label = "Mark all files",        command = lambda : self.MarkOnAll(self.SetMark),accelerator="Ctrl+A")
             cAll.add_command(label = "Unmark all files",        command = lambda : self.MarkOnAll(self.UnsetMark),accelerator="Ctrl+N")
             cAll.add_separator()
@@ -1980,19 +1972,19 @@ class Gui:
             cAll.entryconfig(10,foreground='red',activeforeground='red')
             cAll.add_command(label = 'Hardlink Marked Files',command=lambda : self.ProcessFiles('hardlink',1),accelerator="Shift+Ctrl+Insert")
             cAll.entryconfig(11,foreground='red',activeforeground='red')
-        
+
             self.Popup.add_cascade(label = 'All Files',menu = cAll)
             self.Popup.add_separator()
 
             cNav = Menu(self.menubar,tearoff=0,bg=self.bg)
             cNav.add_command(label = 'go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace")
             cNav.add_command(label = 'go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace")
-            
+
             self.Popup.add_cascade(label = 'Navigation',menu = cNav)
             self.Popup.add_separator()
             self.Popup.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return")
             self.Popup.add_command(label = 'Open Folder',command = self.OpenFolder)
-            
+
         else:
             cLocal = Menu(self.menubar,tearoff=0,bg=self.bg)
             cLocal.add_command(label = "Toggle Mark",  command = lambda : self.ToggleSelectedTag(tree,self.SelItem),accelerator="space")
@@ -2002,24 +1994,24 @@ class Gui:
             cLocal.add_separator()
             cLocal.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete")
             cLocal.entryconfig(5,foreground='red',activeforeground='red')
-            
+
             self.Popup.add_cascade(label = 'Local (this folder)',menu = cLocal)
-            
+
             cAll = Menu(self.menubar,tearoff=0,bg=self.bg)
-            
+
             cNav = Menu(self.menubar,tearoff=0,bg=self.bg)
             cNav.add_command(label = 'go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace")
             cNav.add_command(label = 'go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0) ,accelerator="Ctrl+Backspace")
-            
+
             self.Popup.add_separator()
             self.Popup.add_cascade(label = 'Navigation',menu = cNav)
-            
+
             self.Popup.add_separator()
             self.Popup.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return")
             self.Popup.add_command(label = 'Open Folder',command = self.OpenFolder)
- 
+
         self.Popup.bind("<FocusOut>",self.PopupUnpost)
-        
+
         try:
             self.Popup.tk_popup(event.x_root, event.y_root)
         finally:
@@ -2027,18 +2019,18 @@ class Gui:
 
     def ColumnSort(self, tree, colname):
         #print(f'ColumnSort: {tree}, {colname}')
-        
+
         prev_colname,prev_reverse=self.ColumnSortLastParams[tree]
         tree.heading(prev_colname, text=self.OrgLabel[prev_colname])
-        
+
         reverse = not prev_reverse
-        
+
         self.ColumnSortLastParams[tree]=[colname,reverse]
 
         RealSortColumn=self.col2sortOf[colname]
-        
+
         DIR0,DIR1 = (1,0) if reverse else (0,1)
-        
+
         l = [((DIR0 if tree.set(item,'kind')==DIR else DIR1,tree.set(item,RealSortColumn)), item) for item in tree.get_children('')]
         l.sort(reverse=reverse,key=lambda x: ( (x[0][0],float(x[0][1])) if x[0][1].isdigit() else (x[0][0],0) ) if self.col2sortNumeric[colname] else x[0])
 
@@ -2055,11 +2047,11 @@ class Gui:
             tree.see(item)
         elif item:=tree.selection():
             tree.see(item)
-            
+
         tree.update()
 
         tree.heading(colname, text=self.OrgLabel[colname] + ' ' + str(u'\u25BC' if reverse else u'\u25B2') )
-        
+
         if tree==self.tree1:
             self.FlatItemsListUpdate()
 
@@ -2084,14 +2076,14 @@ class Gui:
         self.cfg.Write()
 
         self.D.INIT()
+        self.StatusVarFullPath.set('')
         self.ShowData()
 
         self.D.setLimit(resultslimit)
 
         PathsToScanFromEntry = [var.get() for var in self.PathsToScanEntryVar.values()]
-        
         ExcludeVarsFromEntry = [var.get() for var in self.ExcludeEntryVar.values()]
-        
+
         if not PathsToScanFromEntry:
             self.DialogWithEntry(title='Error. No paths to scan.',prompt='Add paths to scan.',parent=self.ScanDialog,OnlyInfo=True)
 
@@ -2102,16 +2094,16 @@ class Gui:
         if res:=self.D.SetExcludeMasks(self.cfg.Get(CFG_KEY_EXCLUDE_REGEXP,False) == 'True',ExcludeVarsFromEntry):
             self.Info('Error. Fix Exclude masks.',res,self.ScanDialog)
             return
-        
+
         self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(ExcludeVarsFromEntry))
-        
+
         self.main.update()
         self.LongAction(self.ScanDialogMainFrame,'scanning files ...',lambda UpdateCallback : self.D.scan(UpdateCallback))
         if self.LongActionDialogNaturalEnd:
             if self.D.sumSize==0:
                 self.DialogWithEntry(title='Cannot Proceed.',prompt='No Duplicates.',parent=self.ScanDialog,OnlyInfo=True)
             else :
-                self.LongAction(self.ScanDialogMainFrame,'crc calculation ...',lambda UpdateCallback : self.D.crcCalc(self.WriteScanToLog.get(),UpdateCallback),'determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:')
+                self.LongAction(self.ScanDialogMainFrame,'crc calculation ...',lambda UpdateCallback : self.D.CrcCalc(self.WriteScanToLog.get(),UpdateCallback),'determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:')
                 if self.LongActionDialogNaturalEnd:
                     self.ShowData()
                     self.ScanDialogClose()
@@ -2119,7 +2111,7 @@ class Gui:
     def ScanDialogShow(self):
         if self.D.ScannedPaths:
             self.PathsToScanFromDialog=self.D.ScannedPaths.copy()
-        
+
         self.UpdateExcludeMasks()
         self.UpdatePathsToScan()
 
@@ -2128,12 +2120,12 @@ class Gui:
 
         self.SetDefaultGeometryAndShow(self.ScanDialog,self.main)
         self.ScanButton.focus_set()
-        
+
     def ScanDialogClose(self,event=None):
         self.ScanDialog.grab_release()
         self.main.config(cursor="")
         self.GeometryStore(self.ScanDialog)
-        
+
         self.ScanDialog.withdraw()
         try:
             self.ScanDialog.update()
@@ -2168,7 +2160,7 @@ class Gui:
         else:
             self.AddPathButton.configure(state=NORMAL,text='Add path ...')
             self.AddDrivesButton.configure(state=NORMAL,text='Add drives ...')
-    
+
     def ScanExcludeRegExprCommand(self):
         self.cfg.Set(CFG_KEY_EXCLUDE_REGEXP,str(self.ScanExcludeRegExpr.get()))
 
@@ -2180,9 +2172,9 @@ class Gui:
         self.ExcludeEntryVar={}
 
         ttk.Checkbutton(self.ExcludeFRame,text='Use regular expressions matching',variable=self.ScanExcludeRegExpr,command=lambda : self.ScanExcludeRegExprCommand()).grid(row=0,column=0,sticky='news',columnspan=3)
-        
+
         row=1
-        
+
         for entry in self.cfg.Get(CFG_KEY_EXCLUDE,'').split('|'):
             if entry:
                 (fr:=tk.Frame(self.ExcludeFRame,bg=self.bg)).grid(row=row,column=0,sticky='news',columnspan=3)
@@ -2199,7 +2191,7 @@ class Gui:
         for (device,mountpoint,fstype,opts,maxfile,maxpath) in psutil.disk_partitions():
             if fstype != 'squashfs':
                 self.addPath(mountpoint)
-        
+
     def AddPathDialog(self):
         if res:=tk.filedialog.askdirectory(title='select Directory',initialdir=self.cwd,parent=self.ScanDialogMainFrame):
             self.addPath(res)
@@ -2210,11 +2202,11 @@ class Gui:
             orglist.append(mask)
             self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(orglist))
             self.UpdateExcludeMasks()
-            
+
     def RemovePath(self,path) :
         self.PathsToScanFromDialog.remove(path)
         self.UpdatePathsToScan()
-    
+
     def RemoveExcludeMask(self,mask) :
         orglist=self.cfg.Get(CFG_KEY_EXCLUDE,'').split('|')
         orglist.remove(mask)
@@ -2222,11 +2214,11 @@ class Gui:
             orglist.remove('')
         self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(orglist))
         self.UpdateExcludeMasks()
-    
+
     def FocusIn(self,event):
         self.ScandirCache={}
         self.StatCache={}
-        
+
     def License(self):
         self.Info('License',self.license,self.main,textwidth=80,width=600)
 
@@ -2247,12 +2239,12 @@ class Gui:
         info.append('MESSAGE_LEVEL      :  '+ (MESSAGE_LEVEL if MESSAGE_LEVEL else 'INFO(Default)') )
         info.append('                                                                              ')
         info.append('Current log file   :  '+log)
-        
+
         self.Info('About DUDE','\n'.join(info),self.main,textwidth=80,width=600)
 
     def KeyboardShortcuts(self):
         self.Info('Keyboard Shortcuts',self.keyboardshortcuts,self.main,textwidth=80,width=600)
-    
+
     def setConfVar(self,title,prompt,parent,tkvar,initialvalue,configkey,validation):
         if (res := self.DialogWithEntry(title,prompt, initialvalue=initialvalue,parent=parent)):
             if (validation(res)):
@@ -2276,19 +2268,19 @@ class Gui:
     def ClearExcludeMasks(self):
         self.cfg.Set(CFG_KEY_EXCLUDE,'')
         self.UpdateExcludeMasks()
-        
+
     def ClearPaths(self):
         self.PathsToScanFromDialog.clear()
         self.UpdatePathsToScan()
 
     def SettingsDialogShow(self):
         self.preFocus=self.main.focus_get()
-        
+
         self.SetingsDialog.grab_set()
         self.main.config(cursor="watch")
 
         self.SetDefaultGeometryAndShow(self.SetingsDialog,self.main)
-        
+
         self.SetingsDialogDefault.focus_set()
 
     def SettingsDialogClose(self,event=None):
@@ -2297,10 +2289,10 @@ class Gui:
             self.preFocus.focus_set()
         else:
             self.main.focus_set()
-        
+
         self.main.config(cursor="")
         self.GeometryStore(self.SetingsDialog)
-        
+
         self.SetingsDialog.withdraw()
         try:
             self.SetingsDialog.update()
@@ -2337,10 +2329,10 @@ class Gui:
         self.cfg.Write()
 
         self.SettingsSetBools()
-        
+
         if update1:
             self.Tree1CrcAndPathUpdate()
-        
+
         if update2:
             if self.SelCrc and self.SelItem and self.SelFullPath:
                 self.UpdatePathTree(self.SelItem)
@@ -2348,13 +2340,13 @@ class Gui:
                 self.UpdatePathTreeNone()
 
         self.SettingsDialogClose()
-    
+
     AddCwdAtStartup = False
     ScanAtStarup = False
     FullCRC = False
     ShowOthers = False
     FullPaths = False
-    
+
     def SettingsSetBools(self):
         self.AddCwdAtStartup = self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,'True') == 'True'
         self.ScanAtStarup = self.cfg.Get(CFG_KEY_STARTUP_SCAN,'True') == 'True'
@@ -2370,7 +2362,7 @@ class Gui:
         self.fullPaths.set(False)
         self.relSymlinks.set(False)
         self.useRegExpr.set(False)
-        
+
     def UpdateCrcNode(self,crc):
         size=int(self.tree1.set(crc,'size'))
 
@@ -2398,11 +2390,11 @@ class Gui:
 
     def GroupsNumberUpdate(self):
         self.StatusVarGroups.set(len(self.tree1.get_children()))
-    
+
     FlatItemsList=[]
     def FlatItemsListUpdate(self):
         self.FlatItemsList = [elem for sublist in [ tuple([crc])+tuple(self.tree1.get_children(crc)) for crc in self.tree1.get_children() ] for elem in sublist]
-        
+
     def InitialFocus(self):
         if self.tree1.get_children():
             firstNodeFile=next(iter(self.tree1.get_children(next(iter(self.tree1.get_children())))))
@@ -2418,8 +2410,9 @@ class Gui:
     def ShowData(self):
         self.idfunc = (lambda i,d : str(i)+'-'+str(d)) if len(self.D.devs)>1 else (lambda i,d : i)
 
+        self.ResetSels()
         self.tree1.delete(*self.tree1.get_children())
-        
+
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
                 crcitem=self.tree1.insert(parent='', index=END,iid=crc, values=('','','',size,bytes2str(size),'','','',crc,len(crcDict),'',CRC),tags=[CRC],open=True)
@@ -2437,7 +2430,7 @@ class Gui:
                             crc,\
                             '',\
                             time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) ,FILE),tags=[])
-        
+
         self.ByPathCacheUpdate()
         self.CalcMarkStatsAll()
 
@@ -2472,10 +2465,10 @@ class Gui:
         self.StatusVarPathQuant.set('')
         self.SelectedSearchPath.set('')
         self.SelectedSearchPathCode.set('')
-    
+
     sortIndexDict={'file':1,'sizeH':2,'ctimeH':3,'instances':8}
     kindIndex=11
-    
+
     def UpdatePathTree(self,item):
         if CacheIndex:=(self.SelPathnr,self.SelPath) not in self.ScandirCache:
             try:
@@ -2523,7 +2516,7 @@ class Gui:
                             logging.error(f'ERROR: ,{e}')
                             continue
                         self.StatCache[FullFilePath] = tuple([ ctime:=round(stat.st_ctime) , dev:=stat.st_dev , inode:=stat.st_ino , size:=stat.st_size , FILEID:=self.idfunc(inode,dev) ])
-                    
+
                     itemsToInsert.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ) )
                     i+=1
                 else:
@@ -2532,16 +2525,16 @@ class Gui:
         colSort,reverse = self.ColumnSortLastParams[self.tree2]
 
         sortIndex=self.sortIndexDict[colSort]
-        
+
         IsNumeric=self.col2sortNumeric[colSort]
         DIR0,DIR1 = (1,0) if reverse else (0,1)
-        
+
         self.tree2.delete(*self.tree2.get_children())
         for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(itemsToInsert,key=lambda x : (DIR0 if x[self.kindIndex]==DIR else DIR1,float(x[sortIndex])) if IsNumeric else (DIR0 if x[self.kindIndex]==DIR else DIR1,x[sortIndex]),reverse=reverse):
             self.tree2.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE else '',kind),tags=tags)
-        
+
         self.tree2.update()
-        
+
         if item in self.tree2.get_children():
             self.tree2.selection_set(item)
             self.tree2.see(item)
@@ -2556,7 +2549,7 @@ class Gui:
     def CalcMarkStatsAll(self):
         self.CalcMarkStatsCore(self.tree1,self.StatusVarAllSize,self.StatusVarAllQuant)
         self.SetCommonVarFg()
-        
+
     def CalcMarkStatsPath(self):
         self.CalcMarkStatsCore(self.tree2,self.StatusVarPathSize,self.StatusVarPathQuant)
 
@@ -2648,7 +2641,7 @@ class Gui:
 
     regexp={'file':'.','path':'.','both':'.'}
     regexpDesc={'file':'file','path':'subpath','both':'entire file path'}
-    
+
     def MarkExpression(self,field,action,ActionLabel):
         tree=self.main.focus_get()
 
@@ -2660,9 +2653,9 @@ class Gui:
         UseRegExpr = True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False
 
         desc=self.regexpDesc[field]
-        
+
         prompt=ActionLabel + (' (regular expression syntax)' if UseRegExpr else ' (symplified syntax)')
-        
+
         if (regexp := self.DialogWithEntry(title=f'Specify Expression for {desc}.',prompt=prompt, initialvalue=initialvalue,parent=self.main)):
             self.regexp[field]=regexp
             selCount=0
@@ -2721,7 +2714,7 @@ class Gui:
         marked=tree.tag_has(MARK)
         if marked:
             item=self.SelItem
-        
+
             pool=marked if tree.tag_has(MARK,item) else self.FlatItemsList if tree==self.tree1 else self.tree2.get_children()
             poollen=len(pool)
 
@@ -2738,7 +2731,7 @@ class Gui:
                         self.Tree1SelChange(NextItem)
                     else:
                         self.Tree2SelChange(NextItem)
-                        
+
                     break
 
     def GoToMaxGroup(self,sizeFlag=0):
@@ -2774,18 +2767,18 @@ class Gui:
             [pathnr,path,num] = PathStatList[0]
 
             item=FileidOfBiggest[(pathnr,path)]
-            
+
             self.tree1.focus(item)
             self.tree1.see(item)
             self.Tree1SelChange(item)
             self.tree1.update()
-            
+
             self.UpdatePathTree(item)
 
             self.tree2.focus_set()
             self.tree2.focus(item)
             self.tree2.see(item)
-            
+
             self.UpdateMainTree(item)
 
     def FullPath1(self,item):
@@ -2814,14 +2807,14 @@ class Gui:
         if ctimeCheck != (ctime:=self.tree1.set(item,'ctime')) :
             message = {f'ctime inconsistency {ctimeCheck} vs {ctime}'}
             return message
-    
+
     def ProcessFiles(self,action,all=0):
         tree=self.main.focus_get()
         if not tree:
             return
 
-        ProcessedItems={}
-        
+        ProcessedItems=defaultdict(list)
+
         ShowFullPath=1
 
         if all:
@@ -2833,13 +2826,13 @@ class Gui:
             if tree==self.tree1:
                 #tylko na gornym drzewie, na dolnym moze byc inny plik
                 crc=self.SelCrc
-                
+
                 if not crc:
                     return
                 ScopeTitle='Single CRC group.'
                 if templist:= [item for item in tree.get_children(crc) if tree.tag_has(MARK,item)]:
                     ProcessedItems[crc] = templist
-                    
+
             else:
                 #jezeli dzialamy na katalogu pozostale markniecia w crc nie sa uwzglednione
                 #ale w katalogu moze byc >1 tego samego crc
@@ -2847,8 +2840,6 @@ class Gui:
                 for item in tree.get_children():
                     if tree.tag_has(MARK,item):
                         crc=tree.set(item,'crc')
-                        if crc not in ProcessedItems:
-                            ProcessedItems[crc]=[]
                         ProcessedItems[crc].append(item)
 
         if not ProcessedItems:
@@ -2860,18 +2851,18 @@ class Gui:
 
         #############################################
         #check remainings
-        
+
         #RemainingItems dla wszystkich (moze byc akcja z folderu)
         #istotna kolejnosc
         RemainingItems={}
         for crc in self.tree1.get_children():
             RemainingItems[crc]=[item for item in self.tree1.get_children(crc) if not self.tree1.tag_has(MARK,item)]
-        
+
         if action=="hardlink":
             for crc in ProcessedItems:
                 if len(ProcessedItems[crc])==1:
                     self.DialogWithEntry(title='Error - Cant hardlink single file.',prompt="                    Mark more files.                    ",parent=self.main,OnlyInfo=True)
-                    
+
                     self.SelectFocusAndSeeCrcItemTree(crc)
                     return
 
@@ -2879,7 +2870,7 @@ class Gui:
             for crc in ProcessedItems:
                 if len(RemainingItems[crc])==0:
                     self.DialogWithEntry(title=f'        Error {action} - All files marked        ',prompt="  Keep at least one file unmarked.  ",parent=self.main,OnlyInfo=True)
-                    
+
                     self.SelectFocusAndSeeCrcItemTree(crc)
                     return
 
@@ -3006,7 +2997,7 @@ class Gui:
 
     def TreeEventOpenFile(self,event=None):
         tree=event.widget
-        
+
         if tree.identify("region", event.x, event.y) != 'heading':
             if self.SelKind==FILE or self.SelKind==LINK or self.SelKind==SINGLE:
                 if windows:
@@ -3019,10 +3010,10 @@ class Gui:
     def SetCommonVar(self,val=None):
         self.StatusVarFullPath.set(os.sep.join([self.SelSearchPath+self.SelPath,self.SelFile]))
         self.SetCommonVarFg()
-        
+
     def SetCommonVarFg(self):
         self.StatusVarFullPathLabel.config(fg = 'red' if (self.tree1,self.tree2)[self.SelTreeIndex].tag_has(MARK,self.SelItem) else 'black')
-        
+
 LoggingLevels={'DEBUG':logging.DEBUG,'INFO':logging.INFO,'WARNING':logging.WARNING,'ERROR':logging.ERROR,'CRITICAL':logging.CRITICAL}
 
 if __name__ == "__main__":
@@ -3041,4 +3032,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(e)
         logging.error(e)
-        
