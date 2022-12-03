@@ -25,13 +25,12 @@ import configparser
 
 from threading import Thread
 
-import subprocess
-from subprocess import Popen, PIPE
-
 import pyperclip
 import logging
 
 import psutil
+
+import core
 
 from collections import defaultdict
 
@@ -74,531 +73,6 @@ def str2bytes(string):
     else:
         return None
 
-class CORE:
-    filesOfSize=defaultdict(set)
-    filesOfSizeOfCRC=defaultdict(lambda : defaultdict(set))
-    cache={}
-    sumSize=0
-    devs=set()
-
-    @staticmethod
-    def CRCStdout2CRC(string):
-        return string[:40]
-
-    @staticmethod
-    def getStdout2CrcCertuitil(string):
-        return string.split('\n')[1]
-
-    def INIT(self):
-        self.filesOfSize=defaultdict(set)
-        self.filesOfSizeOfCRC=defaultdict(lambda : defaultdict(set))
-        self.devs.clear()
-        self.limit=0
-        self.CrcCutLen=128
-        self.crccut={}
-        self.ScannedPaths=[]
-        self.ExcludeRegExp=False
-        self.ExcludeList=[]
-
-    def __init__(self):
-        self.CRCExec='certutil' if windows else 'sha1sum'
-        self.CRCExecParams='-hashfile' if windows else '-b'
-
-        self.GetCrc=self.getStdout2CrcCertuitil if windows else self.CRCStdout2CRC
-
-        self.CheckCRC()
-
-        self.INIT()
-
-    def setLimit(self,limit):
-        self.limit=limit
-
-    def Path2ScanFull(self,pathnr,path,file):
-        return os.path.join(self.Paths2Scan[pathnr]+path,file)
-
-    def ScannedPathFull(self,pathnr,path,file):
-        return os.path.join(self.ScannedPaths[pathnr]+path,file)
-
-    def SetPathsToScan(self,paths):
-        pathsLen=len(paths)
-        abspaths=[os.path.abspath(path) for path in paths]
-
-        if windows:
-            abspaths=[path.replace('/','\\').upper() for path in abspaths]
-
-        for path in abspaths:
-            if not os.path.exists(path) or not os.path.isdir(path):
-                return  path + '\n\nnot a directory'
-
-        apaths=list(zip(abspaths,paths))
-
-        for i1 in range(pathsLen):
-            for i2 in range(pathsLen):
-                if i1!=i2:
-                    path1,orgpath1=apaths[i1]
-                    path2,orgpath2=apaths[i2]
-                    if path2==path1:
-                        return  orgpath2 + '\n\nis equal to:\n\n' +  orgpath1 + '\n'
-                    elif path2.startswith(path1 + os.sep):
-                        return  orgpath2 + '\n\nis a subpath of:\n\n' +  orgpath1 + '\n'
-
-        self.Paths2Scan=abspaths
-        return False
-
-    def SetExcludeMasks(self,RegExp,MasksList):
-        self.ExcludeRegExp=RegExp
-
-        if RegExp:
-            self.ExclFn = lambda expr,string : re.search(expr,string)
-        else:
-            self.ExclFn = lambda expr,string : fnmatch.fnmatch(string,expr)
-
-        teststring='abc'
-        for exclmask in MasksList:
-            if '|' in exclmask:
-                return f"mask:'{exclmask}' - character:'|' not allowed."
-            try:
-                self.ExclFn(exclmask,teststring)
-            except Exception as e:
-                return "Expression: '" + exclmask + "' ERROR:" + str(e)
-
-        self.ExcludeList=MasksList
-        return False
-
-    def ScanInSubThread(self):
-        pathNr=0
-        counter=0
-        SizeSum=0
-
-        for PathToScan in self.Paths2Scan:
-            loopList=[PathToScan]
-
-            while loopList:
-                try:
-                    path = loopList.pop(0)
-                    for entry in os.scandir(path):
-                        file=entry.name
-                        fullpath=os.path.join(path,file)
-                        if self.ExcludeList:
-                            if any({self.ExclFn(expr,fullpath) for expr in self.ExcludeList}):
-                                logging.info(f'skipping by Exclude Mask:{fullpath}')
-                                continue
-                        try:
-                            if os.path.islink(entry) :
-                                logging.debug(f'skippping link: {path} / {file}')
-                            elif entry.is_dir():
-                                loopList.append(os.path.join(path,file))
-                            elif entry.is_file():
-                                try:
-                                    stat = os.stat(fullpath)
-                                except Exception as e:
-                                    logging.error(f'scan skipp {e}')
-                                else:
-                                    if stat.st_nlink!=1:
-                                        logging.debug(f'scan skipp - hardlinks {stat.st_nlink} - {pathNr},{path},{file}')
-                                    else:
-                                        if stat.st_size>0:
-                                            SizeSum+=stat.st_size
-
-                                            subpath=path.replace(PathToScan,'')
-                                            self.filesOfSize[stat.st_size].add( (pathNr,subpath,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino) )
-
-                                counter+=1
-
-                                self.info=nums[pathNr] + '\n' + PathToScan + '\n\n' + str(counter) + '\n' + bytes2str(SizeSum)
-
-                                if not self.ThreadKeepGoing:
-                                    break
-
-                        except Exception as e:
-                            logging.error(e)
-                except Exception as e:
-                    logging.error(e)
-
-                if not self.ThreadKeepGoing:
-                    break
-
-            pathNr+=1
-            if not self.ThreadKeepGoing:
-                break
-
-    def scan(self,updateCallback):
-        logging.info('')
-        logging.info('SCANNING')
-
-        if self.ExcludeList:
-            logging.info('ExcludeList:' + ' '.join(self.ExcludeList))
-
-        self.info=''
-
-        self.ProgSize=0
-        self.ProgQuant=0
-
-        self.progress1Right=''
-        self.progress2Right=''
-
-        self.ThreadKeepGoing=True
-
-        ScanThread=Thread(target=self.ScanInSubThread,daemon=True)
-        ScanThread.start()
-
-        while ScanThread.is_alive():
-            if updateCallback(self.info):
-                time.sleep(0.04)
-            else:
-                self.ThreadKeepGoing=False
-                self.Kill()
-                break
-
-        ScanThread.join()
-
-        self.devs={dev for size,data in self.filesOfSize.items() for pathnr,path,file,mtime,ctime,dev,inode in data}
-
-        ######################################################################
-        #inodes collision detection
-        knownDevInodes=defaultdict(int)
-        for size,data in self.filesOfSize.items():
-            for pathnr,path,file,mtime,ctime,dev,inode in data:
-                index=(dev,inode)
-                knownDevInodes[index]+=1
-
-        self.blacklistedInodes = {index for index in knownDevInodes if knownDevInodes[index]>1}
-
-        for size in list(self.filesOfSize):
-            for pathnr,path,file,mtime,ctime,dev,inode in list(self.filesOfSize[size]):
-                index=(dev,inode)
-                if index in self.blacklistedInodes:
-                    thisIndex=(pathnr,path,file,mtime,ctime,dev,inode)
-                    logging.warning('ignoring conflicting inode entry:' + str(thisIndex))
-                    self.filesOfSize[size].remove(thisIndex)
-
-        ######################################################################
-        self.sumSize=0
-        for size in list(self.filesOfSize):
-            quant=len(self.filesOfSize[size])
-            if quant==1 :
-                del self.filesOfSize[size]
-            else:
-                self.sumSize += quant*size
-        ######################################################################
-
-    def CheckCRC(self):
-        stream=subprocess.Popen([self.CRCExec,self.CRCExecParams,os.path.join(os.path.dirname(__file__),'LICENSE')], stdout=PIPE, stderr=PIPE,bufsize=1,universal_newlines=True, shell=windows)
-
-        stdout, stderr = stream.communicate()
-        res=stdout
-        if stderr:
-            logging.error(f"Cannot execute {self.CRCExec}")
-            logging.error(stderr)
-            logging.error('exiting ')
-            exit(10)
-        elif exitCode:=stream.poll():
-            logging.error(f'exit code:{exitCode}')
-            exit(11)
-        else:
-            logging.debug(f"all fine. stdout:{stdout} crc:{self.GetCrc(stdout)}")
-
-    def ReadCRCCache(self):
-        self.CRCCache={}
-        for dev in self.devs:
-            self.CRCCache[dev]=dict()
-            try:
-                logging.debug(f'reading cache:{CACHE_DIR}:device:{dev}')
-                with open(os.sep.join([CACHE_DIR,str(dev)]),'r' ) as cfile:
-                    while line:=cfile.readline() :
-                        inode,mtime,crc = line.rstrip('\n').split(' ')
-                        if crc==None or crc=='None' or crc=='':
-                            logging.warning(f"CRCCache read error:{inode},{mtime},{crc}")
-                        else:
-                            self.CRCCache[dev][(int(inode),int(mtime))]=crc
-
-            except Exception as e:
-                logging.warning(e)
-                self.CRCCache[dev]=dict()
-
-    def WriteCRCCache(self):
-        pathlib.Path(CACHE_DIR).mkdir(parents=True,exist_ok=True)
-        for dev in self.CRCCache:
-            logging.debug(f'writing cache:{CACHE_DIR}:device:{dev}')
-            with open(os.sep.join([CACHE_DIR,str(dev)]),'w' ) as cfile:
-                for (inode,mtime),crc in self.CRCCache[dev].items():
-                    cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
-
-    SubprocessStream=None
-
-    def Run(self,command):
-        try:
-            self.SubprocessStream=subprocess.Popen(command, stdout=PIPE, stderr=PIPE,bufsize= 1,universal_newlines=True,shell=windows )
-            stdout, stderr = self.SubprocessStream.communicate()
-
-            if stderr:
-                logging.error(f"command:{command}->{stderr}")
-                return None
-            elif exitCode:=self.SubprocessStream.poll():
-                logging.error(f"command:{command}->exitCode:{exitCode}")
-                return None
-
-        except Exception as e:
-            logging.error(e)
-            return None
-
-        return self.GetCrc(stdout)
-
-    def Kill(self):
-        try:
-            if self.SubprocessStream:
-                self.SubprocessStream.kill()
-        except Exception as e:
-            logging.error(e)
-
-    def CrcCalcInSubThread(self):
-        FoundSum=0
-        fileNr=0
-
-        self.total = len([ 1 for size in self.filesOfSize for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size] ])
-
-        self.StoBySumSize=100.0/self.sumSize
-        self.StoBytotal = 100.0/self.total
-
-        self.totalStr = '/' + str(self.total)
-
-        sumSizeStr='/' + bytes2str(self.sumSize)
-        self.FoundSumStr='0'
-
-        SizeDone=0
-        PathsToRecheckSet=set()
-
-        LimitReached=False
-        for size in list(sorted(self.filesOfSize,reverse=True)):
-            if self.ThreadKeepGoing:
-                sizeBytesInfo='\ncurrent size: ' + bytes2str(size)
-                for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size]:
-                    if self.ThreadKeepGoing:
-                        if (not LimitReached) or (LimitReached and (pathnr,path) in PathsToRecheckSet):
-                            self.info = '\ngroups found:' + self.FoundSumStr + sizeBytesInfo
-
-                            fileNr+=1
-                            SizeDone+=size
-
-                            self.ProgSize=self.StoBySumSize*SizeDone
-                            self.ProgQuant=self.StoBytotal*fileNr
-
-                            self.progress1Right=bytes2str(SizeDone) + sumSizeStr,
-                            self.progress2Right=str(fileNr) + self.totalStr
-
-                            CacheKey=(int(inode),int(mtime))
-                            if CacheKey in self.CRCCache[dev]:
-                                crc=self.CRCCache[dev][CacheKey]
-                            else:
-                                if crc:=self.Run([self.CRCExec,self.CRCExecParams,self.Path2ScanFull(pathnr,path,file)]):
-                                    self.CRCCache[dev][CacheKey]=crc
-
-                            if crc:
-                                self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
-
-                if self.ThreadKeepGoing:
-                    if size in self.filesOfSizeOfCRC:
-                        self.CheckCrcPoolAndPrune(size)
-
-                    if size in self.filesOfSizeOfCRC:
-                        if self.limit:
-                            FoundSum+=len(self.filesOfSizeOfCRC[size])
-                            self.FoundSumStr=str(FoundSum)
-                            if FoundSum>=self.limit:
-                                LimitReached=True
-
-                        if not LimitReached:
-                            for crc in self.filesOfSizeOfCRC[size]:
-                                 for (pathnr,path,file,ctime,dev,inode) in self.filesOfSizeOfCRC[size][crc]:
-                                    PathsToRecheckSet.add((pathnr,path))
-                else:
-                    break
-
-        self.filesOfSize.clear()
-
-    def CrcCalc(self,writeLog,updateCallback):
-
-        self.ReadCRCCache()
-
-        self.ScannedPaths=self.Paths2Scan.copy()
-
-        self.info=''
-        self.ProgSize=0
-        self.ProgQuant=0
-
-        self.progress1Right=''
-        self.progress2Right=''
-
-        self.ThreadKeepGoing=True
-
-        CRCThread=Thread(target=self.CrcCalcInSubThread,daemon=True)
-        CRCThread.start()
-
-        while CRCThread.is_alive():
-            if updateCallback(self.info,self.ProgSize,self.ProgQuant,self.progress1Right,self.progress2Right):
-                time.sleep(0.04)
-            else:
-                self.ThreadKeepGoing=False
-                self.Kill()
-                break
-
-        CRCThread.join()
-
-        self.CalcCrcMinLen()
-
-        self.WriteCRCCache()
-
-        if writeLog:
-            self.LogScanResults()
-
-    def LogScanResults(self):
-        logging.info('#######################################################')
-        logging.info('scan and crc calculation complete')
-        logging.info('')
-        logging.info('scanned paths:')
-        for (nr,path) in enumerate(self.Paths2Scan):
-            logging.info(f'  {nr}  <->  {path}',)
-
-        for size in self.filesOfSizeOfCRC:
-            logging.info('')
-            logging.info(f'size:{size}')
-            for crc in self.filesOfSizeOfCRC[size]:
-                logging.info(f'  crc:{crc}')
-                for IndexTuple in self.filesOfSizeOfCRC[size][crc]:
-                    logging.info('    ' + ' '.join( [str(elem) for elem in list(IndexTuple) ]))
-        logging.info('#######################################################')
-
-    def CheckCrcPoolAndPrune(self,size):
-        for crc in list(self.filesOfSizeOfCRC[size]):
-            if len(self.filesOfSizeOfCRC[size][crc])<2 :
-                del self.filesOfSizeOfCRC[size][crc]
-
-        if len(self.filesOfSizeOfCRC[size])==0 :
-            del self.filesOfSizeOfCRC[size]
-
-    def CalcCrcMinLen(self):
-        allCrcLen=len(AllCrcs:={crc for size,sizeDict in self.filesOfSizeOfCRC.items() for crc in sizeDict})
-
-        lenTemp=1
-        while len({crc[0:lenTemp] for crc in AllCrcs})!=allCrcLen:
-            lenTemp+=1
-
-        self.CrcCutLen=lenTemp
-        self.crccut={crc:crc[0:self.CrcCutLen] for crc in AllCrcs }
-
-    @staticmethod
-    def RenameFile(src,dest):
-        logging.info(f'renaming file:{src}->{dest}')
-        try:
-            os.rename(src,dest)
-            return False
-        except Exception as e:
-            logging.error(e)
-            return 'Rename error:' + str(e)
-
-    @staticmethod
-    def DeleteFile(file):
-        logging.info(f'deleting file:{file}')
-        try:
-            os.remove(file)
-            return False
-        except Exception as e:
-            logging.error(e)
-            return 'Delete error:' + str(e)
-
-    @staticmethod
-    def CreateSoftLink(src,dest,relative=True):
-        logging.info(f'soft-linking {src}<-{dest} (relative:{relative})')
-        try:
-            if relative:
-                destDir = os.path.dirname(dest)
-                srcRel = os.path.relpath(src, destDir)
-                os.symlink(srcRel,dest)
-            else:
-                os.symlink(src,dest)
-            return False
-        except Exception as e:
-            logging.error(e)
-            return 'Error on soft linking:' + str(e)
-
-    @staticmethod
-    def CreateHardLink(src,dest):
-        logging.info(f'hard-linking {src}<-{dest}')
-        try:
-            os.link(src,dest)
-            return False
-        except Exception as e:
-            logging.error(e)
-            return 'Error on hard linking:' + str(e)
-
-    def ReduceCrcCut(self,size,crc):
-        if size not in self.filesOfSizeOfCRC or crc not in self.filesOfSizeOfCRC[size]:
-            del self.crccut[crc]
-
-    def RemoveFromDataPool(self,size,crc,IndexTuple):
-        logging.debug(f'RemoveFromDataPool:{size},{crc},{IndexTuple}')
-        self.filesOfSizeOfCRC[size][crc].remove(IndexTuple)
-
-        self.CheckCrcPoolAndPrune(size)
-        self.ReduceCrcCut(size,crc)
-
-    def DeleteFileWrapper(self,size,crc,IndexTuple):
-        logging.debug(f"DeleteFileWrapper:{size},{crc},{IndexTuple}")
-
-        (pathnr,path,file,ctime,dev,inode)=IndexTuple
-        FullFilePath=self.ScannedPathFull(pathnr,path,file)
-
-        if IndexTuple in self.filesOfSizeOfCRC[size][crc]:
-            if message:=self.DeleteFile(FullFilePath):
-                self.Info('Error',message,self.main)
-                return message
-            else:
-                self.RemoveFromDataPool(size,crc,IndexTuple)
-        else:
-            return 'DeleteFileWrapper - Internal Data Inconsistency:' + FullFilePath + ' / ' + str(IndexTuple)
-
-    def LinkWrapper(self,\
-            soft,relative,size,crc,\
-            IndexTupleRef,IndexTuplesList):
-
-        logging.debug(f'LinkWrapper:{soft},{relative},{size},{crc}:{IndexTupleRef}:{IndexTuplesList}')
-
-        (pathnrKeep,pathKeep,fileKeep,ctimeKeep,devKeep,inodeKeep)=IndexTupleRef
-
-        FullFilePathKeep=self.ScannedPathFull(pathnrKeep,pathKeep,fileKeep)
-
-        if IndexTupleRef not in self.filesOfSizeOfCRC[size][crc]:
-            return 'LinkWrapper - Internal Data Inconsistency:' + FullFilePathKeep + ' / ' + str(IndexTupleRef)
-        else :
-            for IndexTuple in IndexTuplesList:
-                (pathnr,path,file,ctime,dev,inode)=IndexTuple
-                FullFilePath=self.ScannedPathFull(pathnr,path,file)
-
-                if IndexTuple not in self.filesOfSizeOfCRC[size][crc]:
-                    return 'LinkWrapper - Internal Data Inconsistency:' + FullFilePath + ' / ' + str(IndexTuple)
-                else:
-                    tempFile=FullFilePath+'.temp'
-
-                    if not self.RenameFile(FullFilePath,tempFile):
-                        if soft:
-                            AnyProblem=self.CreateSoftLink(FullFilePathKeep,FullFilePath,relative)
-                        else:
-                            AnyProblem=self.CreateHardLink(FullFilePathKeep,FullFilePath)
-
-                        if AnyProblem:
-                            self.RenameFile(tempFile,FullFilePath)
-                            return AnyProblem
-                        else:
-                            if message:=self.DeleteFile(tempFile):
-                                self.Info('Error',message,self.main)
-                            #self.RemoveFromDataPool(size,crc,IndexTuple)
-                            self.filesOfSizeOfCRC[size][crc].remove(IndexTuple)
-            if not soft:
-                #self.RemoveFromDataPool(size,crc,IndexTupleRef)
-                self.filesOfSizeOfCRC[size][crc].remove(IndexTupleRef)
-
-            self.CheckCrcPoolAndPrune(size)
-            self.ReduceCrcCut(size,crc)
 
 ###########################################################################################################################################
 
@@ -677,8 +151,6 @@ def CenterToScreenGeometry(widget):
 
 ###########################################################
 
-###########################################################
-
 raw = lambda x : x
 
 class Gui:
@@ -688,13 +160,13 @@ class Gui:
     pyperclipOperational=True
 
     def ResetSels(self):
-        self.SelPathnr=None
-        self.SelPath=None
-        self.SelFile=None
-        self.SelCrc=None
-        self.SelItem=None
-        self.SelTreeIndex=0
-        self.SelKind=None
+        self.SelPathnr = None
+        self.SelPath = None
+        self.SelFile = None
+        self.SelCrc = None
+        self.SelItem = None
+        self.SelTreeIndex = 0
+        self.SelKind = None
 
     def WatchCursor(f):
         def wrapp(self,*args,**kwargs):
@@ -745,7 +217,9 @@ class Gui:
     def getNow(self):
         return time.time()*1000.0
 
-    def LongAction(self,parent,title,LongActionCommand,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
+    LongActionAbort=False
+    def LongActionDialogShow(self,parent,title,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
+        self.LADParent=parent
         now=self.getNow()
         self.psIndex =0
 
@@ -814,28 +288,18 @@ class Gui:
         self.LongActionDialog.update()
         self.LongActionDialog.geometry(CenterToParentGeometry(self.LongActionDialog,parent))
 
-        prevParentCursor=parent.cget('cursor')
+        self.prevParentCursor=parent.cget('cursor')
         parent.config(cursor="watch")
 
-        ####################
-        self.KeepGoing=1
-        self.LongActionDialogNaturalEnd=1
-        ####################
-        LongActionCommand(self.LongActionDialogUpdate)
-        ####################
-        self.LongActionDialogEnd()
-
-        parent.config(cursor=prevParentCursor)
+        self.LongActionAbort=False
 
     def LongActionDialogAbort(self,event=None):
-        self.LongActionDialogNaturalEnd=0
-        self.LongActionDialogEnd()
+        self.LongActionAbort=True
 
     def LongActionDialogEnd(self):
-        self.KeepGoing=0
-
         self.LongActionDialog.grab_release()
         self.LongActionDialog.destroy()
+        self.LADParent.config(cursor=self.prevParentCursor)
 
     def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None):
         now=self.getNow()
@@ -856,12 +320,10 @@ class Gui:
         self.message.set(f'{prefix}\n{message}')
         self.LongActionDialog.update()
 
-        return self.KeepGoing
-
     def __init__(self,cwd):
         self.ResetSels()
 
-        self.D = CORE()
+        self.D = core.CORE()
         self.cwd=cwd
 
         self.cfg = Config(CONFIG_DIR)
@@ -914,7 +376,7 @@ class Gui:
         #style.configure("Treeview", fieldbackground=self.bg)
 
         #######################################################################
-        self.menubar = tk.Menu(self.main,bg=self.bg,relief='raised')
+        self.menubar = Menu(self.main,bg=self.bg)
         self.main.config(menu=self.menubar)
         #######################################################################
 
@@ -1167,6 +629,12 @@ class Gui:
 
         self.SetDefaultGeometryAndShow(self.main,None)
 
+        self.Popup1 = Menu(self.tree1, tearoff=0,bg=self.bg)
+        self.Popup1.bind("<FocusOut>",lambda event : self.Popup1.unpost() )
+
+        self.Popup2 = Menu(self.tree2, tearoff=0,bg=self.bg)
+        self.Popup2.bind("<FocusOut>",lambda event : self.Popup2.unpost() )
+
         #######################################################################
         #scan dialog
 
@@ -1362,27 +830,47 @@ class Gui:
                 self.UnmarkCascadePath.add_command(label = nums[row] + '  =  ' + path,  command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.UnsetMark)  )
                 row+=1
 
-        MainCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
-        MainCascade.add_command(label = 'Scan',command = self.ScanDialogShow, accelerator="S")
-        MainCascade.add_separator()
-        MainCascade.add_command(label = 'Settings',command=self.SettingsDialogShow, accelerator="F2")
-        MainCascade.add_separator()
-        MainCascade.add_command(label = 'go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace")
-        MainCascade.add_command(label = 'go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="Ctrl+Backspace")
-        MainCascade.add_command(label = 'go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace")
-        MainCascade.add_command(label = 'go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace")
-        MainCascade.add_separator()
-        MainCascade.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return")
-        MainCascade.add_command(label = 'Open Folder',command = self.OpenFolder)
-        MainCascade.add_separator()
-        MainCascade.add_command(label = 'Copy file with path to clipboard',command = self.ClipCopy,accelerator="Ctrl+C",state = 'normal' if self.pyperclipOperational else 'disabled')
-        MainCascade.add_separator()
-        MainCascade.add_command(label = 'Erase CRC Cache',command = self.CleanCache)
-        MainCascade.add_separator()
-        MainCascade.add_command(label = 'Exit',command = self.exit)
-        self.menubar.add_cascade(label = 'File',menu = MainCascade,accelerator="Alt+F")
+        def FileCascadeFill():
+            #self.PopupUnpost()
 
-        self.MarkCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
+            self.FileCascade.delete(0,END)
+            ItemActionsState=('disabled','normal')[self.SelItem!=None]
+
+            self.FileCascade.add_command(label = 'Scan',command = self.ScanDialogShow, accelerator="S")
+            self.FileCascade.add_separator()
+            self.FileCascade.add_command(label = 'Settings',command=self.SettingsDialogShow, accelerator="F2")
+            self.FileCascade.add_separator()
+            self.FileCascade.add_command(label = 'go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace",state=ItemActionsState)
+            self.FileCascade.add_command(label = 'go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="Ctrl+Backspace",state=ItemActionsState)
+            self.FileCascade.add_command(label = 'go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace",state=ItemActionsState)
+            self.FileCascade.add_command(label = 'go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace",state=ItemActionsState)
+            self.FileCascade.add_separator()
+
+            self.FileCascade.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return",state=ItemActionsState)
+            self.FileCascade.add_command(label = 'Open Folder',command = self.OpenFolder,state=ItemActionsState)
+            self.FileCascade.add_separator()
+            self.FileCascade.add_command(label = 'Copy file with path to clipboard',command = self.ClipCopy,accelerator="Ctrl+C",state = 'normal' if self.pyperclipOperational and self.SelItem!=None else 'disabled')
+            self.FileCascade.add_separator()
+            self.FileCascade.add_command(label = 'Erase CRC Cache',command = self.CleanCache)
+            self.FileCascade.add_separator()
+            self.FileCascade.add_command(label = 'Exit',command = self.exit)
+
+        def MarkingCommonCascadeFill():
+            #self.PopupUnpost()
+
+            self.MarkingCommonCascade.delete(0,END)
+            ItemActionsState=('disabled','normal')[self.SelItem!=None]
+
+            self.MarkingCommonCascade.add_cascade(label = 'Set',menu = self.MarkCascade,state=ItemActionsState)
+            self.MarkingCommonCascade.add_cascade(label = 'Unset',menu = self.UnmarkCascade,state=ItemActionsState)
+            self.MarkingCommonCascade.add_command(label = 'Invert',command = lambda : self.MarkOnAll(self.InvertMark),accelerator="Ctrl+I, *",state=ItemActionsState)
+
+        self.MarkingCommonCascade= Menu(self.menubar,tearoff=0,bg=self.bg,postcommand=MarkingCommonCascadeFill)
+
+        self.FileCascade= Menu(self.menubar,tearoff=0,bg=self.bg,postcommand=FileCascadeFill)
+        self.menubar.add_cascade(label = 'File',menu = self.FileCascade,accelerator="Alt+F")
+
+        self.MarkCascade= Menu(self.MarkingCommonCascade,tearoff=0,bg=self.bg)
         self.MarkCascade.add_command(label = "All files",        command = lambda : self.MarkOnAll(self.SetMark),accelerator="Ctrl+A")
         self.MarkCascade.add_separator()
         self.MarkCascade.add_command(label = "Oldest files",     command = lambda : self.MarkOnAllByCTime('oldest',self.SetMark),accelerator="Ctrl+O")
@@ -1390,14 +878,15 @@ class Gui:
         self.MarkCascade.add_separator()
         self.MarkCascade.add_command(label = "Files on the same path",  command = lambda : self.MarkPathOfFile(self.SetMark),accelerator="Ctrl+P")
         self.MarkCascade.add_command(label = "Specified Directory ...",   command = lambda : self.MarkSubpath(self.SetMark))
-        self.MarkCascadePath = Menu(self.menubar, tearoff = 0,postcommand=MarkCascadePathFill,bg=self.bg)
+
+        self.MarkCascadePath = Menu(self.MarkCascade, tearoff = 0,postcommand=MarkCascadePathFill,bg=self.bg)
         self.MarkCascade.add_cascade(label = "Scan path",             menu = self.MarkCascadePath)
         self.MarkCascade.add_separator()
         self.MarkCascade.add_command(label = "Expression on file  ...",          command = lambda : self.MarkExpression('file',self.SetMark,'Mark files'))
         self.MarkCascade.add_command(label = "Expression on sub-path ...",       command = lambda : self.MarkExpression('path',self.SetMark,'Mark files'))
         self.MarkCascade.add_command(label = "Expression on file with path ...", command = lambda : self.MarkExpression('both',self.SetMark,'Mark files'),accelerator="+")
 
-        self.UnmarkCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
+        self.UnmarkCascade= Menu(self.MarkingCommonCascade,tearoff=0,bg=self.bg)
         self.UnmarkCascade.add_command(label = "All files",   command = lambda : self.MarkOnAll(self.UnsetMark),accelerator="Ctrl+Shift+A / Ctrl+N")
         self.UnmarkCascade.add_separator()
         self.UnmarkCascade.add_command(label = "Oldest files",         command = lambda : self.MarkOnAllByCTime('oldest',self.UnsetMark),accelerator="Ctrl+Shift+O")
@@ -1405,41 +894,46 @@ class Gui:
         self.UnmarkCascade.add_separator()
         self.UnmarkCascade.add_command(label = "Files on the same path",             command = lambda : self.MarkPathOfFile(self.UnsetMark),accelerator="Ctrl+Shift+P")
         self.UnmarkCascade.add_command(label = "Specified Directory ...",            command = lambda : self.MarkSubpath(self.UnsetMark))
-        self.UnmarkCascadePath = Menu(self.menubar, tearoff = 0,postcommand=UnmarkCascadePathFill,bg=self.bg)
+
+        self.UnmarkCascadePath = Menu(self.UnmarkCascade, tearoff = 0,postcommand=UnmarkCascadePathFill,bg=self.bg)
         self.UnmarkCascade.add_cascade(label = "Scan path",             menu = self.UnmarkCascadePath)
         self.UnmarkCascade.add_separator()
         self.UnmarkCascade.add_command(label = "Expression on file ...",           command = lambda : self.MarkExpression('file',self.UnsetMark,'Unmark files'))
         self.UnmarkCascade.add_command(label = "Expression on sub-path ...",       command = lambda : self.MarkExpression('path',self.UnsetMark,'Unmark files'))
         self.UnmarkCascade.add_command(label = "Expression on file with path ...", command = lambda : self.MarkExpression('both',self.UnsetMark,'Unmark files'),accelerator="-")
 
-        MarkingCommonCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
-        MarkingCommonCascade.add_cascade(label = 'Set',menu = self.MarkCascade)
-        MarkingCommonCascade.add_cascade(label = 'Unset',menu = self.UnmarkCascade)
-        MarkingCommonCascade.add_command(label = 'Invert',command = lambda : self.MarkOnAll(self.InvertMark),accelerator="Ctrl+I, *")
-        self.menubar.add_cascade(label = 'Mark',menu = MarkingCommonCascade)
+        self.menubar.add_cascade(label = 'Mark',menu = self.MarkingCommonCascade)
 
-        self.ActionCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
+        def ActionCascadeFill():
+            #self.PopupUnpost()
 
-        self.ActionCascade.add_command(label = 'Remove Local Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete")
-        self.ActionCascade.entryconfig(3,foreground='red',activeforeground='red')
-        self.ActionCascade.add_command(label = 'Remove All Marked Files',command=lambda : self.ProcessFiles('delete',1),accelerator="Shift+Delete")
-        self.ActionCascade.entryconfig(4,foreground='red',activeforeground='red')
-        self.ActionCascade.add_separator()
-        self.ActionCascade.add_command(label = 'Softlink Local Marked Files',command=lambda : self.ProcessFiles('softlink',0),accelerator="Insert")
-        self.ActionCascade.entryconfig(6,foreground='red',activeforeground='red')
-        self.ActionCascade.add_command(label = 'Softlink All Marked Files',command=lambda : self.ProcessFiles('softlink',1),accelerator="Shift+Insert")
-        self.ActionCascade.entryconfig(7,foreground='red',activeforeground='red')
-        self.ActionCascade.add_separator()
-        self.ActionCascade.add_command(label = 'Hardlink Local Marked Files',command=lambda : self.ProcessFiles('hardlink',0),accelerator="Ctrl+Insert")
-        self.ActionCascade.entryconfig(9,foreground='red',activeforeground='red')
-        self.ActionCascade.add_command(label = 'Hardlink All Marked Files',command=lambda : self.ProcessFiles('hardlink',1),accelerator="Shift+Ctrl+Insert")
-        self.ActionCascade.entryconfig(10,foreground='red',activeforeground='red')
+            self.ActionCascade.delete(0,END)
+            ItemActionsState=('disabled','normal')[self.SelItem!=None]
+            MarksState=('disabled','normal')[len(self.tree1.tag_has(MARK))!=0]
+
+            self.ActionCascade.add_command(label = 'Remove Local Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete",state=MarksState)
+            self.ActionCascade.entryconfig(3,foreground='red',activeforeground='red')
+            self.ActionCascade.add_command(label = 'Remove All Marked Files',command=lambda : self.ProcessFiles('delete',1),accelerator="Shift+Delete",state=MarksState)
+            self.ActionCascade.entryconfig(4,foreground='red',activeforeground='red')
+            self.ActionCascade.add_separator()
+            self.ActionCascade.add_command(label = 'Softlink Local Marked Files',command=lambda : self.ProcessFiles('softlink',0),accelerator="Insert",state=MarksState)
+            self.ActionCascade.entryconfig(6,foreground='red',activeforeground='red')
+            self.ActionCascade.add_command(label = 'Softlink All Marked Files',command=lambda : self.ProcessFiles('softlink',1),accelerator="Shift+Insert",state=MarksState)
+            self.ActionCascade.entryconfig(7,foreground='red',activeforeground='red')
+            self.ActionCascade.add_separator()
+            self.ActionCascade.add_command(label = 'Hardlink Local Marked Files',command=lambda : self.ProcessFiles('hardlink',0),accelerator="Ctrl+Insert",state=MarksState)
+            self.ActionCascade.entryconfig(9,foreground='red',activeforeground='red')
+            self.ActionCascade.add_command(label = 'Hardlink All Marked Files',command=lambda : self.ProcessFiles('hardlink',1),accelerator="Shift+Ctrl+Insert",state=MarksState)
+            self.ActionCascade.entryconfig(10,foreground='red',activeforeground='red')
+
+        self.ActionCascade= Menu(self.menubar,tearoff=0,bg=self.bg,postcommand=ActionCascadeFill)
         self.menubar.add_cascade(label = 'Action',menu = self.ActionCascade)
 
         self.HelpCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
         self.HelpCascade.add_command(label = 'About',command=self.About)
         self.HelpCascade.add_command(label = 'Keyboard Shortcuts',command=self.KeyboardShortcuts,accelerator="F1")
         self.HelpCascade.add_command(label = 'License',command=self.License)
+
         self.menubar.add_cascade(label = 'Help',menu = self.HelpCascade)
 
         #######################################################################
@@ -1451,14 +945,16 @@ class Gui:
 
         self.ScanDialogShow()
 
-        if self.ScanAtStarup:
-            self.ScanDialogMainFrame.after(0, self.Scan)
-
         self.ColumnSortLastParams={}
         self.ColumnSortLastParams[self.tree1]=['sizeH',1]
         self.ColumnSortLastParams[self.tree2]=['sizeH',1]
 
         self.ShowData()
+
+        if self.ScanAtStarup:
+            self.main.update()
+            self.Scan()
+
         self.main.mainloop()
 
     def GetIndexTupleTree1(self,item):
@@ -1759,7 +1255,6 @@ class Gui:
 #################################################
     def Tree1KeyRelease(self,event):
         item=self.tree1.focus()
-        #self.tree1.selection_remove(self.tree1.selection())
 
         if event.keysym in ("Up","Down"):
             self.tree1.see(item)
@@ -1780,7 +1275,6 @@ class Gui:
 
     def Tree2KeyRelease(self,event):
         item=self.tree2.focus()
-        #self.tree2.selection_remove(self.tree2.selection())
 
         if event.keysym in ("Up",'Down') :
             self.tree2.see(item)
@@ -1802,10 +1296,11 @@ class Gui:
             self.ToggleSelectedTag(self.tree2,item)
 
     def TreeButtonPress(self,event,toggle=False):
+        #self.PopupUnpost()
+        self.MenubarUnpost()
+
         tree=event.widget
-        
-        self.PopupUnpost()
-        
+
         if tree.identify("region", event.x, event.y) == 'heading':
             if (colname:=tree.column(tree.identify_column(event.x),'id') ) in self.col2sortOf:
                 tree.focus_set()
@@ -1859,7 +1354,6 @@ class Gui:
         tree.selection_set(tree.focus())
 
     def Tree1SelChange(self,item,force=False):
-        
         pathnr=self.tree1.set(item,'pathnr')
         path=self.tree1.set(item,'path')
 
@@ -1913,50 +1407,60 @@ class Gui:
             self.UpdateMainTreeNone()
             self.StatusVarFullPath.set("")
 
-    def PopupUnpost(self,event=None):
+    #def PopupUnpost(self):
+    #    try:
+    #        self.Popup.unpost()
+    #    except Exception as e:
+    #        print(e)
+
+    def MenubarUnpost(self):
         try:
-            self.Popup.unpost()
-            self.Popup.destroy()
-        except:
-            pass
-        
+            self.menubar.unpost()
+        except Exception as e:
+            print(e)
+
     def TreeContexMenu(self,event):
         self.TreeButtonPress(event)
 
-        try:
-            self.Popup.destroy()
-        except :
-            pass
-
-        self.Popup = Menu(self.main, tearoff=0,bg=self.bg)
         tree=event.widget
 
-        if tree==self.tree1:
-            cLocal = Menu(self.menubar,tearoff=0,bg=self.bg)
 
+        ItemActionsState=('disabled','normal')[self.SelItem!=None]
+        FileActionsState=('disabled',ItemActionsState)[self.SelKind==FILE]
+
+        if tree==self.tree1:
+            pop=self.Popup1
+        else:
+            pop=self.Popup2
+
+        pop.delete(0,END)
+
+        if tree==self.tree1:
+            cLocal = Menu(pop,tearoff=0,bg=self.bg)
             cLocal.add_command(label = "Toggle Mark",  command = lambda : self.ToggleSelectedTag(tree,self.SelItem),accelerator="space")
             cLocal.add_separator()
             cLocal.add_command(label = "Mark all files",        command = lambda : self.MarkInCRCGroup(self.SetMark),accelerator="A")
             cLocal.add_command(label = "Unmark all files",        command = lambda : self.MarkInCRCGroup(self.UnsetMark),accelerator="N")
             cLocal.add_separator()
-
             cLocal.add_command(label = "Toggle mark on oldest file",     command = lambda : self.MarkInCRCGroupByCTime('oldest',self.InvertMark),accelerator="O")
             cLocal.add_command(label = "Toggle mark on youngest file",   command = lambda : self.MarkInCRCGroupByCTime('youngest',self.InvertMark),accelerator="Y")
             cLocal.add_separator()
             cLocal.add_command(label = "Invert marks",   command = lambda : self.MarkInCRCGroup(self.InvertMark),accelerator="I")
             cLocal.add_separator()
-            cLocal.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete")
+
+            MarksState=('disabled','normal')[len(tree.tag_has(MARK))!=0]
+
+            cLocal.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete",state=MarksState)
             cLocal.entryconfig(10,foreground='red',activeforeground='red')
-            cLocal.add_command(label = 'Softlink Marked Files',command=lambda : self.ProcessFiles('softlink',0),accelerator="Insert")
+            cLocal.add_command(label = 'Softlink Marked Files',command=lambda : self.ProcessFiles('softlink',0),accelerator="Insert",state=MarksState)
             cLocal.entryconfig(11,foreground='red',activeforeground='red')
-            cLocal.add_command(label = 'Hardlink Marked Files',command=lambda : self.ProcessFiles('hardlink',0),accelerator="Ctrl+Insert")
+            cLocal.add_command(label = 'Hardlink Marked Files',command=lambda : self.ProcessFiles('hardlink',0),accelerator="Ctrl+Insert",state=MarksState)
             cLocal.entryconfig(12,foreground='red',activeforeground='red')
 
+            pop.add_cascade(label = 'Local (this CRC group)',menu = cLocal,state=ItemActionsState)
+            pop.add_separator()
 
-            self.Popup.add_cascade(label = 'Local (this CRC group)',menu = cLocal)
-            self.Popup.add_separator()
-
-            cAll = Menu(self.menubar,tearoff=0,bg=self.bg)
+            cAll = Menu(pop,tearoff=0,bg=self.bg)
 
             cAll.add_command(label = "Mark all files",        command = lambda : self.MarkOnAll(self.SetMark),accelerator="Ctrl+A")
             cAll.add_command(label = "Unmark all files",        command = lambda : self.MarkOnAll(self.UnsetMark),accelerator="Ctrl+N")
@@ -1966,59 +1470,58 @@ class Gui:
             cAll.add_separator()
             cAll.add_command(label = "Invert marks",   command = lambda : self.MarkOnAll(self.InvertMark),accelerator="Ctrl+I, *")
             cAll.add_separator()
-            cAll.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',1),accelerator="Shift+Delete")
+
+            cAll.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',1),accelerator="Shift+Delete",state=MarksState)
             cAll.entryconfig(9,foreground='red',activeforeground='red')
-            cAll.add_command(label = 'Softlink Marked Files',command=lambda : self.ProcessFiles('softlink',1),accelerator="Shift+Insert")
+            cAll.add_command(label = 'Softlink Marked Files',command=lambda : self.ProcessFiles('softlink',1),accelerator="Shift+Insert",state=MarksState)
             cAll.entryconfig(10,foreground='red',activeforeground='red')
-            cAll.add_command(label = 'Hardlink Marked Files',command=lambda : self.ProcessFiles('hardlink',1),accelerator="Shift+Ctrl+Insert")
+            cAll.add_command(label = 'Hardlink Marked Files',command=lambda : self.ProcessFiles('hardlink',1),accelerator="Shift+Ctrl+Insert",state=MarksState)
             cAll.entryconfig(11,foreground='red',activeforeground='red')
 
-            self.Popup.add_cascade(label = 'All Files',menu = cAll)
-            self.Popup.add_separator()
+            pop.add_cascade(label = 'All Files',menu = cAll,state=ItemActionsState)
 
             cNav = Menu(self.menubar,tearoff=0,bg=self.bg)
             cNav.add_command(label = 'go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace")
             cNav.add_command(label = 'go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace")
 
-            self.Popup.add_cascade(label = 'Navigation',menu = cNav)
-            self.Popup.add_separator()
-            self.Popup.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return")
-            self.Popup.add_command(label = 'Open Folder',command = self.OpenFolder)
-
         else:
-            cLocal = Menu(self.menubar,tearoff=0,bg=self.bg)
-            cLocal.add_command(label = "Toggle Mark",  command = lambda : self.ToggleSelectedTag(tree,self.SelItem),accelerator="space")
+            cLocal = Menu(pop,tearoff=0,bg=self.bg)
+            cLocal.add_command(label = "Toggle Mark",  command = lambda : self.ToggleSelectedTag(tree,self.SelItem),accelerator="space",state=FileActionsState)
             cLocal.add_separator()
-            cLocal.add_command(label = "Mark all files",        command = lambda : self.MarkLowerPane(self.SetMark),accelerator="A")
-            cLocal.add_command(label = "Unmark all files",        command = lambda : self.MarkLowerPane(self.UnsetMark),accelerator="N")
+            cLocal.add_command(label = "Mark all files",        command = lambda : self.MarkLowerPane(self.SetMark),accelerator="A",state=FileActionsState)
+            cLocal.add_command(label = "Unmark all files",        command = lambda : self.MarkLowerPane(self.UnsetMark),accelerator="N",state=FileActionsState)
             cLocal.add_separator()
-            cLocal.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete")
+
+            MarksState=('disabled','normal')[len(tree.tag_has(MARK))!=0]
+
+            cLocal.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete",state=MarksState)
             cLocal.entryconfig(5,foreground='red',activeforeground='red')
 
-            self.Popup.add_cascade(label = 'Local (this folder)',menu = cLocal)
+            pop.add_cascade(label = 'Local (this folder)',menu = cLocal,state=MarksState)
 
-            cAll = Menu(self.menubar,tearoff=0,bg=self.bg)
-
-            cNav = Menu(self.menubar,tearoff=0,bg=self.bg)
+            cNav = Menu(pop,tearoff=0,bg=self.bg)
             cNav.add_command(label = 'go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace")
             cNav.add_command(label = 'go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0) ,accelerator="Ctrl+Backspace")
 
-            self.Popup.add_separator()
-            self.Popup.add_cascade(label = 'Navigation',menu = cNav)
+        pop.add_separator()
+        pop.add_cascade(label = 'Navigation',menu = cNav,state=ItemActionsState)
 
-            self.Popup.add_separator()
-            self.Popup.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return")
-            self.Popup.add_command(label = 'Open Folder',command = self.OpenFolder)
+        pop.add_separator()
+        pop.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return",state=FileActionsState)
+        pop.add_command(label = 'Open Folder',command = self.OpenFolder,state=FileActionsState)
 
-        self.Popup.bind("<FocusOut>",self.PopupUnpost)
+        pop.add_separator()
+        pop.add_command(label = "Scan",  command = self.ScanDialogShow,accelerator="S")
+        pop.add_command(label = "Settings",  command = self.SettingsDialogShow,accelerator="F2")
+        pop.add_separator()
+        pop.add_command(label = "Exit",  command = self.exit)
 
         try:
-            self.Popup.tk_popup(event.x_root, event.y_root)
+            pop.tk_popup(event.x_root, event.y_root)
         finally:
-            self.Popup.grab_release()
+            pop.grab_release()
 
     def ColumnSort(self, tree, colname):
-        #print(f'ColumnSort: {tree}, {colname}')
 
         prev_colname,prev_reverse=self.ColumnSortLastParams[tree]
         tree.heading(prev_colname, text=self.OrgLabel[prev_colname])
@@ -2098,15 +1601,69 @@ class Gui:
         self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(ExcludeVarsFromEntry))
 
         self.main.update()
-        self.LongAction(self.ScanDialogMainFrame,'scanning files ...',lambda UpdateCallback : self.D.scan(UpdateCallback))
-        if self.LongActionDialogNaturalEnd:
-            if self.D.sumSize==0:
-                self.DialogWithEntry(title='Cannot Proceed.',prompt='No Duplicates.',parent=self.ScanDialog,OnlyInfo=True)
-            else :
-                self.LongAction(self.ScanDialogMainFrame,'crc calculation ...',lambda UpdateCallback : self.D.CrcCalc(self.WriteScanToLog.get(),UpdateCallback),'determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:')
-                if self.LongActionDialogNaturalEnd:
-                    self.ShowData()
-                    self.ScanDialogClose()
+
+        #############################
+        self.LongActionDialogShow(self.ScanDialogMainFrame,'scanning')
+
+        ScanThread=Thread(target=self.D.Scan,daemon=True)
+        ScanThread.start()
+
+        while ScanThread.is_alive():
+            self.LongActionDialogUpdate(nums[self.D.InfoPathNr] + '\n' + self.D.InfoPathToScan + '\n\n' + str(self.D.InfoCounter) + '\n' + bytes2str(self.D.InfoSizeSum))
+
+            if self.LongActionAbort:
+                self.D.Abort()
+                self.D.INIT()
+                break
+            else:
+                time.sleep(0.04)
+
+        ScanThread.join()
+        self.LongActionDialogEnd()
+
+        if self.LongActionAbort:
+            return
+
+        #############################
+        if self.D.sumSize==0:
+            self.DialogWithEntry(title='Cannot Proceed.',prompt='No Duplicates.',parent=self.ScanDialog,OnlyInfo=True)
+            return
+        #############################
+        self.LongActionDialogShow(self.ScanDialogMainFrame,'crc calculation ...','determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:')
+
+        self.D.writeLog=self.WriteScanToLog.get()
+
+        ScanThread=Thread(target=self.D.CrcCalc,daemon=True)
+        ScanThread.start()
+
+        while ScanThread.is_alive():
+            sumSizeStr='/' + bytes2str(self.D.sumSize)
+            progress1Right=bytes2str(self.D.InfoSizeDone) + sumSizeStr
+            progress2Right=str(self.D.InfoFileNr) + '/' + str(self.D.total)
+
+            InfoProgSize=(100.0/self.D.sumSize)*self.D.InfoSizeDone
+            InfoProgQuant=(100.0/self.D.total)*self.D.InfoFileNr
+
+            info = '\ngroups found:' + str(self.D.InfoFoundSum) + '\ncurrent size: ' + bytes2str(self.D.InfoCurrentSize)
+            self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right)
+
+            if self.LongActionAbort:
+                self.D.Abort()
+                self.D.Kill()
+                self.D.INIT()
+                break
+            else:
+                time.sleep(0.04)
+
+        ScanThread.join()
+        self.LongActionDialogEnd()
+        #############################
+
+        if self.LongActionAbort:
+            return
+
+        self.ShowData()
+        self.ScanDialogClose()
 
     def ScanDialogShow(self):
         if self.D.ScannedPaths:
@@ -2408,7 +1965,7 @@ class Gui:
             self.UpdatePathTreeNone()
 
     def ShowData(self):
-        self.idfunc = (lambda i,d : str(i)+'-'+str(d)) if len(self.D.devs)>1 else (lambda i,d : i)
+        self.idfunc = (lambda i,d : str(i)+'-'+str(d)) if len(self.D.devs)>1 else (lambda i,d : str(i))
 
         self.ResetSels()
         self.tree1.delete(*self.tree1.get_children())
