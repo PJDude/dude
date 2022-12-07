@@ -1,31 +1,22 @@
+#!/usr/bin/python3
+
 from collections import defaultdict
 
 import subprocess
 from subprocess import Popen, PIPE
 
 import os
-
-import logging
-from threading import Thread
-
-import time
-
 import pathlib
+import fnmatch
+import re
 
-#import configparser
-
-from appdirs import *
-
-CACHE_DIR = os.sep.join([user_cache_dir('dude'),"cache"])
-
-class CORE:
+class DudeCore:
     filesOfSize=defaultdict(set)
     filesOfSizeOfCRC=defaultdict(lambda : defaultdict(set))
     cache={}
     sumSize=0
     devs=set()
     info=''
-
     windows=False
 
     def INIT(self):
@@ -39,12 +30,12 @@ class CORE:
         self.ExcludeRegExp=False
         self.ExcludeList=[]
 
+    def __init__(self,CacheDir,Log):
+        self.CacheDir=CacheDir
+        self.Log=Log
         self.windows = (os.name=='nt')
-
-    def __init__(self):
         self.CRCExec='certutil' if self.windows else 'sha1sum'
         self.CRCExecParams='-hashfile' if self.windows else '-b'
-
         self.GetCrc=(lambda string : string.split('\n')[1]) if self.windows else (lambda string : string[:40])
 
         self.CheckCRC()
@@ -116,11 +107,11 @@ class CORE:
     InfoSizeSum=0
 
     def Scan(self):
-        logging.info('')
-        logging.info('SCANNING')
+        self.Log.info('')
+        self.Log.info('SCANNING')
 
         if self.ExcludeList:
-            logging.info('ExcludeList:' + ' '.join(self.ExcludeList))
+            self.Log.info('ExcludeList:' + ' '.join(self.ExcludeList))
 
         self.InfoPathNr=0
         self.InfoPathToScan=''
@@ -142,21 +133,21 @@ class CORE:
                         fullpath=os.path.join(path,file)
                         if self.ExcludeList:
                             if any({self.ExclFn(expr,fullpath) for expr in self.ExcludeList}):
-                                logging.info(f'skipping by Exclude Mask:{fullpath}')
+                                self.Log.info(f'skipping by Exclude Mask:{fullpath}')
                                 continue
                         try:
                             if os.path.islink(entry) :
-                                logging.debug(f'skippping link: {path} / {file}')
+                                self.Log.debug(f'skippping link: {path} / {file}')
                             elif entry.is_dir():
                                 loopList.append(os.path.join(path,file))
                             elif entry.is_file():
                                 try:
                                     stat = os.stat(fullpath)
                                 except Exception as e:
-                                    logging.error(f'scan skipp {e}')
+                                    self.Log.error(f'scan skipp {e}')
                                 else:
                                     if stat.st_nlink!=1:
-                                        logging.debug(f'scan skipp - hardlinks {stat.st_nlink} - {pathNr},{path},{file}')
+                                        self.Log.debug(f'scan skipp - hardlinks {stat.st_nlink} - {pathNr},{path},{file}')
                                     else:
                                         if stat.st_size>0:
                                             self.InfoSizeSum+=stat.st_size
@@ -173,9 +164,9 @@ class CORE:
                                     break
 
                         except Exception as e:
-                            logging.error(e)
+                            self.Log.error(e)
                 except Exception as e:
-                    logging.error(e)
+                    self.Log.error(e)
 
                 if self.AbortAction:
                     break
@@ -204,7 +195,7 @@ class CORE:
                 index=(dev,inode)
                 if index in self.blacklistedInodes:
                     thisIndex=(pathnr,path,file,mtime,ctime,dev,inode)
-                    logging.warning('ignoring conflicting inode entry:' + str(thisIndex))
+                    self.Log.warning('ignoring conflicting inode entry:' + str(thisIndex))
                     self.filesOfSize[size].remove(thisIndex)
 
         ######################################################################
@@ -224,39 +215,39 @@ class CORE:
         stdout, stderr = stream.communicate()
         res=stdout
         if stderr:
-            logging.error(f"Cannot execute {self.CRCExec}")
-            logging.error(stderr)
-            logging.error('exiting ')
+            self.Log.error(f"Cannot execute {self.CRCExec}")
+            self.Log.error(stderr)
+            self.Log.error('exiting ')
             exit(10)
         elif exitCode:=stream.poll():
-            logging.error(f'exit code:{exitCode}')
+            self.Log.error(f'exit code:{exitCode}')
             exit(11)
         else:
-            logging.debug(f"all fine. stdout:{stdout} crc:{self.GetCrc(stdout)}")
+            self.Log.debug(f"all fine. stdout:{stdout} crc:{self.GetCrc(stdout)}")
 
     def ReadCRCCache(self):
         self.CRCCache={}
         for dev in self.devs:
             self.CRCCache[dev]=dict()
             try:
-                logging.debug(f'reading cache:{CACHE_DIR}:device:{dev}')
-                with open(os.sep.join([CACHE_DIR,str(dev)]),'r' ) as cfile:
+                self.Log.debug(f'reading cache:{self.CacheDir}:device:{dev}')
+                with open(os.sep.join([self.CacheDir,str(dev)]),'r' ) as cfile:
                     while line:=cfile.readline() :
                         inode,mtime,crc = line.rstrip('\n').split(' ')
                         if crc==None or crc=='None' or crc=='':
-                            logging.warning(f"CRCCache read error:{inode},{mtime},{crc}")
+                            self.Log.warning(f"CRCCache read error:{inode},{mtime},{crc}")
                         else:
                             self.CRCCache[dev][(int(inode),int(mtime))]=crc
 
             except Exception as e:
-                logging.warning(e)
+                self.Log.warning(e)
                 self.CRCCache[dev]=dict()
 
     def WriteCRCCache(self):
-        pathlib.Path(CACHE_DIR).mkdir(parents=True,exist_ok=True)
+        pathlib.Path(self.CacheDir).mkdir(parents=True,exist_ok=True)
         for dev in self.CRCCache:
-            logging.debug(f'writing cache:{CACHE_DIR}:device:{dev}')
-            with open(os.sep.join([CACHE_DIR,str(dev)]),'w' ) as cfile:
+            self.Log.debug(f'writing cache:{self.CacheDir}:device:{dev}')
+            with open(os.sep.join([self.CacheDir,str(dev)]),'w' ) as cfile:
                 for (inode,mtime),crc in self.CRCCache[dev].items():
                     cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
 
@@ -268,14 +259,14 @@ class CORE:
             stdout, stderr = self.SubprocessStream.communicate()
 
             if stderr:
-                logging.error(f"command:{command}->{stderr}")
+                self.Log.error(f"command:{command}->{stderr}")
                 return None
             elif exitCode:=self.SubprocessStream.poll():
-                logging.error(f"command:{command}->exitCode:{exitCode}")
+                self.Log.error(f"command:{command}->exitCode:{exitCode}")
                 return None
 
         except Exception as e:
-            logging.error(e)
+            self.Log.error(e)
             return None
 
         return self.GetCrc(stdout)
@@ -285,16 +276,14 @@ class CORE:
             if self.SubprocessStream:
                 self.SubprocessStream.kill()
         except Exception as e:
-            logging.error(e)
+            self.Log.error(e)
 
     writeLog=False
 
-    InfoProgSize=0
-    InfoProgQuant=0
     InfoSizeDone=0
     InfoFileNr=0
     InfoCurrentSize=0
-    total=1
+    InfoTotal=1
     InfoFoundSum=0
 
     def CrcCalc(self):
@@ -309,7 +298,7 @@ class CORE:
         self.InfoFoundSum=0
         self.InfoFileNr=0
 
-        self.total = len([ 1 for size in self.filesOfSize for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size] ])
+        self.InfoTotal = len([ 1 for size in self.filesOfSize for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size] ])
 
         PathsToRecheckSet=set()
 
@@ -362,21 +351,21 @@ class CORE:
             self.LogScanResults()
 
     def LogScanResults(self):
-        logging.info('#######################################################')
-        logging.info('scan and crc calculation complete')
-        logging.info('')
-        logging.info('scanned paths:')
+        self.Log.info('#######################################################')
+        self.Log.info('scan and crc calculation complete')
+        self.Log.info('')
+        self.Log.info('scanned paths:')
         for (nr,path) in enumerate(self.Paths2Scan):
-            logging.info(f'  {nr}  <->  {path}',)
+            self.Log.info(f'  {nr}  <->  {path}',)
 
         for size in self.filesOfSizeOfCRC:
-            logging.info('')
-            logging.info(f'size:{size}')
+            self.Log.info('')
+            self.Log.info(f'size:{size}')
             for crc in self.filesOfSizeOfCRC[size]:
-                logging.info(f'  crc:{crc}')
+                self.Log.info(f'  crc:{crc}')
                 for IndexTuple in self.filesOfSizeOfCRC[size][crc]:
-                    logging.info('    ' + ' '.join( [str(elem) for elem in list(IndexTuple) ]))
-        logging.info('#######################################################')
+                    self.Log.info('    ' + ' '.join( [str(elem) for elem in list(IndexTuple) ]))
+        self.Log.info('#######################################################')
 
     def CheckCrcPoolAndPrune(self,size):
         for crc in list(self.filesOfSizeOfCRC[size]):
@@ -396,29 +385,26 @@ class CORE:
         self.CrcCutLen=lenTemp
         self.crccut={crc:crc[0:self.CrcCutLen] for crc in AllCrcs }
 
-    @staticmethod
-    def RenameFile(src,dest):
-        logging.info(f'renaming file:{src}->{dest}')
+    def RenameFile(self,src,dest):
+        self.Log.info(f'renaming file:{src}->{dest}')
         try:
             os.rename(src,dest)
             return False
         except Exception as e:
-            logging.error(e)
+            self.Log.error(e)
             return 'Rename error:' + str(e)
 
-    @staticmethod
-    def DeleteFile(file):
-        logging.info(f'deleting file:{file}')
+    def DeleteFile(self,file):
+        self.Log.info(f'deleting file:{file}')
         try:
             os.remove(file)
             return False
         except Exception as e:
-            logging.error(e)
+            self.Log.error(e)
             return 'Delete error:' + str(e)
 
-    @staticmethod
-    def CreateSoftLink(src,dest,relative=True):
-        logging.info(f'soft-linking {src}<-{dest} (relative:{relative})')
+    def CreateSoftLink(self,src,dest,relative=True):
+        self.Log.info(f'soft-linking {src}<-{dest} (relative:{relative})')
         try:
             if relative:
                 destDir = os.path.dirname(dest)
@@ -428,17 +414,16 @@ class CORE:
                 os.symlink(src,dest)
             return False
         except Exception as e:
-            logging.error(e)
+            self.Log.error(e)
             return 'Error on soft linking:' + str(e)
 
-    @staticmethod
-    def CreateHardLink(src,dest):
-        logging.info(f'hard-linking {src}<-{dest}')
+    def CreateHardLink(self,src,dest):
+        self.Log.info(f'hard-linking {src}<-{dest}')
         try:
             os.link(src,dest)
             return False
         except Exception as e:
-            logging.error(e)
+            self.Log.error(e)
             return 'Error on hard linking:' + str(e)
 
     def ReduceCrcCut(self,size,crc):
@@ -446,14 +431,14 @@ class CORE:
             del self.crccut[crc]
 
     def RemoveFromDataPool(self,size,crc,IndexTuple):
-        logging.debug(f'RemoveFromDataPool:{size},{crc},{IndexTuple}')
+        self.Log.debug(f'RemoveFromDataPool:{size},{crc},{IndexTuple}')
         self.filesOfSizeOfCRC[size][crc].remove(IndexTuple)
 
         self.CheckCrcPoolAndPrune(size)
         self.ReduceCrcCut(size,crc)
 
     def DeleteFileWrapper(self,size,crc,IndexTuple):
-        logging.debug(f"DeleteFileWrapper:{size},{crc},{IndexTuple}")
+        self.Log.debug(f"DeleteFileWrapper:{size},{crc},{IndexTuple}")
 
         (pathnr,path,file,ctime,dev,inode)=IndexTuple
         FullFilePath=self.ScannedPathFull(pathnr,path,file)
@@ -471,7 +456,7 @@ class CORE:
             soft,relative,size,crc,\
             IndexTupleRef,IndexTuplesList):
 
-        logging.debug(f'LinkWrapper:{soft},{relative},{size},{crc}:{IndexTupleRef}:{IndexTuplesList}')
+        self.Log.debug(f'LinkWrapper:{soft},{relative},{size},{crc}:{IndexTupleRef}:{IndexTuplesList}')
 
         (pathnrKeep,pathKeep,fileKeep,ctimeKeep,devKeep,inodeKeep)=IndexTupleRef
 
@@ -509,3 +494,54 @@ class CORE:
 
             self.CheckCrcPoolAndPrune(size)
             self.ReduceCrcCut(size,crc)
+
+############################################################################################
+if __name__ == "__main__":
+    import logging
+    from threading import Thread
+    import test
+    import time
+    
+    LOG_DIR = "./test/log"
+    pathlib.Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
+    
+    log=LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.log'
+    
+    print('log:',log)
+    logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
+    
+    print('dude core test ...')
+    core=DudeCore('./test/cache',logging)
+    
+    TestDir='test/files'
+    if not os.path.exists(TestDir):
+        test.generate(TestDir)
+    
+    core.setLimit(100)
+    core.SetPathsToScan([TestDir])
+    core.SetExcludeMasks(False,[])
+    
+    core.writeLog=True
+    
+    ScanThread=Thread(target=core.Scan,daemon=True)
+    ScanThread.start()
+        
+    while ScanThread.is_alive():
+        print('Scanning ...', core.InfoCounter,end='\r')
+        time.sleep(0.04)
+
+    ScanThread.join()
+
+    ScanThread=Thread(target=core.CrcCalc,daemon=True)
+    ScanThread.start()
+        
+    while ScanThread.is_alive():
+        print(f'CrcCalc...{core.InfoFileNr}/{core.InfoTotal} (size:{core.InfoCurrentSize})                ',end='\r')
+        time.sleep(0.04)
+
+    ScanThread.join()
+
+    print('')
+    print('Done')
+    
+    
