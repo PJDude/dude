@@ -2,7 +2,7 @@
 
 GUI utility for finding duplicated files, delete or link them to save space.
 
-## Features
+## Features:
 - **scanning for duplicated files**
 - **Files display on two synchronized panels**
   - **duplicates groups**
@@ -15,11 +15,12 @@ GUI utility for finding duplicated files, delete or link them to save space.
 - **Written in Python3 + Tkinter**
 - **MIT license**
 
-## Dude GUI
+## Dude GUI:
 ![image info](./dude.gif)
 
 ## How to get dude executable:
 download latest build (GitHub Actions artifact) for Linux or Windows:
+
 https://pjdude.github.io/dude/
 
 ## How to start dude:
@@ -42,5 +43,5 @@ or
 - **specify paths to scan** (Add Paths Alt+A)
 - **scan for duplicate files** (Alt+S)
 - **mark files for processing** (Try Tab, space, arrows, A, I etc. )
-- **take action on marked files** (D Hotkey for Delete files)
-- **check keyboard shortcuts any time F1** (S)
+- **take action on marked files** (Delete,Insert etc.)
+- **check keyboard shortcuts any time** (F1)
