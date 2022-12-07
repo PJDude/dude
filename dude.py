@@ -745,10 +745,10 @@ class Gui:
         self.addCwdAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,True))
 
         self.scanAtStartup = tk.BooleanVar()
-        self.scanAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_SCAN,True))
+        self.scanAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_SCAN,False))
 
         self.showothers = tk.BooleanVar()
-        self.showothers.set(self.cfg.Get(CFG_KEY_SHOW_OTHERS,False))
+        self.showothers.set(self.cfg.Get(CFG_KEY_SHOW_OTHERS,True))
 
         self.fullCRC = tk.BooleanVar()
         self.fullCRC.set(self.cfg.Get(CFG_KEY_FULLCRC,False))
@@ -757,7 +757,7 @@ class Gui:
         self.fullPaths.set(self.cfg.Get(CFG_KEY_FULLPATHS,False))
 
         self.relSymlinks = tk.BooleanVar()
-        self.relSymlinks.set(self.cfg.Get(CFG_KEY_REL_SYMLINKS,False))
+        self.relSymlinks.set(self.cfg.Get(CFG_KEY_REL_SYMLINKS,True))
 
         self.useRegExpr = tk.BooleanVar()
         self.useRegExpr.set(self.cfg.Get(CFG_KEY_USE_REG_EXPR,False))
