@@ -58,7 +58,6 @@ def bytes2str(num):
     else:
         return str(round(kb/G,2))+'TB'
 
-
 def str2bytes(string):
     if not string:
         return None
@@ -70,7 +69,6 @@ def str2bytes(string):
         return res
     else:
         return None
-
 
 ###########################################################################################################################################
 
@@ -218,7 +216,7 @@ class Gui:
     LongActionAbort=False
     def LongActionDialogShow(self,parent,title,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
         self.LADParent=parent
-        now=self.getNow()
+        
         self.psIndex =0
 
         self.ProgressMode1=ProgressMode1
@@ -231,7 +229,7 @@ class Gui:
         self.LongActionDialog.bind('<Escape>', self.LongActionDialogAbort)
 
         self.LongActionDialog.wm_title(title)
-        self.LongActionDialog.iconphoto(False, iconphoto)
+        self.LongActionDialog.iconphoto(False, self.iconphoto)
 
         (f0:=tk.Frame(self.LongActionDialog,bg=self.bg)).pack(expand=1,fill='both',side='top')
         (f1:=tk.Frame(self.LongActionDialog,bg=self.bg)).pack(expand=1,fill='both',side='top')
@@ -280,7 +278,7 @@ class Gui:
         tk.Label(f1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg).pack(side='top',padx=8,pady=8,expand=1,fill='x')
         ttk.Button(f1, text='Abort', width=10 ,command=self.LongActionDialogAbort ).pack(side='bottom',padx=8,pady=8)
 
-        self.LastTimeNoSign=now
+        self.LastTimeNoSign=self.getNow()
 
         self.LongActionDialog.grab_set()
         self.LongActionDialog.update()
@@ -341,9 +339,8 @@ class Gui:
         self.main.minsize(1200, 800)
         self.main.bind('<FocusIn>', self.FocusIn)
 
-        global iconphoto
-        iconphoto = PhotoImage(file = os.path.join(os.path.dirname(__file__),'icon.png'))
-        self.main.iconphoto(False, iconphoto)
+        self.iconphoto = PhotoImage(file = os.path.join(os.path.dirname(__file__),'icon.png'))
+        self.main.iconphoto(False, self.iconphoto)
 
         ####################################################################
         style = ttk.Style()
@@ -368,8 +365,6 @@ class Gui:
         #style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('',self.bg)])
         style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('','white')])
 
-        #style.map("Treeview.Heading",background = [('pressed', '!focus', 'white'),('active', 'darkgray'),('disabled', '#ffffff'),('',self.bg)])
-
         #works but not for every theme
         #style.configure("Treeview", fieldbackground=self.bg)
 
@@ -388,22 +383,19 @@ class Gui:
         self.paned = PanedWindow(self.main,orient=tk.VERTICAL,relief='sunken',showhandle=0,bd=0,bg=self.bg,sashwidth=2,sashrelief='flat')
         self.paned.pack(fill='both',expand=1)
 
-        paned_top = tk.Frame(self.paned,bg=self.bg)
-        self.paned.add(paned_top)
-        paned_bottom = tk.Frame(self.paned,bg=self.bg)
-        self.paned.add(paned_bottom,)
+        FrameTop = tk.Frame(self.paned,bg=self.bg)
+        self.paned.add(FrameTop)
+        FrameBottom = tk.Frame(self.paned,bg=self.bg)
+        self.paned.add(FrameBottom)
+        
+        FrameTop.grid_columnconfigure(0, weight=1)
+        FrameTop.grid_rowconfigure(0, weight=1,minsize=200)
+
+        FrameBottom.grid_columnconfigure(0, weight=1)
+        FrameBottom.grid_rowconfigure(0, weight=1,minsize=200)
 
         self.paned.update()
         self.paned.sash_place(0,0,self.cfg.Get('sash_coord',400,section='geometry'))
-
-        FrameTop = tk.Frame(paned_top,bg=self.bg)
-        FrameBottom = tk.Frame(paned_bottom,bg=self.bg)
-
-        FrameTop.grid(row=0,column=0,sticky='news')
-        FrameBottom.grid(row=0,column=0,sticky='news')
-
-        FrameTop.grid_rowconfigure(0, minsize=400)
-        FrameBottom.grid_rowconfigure(0,minsize=400)
 
         self.main.bind('<KeyPress>', self.KeyPressGlobal )
 
@@ -610,12 +602,6 @@ class Gui:
         self.tree2.bind('<i>', lambda event : self.MarkLowerPane(self.InvertMark) )
         self.tree2.bind('<I>', lambda event : self.MarkLowerPane(self.InvertMark) )
 
-        paned_top.grid_columnconfigure(0, weight=1)
-        paned_top.grid_rowconfigure(0, weight=1,minsize=200)
-
-        paned_bottom.grid_columnconfigure(0, weight=1)
-        paned_bottom.grid_rowconfigure(0, weight=1,minsize=200)
-
         self.tree1.tag_configure(MARK, foreground='red')
         self.tree1.tag_configure(MARK, background='red')
         self.tree2.tag_configure(MARK, foreground='red')
@@ -651,7 +637,7 @@ class Gui:
         self.ScanDialog.wm_transient(self.main)
         self.ScanDialog.update()
         self.ScanDialog.withdraw()
-        self.ScanDialog.iconphoto(False, iconphoto)
+        self.ScanDialog.iconphoto(False, self.iconphoto)
 
         self.ScanDialogMainFrame = tk.Frame(self.ScanDialog,bg=self.bg)
         self.ScanDialogMainFrame.pack(expand=1, fill='both')
@@ -739,7 +725,7 @@ class Gui:
         self.SetingsDialog.wm_transient(self.main)
         self.SetingsDialog.update()
         self.SetingsDialog.withdraw()
-        self.SetingsDialog.iconphoto(False, iconphoto)
+        self.SetingsDialog.iconphoto(False, self.iconphoto)
 
         self.addCwdAtStartup = tk.BooleanVar()
         self.addCwdAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,True))
@@ -831,8 +817,6 @@ class Gui:
                 row+=1
 
         def FileCascadeFill():
-            #self.PopupUnpost()
-
             self.FileCascade.delete(0,END)
             ItemActionsState=('disabled','normal')[self.SelItem!=None]
 
@@ -856,8 +840,6 @@ class Gui:
             self.FileCascade.add_command(label = 'Exit',command = self.exit)
 
         def MarkingCommonCascadeFill():
-            #self.PopupUnpost()
-
             self.MarkingCommonCascade.delete(0,END)
             ItemActionsState=('disabled','normal')[self.SelItem!=None]
 
@@ -908,8 +890,6 @@ class Gui:
         self.menubar.add_cascade(label = 'Mark',menu = self.MarkingCommonCascade)
 
         def ActionCascadeFill():
-            #self.PopupUnpost()
-
             self.ActionCascade.delete(0,END)
             ItemActionsState=('disabled','normal')[self.SelItem!=None]
             MarksState=('disabled','normal')[len(self.tree1.tag_has(MARK))!=0]
@@ -977,16 +957,10 @@ class Gui:
         exit()
 
     def WidgetId(self,widget):
-        wid=widget.wm_title()
-        wid=wid.replace(' ','_')
-        wid=wid.replace('!','_')
-        wid=wid.replace('?','_')
-        wid=wid.replace('(','_')
-        wid=wid.replace(')','_')
-        wid=wid.replace('.','_')
-        return wid
+        return widget.wm_title().split(' ')[0]
 
     def SetDefaultGeometryAndShow(self,widget,parent):
+        widget.update()
         CfgGeometry=self.cfg.Get(self.WidgetId(widget),None,section='geometry')
 
         if CfgGeometry != None and CfgGeometry != 'None':
@@ -1016,7 +990,7 @@ class Gui:
         dialog.withdraw()
         dialog.wm_title(title)
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
-        dialog.iconphoto(False, iconphoto)
+        dialog.iconphoto(False, self.iconphoto)
 
         res=set()
 
@@ -1095,7 +1069,7 @@ class Gui:
 
         return next(iter(res))
 
-    def dialog(self,parent,title,message,OnlyInfo=False,textwidth=128,width=800,height=400):
+    def dialog(self,parent,title,message,OnlyInfo=False,textwidth=128,width=800,height=600):
         parent.config(cursor="watch")
 
         dialog = tk.Toplevel(parent)
@@ -1105,7 +1079,7 @@ class Gui:
         dialog.withdraw()
         dialog.wm_title(title)
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
-        dialog.iconphoto(False, iconphoto)
+        dialog.iconphoto(False, self.iconphoto)
 
         res=set()
 
@@ -1189,10 +1163,10 @@ class Gui:
 
         return next(iter(res))
 
-    def Ask(self,title,message,top,width=1000,height=400):
+    def Ask(self,title,message,top,width=800,height=400):
         return self.dialog(top,title,message,False,width=width,height=height)
 
-    def Info(self,title,message,top,textwidth=128,width=400,height=200):
+    def Info(self,title,message,top,textwidth=150,width=800,height=400):
         return self.dialog(top,title,message,True,textwidth=textwidth,width=width,height=height)
 
     def ToggleSelectedTag(self,tree, *items):
@@ -1297,7 +1271,6 @@ class Gui:
             self.ToggleSelectedTag(self.tree2,item)
 
     def TreeButtonPress(self,event,toggle=False):
-        #self.PopupUnpost()
         self.MenubarUnpost()
 
         tree=event.widget
@@ -1407,12 +1380,6 @@ class Gui:
         else:
             self.UpdateMainTreeNone()
             self.StatusVarFullPath.set("")
-
-    #def PopupUnpost(self):
-    #    try:
-    #        self.Popup.unpost()
-    #    except Exception as e:
-    #        print(e)
 
     def MenubarUnpost(self):
         try:
@@ -1733,7 +1700,7 @@ class Gui:
         self.ExcludeFrames=[]
         self.ExcludeEntryVar={}
 
-        ttk.Checkbutton(self.ExcludeFRame,text='Use regular expressions matching',variable=self.ScanExcludeRegExpr,command=lambda : self.ScanExcludeRegExprCommand()).grid(row=0,column=0,sticky='news',columnspan=3)
+        ttk.Checkbutton(self.ExcludeFRame,text='Use regular expressions matching',variable=self.ScanExcludeRegExpr,command=lambda : self.ScanExcludeRegExprCommand()).grid(row=0,column=0,sticky='news',columnspan=3,padx=5)
 
         row=1
 
@@ -1918,11 +1885,11 @@ class Gui:
 
     def SettingsDialogReset(self):
         self.addCwdAtStartup.set(True)
-        self.scanAtStartup.set(True)
-        self.showothers.set(False)
+        self.scanAtStartup.set(False)
+        self.showothers.set(True)
         self.fullCRC.set(False)
         self.fullPaths.set(False)
-        self.relSymlinks.set(False)
+        self.relSymlinks.set(True)
         self.useRegExpr.set(False)
 
     def UpdateCrcNode(self,crc):
@@ -2432,7 +2399,7 @@ class Gui:
         elif action in ("delete","softlink"):
             for crc in ProcessedItems:
                 if len(RemainingItems[crc])==0:
-                    self.DialogWithEntry(title=f'        Error {action} - All files marked        ',prompt="  Keep at least one file unmarked.  ",parent=self.main,OnlyInfo=True)
+                    self.DialogWithEntry(title=f'Error {action} - All files marked',prompt="          Keep at least one file unmarked.          ",parent=self.main,OnlyInfo=True)
 
                     self.SelectFocusAndSeeCrcItemTree(crc)
                     return
