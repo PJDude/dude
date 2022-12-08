@@ -1,4 +1,4 @@
-# DUDE (Dplicates DEtector)
+# DUDE (DUplicates DEtector)
 
 GUI utility for finding duplicated files, delete or link them to save space.
 
