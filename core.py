@@ -283,8 +283,9 @@ class DudeCore:
     InfoSizeDone=0
     InfoFileNr=0
     InfoCurrentSize=0
+    InfoCurrentFile=''
     InfoTotal=1
-    InfoFoundSum=0
+    InfoFoundGroups=0
 
     def CrcCalc(self):
         self.ReadCRCCache()
@@ -295,7 +296,7 @@ class DudeCore:
 
         self.AbortAction=False
 
-        self.InfoFoundSum=0
+        self.InfoFoundGroups=0
         self.InfoFileNr=0
 
         self.InfoTotal = len([ 1 for size in self.filesOfSize for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size] ])
@@ -309,6 +310,7 @@ class DudeCore:
 
             self.InfoCurrentSize=size
             for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size]:
+                self.InfoCurrentFile=file
                 if self.AbortAction:
                     break
 
@@ -332,8 +334,8 @@ class DudeCore:
 
             if size in self.filesOfSizeOfCRC:
                 if self.limit:
-                    self.InfoFoundSum+=len(self.filesOfSizeOfCRC[size])
-                    if self.InfoFoundSum>=self.limit:
+                    self.InfoFoundGroups+=len(self.filesOfSizeOfCRC[size])
+                    if self.InfoFoundGroups>=self.limit:
                         LimitReached=True
 
                 if not LimitReached:

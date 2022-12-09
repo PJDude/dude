@@ -157,12 +157,15 @@ class Gui:
 
     pyperclipOperational=True
 
+    SelItemTree = {}
+        
     def ResetSels(self):
         self.SelPathnr = None
         self.SelPath = None
         self.SelFile = None
         self.SelCrc = None
         self.SelItem = None
+        self.SelItemTree = {}
         self.SelTreeIndex = 0
         self.SelKind = None
 
@@ -297,12 +300,12 @@ class Gui:
         self.LongActionDialog.destroy()
         self.LADParent.config(cursor=self.prevParentCursor)
 
-    def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None):
+    def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None,PrefixInfo=''):
         now=self.getNow()
-        prefix=''
+        prefix='\n'
         if self.LADPrevMessage==message:
             if now>self.LastTimeNoSign+1000.0:
-                prefix=str(self.ProgressSigns[self.psIndex])
+                prefix=str(self.ProgressSigns[self.psIndex]) + "\n" + PrefixInfo
                 self.psIndex=(self.psIndex+1)%4
         else:
             self.LADPrevMessage=message
@@ -397,8 +400,6 @@ class Gui:
         self.paned.update()
         self.paned.sash_place(0,0,self.cfg.Get('sash_coord',400,section='geometry'))
 
-        self.main.bind('<KeyPress>', self.KeyPressGlobal )
-
         (UpperStatusFrame := tk.Frame(FrameTop,bg=self.bg)).pack(side='bottom', fill='both')
         self.StatusVarGroups.set('0')
         self.StatusVarFullPath.set('')
@@ -427,6 +428,8 @@ class Gui:
         tk.Label(LowerStatusFrame,width=10,textvariable=self.StatusVarPathSize,borderwidth=2,bg=self.bg,relief='groove',foreground='red',anchor='w').pack(expand=0,side='right')
         tk.Label(LowerStatusFrame,width=18,text='Marked files size: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
 
+        self.main.unbind_class('Treeview', '<KeyPress-Up>')
+        self.main.unbind_class('Treeview', '<KeyPress-Down>')
         self.main.unbind_class('Treeview', '<KeyPress-Next>')
         self.main.unbind_class('Treeview', '<KeyPress-Prior>')
         self.main.unbind_class('Treeview', '<KeyPress-space>')
@@ -436,44 +439,14 @@ class Gui:
         self.main.unbind_class('Treeview', '<Double-Button-1>')
 
         self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
-        self.main.bind_class('Treeview','<Control-i>',  lambda event : self.MarkOnAll(self.InvertMark) )
-        self.main.bind_class('Treeview','<Control-I>',  lambda event : self.MarkOnAll(self.InvertMark) )
-        self.main.bind_class('Treeview','<Control-o>',  lambda event : self.MarkOnAllByCTime('oldest',self.SetMark) )
-        self.main.bind_class('Treeview','<Control-O>',  lambda event : self.MarkOnAllByCTime('oldest',self.UnsetMark) )
-        self.main.bind_class('Treeview','<Control-y>',  lambda event : self.MarkOnAllByCTime('youngest',self.SetMark) )
-        self.main.bind_class('Treeview','<Control-Y>',  lambda event : self.MarkOnAllByCTime('youngest',self.UnsetMark) )
-        self.main.bind_class('Treeview','<p>',          lambda event : self.MarkLowerPane(self.SetMark) )
-        self.main.bind_class('Treeview','<P>',          lambda event : self.MarkLowerPane(self.UnsetMark) )
-        self.main.bind_class('Treeview','<Control-j>',  lambda event : self.MarkLowerPane(self.InvertMark) )
-        self.main.bind_class('Treeview','<Control-J>',  lambda event : self.MarkLowerPane(self.InvertMark) )
+        
         self.main.bind_class('Treeview','<FocusIn>',    self.TreeEventFocusIn )
         self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOut )
+        
         self.main.bind_class('Treeview','<ButtonPress-1>', self.TreeButtonPress)
         self.main.bind_class('Treeview','<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
+        
         self.main.bind_class('Treeview','<ButtonPress-3>', self.TreeContexMenu)
-
-        self.main.bind_class('Treeview','<Shift-BackSpace>',            lambda event : self.GoToMaxGroup(1) )
-        self.main.bind_class('Treeview','<Shift-Control-BackSpace>',    lambda event : self.GoToMaxGroup(0) )
-        self.main.bind_class('Treeview','<BackSpace>',                  lambda event : self.GoToMaxFolder(1) )
-        self.main.bind_class('Treeview','<Control-BackSpace>',          lambda event : self.GoToMaxFolder(0) )
-
-        if self.pyperclipOperational:
-            self.main.bind_class('Treeview','<Control-c>',  lambda event : self.ClipCopy() )
-            self.main.bind_class('Treeview','<Control-C>',  lambda event : self.ClipCopy() )
-
-        self.main.bind_class('Treeview','<Delete>',          lambda event : self.ProcessFiles('delete',0) )
-        self.main.bind_class('Treeview','<Control-Delete>',  lambda event : self.ProcessFiles('delete',1) )
-
-        self.main.bind_class('Treeview','<Insert>',         lambda event : self.ProcessFiles('softlink',0) )
-        self.main.bind_class('Treeview','<Shift-Insert>',   lambda event : self.ProcessFiles('hardlink',0) )
-
-        self.main.bind_class('Treeview','<Control-Insert>',         lambda event : self.ProcessFiles('softlink',1) )
-        self.main.bind_class('Treeview','<Control-Shift-Insert>',   lambda event : self.ProcessFiles('hardlink',1) )
-
-        self.main.bind_class('Treeview','<KP_Add>',         lambda event : self.MarkExpression('both',self.SetMark,'Mark files') )
-        self.main.bind_class('Treeview','<plus>',           lambda event : self.MarkExpression('both',self.SetMark,'Mark files') )
-        self.main.bind_class('Treeview','<KP_Subtract>',    lambda event : self.MarkExpression('both',self.UnsetMark,'Unmark files') )
-        self.main.bind_class('Treeview','<minus>',          lambda event : self.MarkExpression('both',self.UnsetMark,'Unmark files') )
 
         self.tree1=ttk.Treeview(FrameTop,takefocus=True,selectmode='none',show=('tree','headings') )
 
@@ -534,29 +507,7 @@ class Gui:
         vsb1.pack(side='right',fill='y',expand=0)
         self.tree1.pack(fill='both',expand=1, side='left')
 
-        self.tree1.bind('<KeyRelease>',             self.Tree1KeyRelease )
         self.tree1.bind('<Double-Button-1>',        self.TreeEventOpenFileEvent)
-
-        self.tree1.bind('<Control-a>', lambda event : self.MarkOnAll(self.SetMark) )
-        self.tree1.bind('<Control-A>', lambda event : self.MarkOnAll(self.SetMark) )
-        self.tree1.bind('<Control-n>', lambda event : self.MarkOnAll(self.UnsetMark) )
-        self.tree1.bind('<Control-N>', lambda event : self.MarkOnAll(self.UnsetMark) )
-
-        self.tree1.bind('<BackSpace>',          lambda event : self.GoToMaxGroup(1) )
-        self.tree1.bind('<Control-BackSpace>',    lambda event : self.GoToMaxGroup(0) )
-
-        self.tree1.bind('<a>', lambda event : self.MarkInCRCGroup(self.SetMark) )
-        self.tree1.bind('<A>', lambda event : self.MarkInCRCGroup(self.SetMark) )
-        self.tree1.bind('<n>', lambda event : self.MarkInCRCGroup(self.UnsetMark) )
-        self.tree1.bind('<N>', lambda event : self.MarkInCRCGroup(self.UnsetMark) )
-
-        self.tree1.bind('<o>', lambda event : self.MarkInCRCGroupByCTime('oldest',self.InvertMark) )
-        self.tree1.bind('<O>', lambda event : self.MarkInCRCGroupByCTime('oldest',self.InvertMark) )
-        self.tree1.bind('<y>', lambda event : self.MarkInCRCGroupByCTime('youngest',self.InvertMark) )
-        self.tree1.bind('<Y>', lambda event : self.MarkInCRCGroupByCTime('youngest',self.InvertMark) )
-
-        self.tree1.bind('<i>', lambda event : self.MarkInCRCGroup(self.InvertMark) )
-        self.tree1.bind('<I>', lambda event : self.MarkInCRCGroup(self.InvertMark) )
 
         self.tree2=ttk.Treeview(FrameBottom,takefocus=True,selectmode='none')
 
@@ -591,16 +542,7 @@ class Gui:
         vsb2.pack(side='right',fill='y',expand=0)
         self.tree2.pack(fill='both',expand=1,side='left')
 
-        self.tree2.bind('<KeyRelease>',             self.Tree2KeyRelease )
         self.tree2.bind('<Double-Button-1>',        self.TreeEventOpenFileEvent)
-
-        self.tree2.bind('<a>', lambda event : self.MarkLowerPane(self.SetMark) )
-        self.tree2.bind('<A>', lambda event : self.MarkLowerPane(self.SetMark) )
-        self.tree2.bind('<n>', lambda event : self.MarkLowerPane(self.UnsetMark) )
-        self.tree2.bind('<N>', lambda event : self.MarkLowerPane(self.UnsetMark) )
-
-        self.tree2.bind('<i>', lambda event : self.MarkLowerPane(self.InvertMark) )
-        self.tree2.bind('<I>', lambda event : self.MarkLowerPane(self.InvertMark) )
 
         self.tree1.tag_configure(MARK, foreground='red')
         self.tree1.tag_configure(MARK, background='red')
@@ -931,6 +873,9 @@ class Gui:
         self.ColumnSortLastParams={}
         self.ColumnSortLastParams[self.tree1]=['sizeH',1]
         self.ColumnSortLastParams[self.tree2]=['sizeH',1]
+        
+        self.SelItemTree[self.tree1]=None
+        self.SelItemTree[self.tree2]=None
 
         self.ShowData()
 
@@ -1182,22 +1127,70 @@ class Gui:
 
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
-
-#################################################
-    def KeyPressGlobal(self,event):
-        if event.keysym=='F1':
-            self.KeyboardShortcuts()
-        elif event.keysym=='F2':
-            self.SettingsDialogShow()
-        elif event.keysym in ('s','S') :
-            self.ScanDialogShow()
-
+    
+    DirectionOfKeysym={}
+    DirectionOfKeysym['Up']=-1
+    DirectionOfKeysym['Down']=1
+    DirectionOfKeysym['Prior']=-1
+    DirectionOfKeysym['Next']=1
+    
     def KeyPressTreeCommon(self,event):
         tree=event.widget
+        item=tree.focus()
+        
         tree.selection_remove(tree.selection())
-
+        
         if event.keysym in ("Up",'Down') :
-            return
+            #direction = -1 if event.keysym == "Up" else 1
+            
+            if tree==self.tree1:    
+                pool=self.FlatItemsList
+                poolLen=self.FlatItemsListLen
+            else:
+                pool=tree.get_children()
+                poolLen=len(pool)
+            
+            #print(self.SelItemTree[tree])
+            index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree])
+            index=(index+self.DirectionOfKeysym[event.keysym])%poolLen
+            NextItem=pool[index]
+            
+            tree.see(NextItem)
+            tree.focus(NextItem)
+            
+            if tree==self.tree1:    
+                self.Tree1SelChange(NextItem)
+            else:
+                self.Tree2SelChange(NextItem)
+        elif event.keysym in ("Prior","Next"):
+            itemsPool=tree.get_children()
+            if tree==self.tree1:
+                NextItem=itemsPool[(itemsPool.index(tree.set(item,'crc'))+self.DirectionOfKeysym[event.keysym]) % len(itemsPool)]
+                self.SelectFocusAndSeeCrcItemTree(NextItem)
+            else:
+                NextItem=itemsPool[(itemsPool.index(item)+5*self.DirectionOfKeysym[event.keysym]) % len(itemsPool)]
+                tree.focus(NextItem)
+                tree.see(NextItem)
+                self.Tree2SelChange(NextItem)
+                tree.update()
+        elif event.keysym in ("Home","End"):
+            if tree==self.tree1:
+                if NextItem:=tree.get_children()[0 if event.keysym=="Home" else -1]:
+                    self.SelectFocusAndSeeCrcItemTree(NextItem)
+            else:
+                if NextItem:=tree.get_children()[0 if event.keysym=='Home' else -1]:
+                    tree.see(NextItem)
+                    tree.focus(NextItem)
+                    self.Tree2SelChange(NextItem)
+                    tree.update()
+        elif event.keysym == "space":
+            if tree==self.tree1:
+                if tree.set(item,'kind')==CRC:
+                    self.ToggleSelectedTag(tree,*tree.get_children(item))
+                else:
+                    self.ToggleSelectedTag(tree,item)
+            else:
+                self.ToggleSelectedTag(tree,item)
         elif event.keysym == "Right":
             self.GotoNextMark(event.widget,1)
         elif event.keysym == "Left":
@@ -1212,63 +1205,109 @@ class Gui:
             if item:
                 if tree.set(item,'kind')!=CRC:
                     self.TreeEventOpenFile()
+        elif event.keysym=='KP_Add' or event.keysym=='plus':
+            self.MarkExpression('both',self.SetMark,'Mark files')
+        elif event.keysym=='KP_Subtract' or event.keysym=='minus':
+            self.MarkExpression('both',self.UnsetMark,'Unmark files')
+        elif event.keysym=='F1':
+            self.KeyboardShortcuts()
+        elif event.keysym=='F2':
+            self.SettingsDialogShow()
+        elif event.keysym in ('s','S') :
+            self.ScanDialogShow()
         else:
-            #print(event.keysym)
-            pass
-
+            StrEvent=str(event)
+        
+            CtrPressed = 'Control' in StrEvent
+            ShiftPressed = 'Shift' in StrEvent
+            
+            #print(StrEvent)
+            #print('CtrPressed:',CtrPressed,' ShiftPressed:',ShiftPressed)
+            
+            #if False:
+            #    try:
+            #        for combo in str(event).replace('<KeyPress event ','').replace('>','').split(' '):
+            #            k,v = combo.split('=')
+            #            if k=='state':
+            #                if 'Control' in v.split('|') :
+            #                    CtrPressed=True
+            #                break
+            #    finally:
+            #        pass
+            
+            if event.keysym == "Delete":
+                self.ProcessFiles('delete',CtrPressed)
+            elif event.keysym == "Insert":
+                if ShiftPressed:
+                    self.ProcessFiles('hardlink',CtrPressed)
+                else:
+                    self.ProcessFiles('softlink',CtrPressed)
+            elif event.keysym=='BackSpace':
+                if ShiftPressed:
+                    self.GoToMaxGroup(not CtrPressed)
+                else:
+                    self.GoToMaxFolder(not CtrPressed)
+            elif event.keysym=='i' or event.keysym=='I':
+                if CtrPressed:
+                    self.MarkOnAll(self.InvertMark)
+                else:                    
+                    if tree==self.tree1:
+                        self.MarkInCRCGroup(self.InvertMark)
+                    else:
+                        self.MarkLowerPane(self.InvertMark)
+            elif event.keysym=='o' or event.keysym=='O':
+                if CtrPressed:
+                    if ShiftPressed:
+                        self.MarkOnAllByCTime('oldest',self.UnsetMark)
+                    else:
+                        self.MarkOnAllByCTime('oldest',self.SetMark)
+                else:
+                    if tree==self.tree1:
+                        self.MarkInCRCGroupByCTime('oldest',self.InvertMark)
+            elif event.keysym=='y' or event.keysym=='Y':
+                if CtrPressed:
+                    if ShiftPressed:
+                        self.MarkOnAllByCTime('youngest',self.UnsetMark)
+                    else:
+                        self.MarkOnAllByCTime('youngest',self.SetMark)
+                else:
+                    if tree==self.tree1:
+                        self.MarkInCRCGroupByCTime('youngest',self.InvertMark)
+            elif event.keysym=='c' or event.keysym=='C':
+                if self.pyperclipOperational:
+                    if CtrPressed:
+                        self.ClipCopy() 
+            elif event.keysym=='a' or event.keysym=='A':
+                if tree==self.tree1:
+                    if CtrPressed:
+                        self.MarkOnAll(self.SetMark)
+                    else:
+                        self.MarkInCRCGroup(self.SetMark)
+                else:
+                    self.MarkLowerPane(self.SetMark)
+                    
+            elif event.keysym=='n' or event.keysym=='N':
+                if tree==self.tree1:
+                    if CtrPressed:
+                        self.MarkOnAll(self.UnsetMark)
+                    else:
+                        self.MarkInCRCGroup(self.UnsetMark)
+                else:
+                    self.MarkLowerPane(self.UnsetMark)
+            else:
+                if windows:
+                    print(event.keysym)
+            
 #################################################
     def SelectFocusAndSeeCrcItemTree(self,crc):
         self.tree1.focus_set()
-        lastChild=self.tree1.get_children(crc)[-1]
-        self.tree1.see(lastChild)
-        self.tree1.update()
+        #lastChild=self.tree1.get_children(crc)[-1]
+        #self.tree1.see(lastChild)
+        #self.tree1.update()
         self.tree1.see(crc)
         self.tree1.focus(crc)
         self.tree1.update()
         self.Tree1SelChange(crc)
-
-#################################################
-    def Tree1KeyRelease(self,event):
-        item=self.tree1.focus()
-
-        if event.keysym in ("Up","Down"):
-            self.tree1.see(item)
-            self.Tree1SelChange(item)
-        elif event.keysym in ("Prior","Next"):
-            itemsPool=self.tree1.get_children()
-            NextItem=itemsPool[(itemsPool.index(self.tree1.set(item,'crc'))+(1 if event.keysym=="Next" else -1)) % len(itemsPool)]
-
-            self.SelectFocusAndSeeCrcItemTree(NextItem)
-        elif event.keysym in ("Home","End"):
-            if NextItem:=self.tree1.get_children()[0 if event.keysym=="Home" else -1]:
-                self.SelectFocusAndSeeCrcItemTree(NextItem)
-        elif event.keysym == "space":
-            if self.tree1.set(item,'kind')==CRC:
-                self.ToggleSelectedTag(self.tree1,*self.tree1.get_children(item))
-            else:
-                self.ToggleSelectedTag(self.tree1,item)
-
-    def Tree2KeyRelease(self,event):
-        item=self.tree2.focus()
-
-        if event.keysym in ("Up",'Down') :
-            self.tree2.see(item)
-            self.Tree2SelChange(item)
-        elif event.keysym in ('Prior','Next'):
-            itemsPool=self.tree2.get_children()
-            NextItem=itemsPool[(itemsPool.index(item)+(5 if event.keysym=='Next' else -5)) % len(itemsPool)]
-            self.tree2.focus(NextItem)
-            self.tree2.see(NextItem)
-            self.Tree2SelChange(NextItem)
-            self.tree2.update()
-        elif event.keysym in ("Home","End"):
-            if NextItem:=self.tree2.get_children()[0 if event.keysym=='Home' else -1]:
-                self.tree2.see(NextItem)
-                self.tree2.focus(NextItem)
-                self.Tree2SelChange(NextItem)
-                self.tree2.update()
-        elif event.keysym == "space":
-            self.ToggleSelectedTag(self.tree2,item)
 
     def TreeButtonPress(self,event,toggle=False):
         self.MenubarUnpost()
@@ -1335,6 +1374,7 @@ class Gui:
         self.SelCrc = self.tree1.set(item,'crc')
         self.SelKind = self.tree1.set(item,'kind')
         self.SelItem = item
+        self.SelItemTree[self.tree1]=item
         self.SelTreeIndex=0
 
         if path!=self.SelPath or pathnr!=self.SelPathnr or force:
@@ -1372,6 +1412,7 @@ class Gui:
         self.SelCrc = self.tree2.set(item,'crc')
         self.SelKind = self.tree2.set(item,'kind')
         self.SelItem = item
+        self.SelItemTree[self.tree2] = item
         self.SelTreeIndex=1
 
         if self.tree2.set(item,'kind')==FILE:
@@ -1616,8 +1657,8 @@ class Gui:
             InfoProgSize=(100.0/self.D.sumSize)*self.D.InfoSizeDone
             InfoProgQuant=(100.0/self.D.InfoTotal)*self.D.InfoFileNr
 
-            info = '\ngroups found:' + str(self.D.InfoFoundSum) + '\ncurrent size: ' + bytes2str(self.D.InfoCurrentSize)
-            self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right)
+            info = '\ngroups found:' + str(self.D.InfoFoundGroups) + '\ncurrent size: ' + bytes2str(self.D.InfoCurrentSize)
+            self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,PrefixInfo=self.D.InfoCurrentFile)
 
             if self.LongActionAbort:
                 self.D.Abort()
@@ -1756,8 +1797,13 @@ class Gui:
         info.append('==============================================================================')
         info.append('                                                                              ')
         info.append(f'                       DUDE (DUplicates DEtector) v{VERSION}                    ')
-        info.append('                              Piotr Jochymek                                  ')
-        info.append('                          PJ.soft.dev.x@gmail.com                             ')
+        info.append('                                                                              ')
+        info.append('                        https://github.com/PJDude/dude                        ')
+        info.append('                                                                              ')
+        info.append('                        https://pjdude.github.io/dude/                        ')
+        info.append('                                                                              ')
+        info.append('                                Piotr Jochymek                                ')
+        info.append('                            PJ.soft.dev.x@gmail.com                           ')
         info.append('                                                                              ')
         info.append('==============================================================================')
         info.append('                                                                              ')
@@ -1921,8 +1967,10 @@ class Gui:
         self.StatusVarGroups.set(len(self.tree1.get_children()))
 
     FlatItemsList=[]
+    FlatItemsListLen=0
     def FlatItemsListUpdate(self):
         self.FlatItemsList = [elem for sublist in [ tuple([crc])+tuple(self.tree1.get_children(crc)) for crc in self.tree1.get_children() ] for elem in sublist]
+        self.FlatItemsListLen=len(self.FlatItemsList)
 
     def InitialFocus(self):
         if self.tree1.get_children():
@@ -2090,12 +2138,13 @@ class Gui:
 
     def MarkInSpecifiedCRCGroupByCTime(self, action, crc, reverse,select=False):
         item=sorted([ (item,self.tree1.set(item,'ctime') ) for item in self.tree1.get_children(crc)],key=lambda x : float(x[1]),reverse=reverse)[0][0]
-        action(item,self.tree1)
-        if select:
-            self.tree1.see(item)
-            self.tree1.focus(item)
-            self.Tree1SelChange(item)
-            self.tree1.update()
+        if item:
+            action(item,self.tree1)
+            if select:
+                self.tree1.see(item)
+                self.tree1.focus(item)
+                self.Tree1SelChange(item)
+                self.tree1.update()
 
     @WatchCursor
     def MarkOnAllByCTime(self,orderStr, action):
