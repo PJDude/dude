@@ -50,7 +50,11 @@ def bytes2str(num):
     kb=num/k
 
     if kb<k:
-        return str(round(kb,2))+'kB'
+        string=str(round(kb,2))
+        if string=='0.0':
+            return str(num)
+        else:
+            return str(round(kb,2))+'kB'
     elif kb<M:
         return str(round(kb/k,2))+'MB'
     elif kb<G:
@@ -211,8 +215,6 @@ class Gui:
     #######################################################################
     #LongActionDialog
 
-    LADPrevMessage=''
-
     def getNow(self):
         return time.time()*1000.0
 
@@ -300,15 +302,22 @@ class Gui:
         self.LongActionDialog.destroy()
         self.LADParent.config(cursor=self.prevParentCursor)
 
+    LADPrevMessage=''
+    LADPrevProg1=''
+    LADPrevProg2=''
+    
     def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None,PrefixInfo=''):
         now=self.getNow()
-        prefix='\n'
-        if self.LADPrevMessage==message:
+        prefix='\n\n'
+        if self.LADPrevMessage==message and self.LADPrevProg1==progress1Right and self.LADPrevProg2==progress2Right:
             if now>self.LastTimeNoSign+1000.0:
-                prefix=str(self.ProgressSigns[self.psIndex]) + "\n" + PrefixInfo
+                prefix=str(self.ProgressSigns[self.psIndex]) + "\n" + PrefixInfo + "\n"
                 self.psIndex=(self.psIndex+1)%4
         else:
             self.LADPrevMessage=message
+            self.LADPrevProg1=progress1Right
+            self.LADPrevProg2=progress2Right
+            
             self.LastTimeNoSign=now
 
             self.Progress1Func(progress1)
@@ -316,7 +325,7 @@ class Gui:
             self.progr2var.set(progress2)
             self.progr2LabRight.config(text=progress2Right)
 
-        self.message.set(f'{prefix}\n{message}')
+        self.message.set(f'{prefix}{message}')
         self.LongActionDialog.update()
 
     def __init__(self,cwd):
@@ -590,10 +599,8 @@ class Gui:
 
         self.sizeMinVar=tk.StringVar()
         self.sizeMaxVar=tk.StringVar()
-        self.ResultsLimitVar=tk.StringVar()
         self.WriteScanToLog=tk.BooleanVar()
 
-        self.ResultsLimitVar.set(self.cfg.Get('resultsLimit','1000'))
         self.WriteScanToLog.set(False)
 
         self.ScanDialogMainFrame.grid_columnconfigure(0, weight=1)
@@ -646,9 +653,6 @@ class Gui:
         self.ExcludeFRame.grid_columnconfigure(1, weight=1)
         self.ExcludeFRame.grid_rowconfigure(99, weight=1)
         ##############
-
-        tk.Label(self.ScanDialogMainFrame,text='Limit scan groups main results number to biggest:',borderwidth=2,anchor='w',bg=self.bg).grid(row=2,column=0,sticky='news',padx=4,pady=4,columnspan=3)
-        ttk.Button(self.ScanDialogMainFrame,textvariable=self.ResultsLimitVar,command=self.setResultslimit,width=10).grid(row=2,column=3,sticky='wens',padx=8,pady=3)
 
         ttk.Checkbutton(self.ScanDialogMainFrame,text='Write scan results to application log',variable=self.WriteScanToLog).grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
@@ -1221,20 +1225,6 @@ class Gui:
             CtrPressed = 'Control' in StrEvent
             ShiftPressed = 'Shift' in StrEvent
             
-            #print(StrEvent)
-            #print('CtrPressed:',CtrPressed,' ShiftPressed:',ShiftPressed)
-            
-            #if False:
-            #    try:
-            #        for combo in str(event).replace('<KeyPress event ','').replace('>','').split(' '):
-            #            k,v = combo.split('=')
-            #            if k=='state':
-            #                if 'Control' in v.split('|') :
-            #                    CtrPressed=True
-            #                break
-            #    finally:
-            #        pass
-            
             if event.keysym == "Delete":
                 self.ProcessFiles('delete',CtrPressed)
             elif event.keysym == "Insert":
@@ -1521,6 +1511,12 @@ class Gui:
         pop.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return",state=FileActionsState)
         pop.add_command(label = 'Open Folder',command = self.OpenFolder,state=FileActionsState)
 
+        #if tree==self.tree1:    
+        #else:
+        #    pop.add_separator()
+        #    pop.add_cascade(label = 'By Expression',menu = cNav,state=ItemActionsState)
+        #    self.MarkExpression('file',self.SetMark,'Mark files')
+            
         pop.add_separator()
         pop.add_command(label = "Scan",  command = self.ScanDialogShow,accelerator="S")
         pop.add_command(label = "Settings",  command = self.SettingsDialogShow,accelerator="F2")
@@ -1579,23 +1575,11 @@ class Gui:
             logging.error(f'cant add:{path}. limit exceeded')
 
     def Scan(self):
-        resultslimitStr=self.ResultsLimitVar.get()
-
-        try:
-            resultslimit = int(resultslimitStr)
-        except Exception as e:
-            self.DialogWithEntry(title='Error',prompt='Results limit wrong format: \'' + resultslimitStr + '\'\n' + e,parent=self.ScanDialog,OnlyInfo=True)
-            return
-
-        self.cfg.Set('resultslimit',resultslimitStr)
-
         self.cfg.Write()
 
         self.D.INIT()
         self.StatusVarFullPath.set('')
         self.ShowData()
-
-        self.D.setLimit(resultslimit)
 
         PathsToScanFromEntry = [var.get() for var in self.PathsToScanEntryVar.values()]
         ExcludeVarsFromEntry = [var.get() for var in self.ExcludeEntryVar.values()]
@@ -1642,7 +1626,7 @@ class Gui:
             self.DialogWithEntry(title='Cannot Proceed.',prompt='No Duplicates.',parent=self.ScanDialog,OnlyInfo=True)
             return
         #############################
-        self.LongActionDialogShow(self.ScanDialogMainFrame,'crc calculation','determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:')
+        self.LongActionDialogShow(self.ScanDialogMainFrame,'CRC calculation','determinate','determinate',Progress1LeftText='Total size:',Progress2LeftText='Files number:')
 
         self.D.writeLog=self.WriteScanToLog.get()
 
@@ -1654,16 +1638,20 @@ class Gui:
             progress1Right=bytes2str(self.D.InfoSizeDone) + sumSizeStr
             progress2Right=str(self.D.InfoFileNr) + '/' + str(self.D.InfoTotal)
 
-            InfoProgSize=(100.0/self.D.sumSize)*self.D.InfoSizeDone
-            InfoProgQuant=(100.0/self.D.InfoTotal)*self.D.InfoFileNr
+            InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sumSize)
+            InfoProgQuant=float(100)*float(self.D.InfoFileNr)/float(self.D.InfoTotal)
 
-            info = '\ngroups found:' + str(self.D.InfoFoundGroups) + '\ncurrent size: ' + bytes2str(self.D.InfoCurrentSize)
+            info = 'CRC groups: ' + str(self.D.InfoFoundGroups) \
+                    + '\nfolders: ' + str(self.D.InfoFoundFolders) \
+                    + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) \
+                    + '\n' \
+                    + '\ncurrent file size: ' + bytes2str(self.D.InfoCurrentSize) 
             self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,PrefixInfo=self.D.InfoCurrentFile)
 
             if self.LongActionAbort:
                 self.D.Abort()
                 self.D.Kill()
-                self.D.INIT()
+                #self.D.INIT()
                 break
             else:
                 time.sleep(0.04)
@@ -1673,7 +1661,7 @@ class Gui:
         #############################
 
         if self.LongActionAbort:
-            return
+            self.DialogWithEntry(title='CRC Calculation aborted.',prompt='\nResults are partial.\nSome files may remain unidentified as duplicates.',parent=self.ScanDialog,OnlyInfo=True,width=300,height=200)
 
         self.ShowData()
         self.ScanDialogClose()
@@ -1836,9 +1824,6 @@ class Gui:
             self.cfg.Write()
         except Exception as e:
             logging.error(e)
-
-    def setResultslimit(self):
-        self.setConfVar("Results Quantity Limit (0 - 10000)","value:",self.ScanDialog,self.ResultsLimitVar,self.ResultsLimitVar.get(),'resultslimit',lambda x : True if str2bytes(x) and int(x)<10001 and int(x)>0 else False)
 
     def ClearExcludeMasks(self):
         self.cfg.Set(CFG_KEY_EXCLUDE,'')

@@ -11,7 +11,7 @@ import fnmatch
 import re
 
 class DudeCore:
-    filesOfSize=defaultdict(set)
+    ScanResultsBySize=defaultdict(set)
     filesOfSizeOfCRC=defaultdict(lambda : defaultdict(set))
     cache={}
     sumSize=0
@@ -20,10 +20,9 @@ class DudeCore:
     windows=False
 
     def INIT(self):
-        self.filesOfSize=defaultdict(set)
+        self.ScanResultsBySize=defaultdict(set)
         self.filesOfSizeOfCRC=defaultdict(lambda : defaultdict(set))
         self.devs.clear()
-        self.limit=0
         self.CrcCutLen=128
         self.crccut={}
         self.ScannedPaths=[]
@@ -41,9 +40,6 @@ class DudeCore:
         self.CheckCRC()
 
         self.INIT()
-
-    def setLimit(self,limit):
-        self.limit=limit
 
     def Path2ScanFull(self,pathnr,path,file):
         return os.path.join(self.Paths2Scan[pathnr]+path,file)
@@ -122,6 +118,8 @@ class DudeCore:
         self.InfoCounter=0
         self.InfoSizeSum=0
 
+        self.ScanResultsBySize.clear()
+        
         for PathToScan in self.Paths2Scan:
             loopList=[PathToScan]
 
@@ -153,7 +151,7 @@ class DudeCore:
                                             self.InfoSizeSum+=stat.st_size
 
                                             subpath=path.replace(PathToScan,'')
-                                            self.filesOfSize[stat.st_size].add( (pathNr,subpath,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino) )
+                                            self.ScanResultsBySize[stat.st_size].add( (pathNr,subpath,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino) )
 
                                 self.InfoCounter+=1
 
@@ -166,7 +164,7 @@ class DudeCore:
                         except Exception as e:
                             self.Log.error(e)
                 except Exception as e:
-                    self.Log.error(e)
+                    self.Log.error(f"scanning:'{PathToScan}' - '{e}'")
 
                 if self.AbortAction:
                     break
@@ -178,32 +176,32 @@ class DudeCore:
         if self.AbortAction:
             return False
 
-        self.devs={dev for size,data in self.filesOfSize.items() for pathnr,path,file,mtime,ctime,dev,inode in data}
+        self.devs={dev for size,data in self.ScanResultsBySize.items() for pathnr,path,file,mtime,ctime,dev,inode in data}
 
         ######################################################################
         #inodes collision detection
         knownDevInodes=defaultdict(int)
-        for size,data in self.filesOfSize.items():
+        for size,data in self.ScanResultsBySize.items():
             for pathnr,path,file,mtime,ctime,dev,inode in data:
                 index=(dev,inode)
                 knownDevInodes[index]+=1
 
         self.blacklistedInodes = {index for index in knownDevInodes if knownDevInodes[index]>1}
 
-        for size in list(self.filesOfSize):
-            for pathnr,path,file,mtime,ctime,dev,inode in list(self.filesOfSize[size]):
+        for size in list(self.ScanResultsBySize):
+            for pathnr,path,file,mtime,ctime,dev,inode in list(self.ScanResultsBySize[size]):
                 index=(dev,inode)
                 if index in self.blacklistedInodes:
                     thisIndex=(pathnr,path,file,mtime,ctime,dev,inode)
                     self.Log.warning('ignoring conflicting inode entry:' + str(thisIndex))
-                    self.filesOfSize[size].remove(thisIndex)
+                    self.ScanResultsBySize[size].remove(thisIndex)
 
         ######################################################################
         self.sumSize=0
-        for size in list(self.filesOfSize):
-            quant=len(self.filesOfSize[size])
+        for size in list(self.ScanResultsBySize):
+            quant=len(self.ScanResultsBySize[size])
             if quant==1 :
-                del self.filesOfSize[size]
+                del self.ScanResultsBySize[size]
             else:
                 self.sumSize += quant*size
         ######################################################################
@@ -286,6 +284,8 @@ class DudeCore:
     InfoCurrentFile=''
     InfoTotal=1
     InfoFoundGroups=0
+    InfoFoundFolders=0
+    InfoDuplicatesSpace=0
 
     def CrcCalc(self):
         self.ReadCRCCache()
@@ -297,55 +297,45 @@ class DudeCore:
         self.AbortAction=False
 
         self.InfoFoundGroups=0
+        self.InfoFoundFolders=0
+        self.InfoDuplicatesSpace=0
         self.InfoFileNr=0
 
-        self.InfoTotal = len([ 1 for size in self.filesOfSize for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size] ])
-
-        PathsToRecheckSet=set()
-
-        LimitReached=False
-        for size in list(sorted(self.filesOfSize,reverse=True)):
+        self.InfoTotal = len([ 1 for size in self.ScanResultsBySize for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size] ])
+        
+        for size in list(sorted(self.ScanResultsBySize,reverse=True)):
             if self.AbortAction:
                 break
 
             self.InfoCurrentSize=size
-            for pathnr,path,file,mtime,ctime,dev,inode in self.filesOfSize[size]:
+            for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size]:
                 self.InfoCurrentFile=file
                 if self.AbortAction:
                     break
 
-                if (not LimitReached) or (LimitReached and (pathnr,path) in PathsToRecheckSet):
+                self.InfoFileNr+=1
+                self.InfoSizeDone+=size
 
-                    self.InfoFileNr+=1
-                    self.InfoSizeDone+=size
+                CacheKey=(int(inode),int(mtime))
+                if CacheKey in self.CRCCache[dev]:
+                    crc=self.CRCCache[dev][CacheKey]
+                else:
+                    if crc:=self.Run([self.CRCExec,self.CRCExecParams,self.Path2ScanFull(pathnr,path,file)]):
+                        self.CRCCache[dev][CacheKey]=crc
 
-                    CacheKey=(int(inode),int(mtime))
-                    if CacheKey in self.CRCCache[dev]:
-                        crc=self.CRCCache[dev][CacheKey]
-                    else:
-                        if crc:=self.Run([self.CRCExec,self.CRCExecParams,self.Path2ScanFull(pathnr,path,file)]):
-                            self.CRCCache[dev][CacheKey]=crc
-
-                    if crc:
-                        self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
-
+                if crc:
+                    self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
+            
             if size in self.filesOfSizeOfCRC:
                 self.CheckCrcPoolAndPrune(size)
-
+            
             if size in self.filesOfSizeOfCRC:
-                if self.limit:
-                    self.InfoFoundGroups+=len(self.filesOfSizeOfCRC[size])
-                    if self.InfoFoundGroups>=self.limit:
-                        LimitReached=True
-
-                if not LimitReached:
-                    for crc in self.filesOfSizeOfCRC[size]:
-                         for (pathnr,path,file,ctime,dev,inode) in self.filesOfSizeOfCRC[size][crc]:
-                            PathsToRecheckSet.add((pathnr,path))
-
-        if not self.AbortAction:
-            self.filesOfSize.clear()
-            self.CalcCrcMinLen()
+                self.InfoFoundGroups+=len(self.filesOfSizeOfCRC[size])
+                self.InfoDuplicatesSpace += size*sum([1 for crcDict in self.filesOfSizeOfCRC[size].values() for pathnr,path,file,ctime,dev,inode in crcDict])
+                
+            self.InfoFoundFolders = len({(pathnr,path) for sizeDict in self.filesOfSizeOfCRC.values() for crcDict in sizeDict.values() for pathnr,path,file,ctime,dev,inode in crcDict})
+            
+        self.CalcCrcMinLen()
 
         self.WriteCRCCache()
 
@@ -519,7 +509,7 @@ if __name__ == "__main__":
     if not os.path.exists(TestDir):
         test.generate(TestDir)
     
-    core.setLimit(100)
+    #core.setLimit(100)
     core.SetPathsToScan([TestDir])
     core.SetExcludeMasks(False,[])
     
