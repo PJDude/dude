@@ -51,8 +51,8 @@ def bytes2str(num):
 
     if kb<k:
         string=str(round(kb,2))
-        if string=='0.0':
-            return str(num)
+        if string[0:3]=='0.0':
+            return str(num)+'B'
         else:
             return str(round(kb,2))+'kB'
     elif kb<M:
@@ -155,14 +155,14 @@ raw = lambda x : x
 
 class Gui:
     Numbers='①②③④⑤⑥⑦⑧⑨⑩' if windows else '⓵⓶⓷⓸⓹⓺⓻⓼⓽⓾'
-    ProgressSigns='◐◓◑◒'  
-    
+    ProgressSigns='◐◓◑◒'
+
     MAX_PATHS=10
 
     pyperclipOperational=True
 
     SelItemTree = {}
-        
+
     def ResetSels(self):
         self.SelPathnr = None
         self.SelPath = None
@@ -173,21 +173,16 @@ class Gui:
         self.SelTreeIndex = 0
         self.SelKind = None
 
-    def WatchCursor(f):
+    def MainWatchCursor(f):
         def wrapp(self,*args,**kwargs):
-            if 'parent' in kwargs.keys():
-                parent=kwargs['parent']
-                prevParentCursor=parent.cget('cursor')
-                parent.config(cursor="watch")
-                parent.update()
+            prevCursor=self.main.cget('cursor')
+            self.main.config(cursor="watch")
+            self.main.update()
 
-                res=f(self,*args,**kwargs)
+            res=f(self,*args,**kwargs)
 
-                parent.config(cursor=prevParentCursor)
-                return res
-            else:
-                return f(self,*args,**kwargs)
-
+            self.main.config(cursor=prevCursor)
+            return res
         return wrapp
 
     def CheckClipboard(self):
@@ -221,7 +216,7 @@ class Gui:
     LongActionAbort=False
     def LongActionDialogShow(self,parent,title,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
         self.LADParent=parent
-        
+
         self.psIndex =0
 
         self.ProgressMode1=ProgressMode1
@@ -305,7 +300,7 @@ class Gui:
     LADPrevMessage=''
     LADPrevProg1=''
     LADPrevProg2=''
-    
+
     def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None,PrefixInfo=''):
         now=self.getNow()
         prefix='\n\n'
@@ -317,7 +312,7 @@ class Gui:
             self.LADPrevMessage=message
             self.LADPrevProg1=progress1Right
             self.LADPrevProg2=progress2Right
-            
+
             self.LastTimeNoSign=now
 
             self.Progress1Func(progress1)
@@ -399,7 +394,7 @@ class Gui:
         self.paned.add(FrameTop)
         FrameBottom = tk.Frame(self.paned,bg=self.bg)
         self.paned.add(FrameBottom)
-        
+
         FrameTop.grid_columnconfigure(0, weight=1)
         FrameTop.grid_rowconfigure(0, weight=1,minsize=200)
 
@@ -448,13 +443,13 @@ class Gui:
         self.main.unbind_class('Treeview', '<Double-Button-1>')
 
         self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
-        
+
         self.main.bind_class('Treeview','<FocusIn>',    self.TreeEventFocusIn )
         self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOut )
-        
+
         self.main.bind_class('Treeview','<ButtonPress-1>', self.TreeButtonPress)
         self.main.bind_class('Treeview','<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
-        
+
         self.main.bind_class('Treeview','<ButtonPress-3>', self.TreeContexMenu)
 
         self.tree1=ttk.Treeview(FrameTop,takefocus=True,selectmode='none',show=('tree','headings') )
@@ -486,9 +481,9 @@ class Gui:
         self.tree1.heading('sizeH',anchor=tk.W)
         self.tree1.heading('ctimeH',anchor=tk.W)
         self.tree1.heading('instances',anchor=tk.W)
-        
+
         self.tree1.heading('sizeH', text='Size \u25BC')
-        
+
         self.col2sortOf={}
         self.col2sortOf['path'] = 'path'
         self.col2sortOf['file'] = 'file'
@@ -691,9 +686,6 @@ class Gui:
         self.relSymlinks = tk.BooleanVar()
         self.relSymlinks.set(self.cfg.Get(CFG_KEY_REL_SYMLINKS,True))
 
-        self.useRegExpr = tk.BooleanVar()
-        self.useRegExpr.set(self.cfg.Get(CFG_KEY_USE_REG_EXPR,False))
-
         self.SetingsDialog.wm_title('Settings')
 
         fr=tk.Frame(self.SetingsDialog,bg=self.bg)
@@ -717,7 +709,6 @@ class Gui:
         ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.fullCRC                                       ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.fullPaths                              ).grid(row=row,column=0,sticky='wens') ; row+=1
         ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.relSymlinks                  ).grid(row=row,column=0,sticky='wens') ; row+=1
-        ttk.Checkbutton(fr, text = 'Use regular expressions matching', variable=self.useRegExpr                 ).grid(row=row,column=0,sticky='wens') ; row+=1
 
         bfr=tk.Frame(fr,bg=self.bg)
         fr.grid_rowconfigure(row, weight=1); row+=1
@@ -745,22 +736,6 @@ class Gui:
         except Exception as e:
             logging.error(e)
             self.exit()
-        #######################################################################
-        #menu
-
-        def MarkCascadePathFill():
-            row=0
-            self.MarkCascadePath.delete(0,END)
-            for path in self.D.ScannedPaths:
-                self.MarkCascadePath.add_command(label = self.Numbers[row] + '  =  ' + path,    command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.SetMark)  )
-                row+=1
-
-        def UnmarkCascadePathFill():
-            self.UnmarkCascadePath.delete(0,END)
-            row=0
-            for path in self.D.ScannedPaths:
-                self.UnmarkCascadePath.add_command(label = self.Numbers[row] + '  =  ' + path,  command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.UnsetMark)  )
-                row+=1
 
         def FileCascadeFill():
             self.FileCascade.delete(0,END)
@@ -769,11 +744,6 @@ class Gui:
             self.FileCascade.add_command(label = 'Scan',command = self.ScanDialogShow, accelerator="S")
             self.FileCascade.add_separator()
             self.FileCascade.add_command(label = 'Settings',command=self.SettingsDialogShow, accelerator="F2")
-            self.FileCascade.add_separator()
-            self.FileCascade.add_command(label = 'go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace",state=ItemActionsState)
-            self.FileCascade.add_command(label = 'go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="Ctrl+Backspace",state=ItemActionsState)
-            self.FileCascade.add_command(label = 'go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace",state=ItemActionsState)
-            self.FileCascade.add_command(label = 'go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace",state=ItemActionsState)
             self.FileCascade.add_separator()
 
             self.FileCascade.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return",state=ItemActionsState)
@@ -785,78 +755,21 @@ class Gui:
             self.FileCascade.add_separator()
             self.FileCascade.add_command(label = 'Exit',command = self.exit)
 
-        def MarkingCommonCascadeFill():
-            self.MarkingCommonCascade.delete(0,END)
-            ItemActionsState=('disabled','normal')[self.SelItem!=None]
-
-            self.MarkingCommonCascade.add_cascade(label = 'Set',menu = self.MarkCascade,state=ItemActionsState)
-            self.MarkingCommonCascade.add_cascade(label = 'Unset',menu = self.UnmarkCascade,state=ItemActionsState)
-            self.MarkingCommonCascade.add_command(label = 'Invert',command = lambda : self.MarkOnAll(self.InvertMark),accelerator="Ctrl+I, *",state=ItemActionsState)
-
-        self.MarkingCommonCascade= Menu(self.menubar,tearoff=0,bg=self.bg,postcommand=MarkingCommonCascadeFill)
-
         self.FileCascade= Menu(self.menubar,tearoff=0,bg=self.bg,postcommand=FileCascadeFill)
         self.menubar.add_cascade(label = 'File',menu = self.FileCascade,accelerator="Alt+F")
 
-        self.MarkCascade= Menu(self.MarkingCommonCascade,tearoff=0,bg=self.bg)
-        self.MarkCascade.add_command(label = "All files",        command = lambda : self.MarkOnAll(self.SetMark),accelerator="Ctrl+A")
-        self.MarkCascade.add_separator()
-        self.MarkCascade.add_command(label = "Mark Oldest files",     command = lambda : self.MarkOnAllByCTime('oldest',self.SetMark),accelerator="Ctrl+O")
-        self.MarkCascade.add_command(label = "Unmark Oldest files",   command = lambda : self.MarkOnAllByCTime('oldest',self.UnsetMark),accelerator="Ctrl+Shift+O")
-        self.MarkCascade.add_separator()
-        self.MarkCascade.add_command(label = "Mark Youngest files",   command = lambda : self.MarkOnAllByCTime('youngest',self.SetMark),accelerator="Ctrl+Y")
-        self.MarkCascade.add_command(label = "Unmark Youngest files", command = lambda : self.MarkOnAllByCTime('youngest',self.UnsetMark),accelerator="Ctrl+Shift+Y")
-        self.MarkCascade.add_separator()
-        self.MarkCascade.add_command(label = "Files on the same path",  command = lambda : self.MarkPathOfFile(self.SetMark),accelerator="Ctrl+P")
-        self.MarkCascade.add_command(label = "Specified Directory ...",   command = lambda : self.MarkSubpath(self.SetMark))
-
-        self.MarkCascadePath = Menu(self.MarkCascade, tearoff = 0,postcommand=MarkCascadePathFill,bg=self.bg)
-        self.MarkCascade.add_cascade(label = "Scan path",             menu = self.MarkCascadePath)
-        self.MarkCascade.add_separator()
-        self.MarkCascade.add_command(label = "Expression on file  ...",          command = lambda : self.MarkExpression('file',self.SetMark,'Mark files'))
-        self.MarkCascade.add_command(label = "Expression on sub-path ...",       command = lambda : self.MarkExpression('path',self.SetMark,'Mark files'))
-        self.MarkCascade.add_command(label = "Expression on file with path ...", command = lambda : self.MarkExpression('both',self.SetMark,'Mark files'),accelerator="+")
-
-        self.UnmarkCascade= Menu(self.MarkingCommonCascade,tearoff=0,bg=self.bg)
-        self.UnmarkCascade.add_command(label = "All files",   command = lambda : self.MarkOnAll(self.UnsetMark),accelerator="Ctrl+Shift+A / Ctrl+N")
-        self.UnmarkCascade.add_separator()
-        self.UnmarkCascade.add_command(label = "Oldest files",         command = lambda : self.MarkOnAllByCTime('oldest',self.UnsetMark),accelerator="Ctrl+Shift+O")
-        self.UnmarkCascade.add_command(label = "Youngest files",       command = lambda : self.MarkOnAllByCTime('youngest',self.UnsetMark),accelerator="Ctrl+Shift+Y")
-        self.UnmarkCascade.add_separator()
-        self.UnmarkCascade.add_command(label = "Files on the same path",             command = lambda : self.MarkPathOfFile(self.UnsetMark),accelerator="Ctrl+Shift+P")
-        self.UnmarkCascade.add_command(label = "Specified Directory ...",            command = lambda : self.MarkSubpath(self.UnsetMark))
-
-        self.UnmarkCascadePath = Menu(self.UnmarkCascade, tearoff = 0,postcommand=UnmarkCascadePathFill,bg=self.bg)
-        self.UnmarkCascade.add_cascade(label = "Scan path",             menu = self.UnmarkCascadePath)
-        self.UnmarkCascade.add_separator()
-        self.UnmarkCascade.add_command(label = "Expression on file ...",           command = lambda : self.MarkExpression('file',self.UnsetMark,'Unmark files'))
-        self.UnmarkCascade.add_command(label = "Expression on sub-path ...",       command = lambda : self.MarkExpression('path',self.UnsetMark,'Unmark files'))
-        self.UnmarkCascade.add_command(label = "Expression on file with path ...", command = lambda : self.MarkExpression('both',self.UnsetMark,'Unmark files'),accelerator="-")
-
-        self.menubar.add_cascade(label = 'Mark',menu = self.MarkingCommonCascade)
-
-        def ActionCascadeFill():
-            self.ActionCascade.delete(0,END)
+        def GoToCascadeFill():
+            self.GoToCascade.delete(0,END)
             ItemActionsState=('disabled','normal')[self.SelItem!=None]
-            MarksState=('disabled','normal')[len(self.tree1.tag_has(MARK))!=0]
+            self.GoToCascade.add_command(label = 'dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace",state=ItemActionsState)
+            self.GoToCascade.add_separator()
+            self.GoToCascade.add_command(label = 'dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="Ctrl+Backspace",state=ItemActionsState)
 
-            self.ActionCascade.add_command(label = 'Remove Local Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete",state=MarksState)
-            self.ActionCascade.entryconfig(3,foreground='red',activeforeground='red')
-            self.ActionCascade.add_command(label = 'Remove All Marked Files',command=lambda : self.ProcessFiles('delete',1),accelerator="Ctrl+Delete",state=MarksState)
-            self.ActionCascade.entryconfig(4,foreground='red',activeforeground='red')
-            self.ActionCascade.add_separator()
-            self.ActionCascade.add_command(label = 'Softlink Local Marked Files',command=lambda : self.ProcessFiles('softlink',0),accelerator="Insert",state=MarksState)
-            self.ActionCascade.entryconfig(6,foreground='red',activeforeground='red')
-            self.ActionCascade.add_command(label = 'Softlink All Marked Files',command=lambda : self.ProcessFiles('softlink',1),accelerator="Ctrl+Insert",state=MarksState)
-            self.ActionCascade.entryconfig(7,foreground='red',activeforeground='red')
-            self.ActionCascade.add_separator()
-            self.ActionCascade.add_command(label = 'Hardlink Local Marked Files',command=lambda : self.ProcessFiles('hardlink',0),accelerator="Shift+Insert",state=MarksState)
-            self.ActionCascade.entryconfig(9,foreground='red',activeforeground='red')
-            self.ActionCascade.add_command(label = 'Hardlink All Marked Files',command=lambda : self.ProcessFiles('hardlink',1),accelerator="Ctrl+Shift+Insert",state=MarksState)
-            self.ActionCascade.entryconfig(10,foreground='red',activeforeground='red')
+        self.GoToCascade= Menu(self.menubar,tearoff=0,bg=self.bg,postcommand=GoToCascadeFill)
 
-        self.ActionCascade= Menu(self.menubar,tearoff=0,bg=self.bg,postcommand=ActionCascadeFill)
-        self.menubar.add_cascade(label = 'Action',menu = self.ActionCascade)
+        self.menubar.add_cascade(label = 'Go To',menu = self.GoToCascade)
 
         self.HelpCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
         self.HelpCascade.add_command(label = 'About',command=self.About)
@@ -877,7 +790,7 @@ class Gui:
         self.ColumnSortLastParams={}
         self.ColumnSortLastParams[self.tree1]=['sizeH',1]
         self.ColumnSortLastParams[self.tree2]=['sizeH',1]
-        
+
         self.SelItemTree[self.tree1]=None
         self.SelItemTree[self.tree2]=None
 
@@ -929,7 +842,7 @@ class Gui:
         self.cfg.Set(self.WidgetId(widget),str(widget.geometry()),section='geometry')
         self.cfg.Write()
 
-    def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False,width=400,height=140):
+    def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False,ShowRegExpCheckButton=False,width=400,height=140):
         parent.config(cursor="watch")
 
         dialog = tk.Toplevel(parent)
@@ -941,56 +854,69 @@ class Gui:
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, self.iconphoto)
 
-        res=set()
+        res=False
 
         EntryVar=tk.StringVar(value=initialvalue)
 
         def over():
             self.GeometryStore(dialog)
             dialog.destroy()
-            parent.config(cursor="")
+
+            nonlocal ShowRegExpCheckButton
+            nonlocal DialogRegExpr
+            if ShowRegExpCheckButton:
+                self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(DialogRegExpr.get()))
+
             try:
                 dialog.update()
             except Exception as e:
                 pass
 
+            parent.config(cursor="")
+
         def Yes(event=None):
-            over()
             nonlocal res
             nonlocal EntryVar
-            res.add(EntryVar.get())
+            res=EntryVar.get()
+            over()
 
         def No(event=None):
-            over()
             nonlocal res
-            res.add(False)
+            res=False
+            over()
 
         dialog.protocol("WM_DELETE_WINDOW", No)
 
+        cancel=''
+
         def ReturnPressed(event=None):
             nonlocal dialog
-            nonlocal ok
-            nonlocal entry
+            nonlocal cancel
 
             focus=dialog.focus_get()
-            if focus==ok or focus==entry:
+            if focus!=cancel:
                 Yes()
             else:
                 No()
 
         tk.Label(dialog,text=prompt,anchor='n',justify='center',bg=self.bg).grid(sticky='news',row=0,column=0,padx=5,pady=5)
         if not OnlyInfo:
-            (entry:=ttk.Entry(dialog,textvariable=EntryVar)).grid(sticky='news',row=1,column=0,padx=5,pady=5)
+            if ShowRegExpCheckButton:
+                DialogRegExpr=tk.BooleanVar()
+                DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
+                ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=DialogRegExpr).grid(row=1,column=0,sticky='news',padx=5)
 
-        (bfr:=tk.Frame(dialog,bg=self.bg)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
+            (entry:=ttk.Entry(dialog,textvariable=EntryVar)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
+
+        (bfr:=tk.Frame(dialog,bg=self.bg)).grid(sticky='news',row=3,column=0,padx=5,pady=5)
 
         if OnlyInfo:
-            ok=default=ttk.Button(bfr, text='OK', width=10 ,command=No )
+            ok=default=ttk.Button(bfr, text='OK', width=10 ,command=No)
             ok.pack()
         else:
-            ok=ttk.Button(bfr, text='OK', width=10, command=Yes)
+            ok=default=ttk.Button(bfr, text='OK', width=10, command=Yes)
             ok.pack(side='left', anchor='e',padx=5,pady=5)
-            default=cancel=ttk.Button(bfr, text='Cancel', width=10 ,command=No )
+            cancel=ttk.Button(bfr, text='Cancel', width=10 ,command=No)
             cancel.pack(side='right', anchor='w',padx=5,pady=5)
 
         dialog.grid_columnconfigure(0, weight=1)
@@ -1016,7 +942,10 @@ class Gui:
         else:
             dialog.grab_release()
 
-        return next(iter(res))
+        if ShowRegExpCheckButton:
+            return (res,DialogRegExpr.get())
+        else:
+            return res
 
     def dialog(self,parent,title,message,OnlyInfo=False,textwidth=128,width=800,height=600):
         parent.config(cursor="watch")
@@ -1030,7 +959,7 @@ class Gui:
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, self.iconphoto)
 
-        res=set()
+        res=False
 
         def over():
             self.GeometryStore(dialog)
@@ -1044,12 +973,12 @@ class Gui:
         def Yes(event=None):
             over()
             nonlocal res
-            res.add(True)
+            res=True
 
         def No(event=None):
             over()
             nonlocal res
-            res.add(False)
+            res=False
 
         dialog.protocol("WM_DELETE_WINDOW", No)
 
@@ -1110,7 +1039,7 @@ class Gui:
         else:
             dialog.grab_release()
 
-        return next(iter(res))
+        return res
 
     def Ask(self,title,message,top,width=800,height=400):
         return self.dialog(top,title,message,False,width=width,height=height)
@@ -1131,38 +1060,41 @@ class Gui:
 
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
-    
+
     DirectionOfKeysym={}
     DirectionOfKeysym['Up']=-1
     DirectionOfKeysym['Down']=1
     DirectionOfKeysym['Prior']=-1
     DirectionOfKeysym['Next']=1
-    
+
+    reftuple1=('1','2','3','4','5','6','7')
+    reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
+
     def KeyPressTreeCommon(self,event):
         tree=event.widget
         item=tree.focus()
-        
+
         tree.selection_remove(tree.selection())
-        
+
         if event.keysym in ("Up",'Down') :
             #direction = -1 if event.keysym == "Up" else 1
-            
-            if tree==self.tree1:    
+
+            if tree==self.tree1:
                 pool=self.FlatItemsList
                 poolLen=self.FlatItemsListLen
             else:
                 pool=tree.get_children()
                 poolLen=len(pool)
-            
+
             #print(self.SelItemTree[tree])
             index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree])
             index=(index+self.DirectionOfKeysym[event.keysym])%poolLen
             NextItem=pool[index]
-            
+
             tree.see(NextItem)
             tree.focus(NextItem)
-            
-            if tree==self.tree1:    
+
+            if tree==self.tree1:
                 self.Tree1SelChange(NextItem)
             else:
                 self.Tree2SelChange(NextItem)
@@ -1180,7 +1112,7 @@ class Gui:
         elif event.keysym in ("Home","End"):
             if tree==self.tree1:
                 if NextItem:=tree.get_children()[0 if event.keysym=="Home" else -1]:
-                    self.SelectFocusAndSeeCrcItemTree(NextItem)
+                    self.SelectFocusAndSeeCrcItemTree(NextItem,True)
             else:
                 if NextItem:=tree.get_children()[0 if event.keysym=='Home' else -1]:
                     tree.see(NextItem)
@@ -1210,9 +1142,13 @@ class Gui:
                 if tree.set(item,'kind')!=CRC:
                     self.TreeEventOpenFile()
         elif event.keysym=='KP_Add' or event.keysym=='plus':
-            self.MarkExpression('both',self.SetMark,'Mark files')
+            StrEvent=str(event)
+            CtrPressed = 'Control' in StrEvent
+            self.MarkExpression(self.SetMark,'Mark files',CtrPressed)
         elif event.keysym=='KP_Subtract' or event.keysym=='minus':
-            self.MarkExpression('both',self.UnsetMark,'Unmark files')
+            StrEvent=str(event)
+            CtrPressed = 'Control' in StrEvent
+            self.MarkExpression(self.UnsetMark,'Unmark files',CtrPressed)
         elif event.keysym=='F1':
             self.KeyboardShortcuts()
         elif event.keysym=='F2':
@@ -1221,10 +1157,10 @@ class Gui:
             self.ScanDialogShow()
         else:
             StrEvent=str(event)
-        
+
             CtrPressed = 'Control' in StrEvent
             ShiftPressed = 'Shift' in StrEvent
-            
+
             if event.keysym == "Delete":
                 self.ProcessFiles('delete',CtrPressed)
             elif event.keysym == "Insert":
@@ -1240,7 +1176,7 @@ class Gui:
             elif event.keysym=='i' or event.keysym=='I':
                 if CtrPressed:
                     self.MarkOnAll(self.InvertMark)
-                else:                    
+                else:
                     if tree==self.tree1:
                         self.MarkInCRCGroup(self.InvertMark)
                     else:
@@ -1266,7 +1202,7 @@ class Gui:
             elif event.keysym=='c' or event.keysym=='C':
                 if self.pyperclipOperational:
                     if CtrPressed:
-                        self.ClipCopy() 
+                        self.ClipCopy()
             elif event.keysym=='a' or event.keysym=='A':
                 if tree==self.tree1:
                     if CtrPressed:
@@ -1275,7 +1211,7 @@ class Gui:
                         self.MarkInCRCGroup(self.SetMark)
                 else:
                     self.MarkLowerPane(self.SetMark)
-                    
+
             elif event.keysym=='n' or event.keysym=='N':
                 if tree==self.tree1:
                     if CtrPressed:
@@ -1284,16 +1220,37 @@ class Gui:
                         self.MarkInCRCGroup(self.UnsetMark)
                 else:
                     self.MarkLowerPane(self.UnsetMark)
+            elif event.keysym in self.reftuple1:
+                index = self.reftuple1.index(event.keysym)
+
+                if index<len(self.D.ScannedPaths):
+                    if tree==self.tree1:
+                        self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.SetMark,CtrPressed)
+            elif event.keysym in self.reftuple2:
+                index = self.reftuple2.index(event.keysym)
+
+                if index<len(self.D.ScannedPaths):
+                    if tree==self.tree1:
+                        self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.UnsetMark,CtrPressed)
+            elif event.keysym=='KP_Divide' or event.keysym=='slash':
+                self.MarkSubpath(self.SetMark,True)
+            elif event.keysym=='question':
+                self.MarkSubpath(self.UnsetMark,True)
+
             else:
-                if windows:
-                    print(event.keysym)
-            
+                #print(event.keysym)
+                pass
+                #if windows:
+
 #################################################
-    def SelectFocusAndSeeCrcItemTree(self,crc):
+    def SelectFocusAndSeeCrcItemTree(self,crc,TryToShowAll=False):
         self.tree1.focus_set()
-        #lastChild=self.tree1.get_children(crc)[-1]
-        #self.tree1.see(lastChild)
-        #self.tree1.update()
+
+        if TryToShowAll:
+            lastChild=self.tree1.get_children(crc)[-1]
+            self.tree1.see(lastChild)
+            self.tree1.update()
+
         self.tree1.see(crc)
         self.tree1.focus(crc)
         self.tree1.update()
@@ -1440,20 +1397,40 @@ class Gui:
             cLocal.add_command(label = "Mark all files",        command = lambda : self.MarkInCRCGroup(self.SetMark),accelerator="A")
             cLocal.add_command(label = "Unmark all files",        command = lambda : self.MarkInCRCGroup(self.UnsetMark),accelerator="N")
             cLocal.add_separator()
+            cLocal.add_command(label = 'Mark By Expression',command = lambda : self.MarkExpression(self.SetMark,'Mark files',False),accelerator="+")
+            cLocal.add_command(label = 'Unmark By Expression',command = lambda : self.MarkExpression(self.UnsetMark,'Unmark files',False),accelerator="-")
+            cLocal.add_separator()
             cLocal.add_command(label = "Toggle mark on oldest file",     command = lambda : self.MarkInCRCGroupByCTime('oldest',self.InvertMark),accelerator="O")
             cLocal.add_command(label = "Toggle mark on youngest file",   command = lambda : self.MarkInCRCGroupByCTime('youngest',self.InvertMark),accelerator="Y")
             cLocal.add_separator()
             cLocal.add_command(label = "Invert marks",   command = lambda : self.MarkInCRCGroup(self.InvertMark),accelerator="I")
             cLocal.add_separator()
 
+            MarkCascadePath = Menu(cLocal, tearoff = 0,bg=self.bg)
+            UnmarkCascadePath = Menu(cLocal, tearoff = 0,bg=self.bg)
+
+            row=0
+            for path in self.D.ScannedPaths:
+                MarkCascadePath.add_command(label = self.Numbers[row] + '  =  ' + path,    command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.SetMark,False),accelerator=str(row+1)  )
+                UnmarkCascadePath.add_command(label = self.Numbers[row] + '  =  ' + path,  command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.UnsetMark,False),accelerator="Shift+"+str(row+1)  )
+                row+=1
+
+            cLocal.add_command(label = "Mark on specified directory ...",   command = lambda : self.MarkSubpath(self.SetMark,False))
+            cLocal.add_command(label = "Unmark on specified directory ...",   command = lambda : self.MarkSubpath(self.UnsetMark,False))
+            cLocal.add_separator()
+
+            cLocal.add_cascade(label = "Mark on scan path",             menu = MarkCascadePath)
+            cLocal.add_cascade(label = "Unmark on scan path",             menu = UnmarkCascadePath)
+            cLocal.add_separator()
+
             MarksState=('disabled','normal')[len(tree.tag_has(MARK))!=0]
 
             cLocal.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete",state=MarksState)
-            cLocal.entryconfig(10,foreground='red',activeforeground='red')
+            cLocal.entryconfig(19,foreground='red',activeforeground='red')
             cLocal.add_command(label = 'Softlink Marked Files',command=lambda : self.ProcessFiles('softlink',0),accelerator="Insert",state=MarksState)
-            cLocal.entryconfig(11,foreground='red',activeforeground='red')
+            cLocal.entryconfig(20,foreground='red',activeforeground='red')
             cLocal.add_command(label = 'Hardlink Marked Files',command=lambda : self.ProcessFiles('hardlink',0),accelerator="Shift+Insert",state=MarksState)
-            cLocal.entryconfig(12,foreground='red',activeforeground='red')
+            cLocal.entryconfig(21,foreground='red',activeforeground='red')
 
             pop.add_cascade(label = 'Local (this CRC group)',menu = cLocal,state=ItemActionsState)
             pop.add_separator()
@@ -1462,6 +1439,9 @@ class Gui:
 
             cAll.add_command(label = "Mark all files",        command = lambda : self.MarkOnAll(self.SetMark),accelerator="Ctrl+A")
             cAll.add_command(label = "Unmark all files",        command = lambda : self.MarkOnAll(self.UnsetMark),accelerator="Ctrl+N")
+            cAll.add_separator()
+            cAll.add_command(label = 'Mark By Expression',command = lambda : self.MarkExpression(self.SetMark,'Mark files',True),accelerator="Ctrl+")
+            cAll.add_command(label = 'Unmark By Expression',command = lambda : self.MarkExpression(self.UnsetMark,'Unmark files',True),accelerator="Ctrl-")
             cAll.add_separator()
             cAll.add_command(label = "Mark Oldest files",     command = lambda : self.MarkOnAllByCTime('oldest',self.SetMark),accelerator="Ctrl+O")
             cAll.add_command(label = "Unmark Oldest files",     command = lambda : self.MarkOnAllByCTime('oldest',self.UnsetMark),accelerator="Ctrl+Shift+O")
@@ -1472,12 +1452,29 @@ class Gui:
             cAll.add_command(label = "Invert marks",   command = lambda : self.MarkOnAll(self.InvertMark),accelerator="Ctrl+I, *")
             cAll.add_separator()
 
+            MarkCascadePath = Menu(cAll, tearoff = 0,bg=self.bg)
+            UnmarkCascadePath = Menu(cAll, tearoff = 0,bg=self.bg)
+
+            row=0
+            for path in self.D.ScannedPaths:
+                MarkCascadePath.add_command(label = self.Numbers[row] + '  =  ' + path,    command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.SetMark,True) ,accelerator="Ctrl+"+str(row+1) )
+                UnmarkCascadePath.add_command(label = self.Numbers[row] + '  =  ' + path,  command  = lambda pathpar=path: self.ActionOnSpecifiedPath(pathpar,self.UnsetMark,True) ,accelerator="Ctrl+Shift+"+str(row+1) )
+                row+=1
+
+            cAll.add_command(label = "Mark on specified directory ...",   command = lambda : self.MarkSubpath(self.SetMark,True))
+            cAll.add_command(label = "Unmark on specified directory ...",   command = lambda : self.MarkSubpath(self.UnsetMark,True))
+            cAll.add_separator()
+
+            cAll.add_cascade(label = "Mark on scan path",             menu = MarkCascadePath)
+            cAll.add_cascade(label = "Unmark on scan path",             menu = UnmarkCascadePath)
+            cAll.add_separator()
+
             cAll.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',1),accelerator="Ctrl+Delete",state=MarksState)
-            cAll.entryconfig(12,foreground='red',activeforeground='red')
+            cAll.entryconfig(21,foreground='red',activeforeground='red')
             cAll.add_command(label = 'Softlink Marked Files',command=lambda : self.ProcessFiles('softlink',1),accelerator="Ctrl+Insert",state=MarksState)
-            cAll.entryconfig(13,foreground='red',activeforeground='red')
+            cAll.entryconfig(22,foreground='red',activeforeground='red')
             cAll.add_command(label = 'Hardlink Marked Files',command=lambda : self.ProcessFiles('hardlink',1),accelerator="Ctrl+Shift+Insert",state=MarksState)
-            cAll.entryconfig(14,foreground='red',activeforeground='red')
+            cAll.entryconfig(23,foreground='red',activeforeground='red')
 
             pop.add_cascade(label = 'All Files',menu = cAll,state=ItemActionsState)
 
@@ -1492,13 +1489,16 @@ class Gui:
             cLocal.add_command(label = "Mark all files",        command = lambda : self.MarkLowerPane(self.SetMark),accelerator="A",state=FileActionsState)
             cLocal.add_command(label = "Unmark all files",        command = lambda : self.MarkLowerPane(self.UnsetMark),accelerator="N",state=FileActionsState)
             cLocal.add_separator()
+            cLocal.add_command(label = 'Mark By Expression',command = lambda : self.MarkExpression(self.SetMark,'Mark files'),accelerator="+")
+            cLocal.add_command(label = 'Unmark By Expression',command = lambda : self.MarkExpression(self.UnsetMark,'Unmark files'),accelerator="-")
+            cLocal.add_separator()
 
             MarksState=('disabled','normal')[len(tree.tag_has(MARK))!=0]
 
             cLocal.add_command(label = 'Remove Marked Files',command=lambda : self.ProcessFiles('delete',0),accelerator="Delete",state=MarksState)
-            cLocal.entryconfig(5,foreground='red',activeforeground='red')
+            cLocal.entryconfig(8,foreground='red',activeforeground='red')
 
-            pop.add_cascade(label = 'Local (this folder)',menu = cLocal,state=MarksState)
+            pop.add_cascade(label = 'Local (this folder)',menu = cLocal,state=ItemActionsState)
 
             cNav = Menu(pop,tearoff=0,bg=self.bg)
             cNav.add_command(label = 'go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace")
@@ -1511,12 +1511,6 @@ class Gui:
         pop.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return",state=FileActionsState)
         pop.add_command(label = 'Open Folder',command = self.OpenFolder,state=FileActionsState)
 
-        #if tree==self.tree1:    
-        #else:
-        #    pop.add_separator()
-        #    pop.add_cascade(label = 'By Expression',menu = cNav,state=ItemActionsState)
-        #    self.MarkExpression('file',self.SetMark,'Mark files')
-            
         pop.add_separator()
         pop.add_command(label = "Scan",  command = self.ScanDialogShow,accelerator="S")
         pop.add_command(label = "Settings",  command = self.SettingsDialogShow,accelerator="F2")
@@ -1532,13 +1526,13 @@ class Gui:
         prev_colname,prev_reverse=self.ColumnSortLastParams[tree]
         reverse = not prev_reverse if colname == prev_colname else prev_reverse
         tree.heading(prev_colname, text=self.OrgLabel[prev_colname])
-        
+
         self.ColumnSortLastParams[tree]=[colname,reverse]
         self.ColumnSort(tree)
 
     def ColumnSort(self, tree):
-        colname,reverse = self.ColumnSortLastParams[tree] 
-        
+        colname,reverse = self.ColumnSortLastParams[tree]
+
         RealSortColumn=self.col2sortOf[colname]
 
         DIR0,DIR1 = (1,0) if reverse else (0,1)
@@ -1645,7 +1639,7 @@ class Gui:
                     + '\nfolders: ' + str(self.D.InfoFoundFolders) \
                     + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) \
                     + '\n' \
-                    + '\ncurrent file size: ' + bytes2str(self.D.InfoCurrentSize) 
+                    + '\ncurrent file size: ' + bytes2str(self.D.InfoCurrentSize)
             self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,PrefixInfo=self.D.InfoCurrentFile)
 
             if self.LongActionAbort:
@@ -1883,9 +1877,6 @@ class Gui:
         if self.cfg.Get(CFG_KEY_REL_SYMLINKS,False)!=self.relSymlinks.get():
             self.cfg.Set(CFG_KEY_REL_SYMLINKS,str(self.relSymlinks.get()))
 
-        if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)!=self.useRegExpr.get():
-            self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(self.useRegExpr.get()))
-
         self.cfg.Write()
 
         self.SettingsSetBools()
@@ -1921,7 +1912,6 @@ class Gui:
         self.fullCRC.set(False)
         self.fullPaths.set(False)
         self.relSymlinks.set(True)
-        self.useRegExpr.set(False)
 
     def UpdateCrcNode(self,crc):
         size=int(self.tree1.set(crc,'size'))
@@ -1970,6 +1960,7 @@ class Gui:
             self.UpdatePathTreeNone()
             self.ResetSels()
 
+    @MainWatchCursor
     def ShowData(self):
         self.idfunc = (lambda i,d : str(i)+'-'+str(d)) if len(self.D.devs)>1 else (lambda i,d : str(i))
 
@@ -2013,7 +2004,9 @@ class Gui:
         self.tree1.selection_remove(self.tree1.selection())
 
     def UpdateMainTree(self,item):
+        self.tree1.see(self.SelCrc)
         self.tree1.update()
+
         self.tree1.selection_set(item)
         self.tree1.see(item)
         self.tree1.update()
@@ -2131,7 +2124,7 @@ class Gui:
                 self.Tree1SelChange(item)
                 self.tree1.update()
 
-    @WatchCursor
+    @MainWatchCursor
     def MarkOnAllByCTime(self,orderStr, action):
         reverse=1 if orderStr=='oldest' else 0
 
@@ -2140,7 +2133,7 @@ class Gui:
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
-    @WatchCursor
+    @MainWatchCursor
     def MarkInCRCGroupByCTime(self,orderStr,action):
         reverse=1 if orderStr=='oldest' else 0
         self.MarkInSpecifiedCRCGroupByCTime(action,self.SelCrc,reverse,True)
@@ -2151,30 +2144,32 @@ class Gui:
     def MarkInSpecifiedCRCGroup(self,action,crc):
         { action(item,self.tree1) for item in self.tree1.get_children(crc) }
 
-    @WatchCursor
+    @MainWatchCursor
     def MarkInCRCGroup(self,action):
         self.MarkInSpecifiedCRCGroup(action,self.SelCrc)
         self.PathTreeUpdateMarks()
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
-    @WatchCursor
+    @MainWatchCursor
     def MarkOnAll(self,action):
         { self.MarkInSpecifiedCRCGroup(action,crc) for crc in self.tree1.get_children() }
         self.PathTreeUpdateMarks()
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
-    @WatchCursor
+    def ActionOnPathPane(self,action,items):
+        { (action(item,self.tree2),action(item,self.tree1)) for item in items if self.tree2.set(item,'kind')==FILE }
+
+        self.CalcMarkStatsAll()
+        self.CalcMarkStatsPath()
+
+    @MainWatchCursor
     def MarkLowerPane(self,action):
         { (action(item,self.tree2),action(item,self.tree1)) for item in self.tree2.get_children() if self.tree2.set(item,'kind')==FILE }
 
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
-
-    def MarkPathOfFile(self,action):
-        if self.SelSearchPath and self.SelPath:
-            self.ActionOnSpecifiedPath(self.SelSearchPath+self.SelPath,action)
 
     def SetMark(self,item,tree):
         tree.item(item,tags=[MARK])
@@ -2185,10 +2180,15 @@ class Gui:
     def InvertMark(self,item,tree):
         tree.item(item,tags=[] if tree.item(item)['tags'] else [MARK])
 
-    @WatchCursor
-    def ActionOnSpecifiedPath(self,pathParam,action):
+    @MainWatchCursor
+    def ActionOnSpecifiedPath(self,pathParam,action,AllGroups=True):
+        if AllGroups:
+            CrcRange = self.tree1.get_children()
+        else :
+            CrcRange = [str(self.SelCrc)]
+
         selCount=0
-        for crcitem in self.tree1.get_children():
+        for crcitem in CrcRange:
             for item in self.tree1.get_children(crcitem):
                 fullpath = self.FullPath1(item)
 
@@ -2203,81 +2203,103 @@ class Gui:
             self.CalcMarkStatsAll()
             self.CalcMarkStatsPath()
 
-    regexp={'file':'.','path':'.','both':'.'}
-    regexpDesc={'file':'file','path':'subpath','both':'entire file path'}
+    TreeExpr={}
 
-    def MarkExpression(self,field,action,ActionLabel):
+    def MarkExpression(self,action,prompt,AllGroups=True):
         tree=self.main.focus_get()
 
-        if self.regexp[field]:
-            initialvalue=self.regexp[field]
+        if tree in self.TreeExpr.keys():
+            initialvalue=self.TreeExpr[tree]
         else:
             initialvalue='.*'
 
-        UseRegExpr = True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False
+        if tree==self.tree1:
+            RangeStr = "all groups" if AllGroups else "selected group"
+            title=f'Specify Expression for full file path in {RangeStr}.'
+        else:
+            title='Specify Expression for file names in selected directory.'
 
-        desc=self.regexpDesc[field]
+        (Expression,UseRegExpr) = self.DialogWithEntry(title=title,prompt=prompt, initialvalue=initialvalue,parent=self.main,ShowRegExpCheckButton=True)
 
-        prompt=ActionLabel + (' (regular expression syntax)' if UseRegExpr else ' (symplified syntax)')
+        items=[]
+        UseRegExprInfo = '(regular expression)' if UseRegExpr else ''
 
-        if (regexp := self.DialogWithEntry(title=f'Specify Expression for {desc}.',prompt=prompt, initialvalue=initialvalue,parent=self.main)):
-            self.regexp[field]=regexp
-            selCount=0
-            if field=='file':
-                for crcitem in self.tree1.get_children():
-                    for item in self.tree1.get_children(crcitem):
-                        file=self.tree1.set(item,'file')
-                        try:
-                            if (UseRegExpr and re.search(regexp,file)) or (not UseRegExpr and fnmatch.fnmatch(file,regexp) ):
-                                action(item,self.tree1)
-                                selCount+=1
-                        except Exception as e:
-                            self.DialogWithEntry(title='Expression Error !',prompt='                                                                \n' + str(e),parent=self.main,OnlyInfo=True)
-                            tree.focus_set()
-                            return
-            elif field=='path':
-                for crcitem in self.tree1.get_children():
-                    for item in self.tree1.get_children(crcitem):
-                        path=self.tree1.set(item,'path')
-                        try:
-                            if (UseRegExpr and re.search(regexp,path)) or (not UseRegExpr and fnmatch.fnmatch(path,regexp) ):
-                                action(item,self.tree1)
-                                selCount+=1
-                        except Exception as e:
-                            self.DialogWithEntry(title='Expression Error !',prompt='                                                                \n' + str(e),parent=self.main,OnlyInfo=True)
-                            tree.focus_set()
-                            return
-            else:
-                for crcitem in self.tree1.get_children():
+        if Expression:
+            self.TreeExpr[tree]=Expression
+
+            if tree==self.tree1:
+                if AllGroups:
+                    CrcRange = self.tree1.get_children()
+                else :
+                    CrcRange = [str(self.SelCrc)]
+
+                for crcitem in CrcRange:
                     for item in self.tree1.get_children(crcitem):
                         fullpath = self.FullPath1(item)
                         try:
-                            if (UseRegExpr and re.search(regexp,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,regexp) ):
-                                action(item,self.tree1)
-                                selCount+=1
+                            if (UseRegExpr and re.search(Expression,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,Expression) ):
+                                items.append(item)
                         except Exception as e:
-                            self.DialogWithEntry(title='Expression Error !',prompt='                                                                \n' + str(e),parent=self.main,OnlyInfo=True)
+
+                            self.DialogWithEntry(title='Expression Error !',prompt=f'expression:"{Expression}"  {UseRegExprInfo}\n\nERROR:{e}',parent=self.main,OnlyInfo=True)
+                            tree.focus_set()
+                            return
+            else:
+                for item in self.tree2.get_children():
+                    if tree.set(item,'kind')==FILE:
+                        file=self.tree2.set(item,'file')
+                        try:
+                            if (UseRegExpr and re.search(Expression,file)) or (not UseRegExpr and fnmatch.fnmatch(file,Expression) ):
+                                items.append(item)
+                        except Exception as e:
+                            self.DialogWithEntry(title='Expression Error !',prompt=f'expression:"{Expression}"  {UseRegExprInfo}\n\nERROR:{e}',parent=self.main,OnlyInfo=True)
                             tree.focus_set()
                             return
 
+            if items:
+                self.main.config(cursor="watch")
+                self.main.update()
 
-            if selCount==0 :
-                self.DialogWithEntry(title='No files found.',prompt='                                                     \n'+regexp,parent=self.main,OnlyInfo=True)
-            else:
+                FirstItem=items[0]
+
+                tree.focus(FirstItem)
+                tree.see(FirstItem)
+
+                if tree==self.tree1:
+                    for item in items:
+                        action(item,tree)
+
+                    self.Tree1SelChange(FirstItem)
+                else:
+                    for item in items:
+                        action(item,self.tree1)
+                        action(item,self.tree2)
+
+                    self.Tree2SelChange(FirstItem)
+
                 self.PathTreeUpdateMarks()
                 self.CalcMarkStatsAll()
                 self.CalcMarkStatsPath()
 
+                self.main.config(cursor="")
+                self.main.update()
+
+            else:
+                self.DialogWithEntry(title='No files found.',prompt=f'expression:"{Expression}"  {UseRegExprInfo}\n',parent=self.main,OnlyInfo=True)
+
         tree.focus_set()
 
-    def MarkSubpath(self,action):
+    def MarkSubpath(self,action,AllGroups=True):
         if path:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd):
-            self.ActionOnSpecifiedPath(path,action)
+            self.ActionOnSpecifiedPath(path,action,AllGroups)
 
-    def GotoNextMark(self,tree,direction):
+    def GotoNextMark(self,tree,direction,InitialItem=None):
         marked=tree.tag_has(MARK)
         if marked:
-            item=self.SelItem
+            if InitialItem:
+                item=InitialItem
+            else:
+                item=self.SelItem
 
             pool=marked if tree.tag_has(MARK,item) else self.FlatItemsList if tree==self.tree1 else self.tree2.get_children()
             poollen=len(pool)
@@ -2308,7 +2330,7 @@ class Gui:
                 biggestcrc=crcitem
 
         if biggestcrc:
-            self.SelectFocusAndSeeCrcItemTree(biggestcrc)
+            self.SelectFocusAndSeeCrcItemTree(biggestcrc,True)
 
     def GoToMaxFolder(self,sizeFlag=0):
         PathStat={}
@@ -2346,15 +2368,9 @@ class Gui:
             self.UpdateMainTree(item)
 
     def FullPath1(self,item):
-        return self.GetFullPath(item,self.tree1)
-
-    def FullPath2(self,item):
-        return self.GetFullPath(item,self.tree2)
-
-    def GetFullPath(self,item,tree):
-        pathnr=int(tree.set(item,'pathnr'))
-        path=tree.set(item,'path')
-        file=tree.set(item,'file')
+        pathnr=int(self.tree1.set(item,'pathnr'))
+        path=self.tree1.set(item,'path')
+        file=self.tree1.set(item,'file')
         return os.path.abspath(self.D.ScannedPathFull(pathnr,path,file))
 
     def CheckFileState(self,item):
@@ -2427,7 +2443,7 @@ class Gui:
                 if len(ProcessedItems[crc])==1:
                     self.DialogWithEntry(title='Error - Cant hardlink single file.',prompt="                    Mark more files.                    ",parent=self.main,OnlyInfo=True)
 
-                    self.SelectFocusAndSeeCrcItemTree(crc)
+                    self.SelectFocusAndSeeCrcItemTree(crc,True)
                     return
 
         elif action in ("delete","softlink"):
@@ -2435,7 +2451,7 @@ class Gui:
                 if len(RemainingItems[crc])==0:
                     self.DialogWithEntry(title=f'Error {action} - All files marked',prompt="          Keep at least one file unmarked.          ",parent=self.main,OnlyInfo=True)
 
-                    self.SelectFocusAndSeeCrcItemTree(crc)
+                    self.SelectFocusAndSeeCrcItemTree(crc,True)
                     return
 
         logging.warning('###########################################################################################')
@@ -2562,7 +2578,7 @@ class Gui:
         tree=event.widget
         if tree.identify("region", event.x, event.y) != 'heading':
             self.TreeEventOpenFile()
-            
+
     def TreeEventOpenFile(self):
         if self.SelKind==FILE or self.SelKind==LINK or self.SelKind==SINGLE:
             if windows:
