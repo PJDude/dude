@@ -1,3 +1,1 @@
 appdirs==1.4.4
-psutil==5.8.0
-pyperclip==1.8.2

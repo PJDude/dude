@@ -26,10 +26,7 @@ import configparser
 
 from threading import Thread
 
-import pyperclip
 import logging
-
-import psutil
 
 import core
 
@@ -159,8 +156,6 @@ class Gui:
 
     MAX_PATHS=10
 
-    pyperclipOperational=True
-
     SelItemTree = {}
 
     def ResetSels(self):
@@ -184,28 +179,6 @@ class Gui:
             self.main.config(cursor=prevCursor)
             return res
         return wrapp
-
-    def CheckClipboard(self):
-        TestString='Dude-TestString'
-        logging.info('pyperclip test start.')
-        return
-
-        try:
-            PrevVal=pyperclip.paste()
-            pyperclip.copy(TestString)
-        except Exception as e:
-            logging.error(e)
-            self.pyperclipOperational=False
-            logging.error('Clipboard test error. Copy options disabled.')
-        else:
-            if pyperclip.paste() != TestString:
-                self.pyperclipOperational=False
-                logging.error('Clipboard test error. Copy options disabled.')
-                if not windows :
-                    logging.error('try to install xclip or xsel.')
-            else:
-                pyperclip.copy(PrevVal)
-                logging.info('pyperclip test passed.')
 
     #######################################################################
     #LongActionDialog
@@ -337,8 +310,6 @@ class Gui:
 
         self.PathsToScanFromDialog=[]
 
-        self.CheckClipboard()
-
         ####################################################################
         self.main = tk.Tk()
         self.main.title(f'Dude (DUplicates DEtector) v{VERSION}')
@@ -348,6 +319,11 @@ class Gui:
 
         self.iconphoto = PhotoImage(file = os.path.join(os.path.dirname(__file__),'icon.png'))
         self.main.iconphoto(False, self.iconphoto)
+
+        self.main.bind('<KeyPress-F2>', lambda event : self.SettingsDialogShow())
+        self.main.bind('<KeyPress-F1>', lambda event : self.KeyboardShortcuts())
+        self.main.bind('<KeyPress-s>', lambda event : self.ScanDialogShow())
+        self.main.bind('<KeyPress-S>', lambda event : self.ScanDialogShow())
 
         ####################################################################
         style = ttk.Style()
@@ -610,8 +586,8 @@ class Gui:
         self.ScanDialog.bind('<Alt_L><s>',lambda event : self.Scan())
         self.ScanDialog.bind('<Alt_L><S>',lambda event : self.Scan())
 
-        self.ScanDialog.bind('<Alt_L><D>',lambda event : self.AddDrives())
-        self.ScanDialog.bind('<Alt_L><d>',lambda event : self.AddDrives())
+        #self.ScanDialog.bind('<Alt_L><D>',lambda event : self.AddDrives())
+        #self.ScanDialog.bind('<Alt_L><d>',lambda event : self.AddDrives())
 
         self.ScanDialog.bind('<Alt_L><E>',lambda event : self.AddExckludeMaskDialog())
         self.ScanDialog.bind('<Alt_L><e>',lambda event : self.AddExckludeMaskDialog())
@@ -623,8 +599,8 @@ class Gui:
         self.AddPathButton = ttk.Button(self.pathsFrame,width=10,text="Add Path ...",command=self.AddPathDialog,underline=0)
         self.AddPathButton.grid(column=0, row=100,pady=4,padx=4)
 
-        self.AddDrivesButton = ttk.Button(self.pathsFrame,width=10,text="Add drives",command=self.AddDrives,underline=4)
-        self.AddDrivesButton.grid(column=1, row=100,pady=4,padx=4)
+        #self.AddDrivesButton = ttk.Button(self.pathsFrame,width=10,text="Add drives",command=self.AddDrives,underline=4)
+        #self.AddDrivesButton.grid(column=1, row=100,pady=4,padx=4)
 
         self.ClearListButton=ttk.Button(self.pathsFrame,width=10,text="Clear List",command=self.ClearPaths )
         self.ClearListButton.grid(column=2, row=100,pady=4,padx=4)
@@ -669,22 +645,11 @@ class Gui:
         self.SetingsDialog.iconphoto(False, self.iconphoto)
 
         self.addCwdAtStartup = tk.BooleanVar()
-        self.addCwdAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,True))
-
         self.scanAtStartup = tk.BooleanVar()
-        self.scanAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_SCAN,False))
-
         self.showothers = tk.BooleanVar()
-        self.showothers.set(self.cfg.Get(CFG_KEY_SHOW_OTHERS,True))
-
         self.fullCRC = tk.BooleanVar()
-        self.fullCRC.set(self.cfg.Get(CFG_KEY_FULLCRC,False))
-
         self.fullPaths = tk.BooleanVar()
-        self.fullPaths.set(self.cfg.Get(CFG_KEY_FULLPATHS,False))
-
         self.relSymlinks = tk.BooleanVar()
-        self.relSymlinks.set(self.cfg.Get(CFG_KEY_REL_SYMLINKS,True))
 
         self.SetingsDialog.wm_title('Settings')
 
@@ -748,8 +713,6 @@ class Gui:
 
             self.FileCascade.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return",state=ItemActionsState)
             self.FileCascade.add_command(label = 'Open Folder',command = self.OpenFolder,state=ItemActionsState)
-            self.FileCascade.add_separator()
-            self.FileCascade.add_command(label = 'Copy file with path to clipboard',command = self.ClipCopy,accelerator="Ctrl+C",state = 'normal' if self.pyperclipOperational and self.SelItem!=None else 'disabled')
             self.FileCascade.add_separator()
             self.FileCascade.add_command(label = 'Erase CRC Cache',command = self.CleanCache)
             self.FileCascade.add_separator()
@@ -1077,8 +1040,6 @@ class Gui:
         tree.selection_remove(tree.selection())
 
         if event.keysym in ("Up",'Down') :
-            #direction = -1 if event.keysym == "Up" else 1
-
             if tree==self.tree1:
                 pool=self.FlatItemsList
                 poolLen=self.FlatItemsListLen
@@ -1149,12 +1110,6 @@ class Gui:
             StrEvent=str(event)
             CtrPressed = 'Control' in StrEvent
             self.MarkExpression(self.UnsetMark,'Unmark files',CtrPressed)
-        elif event.keysym=='F1':
-            self.KeyboardShortcuts()
-        elif event.keysym=='F2':
-            self.SettingsDialogShow()
-        elif event.keysym in ('s','S') :
-            self.ScanDialogShow()
         else:
             StrEvent=str(event)
 
@@ -1200,9 +1155,14 @@ class Gui:
                     if tree==self.tree1:
                         self.MarkInCRCGroupByCTime('youngest',self.InvertMark)
             elif event.keysym=='c' or event.keysym=='C':
-                if self.pyperclipOperational:
-                    if CtrPressed:
-                        self.ClipCopy()
+                if CtrPressed:
+                    if ShiftPressed:
+                        self.ClipCopyFile()
+                    else:
+                        self.ClipCopyFullWithFile()
+                else:
+                    self.ClipCopyFull()
+
             elif event.keysym=='a' or event.keysym=='A':
                 if tree==self.tree1:
                     if CtrPressed:
@@ -1350,9 +1310,7 @@ class Gui:
             self.SetCommonVar()
             self.UpdatePathTree(item)
         else:
-            self.StatusVarFullPath.set("")
             self.UpdatePathTreeNone()
-            self.StatusVarFullPathLabel.config(fg = 'black')
 
     def Tree2SelChange(self,item):
         self.SelFile = self.tree2.set(item,'file')
@@ -1515,6 +1473,10 @@ class Gui:
         pop.add_command(label = "Scan",  command = self.ScanDialogShow,accelerator="S")
         pop.add_command(label = "Settings",  command = self.SettingsDialogShow,accelerator="F2")
         pop.add_separator()
+        pop.add_command(label = 'Copy',command = self.ClipCopyFullWithFile,accelerator="Ctrl+C",state = 'normal' if self.SelItem!=None else 'disabled')
+        pop.add_command(label = 'Copy only path',command = self.ClipCopyFull,accelerator="C",state = 'normal' if self.SelItem!=None else 'disabled')
+        pop.add_separator()
+
         pop.add_command(label = "Exit",  command = self.exit)
 
         try:
@@ -1530,6 +1492,7 @@ class Gui:
         self.ColumnSortLastParams[tree]=[colname,reverse]
         self.ColumnSort(tree)
 
+    @MainWatchCursor
     def ColumnSort(self, tree):
         colname,reverse = self.ColumnSortLastParams[tree]
 
@@ -1566,7 +1529,7 @@ class Gui:
             self.PathsToScanFromDialog.append(path)
             self.UpdatePathsToScan()
         else:
-            logging.error(f'cant add:{path}. limit exceeded')
+            logging.error(f'can\'t add:{path}. limit exceeded')
 
     def Scan(self):
         self.cfg.Write()
@@ -1707,11 +1670,11 @@ class Gui:
 
         if len(self.PathsToScanFromDialog)==self.MAX_PATHS:
             self.AddPathButton.configure(state=DISABLED,text='')
-            self.AddDrivesButton.configure(state=DISABLED,text='')
+            #self.AddDrivesButton.configure(state=DISABLED,text='')
             self.ClearListButton.focus_set()
         else:
             self.AddPathButton.configure(state=NORMAL,text='Add path ...')
-            self.AddDrivesButton.configure(state=NORMAL,text='Add drives ...')
+            #self.AddDrivesButton.configure(state=NORMAL,text='Add drives ...')
 
     def ScanExcludeRegExprCommand(self):
         self.cfg.Set(CFG_KEY_EXCLUDE_REGEXP,str(self.ScanExcludeRegExpr.get()))
@@ -1739,10 +1702,18 @@ class Gui:
 
                 row+=1
 
-    def AddDrives(self):
-        for (device,mountpoint,fstype,opts,maxfile,maxpath) in psutil.disk_partitions():
-            if fstype != 'squashfs':
-                self.addPath(mountpoint)
+    #def AddDrives(self):
+
+        #for (device,mountpoint,fstype,opts,maxfile,maxpath) in psutil.disk_partitions():
+        #    if fstype != 'squashfs':
+        #        self.addPath(mountpoint)
+
+    #    if windows:
+    #        for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+    #            if os.path.exists(f'{drive_letter}:'):
+    #                self.addPath(f'{drive_letter}:')
+    #    else:
+    #        pass
 
     def AddPathDialog(self):
         if res:=tk.filedialog.askdirectory(title='select Directory',initialdir=self.cwd,parent=self.ScanDialogMainFrame):
@@ -1833,6 +1804,13 @@ class Gui:
         self.SetingsDialog.grab_set()
         self.main.config(cursor="watch")
 
+        self.addCwdAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,True))
+        self.scanAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_SCAN,False))
+        self.showothers.set(self.cfg.Get(CFG_KEY_SHOW_OTHERS,True))
+        self.fullCRC.set(self.cfg.Get(CFG_KEY_FULLCRC,False))
+        self.fullPaths.set(self.cfg.Get(CFG_KEY_FULLPATHS,False))
+        self.relSymlinks.set(self.cfg.Get(CFG_KEY_REL_SYMLINKS,True))
+
         self.SetDefaultGeometryAndShow(self.SetingsDialog,self.main)
 
         self.SetingsDialogDefault.focus_set()
@@ -1916,12 +1894,15 @@ class Gui:
     def UpdateCrcNode(self,crc):
         size=int(self.tree1.set(crc,'size'))
 
+        CrcRemoved=False
         if not size in self.D.filesOfSizeOfCRC:
             self.tree1.delete(crc)
             logging.debug('UpdateCrcNode-1 ' + crc)
+            CrcRemoved=True
         elif crc not in self.D.filesOfSizeOfCRC[size]:
             self.tree1.delete(crc)
             logging.debug('UpdateCrcNode-2 ' + crc)
+            CrcRemoved=True
         else:
             crcDict=self.D.filesOfSizeOfCRC[size][crc]
             for item in list(self.tree1.get_children(crc)):
@@ -1934,6 +1915,7 @@ class Gui:
             if not self.tree1.get_children(crc):
                 self.tree1.delete(crc)
                 logging.debug('UpdateCrcNode-4 ' + crc)
+                CrcRemoved=True
 
     def ByPathCacheUpdate(self):
         self.ByPathCache = { (pathnr,path,file):(size,ctime,dev,inode,crc,self.D.crccut[crc]) for size,sizeDict in self.D.filesOfSizeOfCRC.items() for crc,crcDict in sizeDict.items() for pathnr,path,file,ctime,dev,inode in crcDict }
@@ -1973,15 +1955,9 @@ class Gui:
 
                 for pathnr,path,file,ctime,dev,inode in crcDict:
                     self.tree1.insert(parent=crcitem, index=END,iid=self.idfunc(inode,dev), values=(\
-                            pathnr,\
-                            path,\
-                            file,\
-                            size,\
+                            pathnr,path,file,size,\
                             '',\
-                            ctime,\
-                            dev,\
-                            inode,\
-                            crc,\
+                            ctime,dev,inode,crc,\
                             '',\
                             time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) ,FILE),tags=[])
 
@@ -2021,6 +1997,9 @@ class Gui:
         self.StatusVarPathQuant.set('')
         self.SelectedSearchPath.set('')
         self.SelectedSearchPathCode.set('')
+
+        self.StatusVarFullPath.set("")
+        self.StatusVarFullPathLabel.config(fg = 'black')
 
     sortIndexDict={'file':1,'sizeH':2,'ctimeH':3,'instances':8}
     kindIndex=11
@@ -2380,7 +2359,7 @@ class Gui:
             stat = os.stat(fullpath)
             ctimeCheck=str(round(stat.st_ctime))
         except Exception as e:
-            mesage = f'cant check file: {fullpath}:{e}'
+            mesage = f'can\'t check file: {fullpath}\n\n{e}'
             logging.error(mesage)
             return mesage
 
@@ -2441,7 +2420,7 @@ class Gui:
         if action=="hardlink":
             for crc in ProcessedItems:
                 if len(ProcessedItems[crc])==1:
-                    self.DialogWithEntry(title='Error - Cant hardlink single file.',prompt="                    Mark more files.                    ",parent=self.main,OnlyInfo=True)
+                    self.DialogWithEntry(title='Error - Can\'t hardlink single file.',prompt="                    Mark more files.                    ",parent=self.main,OnlyInfo=True)
 
                     self.SelectFocusAndSeeCrcItemTree(crc,True)
                     return
@@ -2488,7 +2467,7 @@ class Gui:
         for crc in ProcessedItems:
             for item in RemainingItems[crc]:
                 if res:=self.CheckFileState(item):
-                    self.Info(res)
+                    self.Info('Error',res+'\n\nNo action was taken.\n\nAborting. Repeat scanning please or unmark all files and groups affected by other programs.',self.main)
                     logging.error('aborting.')
                     return
         logging.info('remaining files checking complete.')
@@ -2505,6 +2484,11 @@ class Gui:
 
         #####################################
         #action
+
+        self.main.config(cursor="watch")
+        self.main.update()
+
+        orglist=self.tree1.get_children()
 
         if action=='delete':
             for crc in ProcessedItems:
@@ -2552,8 +2536,38 @@ class Gui:
         self.ByPathCacheUpdate()
         self.GroupsNumberUpdate()
         self.FlatItemsListUpdate()
-        self.InitialFocus()
+
+        newlist=self.tree1.get_children()
+
+        if self.SelCrc in newlist:
+            self.SelectFocusAndSeeCrcItemTree(self.SelCrc,True)
+        elif not newlist:
+            self.InitialFocus()
+        else:
+            SelCrcIndex=orglist.index(self.SelCrc)
+
+            NewlistLen=len(newlist)
+            for i in range(NewlistLen):
+                IndexM1 = SelCrcIndex-i
+                IndexP1 = SelCrcIndex+i
+                if IndexM1>=0:
+                    NearestCrc1 = orglist[IndexM1]
+                    if NearestCrc1 in newlist:
+                        self.SelectFocusAndSeeCrcItemTree(NearestCrc1,True)
+                        break
+                elif IndexP1<NewlistLen:
+                    NearestCrc1 = orglist[IndexP1]
+                    if NearestCrc1 in newlist:
+                        self.SelectFocusAndSeeCrcItemTree(NearestCrc1,True)
+                        break
+                else:
+                    self.InitialFocus()
+                    break
+
         self.CalcMarkStatsAll()
+
+        self.main.config(cursor="")
+        self.main.update()
 
     def CleanCache(self):
         try:
@@ -2561,11 +2575,27 @@ class Gui:
         except Exception as e:
             logging.error(e)
 
-    def ClipCopy(self):
+    def ClipCopyFullWithFile(self):
         if self.SelFullPath and self.SelFile:
-            pyperclip.copy(os.sep.join([self.SelFullPath,self.SelFile]))
+            self.ClipCopy(os.path.join(self.SelFullPath,self.SelFile))
         elif self.SelCrc:
-            pyperclip.copy(self.SelCrc)
+            self.ClipCopy(self.SelCrc)
+
+    def ClipCopyFull(self):
+        if self.SelFullPath:
+            self.ClipCopy(self.SelFullPath)
+        elif self.SelCrc:
+            self.ClipCopy(self.SelCrc)
+
+    def ClipCopyFile(self):
+        if self.SelFile:
+            self.ClipCopy(self.SelFile)
+        elif self.SelCrc:
+            self.ClipCopy(self.SelCrc)
+
+    def ClipCopy(self,what):
+        self.main.clipboard_clear()
+        self.main.clipboard_append(what)
 
     def OpenFolder(self):
         if self.SelFullPath:
