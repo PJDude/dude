@@ -30,8 +30,8 @@ jobs:
       run: pip install pyinstaller==5.7.0
 
     - name: STAGE run pyinstaller
-      shell: pwsh
-      run: ".pyinstaller.run.bat"
+      run: "pyinstaller.run.bat"
+      shell: cmd
 
     - uses: actions/upload-artifact@v3
       with:
