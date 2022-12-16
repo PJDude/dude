@@ -1,18 +1,13 @@
 #!/usr/bin/python3
 
-VERSION='0.90'
-
-from sys import exit
+VERSION='0.95'
 
 import fnmatch
 import shutil
 import os
 import os.path
 import pathlib
-from appdirs import *
 import re
-
-from collections import defaultdict
 
 import tkinter as tk
 from tkinter import *
@@ -20,19 +15,24 @@ from tkinter import ttk
 from tkinter import scrolledtext
 from tkinter.filedialog import askdirectory
 
-import time
-
-import configparser
-
+from collections import defaultdict
 from threading import Thread
+from sys import exit
 
+import time
+import configparser
 import logging
 
 import core
 
-CACHE_DIR = os.sep.join([user_cache_dir('dude'),"cache"])
-LOG_DIR = user_log_dir('dude')
-CONFIG_DIR = user_config_dir('dude')
+try:
+    from appdirs import *
+    CACHE_DIR = os.sep.join([user_cache_dir('dude'),"cache"])
+    LOG_DIR = user_log_dir('dude')
+    CONFIG_DIR = user_config_dir('dude')
+except Exception as e:
+    print(e)
+    CONFIG_DIR=LOG_DIR=CACHE_DIR = os.sep.join([os.getcwd(),"dude-no-appdirs"])
 
 k=1024
 M=k*1024
@@ -181,11 +181,6 @@ class Gui:
         return wrapp
 
     #######################################################################
-    #LongActionDialog
-
-    def getNow(self):
-        return time.time()*1000.0
-
     LongActionAbort=False
     def LongActionDialogShow(self,parent,title,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
         self.LADParent=parent
@@ -251,8 +246,6 @@ class Gui:
         tk.Label(f1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg).pack(side='top',padx=8,pady=8,expand=1,fill='x')
         ttk.Button(f1, text='Abort', width=10 ,command=self.LongActionDialogAbort ).pack(side='bottom',padx=8,pady=8)
 
-        self.LastTimeNoSign=self.getNow()
-
         self.LongActionDialog.grab_set()
         self.LongActionDialog.update()
         self.LongActionDialog.geometry(CenterToParentGeometry(self.LongActionDialog,parent))
@@ -273,12 +266,12 @@ class Gui:
     LADPrevMessage=''
     LADPrevProg1=''
     LADPrevProg2=''
+    LastTimeNoSign=0
 
     def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None,PrefixInfo=''):
-        now=self.getNow()
         prefix='\n\n'
-        if self.LADPrevMessage==message and self.LADPrevProg1==progress1Right and self.LADPrevProg2==progress2Right:
-            if now>self.LastTimeNoSign+1000.0:
+        if self.LADPrevProg1==progress1Right and self.LADPrevProg2==progress2Right and self.LADPrevMessage==message:
+            if time.time()>self.LastTimeNoSign+1.0:
                 prefix=str(self.ProgressSigns[self.psIndex]) + "\n" + PrefixInfo + "\n"
                 self.psIndex=(self.psIndex+1)%4
         else:
@@ -286,7 +279,7 @@ class Gui:
             self.LADPrevProg1=progress1Right
             self.LADPrevProg2=progress2Right
 
-            self.LastTimeNoSign=now
+            self.LastTimeNoSign=time.time()
 
             self.Progress1Func(progress1)
             self.progr1LabRight.config(text=progress1Right)
@@ -321,7 +314,7 @@ class Gui:
         self.main.iconphoto(False, self.iconphoto)
 
         self.main.bind('<KeyPress-F2>', lambda event : self.SettingsDialogShow())
-        self.main.bind('<KeyPress-F1>', lambda event : self.KeyboardShortcuts())
+        self.main.bind('<KeyPress-F1>', lambda event : self.About())
         self.main.bind('<KeyPress-s>', lambda event : self.ScanDialogShow())
         self.main.bind('<KeyPress-S>', lambda event : self.ScanDialogShow())
 
@@ -735,8 +728,8 @@ class Gui:
         self.menubar.add_cascade(label = 'Go To',menu = self.GoToCascade)
 
         self.HelpCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
-        self.HelpCascade.add_command(label = 'About',command=self.About)
-        self.HelpCascade.add_command(label = 'Keyboard Shortcuts',command=self.KeyboardShortcuts,accelerator="F1")
+        self.HelpCascade.add_command(label = 'About',command=self.About,accelerator="F1")
+        self.HelpCascade.add_command(label = 'Keyboard Shortcuts',command=self.KeyboardShortcuts)
         self.HelpCascade.add_command(label = 'License',command=self.License)
 
         self.menubar.add_cascade(label = 'Help',menu = self.HelpCascade)
@@ -804,6 +797,210 @@ class Gui:
     def GeometryStore(self,widget):
         self.cfg.Set(self.WidgetId(widget),str(widget.geometry()),section='geometry')
         self.cfg.Write()
+
+    def Find(self):
+        parent=self.main
+        width=400
+        height=200
+        initialvalue=''
+        prompt=''
+
+        parent.config(cursor="watch")
+
+        dialog = tk.Toplevel(parent)
+        dialog.minsize(width, height)
+        dialog.wm_transient(parent)
+        dialog.update()
+        dialog.withdraw()
+        dialog.wm_title("Find")
+        dialog.config(bd=2, relief=FLAT,bg=self.bg)
+        dialog.iconphoto(False, self.iconphoto)
+
+        ModIndex=0
+
+        res=False
+
+        EntryVar=tk.StringVar(value=initialvalue)
+
+        ShowRegExpCheckButton=True
+
+        style = ttk.Style()
+        style.map('Treeview', background=[('focus','#90DD90'),('selected','#90DD90'),('','white')])
+        
+        def over():
+            style = ttk.Style()
+            style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('','white')])
+
+            self.GeometryStore(dialog)
+            dialog.destroy()
+
+            nonlocal ShowRegExpCheckButton
+            nonlocal DialogRegExpr
+            if ShowRegExpCheckButton:
+                self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(DialogRegExpr.get()))
+
+            try:
+                dialog.update()
+            except Exception as e:
+                pass
+            
+            self.tree1.focus(self.SelItem)
+            self.Tree1SelChange(self.SelItem)
+            parent.config(cursor="")
+
+        def EntryEvent(event=None):
+            pass
+
+        def PrevCmd(event=None):
+            nonlocal ModIndex
+            ModIndex-=1
+            FindNowShow()
+
+        def NextCmd(event=None):
+            nonlocal ModIndex
+            ModIndex+=1
+            FindNowShow()
+
+        def Yes(event=None):
+            nonlocal res
+            nonlocal EntryVar
+            res=EntryVar.get()
+            over()
+
+        def CloseCmd(event=None):
+            nonlocal res
+            res=False
+            over()
+
+        dialog.protocol("WM_DELETE_WINDOW", CloseCmd)
+
+        cancel=''
+
+        ResItems=[]
+
+        def ReturnPressed(event=None):
+            nonlocal dialog
+            nonlocal cancel
+
+            focus=dialog.focus_get()
+            if focus!=cancel:
+                Yes()
+            else:
+                CloseCmd()
+
+        def FindNowShow():
+            nonlocal ModIndex
+            nonlocal ResItems
+
+            tree=self.tree1
+
+            if ResItems:
+                itemsLen=len(ResItems)
+
+                NextItem=ResItems[ModIndex%itemsLen]
+
+                #not focus, focus is still on dialog
+                tree.selection_set(NextItem)
+                tree.see(NextItem)
+                tree.update() #?
+
+                self.Tree1SelChange(NextItem)
+
+
+        def FindNow(event=None):
+            nonlocal EntryVar
+            nonlocal DialogRegExpr
+            nonlocal ModIndex
+
+            Expression=EntryVar.get()
+
+            tree=self.tree1
+
+            items=[]
+
+            UseRegExpr=DialogRegExpr.get()
+
+            AllGroups=True
+
+            if tree==self.tree1:
+                if AllGroups:
+                    CrcRange = self.tree1.get_children()
+                else :
+                    CrcRange = [str(self.SelCrc)]
+
+                for crcitem in CrcRange:
+                    for item in self.tree1.get_children(crcitem):
+                        fullpath = self.FullPath1(item)
+                        try:
+                            if (UseRegExpr and re.search(Expression,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,Expression) ):
+                                items.append(item)
+                        except Exception as e:
+
+                            #self.DialogWithEntry(title='Expression Error !',prompt=f'expression:"{Expression}"  {UseRegExprInfo}\n\nERROR:{e}',parent=self.main,OnlyInfo=True)
+                            tree.focus_set()
+                            return
+            else:
+                for item in self.tree2.get_children():
+                    if tree.set(item,'kind')==FILE:
+                        file=self.tree2.set(item,'file')
+                        try:
+                            if (UseRegExpr and re.search(Expression,file)) or (not UseRegExpr and fnmatch.fnmatch(file,Expression) ):
+                                items.append(item)
+                        except Exception as e:
+                            #self.DialogWithEntry(title='Expression Error !',prompt=f'expression:"{Expression}"  {UseRegExprInfo}\n\nERROR:{e}',parent=self.main,OnlyInfo=True)
+                            tree.focus_set()
+                            return
+
+            nonlocal ResItems
+            ResItems=items
+            FindNowShow()
+
+
+        tk.Label(dialog,text=prompt,anchor='n',justify='center',bg=self.bg).grid(sticky='news',row=0,column=0,padx=5,pady=5)
+
+        if ShowRegExpCheckButton:
+            DialogRegExpr=tk.BooleanVar()
+            DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
+            ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=DialogRegExpr).grid(row=1,column=0,sticky='news',padx=5)
+
+        (entry:=ttk.Entry(dialog,textvariable=EntryVar)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
+
+        entry.bind('<KeyRelease>',FindNow)
+
+        (bfr:=tk.Frame(dialog,bg=self.bg)).grid(sticky='news',row=3,column=0,padx=5,pady=5)
+
+
+        Prev=ttk.Button(bfr, text='Previous', width=10, command=PrevCmd)
+        Next=ttk.Button(bfr, text='Next', width=10, command=NextCmd)
+        Prev.pack(side='left', anchor='e',padx=5,pady=5)
+        Next.pack(side='left', anchor='e',padx=5,pady=5)
+        close=ttk.Button(bfr, text='Close', width=10 ,command=CloseCmd)
+        close.pack(side='right', anchor='w',padx=5,pady=5)
+
+        dialog.grid_columnconfigure(0, weight=1)
+        dialog.grid_rowconfigure(0, weight=1)
+
+        dialog.bind('<Escape>', CloseCmd)
+        dialog.bind('<KeyPress-Return>', ReturnPressed)
+
+        PrevGrab = dialog.grab_current()
+
+        self.SetDefaultGeometryAndShow(dialog,parent)
+
+        entry.focus_set()
+
+        dialog.grab_set()
+        parent.wait_window(dialog)
+
+        if PrevGrab:
+            PrevGrab.grab_set()
+        else:
+            dialog.grab_release()
+
+        if ShowRegExpCheckButton:
+            return (res,DialogRegExpr.get())
+        else:
+            return res
 
     def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False,ShowRegExpCheckButton=False,width=400,height=140):
         parent.config(cursor="watch")
@@ -1196,7 +1393,8 @@ class Gui:
                 self.MarkSubpath(self.SetMark,True)
             elif event.keysym=='question':
                 self.MarkSubpath(self.UnsetMark,True)
-
+            elif event.keysym=='f' or event.keysym=='F':
+                self.Find()
             else:
                 #print(event.keysym)
                 pass
@@ -1476,6 +1674,8 @@ class Gui:
         pop.add_command(label = 'Copy',command = self.ClipCopyFullWithFile,accelerator="Ctrl+C",state = 'normal' if self.SelItem!=None else 'disabled')
         pop.add_command(label = 'Copy only path',command = self.ClipCopyFull,accelerator="C",state = 'normal' if self.SelItem!=None else 'disabled')
         pop.add_separator()
+        pop.add_command(label = 'Find',command = self.Find,accelerator="F",state = 'normal' if self.SelItem!=None else 'disabled')
+        pop.add_separator()
 
         pop.add_command(label = "Exit",  command = self.exit)
 
@@ -1557,7 +1757,7 @@ class Gui:
         self.main.update()
 
         #############################
-        self.LongActionDialogShow(self.ScanDialogMainFrame,'scanning')
+        self.LongActionDialogShow(self.ScanDialogMainFrame,'Scanning')
 
         ScanThread=Thread(target=self.D.Scan,daemon=True)
         ScanThread.start()
@@ -2194,11 +2394,12 @@ class Gui:
 
         if tree==self.tree1:
             RangeStr = "all groups" if AllGroups else "selected group"
-            title=f'Specify Expression for full file path in {RangeStr}.'
+            title=f'Specify Expression for full file path.'
         else:
+            RangeStr = ''
             title='Specify Expression for file names in selected directory.'
 
-        (Expression,UseRegExpr) = self.DialogWithEntry(title=title,prompt=prompt, initialvalue=initialvalue,parent=self.main,ShowRegExpCheckButton=True)
+        (Expression,UseRegExpr) = self.DialogWithEntry(title=title,prompt=prompt+ f' ({RangeStr})', initialvalue=initialvalue,parent=self.main,ShowRegExpCheckButton=True)
 
         items=[]
         UseRegExprInfo = '(regular expression)' if UseRegExpr else ''
