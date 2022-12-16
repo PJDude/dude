@@ -31,7 +31,7 @@ jobs:
 
     - name: STAGE run pyinstaller
       shell: pwsh
-      run: ".\pyinstaller.run.bat"
+      run: ".pyinstaller.run.bat"
 
     - uses: actions/upload-artifact@v3
       with:
