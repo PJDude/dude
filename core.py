@@ -119,7 +119,7 @@ class DudeCore:
         self.InfoSizeSum=0
 
         self.ScanResultsBySize.clear()
-        
+
         for PathToScan in self.Paths2Scan:
             loopList=[PathToScan]
 
@@ -248,6 +248,7 @@ class DudeCore:
             with open(os.sep.join([self.CacheDir,str(dev)]),'w' ) as cfile:
                 for (inode,mtime),crc in self.CRCCache[dev].items():
                     cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
+        del self.CRCCache
 
     SubprocessStream=None
 
@@ -302,7 +303,7 @@ class DudeCore:
         self.InfoFileNr=0
 
         self.InfoTotal = len([ 1 for size in self.ScanResultsBySize for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size] ])
-        
+
         for size in list(sorted(self.ScanResultsBySize,reverse=True)):
             if self.AbortAction:
                 break
@@ -325,16 +326,16 @@ class DudeCore:
 
                 if crc:
                     self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
-            
+
             if size in self.filesOfSizeOfCRC:
                 self.CheckCrcPoolAndPrune(size)
-            
+
             if size in self.filesOfSizeOfCRC:
                 self.InfoFoundGroups+=len(self.filesOfSizeOfCRC[size])
                 self.InfoDuplicatesSpace += size*sum([1 for crcDict in self.filesOfSizeOfCRC[size].values() for pathnr,path,file,ctime,dev,inode in crcDict])
-                
+
             self.InfoFoundFolders = len({(pathnr,path) for sizeDict in self.filesOfSizeOfCRC.values() for crcDict in sizeDict.values() for pathnr,path,file,ctime,dev,inode in crcDict})
-            
+
         self.CalcCrcMinLen()
 
         self.WriteCRCCache()
@@ -493,31 +494,31 @@ if __name__ == "__main__":
     from threading import Thread
     import test
     import time
-    
+
     LOG_DIR = "./test/log"
     pathlib.Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
-    
+
     log=LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.log'
-    
+
     print('log:',log)
     logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
-    
+
     print('dude core test ...')
     core=DudeCore('./test/cache',logging)
-    
+
     TestDir='test/files'
     if not os.path.exists(TestDir):
         test.generate(TestDir)
-    
+
     #core.setLimit(100)
     core.SetPathsToScan([TestDir])
     core.SetExcludeMasks(False,[])
-    
+
     core.writeLog=True
-    
+
     ScanThread=Thread(target=core.Scan,daemon=True)
     ScanThread.start()
-        
+
     while ScanThread.is_alive():
         print('Scanning ...', core.InfoCounter,end='\r')
         time.sleep(0.04)
@@ -526,7 +527,7 @@ if __name__ == "__main__":
 
     ScanThread=Thread(target=core.CrcCalc,daemon=True)
     ScanThread.start()
-        
+
     while ScanThread.is_alive():
         print(f'CrcCalc...{core.InfoFileNr}/{core.InfoTotal} (size:{core.InfoCurrentSize})                ',end='\r')
         time.sleep(0.04)
@@ -535,5 +536,4 @@ if __name__ == "__main__":
 
     print('')
     print('Done')
-    
-    
+
