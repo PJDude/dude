@@ -337,9 +337,15 @@ class Gui:
 
         style.map("Treeview.Heading",  relief=[('','raised')] )
         style.configure("Treeview",rowheight=18)
-
-        #style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('',self.bg)])
-        style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('','white')])
+        
+        FocusBg='#90DD90'
+        SelBg='#AAAAAA'
+        
+        #style.map('Treeview', background=[('focus',FocusBg),('selected',SelBg),('',self.bg)])
+        style.map('Treeview', background=[('focus',FocusBg),('selected',SelBg),('','white')])
+        
+        style.map('semi_focus.Treeview', background=[('focus',FocusBg),('selected',FocusBg),('','white')])
+        style.map('default.Treeview', background=[('focus',FocusBg),('selected',SelBg),('','white')])
 
         #works but not for every theme
         #style.configure("Treeview", fieldbackground=self.bg)
@@ -535,7 +541,9 @@ class Gui:
 
         self.Popup2 = Menu(self.tree2, tearoff=0,bg=self.bg)
         self.Popup2.bind("<FocusOut>",lambda event : self.Popup2.unpost() )
-
+        
+        self.FindEntryVar=tk.StringVar(value='')
+        
         #######################################################################
         #scan dialog
 
@@ -578,9 +586,6 @@ class Gui:
         self.ScanDialog.bind('<Alt_L><A>',lambda event : self.AddPathDialog())
         self.ScanDialog.bind('<Alt_L><s>',lambda event : self.Scan())
         self.ScanDialog.bind('<Alt_L><S>',lambda event : self.Scan())
-
-        #self.ScanDialog.bind('<Alt_L><D>',lambda event : self.AddDrives())
-        #self.ScanDialog.bind('<Alt_L><d>',lambda event : self.AddDrives())
 
         self.ScanDialog.bind('<Alt_L><E>',lambda event : self.AddExckludeMaskDialog())
         self.ScanDialog.bind('<Alt_L><e>',lambda event : self.AddExckludeMaskDialog())
@@ -797,210 +802,227 @@ class Gui:
     def GeometryStore(self,widget):
         self.cfg.Set(self.WidgetId(widget),str(widget.geometry()),section='geometry')
         self.cfg.Write()
+    
+    FindResult=[]
+    FindEntryModified=1
+    FindTreeIndex=-1
+    
+    def FindPrev(self):
+        if not self.FindResult or self.FindTreeIndex!=self.SelTreeIndex:
+            self.FindDialogShow()
+        else:
+            self.FindSelection(-1)
+            
+    def FindNext(self):
+        if not self.FindResult or self.FindTreeIndex!=self.SelTreeIndex:
+            self.FindDialogShow()
+        else:
+            self.FindSelection(1)
+        
+    FindModIndex=0
+    FindTree=''
+    FindDialogShown=0
+    
+    def FindDialogShow(self):
+        self.main.config(cursor="watch")
+        self.FindDialogShown=1
+        self.FindEntryModified=1
 
-    def Find(self):
-        parent=self.main
-        width=400
-        height=200
-        initialvalue=''
-        prompt=''
-
-        parent.config(cursor="watch")
-
-        dialog = tk.Toplevel(parent)
-        dialog.minsize(width, height)
-        dialog.wm_transient(parent)
+        self.FindDialog=dialog = tk.Toplevel(self.main)
+        dialog.minsize(400, 100)
+        dialog.wm_transient(self.main)
         dialog.update()
         dialog.withdraw()
-        dialog.wm_title("Find")
+        ScopeInfo = 'all groups.' if self.SelTreeIndex==0 else 'selected directory.'
+        
+        dialog.wm_title(f"Find duplicate in {ScopeInfo}")
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, self.iconphoto)
 
-        ModIndex=0
-
-        res=False
-
-        EntryVar=tk.StringVar(value=initialvalue)
-
-        ShowRegExpCheckButton=True
-
-        style = ttk.Style()
-        style.map('Treeview', background=[('focus','#90DD90'),('selected','#90DD90'),('','white')])
+        tree,otherTree=(self.tree1,self.tree2) if self.SelTreeIndex==0 else (self.tree2,self.tree1)
         
-        def over():
-            style = ttk.Style()
-            style.map('Treeview', background=[('focus','#90DD90'),('selected','#AAAAAA'),('','white')])
-
+        tree.configure(style='semi_focus.Treeview')
+        
+        self.FindTree=tree
+        
+        def over(event=None):
+            nonlocal self
+            
+            tree.configure(style='default.Treeview')
+            self.FindDialogShown=0
+            
             self.GeometryStore(dialog)
             dialog.destroy()
 
-            nonlocal ShowRegExpCheckButton
             nonlocal DialogRegExpr
-            if ShowRegExpCheckButton:
-                self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(DialogRegExpr.get()))
+            
+            self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(DialogRegExpr.get()))
 
             try:
                 dialog.update()
             except Exception as e:
                 pass
             
-            self.tree1.focus(self.SelItem)
-            self.Tree1SelChange(self.SelItem)
-            parent.config(cursor="")
+            self.FindTree.focus(self.SelItem)
+            self.main.config(cursor="")
 
         def EntryEvent(event=None):
-            pass
+            nonlocal self
+            
+            self.FindEntryModified=1
+            self.FindModIndex=0
 
         def PrevCmd(event=None):
-            nonlocal ModIndex
-            ModIndex-=1
-            FindNowShow()
+            nonlocal self
+            FindItems()
+            self.FindSelection(-1)
 
         def NextCmd(event=None):
-            nonlocal ModIndex
-            ModIndex+=1
-            FindNowShow()
+            nonlocal self
+            FindItems()
+            self.FindSelection(1)
 
-        def Yes(event=None):
-            nonlocal res
-            nonlocal EntryVar
-            res=EntryVar.get()
-            over()
+        dialog.protocol("WM_DELETE_WINDOW", over)
 
-        def CloseCmd(event=None):
-            nonlocal res
-            res=False
-            over()
-
-        dialog.protocol("WM_DELETE_WINDOW", CloseCmd)
-
-        cancel=''
-
-        ResItems=[]
-
+        Entry=''
+        Close=''
+        Next=''
+        Prev=''
+        
+        def F3Pressed(event=None):
+            StrEvent=str(event)
+            ShiftPressed = 'Shift' in StrEvent
+            
+            if ShiftPressed:
+                PrevCmd()
+            else:
+                NextCmd()
+            
         def ReturnPressed(event=None):
             nonlocal dialog
-            nonlocal cancel
+            nonlocal Next
+            nonlocal Prev
+            nonlocal Close
+            nonlocal Entry
 
             focus=dialog.focus_get()
-            if focus!=cancel:
-                Yes()
-            else:
-                CloseCmd()
+            if focus==Next or focus==Entry:
+                NextCmd()
+            elif focus==Prev:
+                PrevCmd()
+            elif focus==Close:
+                over()
 
-        def FindNowShow():
-            nonlocal ModIndex
-            nonlocal ResItems
-
-            tree=self.tree1
-
-            if ResItems:
-                itemsLen=len(ResItems)
-
-                NextItem=ResItems[ModIndex%itemsLen]
-
-                #not focus, focus is still on dialog
-                tree.selection_set(NextItem)
-                tree.see(NextItem)
-                tree.update() #?
-
-                self.Tree1SelChange(NextItem)
-
-
-        def FindNow(event=None):
-            nonlocal EntryVar
+        def FindItems(event=None):
             nonlocal DialogRegExpr
-            nonlocal ModIndex
+            nonlocal self
+            
+            if self.FindEntryModified:
+                Expression=self.FindEntryVar.get()
 
-            Expression=EntryVar.get()
+                tree=self.FindTree
+                self.FindTreeIndex=self.SelTreeIndex
 
-            tree=self.tree1
+                items=[]
 
-            items=[]
+                UseRegExpr=DialogRegExpr.get()
 
-            UseRegExpr=DialogRegExpr.get()
+                AllGroups=True
 
-            AllGroups=True
+                if tree==self.tree1:
+                    if AllGroups:
+                        CrcRange = self.tree1.get_children()
+                    else :
+                        CrcRange = [str(self.SelCrc)]
 
-            if tree==self.tree1:
-                if AllGroups:
-                    CrcRange = self.tree1.get_children()
-                else :
-                    CrcRange = [str(self.SelCrc)]
+                    try:
+                        for crcitem in CrcRange:
+                            for item in self.tree1.get_children(crcitem):
+                                fullpath = self.FullPath1(item)
+                                if (UseRegExpr and re.search(Expression,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,Expression) ):
+                                    items.append(item)
+                    except Exception as e:
+                        self.DialogWithEntry(title='Error',prompt=e,parent=self.FindDialog,OnlyInfo=True,width=300,height=100)
+                        return
+                else:
+                    try:
+                        for item in self.tree2.get_children():
+                            if tree.set(item,'kind')==FILE:
+                                file=self.tree2.set(item,'file')
+                                if (UseRegExpr and re.search(Expression,file)) or (not UseRegExpr and fnmatch.fnmatch(file,Expression) ):
+                                    items.append(item)
+                    except Exception as e:
+                        self.DialogWithEntry(title='Error',prompt=e,parent=self.FindDialog,OnlyInfo=True,width=300,height=100)
+                        return
 
-                for crcitem in CrcRange:
-                    for item in self.tree1.get_children(crcitem):
-                        fullpath = self.FullPath1(item)
-                        try:
-                            if (UseRegExpr and re.search(Expression,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,Expression) ):
-                                items.append(item)
-                        except Exception as e:
+                self.FindResult=items
+                if items:
+                    self.FindEntryModified=0
+                
+                if not self.FindResult:
+                    ScopeInfo = 'Scope: All groups.' if self.FindTreeIndex==0 else 'Scope: Selected directory.'
+                    self.DialogWithEntry(title=ScopeInfo,prompt='No duplicates found.',parent=self.FindDialog,OnlyInfo=True,width=300,height=100)
+                    
 
-                            #self.DialogWithEntry(title='Expression Error !',prompt=f'expression:"{Expression}"  {UseRegExprInfo}\n\nERROR:{e}',parent=self.main,OnlyInfo=True)
-                            tree.focus_set()
-                            return
-            else:
-                for item in self.tree2.get_children():
-                    if tree.set(item,'kind')==FILE:
-                        file=self.tree2.set(item,'file')
-                        try:
-                            if (UseRegExpr and re.search(Expression,file)) or (not UseRegExpr and fnmatch.fnmatch(file,Expression) ):
-                                items.append(item)
-                        except Exception as e:
-                            #self.DialogWithEntry(title='Expression Error !',prompt=f'expression:"{Expression}"  {UseRegExprInfo}\n\nERROR:{e}',parent=self.main,OnlyInfo=True)
-                            tree.focus_set()
-                            return
+        tk.Label(dialog,text='',anchor='n',justify='center',bg=self.bg).grid(sticky='news',row=0,column=0,padx=5,pady=5)
 
-            nonlocal ResItems
-            ResItems=items
-            FindNowShow()
+        DialogRegExpr=tk.BooleanVar()
+        DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
+        ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=DialogRegExpr).grid(row=1,column=0,sticky='news',padx=5)
 
-
-        tk.Label(dialog,text=prompt,anchor='n',justify='center',bg=self.bg).grid(sticky='news',row=0,column=0,padx=5,pady=5)
-
-        if ShowRegExpCheckButton:
-            DialogRegExpr=tk.BooleanVar()
-            DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
-            ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=DialogRegExpr).grid(row=1,column=0,sticky='news',padx=5)
-
-        (entry:=ttk.Entry(dialog,textvariable=EntryVar)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
-
-        entry.bind('<KeyRelease>',FindNow)
+        (Entry:=ttk.Entry(dialog,textvariable=self.FindEntryVar)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
+        Entry.bind('<KeyRelease>',EntryEvent)
 
         (bfr:=tk.Frame(dialog,bg=self.bg)).grid(sticky='news',row=3,column=0,padx=5,pady=5)
 
-
-        Prev=ttk.Button(bfr, text='Previous', width=10, command=PrevCmd)
-        Next=ttk.Button(bfr, text='Next', width=10, command=NextCmd)
+        Prev=ttk.Button(bfr, text='Prev (Shift+F3)', width=12, command=PrevCmd)
+        Next=ttk.Button(bfr, text='Next (F3)', width=12, command=NextCmd)
         Prev.pack(side='left', anchor='e',padx=5,pady=5)
         Next.pack(side='left', anchor='e',padx=5,pady=5)
-        close=ttk.Button(bfr, text='Close', width=10 ,command=CloseCmd)
-        close.pack(side='right', anchor='w',padx=5,pady=5)
+        Close=ttk.Button(bfr, text='Close', width=10 ,command=over)
+        Close.pack(side='right', anchor='w',padx=5,pady=5)
 
         dialog.grid_columnconfigure(0, weight=1)
         dialog.grid_rowconfigure(0, weight=1)
 
-        dialog.bind('<Escape>', CloseCmd)
+        dialog.bind('<Escape>', over)
         dialog.bind('<KeyPress-Return>', ReturnPressed)
+        dialog.bind('<KeyPress-F3>', F3Pressed)
 
         PrevGrab = dialog.grab_current()
 
-        self.SetDefaultGeometryAndShow(dialog,parent)
+        self.SetDefaultGeometryAndShow(dialog,self.main)
 
-        entry.focus_set()
+        Entry.focus_set()
 
         dialog.grab_set()
-        parent.wait_window(dialog)
+        self.main.wait_window(dialog)
 
         if PrevGrab:
             PrevGrab.grab_set()
         else:
             dialog.grab_release()
 
-        if ShowRegExpCheckButton:
-            return (res,DialogRegExpr.get())
-        else:
-            return res
+    def FindSelection(self,mod):
+        if self.FindResult:
+            itemsLen=len(self.FindResult)
+            self.FindModIndex+=mod
+            NextItem=self.FindResult[self.FindModIndex%itemsLen]
+                
+            if self.FindDialogShown:
+                #focus is still on find dialog
+                self.FindTree.selection_set(NextItem)
+            else:
+                self.FindTree.focus_set()
+                self.FindTree.focus(NextItem)
+
+            self.FindTree.see(NextItem)
+            self.FindTree.update()
+        
+            if self.FindTree==self.tree1:
+                self.Tree1SelChange(NextItem)
+            else:
+                self.Tree2SelChange(NextItem)
 
     def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False,ShowRegExpCheckButton=False,width=400,height=140):
         parent.config(cursor="watch")
@@ -1294,7 +1316,7 @@ class Gui:
             self.FromTabSwicth=True
         elif event.keysym=='KP_Multiply' or event.keysym=='asterisk':
             self.MarkOnAll(self.InvertMark)
-        elif event.keysym=='F3' or event.keysym=='Return':
+        elif event.keysym=='Return':
             item=tree.focus()
             if item:
                 if tree.set(item,'kind')!=CRC:
@@ -1313,6 +1335,12 @@ class Gui:
             CtrPressed = 'Control' in StrEvent
             ShiftPressed = 'Shift' in StrEvent
 
+            if event.keysym=='F3':
+                if ShiftPressed:
+                    self.FindPrev()
+                else:
+                    self.FindNext()
+            
             if event.keysym == "Delete":
                 self.ProcessFiles('delete',CtrPressed)
             elif event.keysym == "Insert":
@@ -1394,7 +1422,7 @@ class Gui:
             elif event.keysym=='question':
                 self.MarkSubpath(self.UnsetMark,True)
             elif event.keysym=='f' or event.keysym=='F':
-                self.Find()
+                self.FindDialogShow()
             else:
                 #print(event.keysym)
                 pass
@@ -1674,7 +1702,7 @@ class Gui:
         pop.add_command(label = 'Copy',command = self.ClipCopyFullWithFile,accelerator="Ctrl+C",state = 'normal' if self.SelItem!=None else 'disabled')
         pop.add_command(label = 'Copy only path',command = self.ClipCopyFull,accelerator="C",state = 'normal' if self.SelItem!=None else 'disabled')
         pop.add_separator()
-        pop.add_command(label = 'Find',command = self.Find,accelerator="F",state = 'normal' if self.SelItem!=None else 'disabled')
+        pop.add_command(label = 'Find',command = self.FindDialogShow,accelerator="F",state = 'normal' if self.SelItem!=None else 'disabled')
         pop.add_separator()
 
         pop.add_command(label = "Exit",  command = self.exit)
