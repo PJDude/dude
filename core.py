@@ -49,10 +49,12 @@ class DudeCore:
 
     def SetPathsToScan(self,paths):
         pathsLen=len(paths)
-        abspaths=[os.path.abspath(path) for path in paths]
-
+        
         if self.windows:
-            abspaths=[path.replace('/','\\').upper() for path in abspaths]
+            paths=[path + ('\\' if path[-1]==':' else '') for path in paths ]
+            paths=[path.replace('/','\\').upper() for path in paths]
+        
+        abspaths=[os.path.abspath(path) for path in paths]
 
         for path in abspaths:
             if not os.path.exists(path) or not os.path.isdir(path):
