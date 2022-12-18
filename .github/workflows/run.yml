@@ -56,6 +56,9 @@ jobs:
     - name: STAGE requirements
       run: pip install -r requirements.txt
 
+    - name: STAGE install pyinstaller
+      run: pip install pyinstaller==5.7.0
+    
     - name: STAGE find myself
       run: pwd
     
@@ -65,11 +68,11 @@ jobs:
     - name: STAGE strip libs
       run: find $pythonLocation -name *.so* -type f -exec strip {} \;
 
-    - name: STAGE pyinstaller
-      run: pip install pyinstaller==5.7.0
-
     - name: STAGE run pyinstaller
       run: bash "pyinstaller.run.sh"
+
+    - name: STAGE check executable file
+      run: ls -l ./dist/dude
 
     - uses: actions/upload-artifact@v3
       with:

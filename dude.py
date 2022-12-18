@@ -132,7 +132,8 @@ class Config:
             logging.warning(e)
             res=default
             self.Set(key,str(default),section=section)
-        return res
+        
+        return res.replace('[','').replace(']','').replace('"','').replace("'",'').replace(',','')
 
 def CenterToParentGeometry(widget,parent):
     x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -675,14 +676,14 @@ class Gui:
 
         row = 0
         self.AddCwdCB=ttk.Checkbutton(fr, text = 'At startup add current directory to paths to scan', variable=self.addCwdAtStartup,command=lambda : AddPathAtStartupChange(self) )
-        self.AddCwdCB.grid(row=row,column=0,sticky='wens') ; row+=1
+        self.AddCwdCB.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         self.StartScanCB=ttk.Checkbutton(fr, text = 'Start scanning at startup', variable=self.scanAtStartup,command=lambda : ScanAtStartupChange(self)                              )
-        self.StartScanCB.grid(row=row,column=0,sticky='wens') ; row+=1
+        self.StartScanCB.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
-        ttk.Checkbutton(fr, text = 'Show non-duplicate items on directory panel', variable=self.showothers      ).grid(row=row,column=0,sticky='wens') ; row+=1
-        ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.fullCRC                                       ).grid(row=row,column=0,sticky='wens') ; row+=1
-        ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.fullPaths                              ).grid(row=row,column=0,sticky='wens') ; row+=1
-        ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.relSymlinks                  ).grid(row=row,column=0,sticky='wens') ; row+=1
+        ttk.Checkbutton(fr, text = 'Show non-duplicate items on directory panel', variable=self.showothers      ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.fullCRC                                       ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.fullPaths                              ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.relSymlinks                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
         bfr=tk.Frame(fr,bg=self.bg)
         fr.grid_rowconfigure(row, weight=1); row+=1
@@ -801,8 +802,9 @@ class Gui:
             else:
                 widget.geometry(CenterToScreenGeometry(widget))
         except Exception as e:
-            print(e)
-
+            print('widget:',widget,'parent:',parent,'error:',e)
+            CfgGeometry = None
+        
         widget.deiconify()
 
         #prevent displacement
@@ -2054,13 +2056,6 @@ class Gui:
             except Exception as e:
                 print(e)
         
-        #self.addCwdAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,True))
-        #self.scanAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_SCAN,False))
-        #self.showothers.set(self.cfg.Get(CFG_KEY_SHOW_OTHERS,True))
-        #self.fullCRC.set(self.cfg.Get(CFG_KEY_FULLCRC,False))
-        #self.fullPaths.set(self.cfg.Get(CFG_KEY_FULLPATHS,False))
-        #self.relSymlinks.set(self.cfg.Get(CFG_KEY_REL_SYMLINKS,True))
-
         self.SetDefaultGeometryAndShow(self.SetingsDialog,self.main)
 
         self.SetingsDialogDefault.focus_set()
