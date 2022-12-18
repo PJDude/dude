@@ -133,7 +133,7 @@ class Config:
             res=default
             self.Set(key,str(default),section=section)
         
-        return res.replace('[','').replace(']','').replace('"','').replace("'",'').replace(',','').replace(' ','')
+        return str(res).replace('[','').replace(']','').replace('"','').replace("'",'').replace(',','').replace(' ','')
 
 def CenterToParentGeometry(widget,parent):
     x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -2433,6 +2433,7 @@ class Gui:
 
     TreeExpr={}
 
+    @KeepSemiFocus
     def MarkExpression(self,action,prompt,AllGroups=True):
         tree=self.main.focus_get()
 
@@ -2442,13 +2443,13 @@ class Gui:
             initialvalue='.*'
 
         if tree==self.tree1:
-            RangeStr = "all groups" if AllGroups else "selected group"
+            RangeStr = " (all groups)" if AllGroups else " (selected group)"
             title=f'Specify Expression for full file path.'
         else:
             RangeStr = ''
             title='Specify Expression for file names in selected directory.'
 
-        (Expression,UseRegExpr) = self.DialogWithEntry(title=title,prompt=prompt+ f' ({RangeStr})', initialvalue=initialvalue,parent=self.main,ShowRegExpCheckButton=True)
+        (Expression,UseRegExpr) = self.DialogWithEntry(title=title,prompt=prompt + f'{RangeStr}', initialvalue=initialvalue,parent=self.main,ShowRegExpCheckButton=True)
 
         items=[]
         UseRegExprInfo = '(regular expression)' if UseRegExpr else ''
