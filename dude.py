@@ -133,7 +133,7 @@ class Config:
             res=default
             self.Set(key,str(default),section=section)
         
-        return res.replace('[','').replace(']','').replace('"','').replace("'",'').replace(',','')
+        return res.replace('[','').replace(']','').replace('"','').replace("'",'').replace(',','').replace(' ','')
 
 def CenterToParentGeometry(widget,parent):
     x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -820,12 +820,14 @@ class Gui:
     FindEntryModified=1
     FindTreeIndex=-1
     
+    @MainWatchCursor
     def FindPrev(self):
         if not self.FindResult or self.FindTreeIndex!=self.SelTreeIndex:
             self.FindDialogShow()
         else:
             self.FindSelection(-1)
-            
+    
+    @MainWatchCursor            
     def FindNext(self):
         if not self.FindResult or self.FindTreeIndex!=self.SelTreeIndex:
             self.FindDialogShow()
@@ -984,8 +986,8 @@ class Gui:
 
         (bfr:=tk.Frame(dialog,bg=self.bg)).grid(sticky='news',row=3,column=0,padx=5,pady=5)
 
-        Prev=ttk.Button(bfr, text='Prev (Shift+F3)', width=12, command=PrevCmd)
-        Next=ttk.Button(bfr, text='Next (F3)', width=12, command=NextCmd)
+        Prev=ttk.Button(bfr, text='Prev (Shift+F3)', width=14, command=PrevCmd)
+        Next=ttk.Button(bfr, text='Next (F3)', width=14, command=NextCmd)
         Prev.pack(side='left', anchor='e',padx=5,pady=5)
         Next.pack(side='left', anchor='e',padx=5,pady=5)
         Close=ttk.Button(bfr, text='Close', width=10 ,command=over)
@@ -1012,6 +1014,7 @@ class Gui:
         else:
             dialog.grab_release()
 
+    @MainWatchCursor
     def FindSelection(self,mod):
         if self.FindResult:
             itemsLen=len(self.FindResult)
@@ -1260,6 +1263,7 @@ class Gui:
     reftuple1=('1','2','3','4','5','6','7')
     reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
 
+    @MainWatchCursor
     def KeyPressTreeCommon(self,event):
         tree=event.widget
         item=tree.focus()
@@ -2545,6 +2549,7 @@ class Gui:
 
                     break
 
+    @MainWatchCursor
     def GoToMaxGroup(self,sizeFlag=0):
         biggestsizesum=0
         biggestcrc=None
@@ -2556,7 +2561,8 @@ class Gui:
 
         if biggestcrc:
             self.SelectFocusAndSeeCrcItemTree(biggestcrc,True)
-
+    
+    @MainWatchCursor
     def GoToMaxFolder(self,sizeFlag=0):
         PathStat={}
         Biggest={}
