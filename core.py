@@ -10,6 +10,9 @@ import pathlib
 import fnmatch
 import re
 
+import time
+import hashlib
+
 class DudeCore:
     ScanResultsBySize=defaultdict(set)
     filesOfSizeOfCRC=defaultdict(lambda : defaultdict(set))
@@ -289,7 +292,11 @@ class DudeCore:
     InfoFoundGroups=0
     InfoFoundFolders=0
     InfoDuplicatesSpace=0
-
+    infoSpeed=0
+    
+    SizeThreshold=64*1024*1024
+    CacheSizeTheshold=1024*1024
+    
     def CrcCalc(self):
         self.ReadCRCCache()
 
@@ -303,14 +310,20 @@ class DudeCore:
         self.InfoFoundFolders=0
         self.InfoDuplicatesSpace=0
         self.InfoFileNr=0
-
+        self.infoSpeed=0
+        
         self.InfoTotal = len([ 1 for size in self.ScanResultsBySize for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size] ])
 
+        MeasuresPool=[]
+        
+        start = time.time()
         for size in list(sorted(self.ScanResultsBySize,reverse=True)):
             if self.AbortAction:
                 break
 
             self.InfoCurrentSize=size
+            UseCache = True if size>self.CacheSizeTheshold else False
+            UseHashlib = True size<self.SizeThreshold else False
             for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size]:
                 self.InfoCurrentFile=file
                 if self.AbortAction:
@@ -318,16 +331,43 @@ class DudeCore:
 
                 self.InfoFileNr+=1
                 self.InfoSizeDone+=size
-
-                CacheKey=(int(inode),int(mtime))
-                if CacheKey in self.CRCCache[dev]:
-                    crc=self.CRCCache[dev][CacheKey]
-                else:
-                    if crc:=self.Run([self.CRCExec,self.CRCExecParams,self.Path2ScanFull(pathnr,path,file)]):
-                        self.CRCCache[dev][CacheKey]=crc
-
+                
+                crc=None
+                    
+                if UseCache:
+                    CacheKey=(int(inode),int(mtime))
+                    if CacheKey in self.CRCCache[dev]:
+                        crc=self.CRCCache[dev][CacheKey]
+                
+                if not crc:
+                    FullPath=self.Path2ScanFull(pathnr,path,file)
+                    
+                    if UseHashlib:
+                        try:
+                            f=open(FullPath,'rb')
+                            crc=hashlib.sha1(f.read()).hexdigest()
+                            f.close()
+                        except Exception as e:
+                            self.Log.error(e)
+                            crc=None
+                        else:
+                            if UseCache:
+                                self.CRCCache[dev][CacheKey]=crc
+                    else:
+                        crc=self.Run([self.CRCExec,self.CRCExecParams,FullPath])
+                        if crc:        
+                            if UseCache:
+                                self.CRCCache[dev][CacheKey]=crc
                 if crc:
                     self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
+                
+                now=time.time()
+                MeasuresPool.append((size,now))
+                
+                MeasuresPool=MeasuresPool[-100:]
+                LastPeriodSizeSum=sum([size for (size,time) in MeasuresPool])
+                if timeDIff:=now-MeasuresPool[0][1]:
+                    self.infoSpeed=int(LastPeriodSizeSum/timeDIff)
 
             if size in self.filesOfSizeOfCRC:
                 self.CheckCrcPoolAndPrune(size)
@@ -337,7 +377,11 @@ class DudeCore:
                 self.InfoDuplicatesSpace += size*sum([1 for crcDict in self.filesOfSizeOfCRC[size].values() for pathnr,path,file,ctime,dev,inode in crcDict])
 
             self.InfoFoundFolders = len({(pathnr,path) for sizeDict in self.filesOfSizeOfCRC.values() for crcDict in sizeDict.values() for pathnr,path,file,ctime,dev,inode in crcDict})
-
+            
+        end=time.time()
+        
+        self.Log.debug('total time = ',(end-start),'s')
+        
         self.CalcCrcMinLen()
 
         self.WriteCRCCache()

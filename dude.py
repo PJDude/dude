@@ -9,6 +9,10 @@ import os.path
 import pathlib
 import re
 
+import time
+import configparser
+import logging
+
 import tkinter as tk
 from tkinter import *
 from tkinter import ttk
@@ -19,9 +23,6 @@ from collections import defaultdict
 from threading import Thread
 from sys import exit
 
-import time
-import configparser
-import logging
 
 import core
 
@@ -1844,7 +1845,8 @@ class Gui:
                     + '\nfolders: ' + str(self.D.InfoFoundFolders) \
                     + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) \
                     + '\n' \
-                    + '\ncurrent file size: ' + bytes2str(self.D.InfoCurrentSize)
+                    + '\ncurrent file size: ' + bytes2str(self.D.InfoCurrentSize) \
+                    + '\n\nSpeed:' + bytes2str(self.D.infoSpeed) + '/s'
             self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,PrefixInfo=self.D.InfoCurrentFile)
 
             if self.LongActionAbort:
