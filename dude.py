@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-VERSION='0.95'
+VERSION='0.96'
 
 import fnmatch
 import shutil

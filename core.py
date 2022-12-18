@@ -323,7 +323,7 @@ class DudeCore:
 
             self.InfoCurrentSize=size
             UseCache = True if size>self.CacheSizeTheshold else False
-            UseHashlib = True size<self.SizeThreshold else False
+            UseHashlib = True if size<self.SizeThreshold else False
             for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size]:
                 self.InfoCurrentFile=file
                 if self.AbortAction:
