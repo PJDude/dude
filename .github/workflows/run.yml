@@ -8,35 +8,35 @@ permissions:
   contents: read
 
 jobs:
-  .build-win:
-    runs-on: windows-latest
+#  build-win:
+#    runs-on: windows-latest
 
-    steps:
-    - uses: actions/checkout@v3
+#    steps:
+#    - uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
-        check-latest: true
+#    - name: Set up Python
+#      uses: actions/setup-python@v4
+#      with:
+#        python-version: "3.10"
+#        check-latest: true
 
-    - name: STAGE pip upgrade
-      run: python -m pip install --upgrade pip
+#    - name: STAGE pip upgrade
+#      run: python -m pip install --upgrade pip
 
-    - name: STAGE requirements
-      run: pip install -r requirements.txt
+#    - name: STAGE requirements
+#      run: pip install -r requirements.txt
 
-    - name: STAGE pyinstaller
-      run: pip install pyinstaller==5.7.0
+#    - name: STAGE pyinstaller
+#      run: pip install pyinstaller==5.7.0
 
-    - name: STAGE run pyinstaller
-      run: "pyinstaller.run.bat"
-      shell: cmd
+#    - name: STAGE run pyinstaller
+#      run: "pyinstaller.run.bat"
+#      shell: cmd
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: dude-win
-        path: "./dist/dude.exe"
+#    - uses: actions/upload-artifact@v3
+#      with:
+#        name: dude-win
+#        path: "./dist/dude.exe"
 
   build-lin:
     runs-on: ubuntu-latest
