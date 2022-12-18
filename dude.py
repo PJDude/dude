@@ -180,6 +180,17 @@ class Gui:
             return res
         return wrapp
 
+    def KeepSemiFocus(f):
+        def wrapp(self,*args,**kwargs):
+            tree=self.main.focus_get()
+            
+            tree.configure(style='semi_focus.Treeview')
+            res=f(self,*args,**kwargs)
+            tree.configure(style='default.Treeview')
+            
+            return res
+        return wrapp
+        
     #######################################################################
     LongActionAbort=False
     def LongActionDialogShow(self,parent,title,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
@@ -708,10 +719,6 @@ class Gui:
             self.FileCascade.add_separator()
             self.FileCascade.add_command(label = 'Settings',command=self.SettingsDialogShow, accelerator="F2")
             self.FileCascade.add_separator()
-
-            self.FileCascade.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return",state=ItemActionsState)
-            self.FileCascade.add_command(label = 'Open Folder',command = self.OpenFolder,state=ItemActionsState)
-            self.FileCascade.add_separator()
             self.FileCascade.add_command(label = 'Erase CRC Cache',command = self.CleanCache)
             self.FileCascade.add_separator()
             self.FileCascade.add_command(label = 'Exit',command = self.exit)
@@ -783,22 +790,26 @@ class Gui:
         return widget.wm_title().split(' ')[0]
 
     def SetDefaultGeometryAndShow(self,widget,parent):
-        widget.update()
-        CfgGeometry=self.cfg.Get(self.WidgetId(widget),None,section='geometry')
+        try:
+            widget.update()
+            CfgGeometry=self.cfg.Get(self.WidgetId(widget),None,section='geometry')
 
-        if CfgGeometry != None and CfgGeometry != 'None':
-            widget.geometry(CfgGeometry)
-        elif parent :
-            widget.geometry(CenterToParentGeometry(widget,parent))
-        else:
-            widget.geometry(CenterToScreenGeometry(widget))
+            if CfgGeometry != None and CfgGeometry != 'None':
+                widget.geometry(CfgGeometry)
+            elif parent :
+                widget.geometry(CenterToParentGeometry(widget,parent))
+            else:
+                widget.geometry(CenterToScreenGeometry(widget))
+        except Exception as e:
+            print(e)
 
         widget.deiconify()
 
         #prevent displacement
         if CfgGeometry != None and CfgGeometry != 'None':
             widget.geometry(CfgGeometry)
-
+        
+            
     def GeometryStore(self,widget):
         self.cfg.Set(self.WidgetId(widget),str(widget.geometry()),section='geometry')
         self.cfg.Write()
@@ -822,7 +833,10 @@ class Gui:
     FindModIndex=0
     FindTree=''
     FindDialogShown=0
+    FindDialogRegExprPrev=''
+    FindEntryVarPrev=''
     
+    @KeepSemiFocus
     def FindDialogShow(self):
         self.main.config(cursor="watch")
         self.FindDialogShown=1
@@ -841,22 +855,17 @@ class Gui:
 
         tree,otherTree=(self.tree1,self.tree2) if self.SelTreeIndex==0 else (self.tree2,self.tree1)
         
-        tree.configure(style='semi_focus.Treeview')
-        
         self.FindTree=tree
         
         def over(event=None):
             nonlocal self
             
-            tree.configure(style='default.Treeview')
             self.FindDialogShown=0
             
             self.GeometryStore(dialog)
             dialog.destroy()
 
-            nonlocal DialogRegExpr
-            
-            self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(DialogRegExpr.get()))
+            self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(self.DialogRegExpr.get()))
 
             try:
                 dialog.update()
@@ -865,13 +874,16 @@ class Gui:
             
             self.FindTree.focus(self.SelItem)
             self.main.config(cursor="")
-
-        def EntryEvent(event=None):
+        
+        def FindModEvent(event=None):
             nonlocal self
+    
+            if self.FindDialogRegExprPrev!=self.DialogRegExpr.get() or self.FindEntryVarPrev!=self.FindEntryVar.get():
+                self.FindDialogRegExprPrev=self.DialogRegExpr.get()
+                self.FindEntryVarPrev=self.FindEntryVar.get()
+                self.FindEntryModified=1
+                self.FindModIndex=0
             
-            self.FindEntryModified=1
-            self.FindModIndex=0
-
         def PrevCmd(event=None):
             nonlocal self
             FindItems()
@@ -914,7 +926,6 @@ class Gui:
                 over()
 
         def FindItems(event=None):
-            nonlocal DialogRegExpr
             nonlocal self
             
             if self.FindEntryModified:
@@ -923,55 +934,51 @@ class Gui:
                 tree=self.FindTree
                 self.FindTreeIndex=self.SelTreeIndex
 
-                items=[]
+                self.FindResult=items=[]
 
-                UseRegExpr=DialogRegExpr.get()
+                UseRegExpr=self.DialogRegExpr.get()
 
-                AllGroups=True
-
-                if tree==self.tree1:
-                    if AllGroups:
+                if Expression:
+                    if tree==self.tree1:
                         CrcRange = self.tree1.get_children()
-                    else :
-                        CrcRange = [str(self.SelCrc)]
 
-                    try:
-                        for crcitem in CrcRange:
-                            for item in self.tree1.get_children(crcitem):
-                                fullpath = self.FullPath1(item)
-                                if (UseRegExpr and re.search(Expression,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,Expression) ):
-                                    items.append(item)
-                    except Exception as e:
-                        self.DialogWithEntry(title='Error',prompt=e,parent=self.FindDialog,OnlyInfo=True,width=300,height=100)
-                        return
-                else:
-                    try:
-                        for item in self.tree2.get_children():
-                            if tree.set(item,'kind')==FILE:
+                        try:
+                            for crcitem in CrcRange:
+                                for item in self.tree1.get_children(crcitem):
+                                    fullpath = self.FullPath1(item)
+                                    if (UseRegExpr and re.search(Expression,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,Expression) ):
+                                        items.append(item)
+                        except Exception as e:
+                            self.DialogWithEntry(title='Error',prompt=e,parent=self.FindDialog,OnlyInfo=True,width=300,height=100)
+                            return
+                    else:
+                        try:
+                            for item in self.tree2.get_children():
+                                #if tree.set(item,'kind')==FILE:
                                 file=self.tree2.set(item,'file')
                                 if (UseRegExpr and re.search(Expression,file)) or (not UseRegExpr and fnmatch.fnmatch(file,Expression) ):
                                     items.append(item)
-                    except Exception as e:
-                        self.DialogWithEntry(title='Error',prompt=e,parent=self.FindDialog,OnlyInfo=True,width=300,height=100)
-                        return
+                        except Exception as e:
+                            self.DialogWithEntry(title='Error',prompt=e,parent=self.FindDialog,OnlyInfo=True,width=300,height=100)
+                            return
 
-                self.FindResult=items
                 if items:
+                    self.FindResult=items
                     self.FindEntryModified=0
                 
                 if not self.FindResult:
                     ScopeInfo = 'Scope: All groups.' if self.FindTreeIndex==0 else 'Scope: Selected directory.'
-                    self.DialogWithEntry(title=ScopeInfo,prompt='No duplicates found.',parent=self.FindDialog,OnlyInfo=True,width=300,height=100)
+                    self.DialogWithEntry(title=ScopeInfo,prompt='No files found.',parent=self.FindDialog,OnlyInfo=True,width=300,height=100)
                     
 
         tk.Label(dialog,text='',anchor='n',justify='center',bg=self.bg).grid(sticky='news',row=0,column=0,padx=5,pady=5)
 
-        DialogRegExpr=tk.BooleanVar()
-        DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
-        ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=DialogRegExpr).grid(row=1,column=0,sticky='news',padx=5)
+        self.DialogRegExpr=tk.BooleanVar()
+        self.DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
+        ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=self.DialogRegExpr,command=FindModEvent).grid(row=1,column=0,sticky='news',padx=5)
 
         (Entry:=ttk.Entry(dialog,textvariable=self.FindEntryVar)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
-        Entry.bind('<KeyRelease>',EntryEvent)
+        Entry.bind('<KeyRelease>',FindModEvent)
 
         (bfr:=tk.Frame(dialog,bg=self.bg)).grid(sticky='news',row=3,column=0,padx=5,pady=5)
 
@@ -1045,9 +1052,8 @@ class Gui:
             dialog.destroy()
 
             nonlocal ShowRegExpCheckButton
-            nonlocal DialogRegExpr
             if ShowRegExpCheckButton:
-                self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(DialogRegExpr.get()))
+                self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(self.DialogRegExpr.get()))
 
             try:
                 dialog.update()
@@ -1084,9 +1090,9 @@ class Gui:
         tk.Label(dialog,text=prompt,anchor='n',justify='center',bg=self.bg).grid(sticky='news',row=0,column=0,padx=5,pady=5)
         if not OnlyInfo:
             if ShowRegExpCheckButton:
-                DialogRegExpr=tk.BooleanVar()
-                DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
-                ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=DialogRegExpr).grid(row=1,column=0,sticky='news',padx=5)
+                self.DialogRegExpr=tk.BooleanVar()
+                self.DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
+                ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=self.DialogRegExpr).grid(row=1,column=0,sticky='news',padx=5)
 
             (entry:=ttk.Entry(dialog,textvariable=EntryVar)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
 
@@ -1125,7 +1131,7 @@ class Gui:
             dialog.grab_release()
 
         if ShowRegExpCheckButton:
-            return (res,DialogRegExpr.get())
+            return (res,self.DialogRegExpr.get())
         else:
             return res
 
@@ -1692,7 +1698,7 @@ class Gui:
         pop.add_cascade(label = 'Navigation',menu = cNav,state=ItemActionsState)
 
         pop.add_separator()
-        pop.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="F3, Return",state=FileActionsState)
+        pop.add_command(label = 'Open File',command = self.TreeEventOpenFile,accelerator="Return",state=FileActionsState)
         pop.add_command(label = 'Open Folder',command = self.OpenFolder,state=FileActionsState)
 
         pop.add_separator()
@@ -1703,6 +1709,8 @@ class Gui:
         pop.add_command(label = 'Copy only path',command = self.ClipCopyFull,accelerator="C",state = 'normal' if self.SelItem!=None else 'disabled')
         pop.add_separator()
         pop.add_command(label = 'Find',command = self.FindDialogShow,accelerator="F",state = 'normal' if self.SelItem!=None else 'disabled')
+        pop.add_command(label = 'Find Next',command = self.FindNext,accelerator="F3",state = 'normal' if self.SelItem!=None else 'disabled')
+        pop.add_command(label = 'Find Prev',command = self.FindPrev,accelerator="Shift+F3",state = 'normal' if self.SelItem!=None else 'disabled')
         pop.add_separator()
 
         pop.add_command(label = "Exit",  command = self.exit)
@@ -2032,12 +2040,26 @@ class Gui:
         self.SetingsDialog.grab_set()
         self.main.config(cursor="watch")
 
-        self.addCwdAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,True))
-        self.scanAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_SCAN,False))
-        self.showothers.set(self.cfg.Get(CFG_KEY_SHOW_OTHERS,True))
-        self.fullCRC.set(self.cfg.Get(CFG_KEY_FULLCRC,False))
-        self.fullPaths.set(self.cfg.Get(CFG_KEY_FULLPATHS,False))
-        self.relSymlinks.set(self.cfg.Get(CFG_KEY_REL_SYMLINKS,True))
+        settings = [
+            (self.addCwdAtStartup,CFG_KEY_STARTUP_ADD_CWD,True),
+            (self.scanAtStartup,CFG_KEY_STARTUP_SCAN,False),
+            (self.showothers,CFG_KEY_SHOW_OTHERS,True),
+            (self.fullCRC,CFG_KEY_FULLCRC,False),
+            (self.fullPaths,CFG_KEY_FULLPATHS,False),
+            (self.relSymlinks,CFG_KEY_REL_SYMLINKS,True)
+        ]
+        for var,key,default in settings:
+            try:
+                var.set(self.cfg.Get(key,default))
+            except Exception as e:
+                print(e)
+        
+        #self.addCwdAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,True))
+        #self.scanAtStartup.set(self.cfg.Get(CFG_KEY_STARTUP_SCAN,False))
+        #self.showothers.set(self.cfg.Get(CFG_KEY_SHOW_OTHERS,True))
+        #self.fullCRC.set(self.cfg.Get(CFG_KEY_FULLCRC,False))
+        #self.fullPaths.set(self.cfg.Get(CFG_KEY_FULLPATHS,False))
+        #self.relSymlinks.set(self.cfg.Get(CFG_KEY_REL_SYMLINKS,True))
 
         self.SetDefaultGeometryAndShow(self.SetingsDialog,self.main)
 
@@ -2596,11 +2618,12 @@ class Gui:
             message = {f'ctime inconsistency {ctimeCheck} vs {ctime}'}
             return message
 
+    @KeepSemiFocus
     def ProcessFiles(self,action,all=0):
         tree=self.main.focus_get()
         if not tree:
             return
-
+        
         ProcessedItems=defaultdict(list)
 
         ShowFullPath=1
@@ -2687,7 +2710,7 @@ class Gui:
         elif action=='hardlink':
             if not self.Ask('Hard-Link marked files together in groups ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message),self.main):
                 return
-
+        
         {logging.warning(line) for line in message}
         logging.warning('###########################################################################################')
         logging.warning('Confirmed.')
