@@ -44,21 +44,21 @@ multDict={'k':k,'K':k,'M':M,'G':G,'T':T}
 
 windows = (os.name=='nt')
 
-def bytes2str(num):
+def bytes2str(num,digits=2):
     kb=num/k
 
     if kb<k:
-        string=str(round(kb,2))
-        if string[0:3]=='0.0':
+        string=str(round(kb,digits))
+        if string[0:digits+1]=='0.00'[0:digits+1]:
             return str(num)+'B'
         else:
-            return str(round(kb,2))+'kB'
+            return str(round(kb,digits))+'kB'
     elif kb<M:
-        return str(round(kb/k,2))+'MB'
+        return str(round(kb/k,digits))+'MB'
     elif kb<G:
-        return str(round(kb/M,2))+'GB'
+        return str(round(kb/M,digits))+'GB'
     else:
-        return str(round(kb/G,2))+'TB'
+        return str(round(kb/G,digits))+'TB'
 
 def str2bytes(string):
     if not string:
@@ -76,7 +76,6 @@ def str2bytes(string):
 
 CFG_KEY_STARTUP_ADD_CWD='add_cwd_at_startup'
 CFG_KEY_STARTUP_SCAN='scan_at_startup'
-CFG_KEY_SHOW_OTHERS='show_other'
 CFG_KEY_FULLCRC='show_full_crc'
 CFG_KEY_FULLPATHS='show_full_paths'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
@@ -154,21 +153,12 @@ raw = lambda x : x
 
 class Gui:
     Numbers='①②③④⑤⑥⑦⑧⑨⑩' if windows else '⓵⓶⓷⓸⓹⓺⓻⓼⓽⓾'
+   
     ProgressSigns='◐◓◑◒'
 
     MAX_PATHS=10
 
     SelItemTree = {}
-
-    def ResetSels(self):
-        self.SelPathnr = None
-        self.SelPath = None
-        self.SelFile = None
-        self.SelCrc = None
-        self.SelItem = None
-        self.SelItemTree = {}
-        self.SelTreeIndex = 0
-        self.SelKind = None
 
     def MainWatchCursor(f):
         def wrapp(self,*args,**kwargs):
@@ -303,8 +293,6 @@ class Gui:
         self.LongActionDialog.update()
 
     def __init__(self,cwd):
-        self.ResetSels()
-
         self.D = core.DudeCore(CACHE_DIR,logging)
         self.cwd=cwd
 
@@ -315,7 +303,7 @@ class Gui:
         self.ExcludeFrames=[]
 
         self.PathsToScanFromDialog=[]
-
+        
         ####################################################################
         self.main = tk.Tk()
         self.main.title(f'Dude (DUplicates DEtector) v{VERSION}')
@@ -402,7 +390,7 @@ class Gui:
         tk.Label(UpperStatusFrame,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=10,textvariable=self.StatusVarGroups,borderwidth=2,bg=self.bg,relief='groove',anchor='w').pack(fill='x',expand=0,side='right')
         tk.Label(UpperStatusFrame,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='right')
-        tk.Label(UpperStatusFrame,width=12,text='Full file path: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='left')
+        tk.Label(UpperStatusFrame,width=8,text='Full path: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='left')
         self.StatusVarFullPathLabel = tk.Label(UpperStatusFrame,textvariable=self.StatusVarFullPath,relief='flat',borderwidth=2,bg=self.bg,anchor='w')
         self.StatusVarFullPathLabel.pack(fill='x',expand=1,side='left')
 
@@ -431,6 +419,7 @@ class Gui:
         self.main.unbind_class('Treeview', '<Double-Button-1>')
 
         self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
+        self.main.bind_class('Treeview','<KeyRelease>', self.KeyReleaseTreeCommon )
 
         self.main.bind_class('Treeview','<FocusIn>',    self.TreeEventFocusIn )
         self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOut )
@@ -440,7 +429,7 @@ class Gui:
 
         self.main.bind_class('Treeview','<ButtonPress-3>', self.TreeContexMenu)
 
-        self.tree1=ttk.Treeview(FrameTop,takefocus=True,selectmode='none',show=('tree','headings') )
+        self.TreeGroups=ttk.Treeview(FrameTop,takefocus=True,selectmode='none',show=('tree','headings') )
 
         self.OrgLabel={}
         self.OrgLabel['path']='Subpath'
@@ -449,28 +438,28 @@ class Gui:
         self.OrgLabel['instances']='Copies'
         self.OrgLabel['ctimeH']='Change Time'
 
-        self.tree1["columns"]=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','ctimeH','kind')
+        self.TreeGroups["columns"]=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','ctimeH','kind')
 
         #pathnr,path,file,ctime,dev,inode
         self.IndexTupleIndexesWithFnCommon=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
 
-        self.tree1["displaycolumns"]=('path','file','sizeH','instances','ctimeH')
+        self.TreeGroups["displaycolumns"]=('path','file','sizeH','instances','ctimeH')
 
-        self.tree1.column('#0', width=120, minwidth=100, stretch=tk.NO)
-        self.tree1.column('path', width=100, minwidth=10, stretch=tk.YES )
-        self.tree1.column('file', width=100, minwidth=10, stretch=tk.YES )
-        self.tree1.column('sizeH', width=80, minwidth=80, stretch=tk.NO)
-        self.tree1.column('instances', width=80, minwidth=80, stretch=tk.NO)
-        self.tree1.column('ctimeH', width=150, minwidth=100, stretch=tk.NO)
+        self.TreeGroups.column('#0', width=120, minwidth=100, stretch=tk.NO)
+        self.TreeGroups.column('path', width=100, minwidth=10, stretch=tk.YES )
+        self.TreeGroups.column('file', width=100, minwidth=10, stretch=tk.YES )
+        self.TreeGroups.column('sizeH', width=80, minwidth=80, stretch=tk.NO)
+        self.TreeGroups.column('instances', width=80, minwidth=80, stretch=tk.NO)
+        self.TreeGroups.column('ctimeH', width=150, minwidth=100, stretch=tk.NO)
 
-        self.tree1.heading('#0',text='CRC / Scan Path',anchor=tk.W)
-        self.tree1.heading('path',anchor=tk.W )
-        self.tree1.heading('file',anchor=tk.W )
-        self.tree1.heading('sizeH',anchor=tk.W)
-        self.tree1.heading('ctimeH',anchor=tk.W)
-        self.tree1.heading('instances',anchor=tk.W)
+        self.TreeGroups.heading('#0',text='CRC / Scan Path',anchor=tk.W)
+        self.TreeGroups.heading('path',anchor=tk.W )
+        self.TreeGroups.heading('file',anchor=tk.W )
+        self.TreeGroups.heading('sizeH',anchor=tk.W)
+        self.TreeGroups.heading('ctimeH',anchor=tk.W)
+        self.TreeGroups.heading('instances',anchor=tk.W)
 
-        self.tree1.heading('sizeH', text='Size \u25BC')
+        self.TreeGroups.heading('sizeH', text='Size \u25BC')
 
         self.col2sortOf={}
         self.col2sortOf['path'] = 'path'
@@ -493,67 +482,67 @@ class Gui:
         self.col2sortLev2['ctimeH'] = True
         self.col2sortLev2['instances'] = False
 
-        vsb1 = tk.Scrollbar(FrameTop, orient='vertical', command=self.tree1.yview,takefocus=False,bg=self.bg)
-        self.tree1.configure(yscrollcommand=vsb1.set)
+        vsb1 = tk.Scrollbar(FrameTop, orient='vertical', command=self.TreeGroups.yview,takefocus=False,bg=self.bg)
+        self.TreeGroups.configure(yscrollcommand=vsb1.set)
 
         vsb1.pack(side='right',fill='y',expand=0)
-        self.tree1.pack(fill='both',expand=1, side='left')
+        self.TreeGroups.pack(fill='both',expand=1, side='left')
 
-        self.tree1.bind('<Double-Button-1>',        self.TreeEventOpenFileEvent)
+        self.TreeGroups.bind('<Double-Button-1>',        self.TreeEventDoubleLeft)
 
-        self.tree2=ttk.Treeview(FrameBottom,takefocus=True,selectmode='none')
+        self.TreeFolder=ttk.Treeview(FrameBottom,takefocus=True,selectmode='none')
 
-        self.tree2['columns']=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','instancesnum','ctimeH','kind')
+        self.TreeFolder['columns']=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','instancesnum','ctimeH','kind')
 
-        self.tree2['displaycolumns']=('file','sizeH','instances','ctimeH')
+        self.TreeFolder['displaycolumns']=('file','sizeH','instances','ctimeH')
 
-        self.tree2.column('#0', width=120, minwidth=100, stretch=tk.NO)
+        self.TreeFolder.column('#0', width=120, minwidth=100, stretch=tk.NO)
 
-        self.tree2.column('file', width=200, minwidth=100, stretch=tk.YES)
-        self.tree2.column('sizeH', width=80, minwidth=80, stretch=tk.NO)
-        self.tree2.column('instances', width=80, minwidth=80, stretch=tk.NO)
-        self.tree2.column('ctimeH', width=150, minwidth=100, stretch=tk.NO)
+        self.TreeFolder.column('file', width=200, minwidth=100, stretch=tk.YES)
+        self.TreeFolder.column('sizeH', width=80, minwidth=80, stretch=tk.NO)
+        self.TreeFolder.column('instances', width=80, minwidth=80, stretch=tk.NO)
+        self.TreeFolder.column('ctimeH', width=150, minwidth=100, stretch=tk.NO)
 
-        self.tree2.heading('#0',text='CRC',anchor=tk.W)
-        self.tree2.heading('path',anchor=tk.W)
-        self.tree2.heading('file',anchor=tk.W)
-        self.tree2.heading('sizeH',anchor=tk.W)
-        self.tree2.heading('ctimeH',anchor=tk.W)
-        self.tree2.heading('instances',anchor=tk.W)
+        self.TreeFolder.heading('#0',text='CRC',anchor=tk.W)
+        self.TreeFolder.heading('path',anchor=tk.W)
+        self.TreeFolder.heading('file',anchor=tk.W)
+        self.TreeFolder.heading('sizeH',anchor=tk.W)
+        self.TreeFolder.heading('ctimeH',anchor=tk.W)
+        self.TreeFolder.heading('instances',anchor=tk.W)
 
-        for tree in [self.tree1,self.tree2]:
+        for tree in [self.TreeGroups,self.TreeFolder]:
             for col in tree["displaycolumns"]:
                 if col in self.OrgLabel:
                     tree.heading(col,text=self.OrgLabel[col])
 
-        self.tree2.heading('sizeH', text='Size \u25BC')
+        self.TreeFolder.heading('sizeH', text='Size \u25BC')
 
-        vsb2 = tk.Scrollbar(FrameBottom, orient='vertical', command=self.tree2.yview,takefocus=False,bg=self.bg)
-        self.tree2.configure(yscrollcommand=vsb2.set)
+        vsb2 = tk.Scrollbar(FrameBottom, orient='vertical', command=self.TreeFolder.yview,takefocus=False,bg=self.bg)
+        self.TreeFolder.configure(yscrollcommand=vsb2.set)
 
         vsb2.pack(side='right',fill='y',expand=0)
-        self.tree2.pack(fill='both',expand=1,side='left')
+        self.TreeFolder.pack(fill='both',expand=1,side='left')
 
-        self.tree2.bind('<Double-Button-1>',        self.TreeEventOpenFileEvent)
+        self.TreeFolder.bind('<Double-Button-1>',        self.TreeEventDoubleLeft)
 
-        self.tree1.tag_configure(MARK, foreground='red')
-        self.tree1.tag_configure(MARK, background='red')
-        self.tree2.tag_configure(MARK, foreground='red')
-        self.tree2.tag_configure(MARK, background='red')
+        self.TreeGroups.tag_configure(MARK, foreground='red')
+        self.TreeGroups.tag_configure(MARK, background='red')
+        self.TreeFolder.tag_configure(MARK, foreground='red')
+        self.TreeFolder.tag_configure(MARK, background='red')
 
-        self.tree1.tag_configure(CRC, foreground='gray')
+        self.TreeGroups.tag_configure(CRC, foreground='gray')
 
-        self.tree2.tag_configure(SINGLE, foreground='gray')
-        self.tree2.tag_configure(DIR, foreground='blue2')
-        self.tree2.tag_configure(LINK, foreground='darkgray')
+        self.TreeFolder.tag_configure(SINGLE, foreground='gray')
+        self.TreeFolder.tag_configure(DIR, foreground='blue2')
+        self.TreeFolder.tag_configure(LINK, foreground='darkgray')
 
         self.SetDefaultGeometryAndShow(self.main,None)
 
-        self.Popup1 = Menu(self.tree1, tearoff=0,bg=self.bg)
-        self.Popup1.bind("<FocusOut>",lambda event : self.Popup1.unpost() )
+        self.PopupGroups = Menu(self.TreeGroups, tearoff=0,bg=self.bg)
+        self.PopupGroups.bind("<FocusOut>",lambda event : self.PopupGroups.unpost() )
 
-        self.Popup2 = Menu(self.tree2, tearoff=0,bg=self.bg)
-        self.Popup2.bind("<FocusOut>",lambda event : self.Popup2.unpost() )
+        self.PopupFolder = Menu(self.TreeFolder, tearoff=0,bg=self.bg)
+        self.PopupFolder.bind("<FocusOut>",lambda event : self.PopupFolder.unpost() )
         
         self.FindEntryVar=tk.StringVar(value='')
         
@@ -657,7 +646,6 @@ class Gui:
 
         self.addCwdAtStartup = tk.BooleanVar()
         self.scanAtStartup = tk.BooleanVar()
-        self.showothers = tk.BooleanVar()
         self.fullCRC = tk.BooleanVar()
         self.fullPaths = tk.BooleanVar()
         self.relSymlinks = tk.BooleanVar()
@@ -681,7 +669,6 @@ class Gui:
         self.StartScanCB=ttk.Checkbutton(fr, text = 'Start scanning at startup', variable=self.scanAtStartup,command=lambda : ScanAtStartupChange(self)                              )
         self.StartScanCB.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
-        ttk.Checkbutton(fr, text = 'Show non-duplicate items on directory panel', variable=self.showothers      ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.fullCRC                                       ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.fullPaths                              ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.relSymlinks                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
@@ -749,6 +736,7 @@ class Gui:
         self.menubar.add_cascade(label = 'Help',menu = self.HelpCascade)
 
         #######################################################################
+        self.ResetSels()
 
         self.SettingsSetBools()
 
@@ -758,11 +746,11 @@ class Gui:
         self.ScanDialogShow()
 
         self.ColumnSortLastParams={}
-        self.ColumnSortLastParams[self.tree1]=['sizeH',1]
-        self.ColumnSortLastParams[self.tree2]=['sizeH',1]
+        self.ColumnSortLastParams[self.TreeGroups]=['sizeH',1]
+        self.ColumnSortLastParams[self.TreeFolder]=['sizeH',1]
 
-        self.SelItemTree[self.tree1]=None
-        self.SelItemTree[self.tree2]=None
+        self.SelItemTree[self.TreeGroups]=None
+        self.SelItemTree[self.TreeFolder]=None
 
         self.ShowData()
 
@@ -771,12 +759,25 @@ class Gui:
             self.Scan()
 
         self.main.mainloop()
+        
+    def ResetSels(self):
+        self.SelPathnr = None
+        self.SelPath = None
+        self.SelFile = None
+        self.SelCrc = None
+        self.SelItem = None
+        self.SelItemTree = {}
+        self.SelItemTree[self.TreeGroups]=None
+        self.SelItemTree[self.TreeFolder]=None
+        
+        self.SelTreeIndex = 0
+        self.SelKind = None
+        
+    def GetIndexTupleTreeGroups(self,item):
+        return self.GetIndexTuple(item,self.TreeGroups)
 
-    def GetIndexTupleTree1(self,item):
-        return self.GetIndexTuple(item,self.tree1)
-
-    def GetIndexTupleTree2(self,item):
-        return self.GetIndexTuple(item,self.tree2)
+    def GetIndexTupleTreeFolder(self,item):
+        return self.GetIndexTuple(item,self.TreeFolder)
 
     def GetIndexTuple(self,item,tree):
         return tuple([ fn(tree.item(item)['values'][index]) for fn,index in self.IndexTupleIndexesWithFnCommon ])
@@ -843,11 +844,14 @@ class Gui:
     
     @KeepSemiFocus
     def FindDialogShow(self):
+        
         self.main.config(cursor="watch")
         self.FindDialogShown=1
         self.FindEntryModified=1
 
         self.FindDialog=dialog = tk.Toplevel(self.main)
+        PrevGrab = dialog.grab_current()
+        
         dialog.minsize(400, 100)
         dialog.wm_transient(self.main)
         dialog.update()
@@ -858,7 +862,7 @@ class Gui:
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, self.iconphoto)
 
-        tree,otherTree=(self.tree1,self.tree2) if self.SelTreeIndex==0 else (self.tree2,self.tree1)
+        tree,otherTree=(self.TreeGroups,self.TreeFolder) if self.SelTreeIndex==0 else (self.TreeFolder,self.TreeGroups)
         
         self.FindTree=tree
         
@@ -944,12 +948,12 @@ class Gui:
                 UseRegExpr=self.DialogRegExpr.get()
 
                 if Expression:
-                    if tree==self.tree1:
-                        CrcRange = self.tree1.get_children()
+                    if tree==self.TreeGroups:
+                        CrcRange = self.TreeGroups.get_children()
 
                         try:
                             for crcitem in CrcRange:
-                                for item in self.tree1.get_children(crcitem):
+                                for item in self.TreeGroups.get_children(crcitem):
                                     fullpath = self.FullPath1(item)
                                     if (UseRegExpr and re.search(Expression,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,Expression) ):
                                         items.append(item)
@@ -958,9 +962,9 @@ class Gui:
                             return
                     else:
                         try:
-                            for item in self.tree2.get_children():
+                            for item in self.TreeFolder.get_children():
                                 #if tree.set(item,'kind')==FILE:
-                                file=self.tree2.set(item,'file')
+                                file=self.TreeFolder.set(item,'file')
                                 if (UseRegExpr and re.search(Expression,file)) or (not UseRegExpr and fnmatch.fnmatch(file,Expression) ):
                                     items.append(item)
                         except Exception as e:
@@ -1001,15 +1005,11 @@ class Gui:
         dialog.bind('<KeyPress-Return>', ReturnPressed)
         dialog.bind('<KeyPress-F3>', F3Pressed)
 
-        PrevGrab = dialog.grab_current()
-
         self.SetDefaultGeometryAndShow(dialog,self.main)
-
         Entry.focus_set()
-
         dialog.grab_set()
         self.main.wait_window(dialog)
-
+        
         if PrevGrab:
             PrevGrab.grab_set()
         else:
@@ -1032,11 +1032,11 @@ class Gui:
             self.FindTree.see(NextItem)
             self.FindTree.update()
         
-            if self.FindTree==self.tree1:
-                self.Tree1SelChange(NextItem)
+            if self.FindTree==self.TreeGroups:
+                self.TreeGroupsSelChange(NextItem)
             else:
-                self.Tree2SelChange(NextItem)
-
+                self.TreeFolderSelChange(NextItem)
+    
     def DialogWithEntry(self,title,prompt,parent,initialvalue='',OnlyInfo=False,ShowRegExpCheckButton=False,width=400,height=140):
         parent.config(cursor="watch")
 
@@ -1048,24 +1048,22 @@ class Gui:
         dialog.wm_title(title)
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, self.iconphoto)
-
+        
         res=False
 
         EntryVar=tk.StringVar(value=initialvalue)
 
         def over():
             self.GeometryStore(dialog)
-            dialog.destroy()
-
             nonlocal ShowRegExpCheckButton
             if ShowRegExpCheckButton:
                 self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(self.DialogRegExpr.get()))
-
+            
+            dialog.destroy()
             try:
                 dialog.update()
             except Exception as e:
                 pass
-
             parent.config(cursor="")
 
         def Yes(event=None):
@@ -1118,24 +1116,27 @@ class Gui:
 
         dialog.bind('<Escape>', No)
         dialog.bind('<KeyPress-Return>', ReturnPressed)
-
-        PrevGrab = dialog.grab_current()
-
+        
+        PrevGrab = dialog.grab_current() 
+        
         self.SetDefaultGeometryAndShow(dialog,parent)
-
+        
         if OnlyInfo:
             ok.focus_set()
         else:
             entry.focus_set()
-
+        
         dialog.grab_set()
         parent.wait_window(dialog)
 
+        dialog.grab_release()
+        
         if PrevGrab:
+            print(f'PrevGrab=')
             PrevGrab.grab_set()
         else:
             dialog.grab_release()
-
+            
         if ShowRegExpCheckButton:
             return (res,self.DialogRegExpr.get())
         else:
@@ -1145,6 +1146,8 @@ class Gui:
         parent.config(cursor="watch")
 
         dialog = tk.Toplevel(parent)
+        PrevGrab = dialog.grab_current()
+        
         dialog.minsize(width,height)
         dialog.wm_transient(parent)
         dialog.update()
@@ -1152,17 +1155,17 @@ class Gui:
         dialog.wm_title(title)
         dialog.config(bd=2, relief=FLAT,bg=self.bg)
         dialog.iconphoto(False, self.iconphoto)
-
+        
         res=False
 
         def over():
             self.GeometryStore(dialog)
             dialog.destroy()
-            parent.config(cursor="")
             try:
                 dialog.update()
             except Exception as e:
                 pass
+            parent.config(cursor="")
 
         def Yes(event=None):
             over()
@@ -1219,12 +1222,10 @@ class Gui:
         dialog.bind('<Escape>', No)
         dialog.bind('<KeyPress-Return>', ReturnPressed)
 
-        PrevGrab = dialog.grab_current()
-
         self.SetDefaultGeometryAndShow(dialog,parent)
-
+        
         default.focus_set()
-
+        
         dialog.grab_set()
         parent.wait_window(dialog)
 
@@ -1244,9 +1245,9 @@ class Gui:
     def ToggleSelectedTag(self,tree, *items):
         for item in items:
             if tree.set(item,'kind')==FILE:
-                self.InvertMark(item, self.tree1)
+                self.InvertMark(item, self.TreeGroups)
                 try:
-                    self.tree2.item(item,tags=self.tree1.item(item)['tags'])
+                    self.TreeFolder.item(item,tags=self.TreeGroups.item(item)['tags'])
                 except Exception :
                     pass
             elif tree.set(item,'kind')==CRC:
@@ -1264,7 +1265,10 @@ class Gui:
     reftuple1=('1','2','3','4','5','6','7')
     reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
 
-    @MainWatchCursor
+    def KeyReleaseTreeCommon(self,event):
+        pass
+        
+    @MainWatchCursor    
     def KeyPressTreeCommon(self,event):
         tree=event.widget
         item=tree.focus()
@@ -1272,48 +1276,51 @@ class Gui:
         tree.selection_remove(tree.selection())
 
         if event.keysym in ("Up",'Down') :
-            if tree==self.tree1:
+            if tree==self.TreeGroups:
                 pool=self.FlatItemsList
                 poolLen=self.FlatItemsListLen
             else:
                 pool=tree.get_children()
                 poolLen=len(pool)
 
-            #print(self.SelItemTree[tree])
-            index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree])
-            index=(index+self.DirectionOfKeysym[event.keysym])%poolLen
-            NextItem=pool[index]
+            #print(self.SelItem,self.SelItemTree[tree])
+            index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree]) if self.SelItemTree[tree] in pool else pool.index(item) if item in  pool else 0
+            if poolLen:
+                index=(index+self.DirectionOfKeysym[event.keysym])%poolLen
+                NextItem=pool[index]
 
-            tree.see(NextItem)
-            tree.focus(NextItem)
-
-            if tree==self.tree1:
-                self.Tree1SelChange(NextItem)
-            else:
-                self.Tree2SelChange(NextItem)
-        elif event.keysym in ("Prior","Next"):
-            itemsPool=tree.get_children()
-            if tree==self.tree1:
-                NextItem=itemsPool[(itemsPool.index(tree.set(item,'crc'))+self.DirectionOfKeysym[event.keysym]) % len(itemsPool)]
-                self.SelectFocusAndSeeCrcItemTree(NextItem)
-            else:
-                NextItem=itemsPool[(itemsPool.index(item)+5*self.DirectionOfKeysym[event.keysym]) % len(itemsPool)]
                 tree.focus(NextItem)
                 tree.see(NextItem)
-                self.Tree2SelChange(NextItem)
-                tree.update()
+
+                if tree==self.TreeGroups:
+                    self.TreeGroupsSelChange(NextItem)
+                else:
+                    self.TreeFolderSelChange(NextItem)
+        elif event.keysym in ("Prior","Next"):
+            pool=tree.get_children()
+            poolLen=len(pool)
+            if poolLen:
+                if tree==self.TreeGroups:
+                    NextItem=pool[(pool.index(tree.set(item,'crc'))+self.DirectionOfKeysym[event.keysym]) % poolLen]
+                    self.SelectFocusAndSeeCrcItemTree(NextItem)
+                else:
+                    NextItem=pool[(pool.index(item)+5*self.DirectionOfKeysym[event.keysym]) % poolLen]
+                    tree.focus(NextItem)
+                    tree.see(NextItem)
+                    self.TreeFolderSelChange(NextItem)
+                    tree.update()
         elif event.keysym in ("Home","End"):
-            if tree==self.tree1:
+            if tree==self.TreeGroups:
                 if NextItem:=tree.get_children()[0 if event.keysym=="Home" else -1]:
                     self.SelectFocusAndSeeCrcItemTree(NextItem,True)
             else:
                 if NextItem:=tree.get_children()[0 if event.keysym=='Home' else -1]:
                     tree.see(NextItem)
                     tree.focus(NextItem)
-                    self.Tree2SelChange(NextItem)
+                    self.TreeFolderSelChange(NextItem)
                     tree.update()
         elif event.keysym == "space":
-            if tree==self.tree1:
+            if tree==self.TreeGroups:
                 if tree.set(item,'kind')==CRC:
                     self.ToggleSelectedTag(tree,*tree.get_children(item))
                 else:
@@ -1332,8 +1339,7 @@ class Gui:
         elif event.keysym=='Return':
             item=tree.focus()
             if item:
-                if tree.set(item,'kind')!=CRC:
-                    self.TreeEventOpenFile()
+                self.TreeAction(tree,item)
         elif event.keysym=='KP_Add' or event.keysym=='plus':
             StrEvent=str(event)
             CtrPressed = 'Control' in StrEvent
@@ -1370,7 +1376,7 @@ class Gui:
                 if CtrPressed:
                     self.MarkOnAll(self.InvertMark)
                 else:
-                    if tree==self.tree1:
+                    if tree==self.TreeGroups:
                         self.MarkInCRCGroup(self.InvertMark)
                     else:
                         self.MarkLowerPane(self.InvertMark)
@@ -1381,7 +1387,7 @@ class Gui:
                     else:
                         self.MarkOnAllByCTime('oldest',self.SetMark)
                 else:
-                    if tree==self.tree1:
+                    if tree==self.TreeGroups:
                         self.MarkInCRCGroupByCTime('oldest',self.InvertMark)
             elif event.keysym=='y' or event.keysym=='Y':
                 if CtrPressed:
@@ -1390,7 +1396,7 @@ class Gui:
                     else:
                         self.MarkOnAllByCTime('youngest',self.SetMark)
                 else:
-                    if tree==self.tree1:
+                    if tree==self.TreeGroups:
                         self.MarkInCRCGroupByCTime('youngest',self.InvertMark)
             elif event.keysym=='c' or event.keysym=='C':
                 if CtrPressed:
@@ -1402,7 +1408,7 @@ class Gui:
                     self.ClipCopyFull()
 
             elif event.keysym=='a' or event.keysym=='A':
-                if tree==self.tree1:
+                if tree==self.TreeGroups:
                     if CtrPressed:
                         self.MarkOnAll(self.SetMark)
                     else:
@@ -1411,7 +1417,7 @@ class Gui:
                     self.MarkLowerPane(self.SetMark)
 
             elif event.keysym=='n' or event.keysym=='N':
-                if tree==self.tree1:
+                if tree==self.TreeGroups:
                     if CtrPressed:
                         self.MarkOnAll(self.UnsetMark)
                     else:
@@ -1422,13 +1428,13 @@ class Gui:
                 index = self.reftuple1.index(event.keysym)
 
                 if index<len(self.D.ScannedPaths):
-                    if tree==self.tree1:
+                    if tree==self.TreeGroups:
                         self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.SetMark,CtrPressed)
             elif event.keysym in self.reftuple2:
                 index = self.reftuple2.index(event.keysym)
 
                 if index<len(self.D.ScannedPaths):
-                    if tree==self.tree1:
+                    if tree==self.TreeGroups:
                         self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.UnsetMark,CtrPressed)
             elif event.keysym=='KP_Divide' or event.keysym=='slash':
                 self.MarkSubpath(self.SetMark,True)
@@ -1443,17 +1449,17 @@ class Gui:
 
 #################################################
     def SelectFocusAndSeeCrcItemTree(self,crc,TryToShowAll=False):
-        self.tree1.focus_set()
+        self.TreeGroups.focus_set()
 
         if TryToShowAll:
-            lastChild=self.tree1.get_children(crc)[-1]
-            self.tree1.see(lastChild)
-            self.tree1.update()
+            lastChild=self.TreeGroups.get_children(crc)[-1]
+            self.TreeGroups.see(lastChild)
+            self.TreeGroups.update()
 
-        self.tree1.see(crc)
-        self.tree1.focus(crc)
-        self.tree1.update()
-        self.Tree1SelChange(crc)
+        self.TreeGroups.see(crc)
+        self.TreeGroups.focus(crc)
+        self.TreeGroups.update()
+        self.TreeGroupsSelChange(crc)
 
     def TreeButtonPress(self,event,toggle=False):
         self.MenubarUnpost()
@@ -1471,10 +1477,10 @@ class Gui:
             tree.focus_set()
             tree.focus(item)
 
-            if tree==self.tree1:
-                self.Tree1SelChange(item)
+            if tree==self.TreeGroups:
+                self.TreeGroupsSelChange(item)
             else:
-                self.Tree2SelChange(item)
+                self.TreeFolderSelChange(item)
 
             if toggle:
                 self.ToggleSelectedTag(tree,item)
@@ -1497,74 +1503,117 @@ class Gui:
 
             if item:
                 tree.focus(item)
-                if tree==self.tree1:
-                    self.Tree1SelChange(item,True)
+                if tree==self.TreeGroups:
+                    self.TreeGroupsSelChange(item,True)
                 else:
-                    self.Tree2SelChange(item)
+                    self.TreeFolderSelChange(item)
 
                 tree.see(item)
 
-        if len(self.tree2.get_children())==0:
-            self.tree1.selection_remove(self.tree1.selection())
-            self.tree1.focus_set()
+        if len(self.TreeFolder.get_children())==0:
+            self.TreeGroups.selection_remove(self.TreeGroups.selection())
+            self.TreeGroups.focus_set()
 
     def TreeFocusOut(self,event):
         tree=event.widget
         tree.selection_set(tree.focus())
+    
+    def ReloadDir(self):
+        if self.SelFullPath:
+            pass
+    
+    SelChangeInProgress=False
+    def TreeGroupsSelChange(self,item,force=False):
+        if not self.SelChangeInProgress:
+            self.SelChangeInProgress=True
+            
+            pathnr=self.TreeGroups.set(item,'pathnr')
+            path=self.TreeGroups.set(item,'path')
 
-    def Tree1SelChange(self,item,force=False):
-        pathnr=self.tree1.set(item,'pathnr')
-        path=self.tree1.set(item,'path')
+            self.SelFile = self.TreeGroups.set(item,'file')
+            self.SelCrc = self.TreeGroups.set(item,'crc')
+            self.SelKind = self.TreeGroups.set(item,'kind')
+            self.SelItem = item
+            self.SelItemTree[self.TreeGroups]=item
+            self.SelTreeIndex=0
 
-        self.SelFile = self.tree1.set(item,'file')
-        self.SelCrc = self.tree1.set(item,'crc')
-        self.SelKind = self.tree1.set(item,'kind')
+            size = int(self.TreeGroups.set(item,'size'))
+            
+            #doskanowac katalogi
+            (checkres,TuplesToRemove)=self.D.CheckGroupFilesState(size,self.SelCrc)
+            
+            if checkres:
+                self.Info('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.',self.main)
+                orglist=self.TreeGroups.get_children()
+                
+                self.D.RemoveTuples(size,self.SelCrc,TuplesToRemove)
+                
+                self.UpdateCrcNode(self.SelCrc)
+                
+                self.FlatItemsListUpdate()
+                
+                self.ByPathCacheUpdate()
+                self.GroupsNumberUpdate()
+                
+                newlist=self.TreeGroups.get_children()
+                ItemToSel = self.GimmeClosest(orglist,self.SelCrc,newlist)
+                
+                self.ResetSels()
+                
+                self.SelChangeInProgress=False
+                if ItemToSel:
+                    #crc node moze zniknac - trzeba zupdejtowac SelXxx
+                    self.SelectFocusAndSeeCrcItemTree(ItemToSel,True)
+                else:
+                    self.InitialFocus()
+                
+                self.CalcMarkStatsAll()
+            else :    
+                if path!=self.SelPath or pathnr!=self.SelPathnr or force:
+                    self.SelPathnr = pathnr
+
+                    if pathnr: #non crc node
+                        self.SelPathnrInt= int(pathnr)
+                        self.SelSearchPath = self.D.ScannedPaths[self.SelPathnrInt]
+                        self.SelectedSearchPathCode.set(self.Numbers[self.SelPathnrInt])
+                        self.SelectedSearchPath.set(self.SelSearchPath)
+                        self.SelPath = path
+                        self.SelFullPath=self.SelSearchPath+self.SelPath
+                    else :
+                        self.SelPathnrInt= 0
+                        self.SelSearchPath = None
+                        self.SelectedSearchPathCode.set(None)
+                        self.SelectedSearchPath.set(None)
+                        self.SelPath = None
+                        self.SelFullPath= None
+
+                    UpdateTreeFolder=True
+                else:
+                    UpdateTreeFolder=False
+
+                if self.SelKind==FILE:
+                    self.SetCommonVar()
+                    self.TreeFolderUpdate()
+                else:
+                    self.TreeFolderUpdateNone()
+                
+                self.SelChangeInProgress=False
+            
+    def TreeFolderSelChange(self,item):
+        self.SelFile = self.TreeFolder.set(item,'file')
+        self.SelCrc = self.TreeFolder.set(item,'crc')
+        self.SelKind = self.TreeFolder.set(item,'kind')
         self.SelItem = item
-        self.SelItemTree[self.tree1]=item
-        self.SelTreeIndex=0
-
-        if path!=self.SelPath or pathnr!=self.SelPathnr or force:
-            self.SelPathnr = pathnr
-
-            if pathnr: #non crc node
-                self.SelPathnrInt= int(pathnr)
-                self.SelSearchPath = self.D.ScannedPaths[self.SelPathnrInt]
-                self.SelectedSearchPathCode.set(self.Numbers[self.SelPathnrInt])
-                self.SelectedSearchPath.set(self.SelSearchPath)
-                self.SelPath = path
-                self.SelFullPath=self.SelSearchPath+self.SelPath
-            else :
-                self.SelPathnrInt= 0
-                self.SelSearchPath = None
-                self.SelectedSearchPathCode.set(None)
-                self.SelectedSearchPath.set(None)
-                self.SelPath = None
-                self.SelFullPath= None
-
-            UpdateTree2=True
-        else:
-            UpdateTree2=False
-
-        if self.SelKind==FILE:
-            self.SetCommonVar()
-            self.UpdatePathTree(item)
-        else:
-            self.UpdatePathTreeNone()
-
-    def Tree2SelChange(self,item):
-        self.SelFile = self.tree2.set(item,'file')
-        self.SelCrc = self.tree2.set(item,'crc')
-        self.SelKind = self.tree2.set(item,'kind')
-        self.SelItem = item
-        self.SelItemTree[self.tree2] = item
+        self.SelItemTree[self.TreeFolder] = item
         self.SelTreeIndex=1
 
-        if self.tree2.set(item,'kind')==FILE:
+        self.SetCommonVar()
+        
+        if self.TreeFolder.set(item,'kind')==FILE:
             self.UpdateMainTree(item)
-            self.SetCommonVar()
         else:
             self.UpdateMainTreeNone()
-            self.StatusVarFullPath.set("")
+            #self.StatusVarFullPath.set("")
 
     def MenubarUnpost(self):
         try:
@@ -1580,14 +1629,14 @@ class Gui:
         ItemActionsState=('disabled','normal')[self.SelItem!=None]
         FileActionsState=('disabled',ItemActionsState)[self.SelKind==FILE]
 
-        if tree==self.tree1:
-            pop=self.Popup1
+        if tree==self.TreeGroups:
+            pop=self.PopupGroups
         else:
-            pop=self.Popup2
+            pop=self.PopupFolder
 
         pop.delete(0,END)
 
-        if tree==self.tree1:
+        if tree==self.TreeGroups:
             cLocal = Menu(pop,tearoff=0,bg=self.bg)
             cLocal.add_command(label = "Toggle Mark",  command = lambda : self.ToggleSelectedTag(tree,self.SelItem),accelerator="space")
             cLocal.add_separator()
@@ -1724,6 +1773,8 @@ class Gui:
 
         try:
             pop.tk_popup(event.x_root, event.y_root)
+        except Exception as e:
+            print(e)
         finally:
             pop.grab_release()
 
@@ -1764,7 +1815,7 @@ class Gui:
 
         tree.heading(colname, text=self.OrgLabel[colname] + ' ' + str(u'\u25BC' if reverse else u'\u25B2') )
 
-        if tree==self.tree1:
+        if tree==self.TreeGroups:
             self.FlatItemsListUpdate()
 
     def addPath(self,path):
@@ -1846,7 +1897,7 @@ class Gui:
                     + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) \
                     + '\n' \
                     + '\ncurrent file size: ' + bytes2str(self.D.InfoCurrentSize) \
-                    + '\n\nSpeed:' + bytes2str(self.D.infoSpeed) + '/s'
+                    + '\n\nSpeed:' + bytes2str(self.D.infoSpeed,0) + '/s'
             self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,PrefixInfo=self.D.InfoCurrentFile)
 
             if self.LongActionAbort:
@@ -1863,9 +1914,11 @@ class Gui:
 
         if self.LongActionAbort:
             self.DialogWithEntry(title='CRC Calculation aborted.',prompt='\nResults are partial.\nSome files may remain unidentified as duplicates.',parent=self.ScanDialog,OnlyInfo=True,width=300,height=200)
-
+        
+        self.ScanDialog.config(cursor="watch")
         self.ShowData()
         self.ScanDialogClose()
+        self.ScanDialog.config(cursor="")
 
     def ScanDialogShow(self):
         if self.D.ScannedPaths:
@@ -1983,9 +2036,8 @@ class Gui:
         self.UpdateExcludeMasks()
 
     def FocusIn(self,event):
-        self.ScandirCache={}
-        self.StatCache={}
-
+        pass
+        
     def License(self):
         self.Info('License',self.license,self.main,textwidth=80,width=600)
 
@@ -2051,7 +2103,6 @@ class Gui:
         settings = [
             (self.addCwdAtStartup,CFG_KEY_STARTUP_ADD_CWD,True),
             (self.scanAtStartup,CFG_KEY_STARTUP_SCAN,False),
-            (self.showothers,CFG_KEY_SHOW_OTHERS,True),
             (self.fullCRC,CFG_KEY_FULLCRC,False),
             (self.fullPaths,CFG_KEY_FULLPATHS,False),
             (self.relSymlinks,CFG_KEY_REL_SYMLINKS,True)
@@ -2089,10 +2140,6 @@ class Gui:
         update1=False
         update2=False
 
-        if (self.cfg.Get(CFG_KEY_SHOW_OTHERS,False)!=self.showothers.get()):
-            self.cfg.Set(CFG_KEY_SHOW_OTHERS,str(self.showothers.get()))
-            update2=True
-
         if self.cfg.Get(CFG_KEY_FULLCRC,False)!=self.fullCRC.get():
             self.cfg.Set(CFG_KEY_FULLCRC,str(self.fullCRC.get()))
             update1=True
@@ -2111,60 +2158,57 @@ class Gui:
         self.SettingsSetBools()
 
         if update1:
-            self.Tree1CrcAndPathUpdate()
+            self.TreeGroupsCrcAndPathUpdate()
 
         if update2:
             if self.SelCrc and self.SelItem and self.SelFullPath:
-                self.UpdatePathTree(self.SelItem)
+                self.TreeFolderUpdate()
             else:
-                self.UpdatePathTreeNone()
+                self.TreeFolderUpdateNone()
 
         self.SettingsDialogClose()
 
     AddCwdAtStartup = False
     ScanAtStarup = False
     FullCRC = False
-    ShowOthers = False
     FullPaths = False
 
     def SettingsSetBools(self):
         self.AddCwdAtStartup = self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,'True') == 'True'
         self.ScanAtStarup = self.cfg.Get(CFG_KEY_STARTUP_SCAN,'True') == 'True'
         self.FullCRC = self.cfg.Get(CFG_KEY_FULLCRC,False) == 'True'
-        self.ShowOthers = self.cfg.Get(CFG_KEY_SHOW_OTHERS,'False') == 'True'
         self.FullPaths = self.cfg.Get(CFG_KEY_FULLPATHS,False) == 'True'
 
     def SettingsDialogReset(self):
         self.addCwdAtStartup.set(True)
         self.scanAtStartup.set(False)
-        self.showothers.set(True)
         self.fullCRC.set(False)
         self.fullPaths.set(False)
         self.relSymlinks.set(True)
 
     def UpdateCrcNode(self,crc):
-        size=int(self.tree1.set(crc,'size'))
+        size=int(self.TreeGroups.set(crc,'size'))
 
         CrcRemoved=False
         if not size in self.D.filesOfSizeOfCRC:
-            self.tree1.delete(crc)
+            self.TreeGroups.delete(crc)
             logging.debug('UpdateCrcNode-1 ' + crc)
             CrcRemoved=True
         elif crc not in self.D.filesOfSizeOfCRC[size]:
-            self.tree1.delete(crc)
+            self.TreeGroups.delete(crc)
             logging.debug('UpdateCrcNode-2 ' + crc)
             CrcRemoved=True
         else:
             crcDict=self.D.filesOfSizeOfCRC[size][crc]
-            for item in list(self.tree1.get_children(crc)):
-                IndexTuple=self.GetIndexTupleTree1(item)
+            for item in list(self.TreeGroups.get_children(crc)):
+                IndexTuple=self.GetIndexTupleTreeGroups(item)
 
                 if IndexTuple not in crcDict:
-                    self.tree1.delete(item)
+                    self.TreeGroups.delete(item)
                     logging.debug('UpdateCrcNode-3 ' + item)
 
-            if not self.tree1.get_children(crc):
-                self.tree1.delete(crc)
+            if not self.TreeGroups.get_children(crc):
+                self.TreeGroups.delete(crc)
                 logging.debug('UpdateCrcNode-4 ' + crc)
                 CrcRemoved=True
 
@@ -2172,25 +2216,25 @@ class Gui:
         self.ByPathCache = { (pathnr,path,file):(size,ctime,dev,inode,crc,self.D.crccut[crc]) for size,sizeDict in self.D.filesOfSizeOfCRC.items() for crc,crcDict in sizeDict.items() for pathnr,path,file,ctime,dev,inode in crcDict }
 
     def GroupsNumberUpdate(self):
-        self.StatusVarGroups.set(len(self.tree1.get_children()))
+        self.StatusVarGroups.set(len(self.TreeGroups.get_children()))
 
     FlatItemsList=[]
     FlatItemsListLen=0
     def FlatItemsListUpdate(self):
-        self.FlatItemsList = [elem for sublist in [ tuple([crc])+tuple(self.tree1.get_children(crc)) for crc in self.tree1.get_children() ] for elem in sublist]
+        self.FlatItemsList = [elem for sublist in [ tuple([crc])+tuple(self.TreeGroups.get_children(crc)) for crc in self.TreeGroups.get_children() ] for elem in sublist]
         self.FlatItemsListLen=len(self.FlatItemsList)
 
     def InitialFocus(self):
-        if self.tree1.get_children():
-            firstNodeFile=next(iter(self.tree1.get_children(next(iter(self.tree1.get_children())))))
-            self.tree1.focus_set()
-            self.tree1.focus(firstNodeFile)
-            self.tree1.see(firstNodeFile)
-            self.Tree1SelChange(firstNodeFile)
+        if self.TreeGroups.get_children():
+            firstNodeFile=next(iter(self.TreeGroups.get_children(next(iter(self.TreeGroups.get_children())))))
+            self.TreeGroups.focus_set()
+            self.TreeGroups.focus(firstNodeFile)
+            self.TreeGroups.see(firstNodeFile)
+            self.TreeGroupsSelChange(firstNodeFile)
 
-            self.Tree1CrcAndPathUpdate()
+            self.TreeGroupsCrcAndPathUpdate()
         else:
-            self.UpdatePathTreeNone()
+            self.TreeFolderUpdateNone()
             self.ResetSels()
 
     @MainWatchCursor
@@ -2198,14 +2242,14 @@ class Gui:
         self.idfunc = (lambda i,d : str(i)+'-'+str(d)) if len(self.D.devs)>1 else (lambda i,d : str(i))
 
         self.ResetSels()
-        self.tree1.delete(*self.tree1.get_children())
+        self.TreeGroups.delete(*self.TreeGroups.get_children())
 
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
-                crcitem=self.tree1.insert(parent='', index=END,iid=crc, values=('','','',size,bytes2str(size),'','','',crc,len(crcDict),'',CRC),tags=[CRC],open=True)
+                crcitem=self.TreeGroups.insert(parent='', index=END,iid=crc, values=('','','',size,bytes2str(size),'','','',crc,len(crcDict),'',CRC),tags=[CRC],open=True)
 
                 for pathnr,path,file,ctime,dev,inode in crcDict:
-                    self.tree1.insert(parent=crcitem, index=END,iid=self.idfunc(inode,dev), values=(\
+                    self.TreeGroups.insert(parent=crcitem, index=END,iid=self.idfunc(inode,dev), values=(\
                             pathnr,path,file,size,\
                             '',\
                             ctime,dev,inode,crc,\
@@ -2214,35 +2258,32 @@ class Gui:
 
         self.ByPathCacheUpdate()
 
-        self.ColumnSort(self.tree1)
+        self.ColumnSort(self.TreeGroups)
         self.GroupsNumberUpdate()
         self.FlatItemsListUpdate() #after sort !
         self.InitialFocus()
         self.CalcMarkStatsAll()
 
-    def Tree1CrcAndPathUpdate(self):
+    def TreeGroupsCrcAndPathUpdate(self):
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
-                self.tree1.item(crc,text=crc if self.FullCRC else self.D.crccut[crc])
+                self.TreeGroups.item(crc,text=crc if self.FullCRC else self.D.crccut[crc])
                 for pathnr,path,file,ctime,dev,inode in crcDict:
-                    self.tree1.item(self.idfunc(inode,dev),text=self.D.ScannedPaths[pathnr] if self.FullPaths else self.Numbers[pathnr])
+                    self.TreeGroups.item(self.idfunc(inode,dev),text=self.D.ScannedPaths[pathnr] if self.FullPaths else self.Numbers[pathnr])
 
     def UpdateMainTreeNone(self):
-        self.tree1.selection_remove(self.tree1.selection())
+        self.TreeGroups.selection_remove(self.TreeGroups.selection())
 
     def UpdateMainTree(self,item):
-        self.tree1.see(self.SelCrc)
-        self.tree1.update()
+        self.TreeGroups.see(self.SelCrc)
+        self.TreeGroups.update()
 
-        self.tree1.selection_set(item)
-        self.tree1.see(item)
-        self.tree1.update()
+        self.TreeGroups.selection_set(item)
+        self.TreeGroups.see(item)
+        self.TreeGroups.update()
 
-    ScandirCache={}
-    StatCache={}
-
-    def UpdatePathTreeNone(self):
-        self.tree2.delete(*self.tree2.get_children())
+    def TreeFolderUpdateNone(self):
+        self.TreeFolder.delete(*self.TreeFolder.get_children())
         self.CalcMarkStatsPath()
         self.StatusVarPathSize.set('')
         self.StatusVarPathQuant.set('')
@@ -2254,18 +2295,36 @@ class Gui:
 
     sortIndexDict={'file':1,'sizeH':2,'ctimeH':3,'instances':8}
     kindIndex=11
+    
+    def TwoDotsConditionWin(self):
+        return True if self.SelFullPath.split(os.sep)[1]!='' else  False
 
-    def UpdatePathTree(self,item):
-        if CacheIndex:=(self.SelPathnr,self.SelPath) not in self.ScandirCache:
-            try:
-                self.ScandirCache[CacheIndex]=list(os.scandir(self.SelFullPath))
-            except Exception as e:
-                logging.error('ERROR:{e}')
-                return
+    def TwoDotsConditionLin(self):
+        return True if self.SelFullPath!='/' else  False
 
+    TwoDotsConditionOS = TwoDotsConditionWin if windows else TwoDotsConditionLin
+
+    def TreeFolderUpdate(self,ArbitraryPath=None):
+        try:
+            if ArbitraryPath:
+                ScanDirRes=list(os.scandir(ArbitraryPath))
+            else:
+                ScanDirRes=list(os.scandir(self.SelFullPath))
+        except Exception as e:
+            logging.error(e)
+            return False
+    
+        if ArbitraryPath:
+            self.ResetSels()
+            self.SelFullPath=str(pathlib.Path(ArbitraryPath))
+            
         itemsToInsert=[]
+        
+        if self.TwoDotsConditionOS():
+            itemsToInsert.append( ('','..',0,0,0,0,'..','',1,0,DIR,DIR,'0UP','' ) )
+            
         i=0
-        for DirEntry in self.ScandirCache[CacheIndex]:
+        for DirEntry in ScanDirRes:
             file=DirEntry.name
             if (self.SelPathnrInt,self.SelPath,file) in self.ByPathCache:
                 size,ctime,dev,inode,crc,crccut = self.ByPathCache[(self.SelPathnrInt,self.SelPath,file)]
@@ -2279,65 +2338,80 @@ class Gui:
                                             ,crc\
                                             ,instances:=len(self.D.filesOfSizeOfCRC[size][crc])\
                                             ,instances,FILEID:=self.idfunc(inode,dev),\
-                                            self.tree1.item(FILEID)['tags'],\
+                                            self.TreeGroups.item(FILEID)['tags'],\
                                             FILE,\
                                             FILEID,\
                                             bytes2str(size) ]) )
 
-            elif self.ShowOthers:
+            else:
                 istr=str(i)
                 if os.path.islink(DirEntry) :
-                    itemsToInsert.append( ( '➝',file,size,0,0,0,'','',1,0,LINK,LINK,istr+'L','' ) )
+                    itemsToInsert.append( ( '➝',file,0,0,0,0,'','',1,0,LINK,LINK,istr+'L','' ) )
                     i+=1
                 elif DirEntry.is_dir():
-                    itemsToInsert.append( ('[  ]',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'L','' ) )
+                    itemsToInsert.append( ('[  ]',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'D','' ) )
                     i+=1
                 elif DirEntry.is_file():
-                    if (FullFilePath:=os.path.join(self.SelFullPath,file)) in self.StatCache:
-                        ctime,dev,inode,size,FILEID = self.StatCache[FullFilePath]
-                    else:
-                        try:
-                            stat = os.stat(FullFilePath)
-                        except Exception as e:
-                            logging.error(f'ERROR: ,{e}')
-                            continue
-                        self.StatCache[FullFilePath] = tuple([ ctime:=round(stat.st_ctime) , dev:=stat.st_dev , inode:=stat.st_ino , size:=stat.st_size , FILEID:=self.idfunc(inode,dev) ])
+                    FullFilePath=os.path.join(self.SelFullPath,file)
+                    
+                    try:
+                        stat = os.stat(FullFilePath)
+                    except Exception as e:
+                        logging.error(f'ERROR: ,{e}')
+                        continue
+                    
+                    ctime=round(stat.st_ctime)
+                    dev=stat.st_dev
+                    inode=stat.st_ino
+                    size=stat.st_size
+                    FILEID=self.idfunc(inode,dev)
 
                     itemsToInsert.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ) )
                     i+=1
                 else:
                     logging.error(f'what is it: {DirEntry} ?')
-
-        colSort,reverse = self.ColumnSortLastParams[self.tree2]
+    
+        colSort,reverse = self.ColumnSortLastParams[self.TreeFolder]
 
         sortIndex=self.sortIndexDict[colSort]
 
         IsNumeric=self.col2sortNumeric[colSort]
         DIR0,DIR1 = (1,0) if reverse else (0,1)
 
-        self.tree2.delete(*self.tree2.get_children())
+        self.TreeFolder.delete(*self.TreeFolder.get_children())
+        
         for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(itemsToInsert,key=lambda x : (DIR0 if x[self.kindIndex]==DIR else DIR1,float(x[sortIndex])) if IsNumeric else (DIR0 if x[self.kindIndex]==DIR else DIR1,x[sortIndex]),reverse=reverse):
-            self.tree2.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE else '',kind),tags=tags)
+            self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE else '',kind),tags=tags)
 
-        self.tree2.update()
+        #self.TreeFolder.update()
+        
+        if not ArbitraryPath:
+            #wejscie do pod/nad folderu
+            #self.SelItem = self.TreeFolder.get_children()[0]
+            
+            #self.TreeFolder.see(self.SelItem)
+            #self.TreeFolder.focus(self.SelItem)
+        
+            if self.SelItem and self.SelItem in self.TreeFolder.get_children():
+                self.TreeFolder.selection_set(self.SelItem)
+                self.TreeFolder.see(self.SelItem)
+            
+        self.CalcMarkStatsPath()
+        self.TreeFolder.update()
+        
+        return True
 
-        if item in self.tree2.get_children():
-            self.tree2.selection_set(item)
-            self.tree2.see(item)
-            self.CalcMarkStatsPath()
-            self.tree2.update()
-
-    def PathTreeUpdateMarks(self):
-        for item in self.tree2.get_children():
-            if self.tree2.set(item,'kind')==FILE:
-                self.tree2.item( item,tags=self.tree1.item(item)['tags'] )
+    def TreeFolderUpdateMarks(self):
+        for item in self.TreeFolder.get_children():
+            if self.TreeFolder.set(item,'kind')==FILE:
+                self.TreeFolder.item( item,tags=self.TreeGroups.item(item)['tags'] )
 
     def CalcMarkStatsAll(self):
-        self.CalcMarkStatsCore(self.tree1,self.StatusVarAllSize,self.StatusVarAllQuant)
+        self.CalcMarkStatsCore(self.TreeGroups,self.StatusVarAllSize,self.StatusVarAllQuant)
         self.SetCommonVarFg()
 
     def CalcMarkStatsPath(self):
-        self.CalcMarkStatsCore(self.tree2,self.StatusVarPathSize,self.StatusVarPathQuant)
+        self.CalcMarkStatsCore(self.TreeFolder,self.StatusVarPathSize,self.StatusVarPathQuant)
 
     def CalcMarkStatsCore(self,tree,varSize,varQuant):
         marked=tree.tag_has(MARK)
@@ -2345,21 +2419,21 @@ class Gui:
         varSize.set(bytes2str(sum(int(tree.set(item,'size')) for item in marked)))
 
     def MarkInSpecifiedCRCGroupByCTime(self, action, crc, reverse,select=False):
-        item=sorted([ (item,self.tree1.set(item,'ctime') ) for item in self.tree1.get_children(crc)],key=lambda x : float(x[1]),reverse=reverse)[0][0]
+        item=sorted([ (item,self.TreeGroups.set(item,'ctime') ) for item in self.TreeGroups.get_children(crc)],key=lambda x : float(x[1]),reverse=reverse)[0][0]
         if item:
-            action(item,self.tree1)
+            action(item,self.TreeGroups)
             if select:
-                self.tree1.see(item)
-                self.tree1.focus(item)
-                self.Tree1SelChange(item)
-                self.tree1.update()
+                self.TreeGroups.see(item)
+                self.TreeGroups.focus(item)
+                self.TreeGroupsSelChange(item)
+                self.TreeGroups.update()
 
     @MainWatchCursor
     def MarkOnAllByCTime(self,orderStr, action):
         reverse=1 if orderStr=='oldest' else 0
 
-        { self.MarkInSpecifiedCRCGroupByCTime(action, crc, reverse) for crc in self.tree1.get_children() }
-        self.PathTreeUpdateMarks()
+        { self.MarkInSpecifiedCRCGroupByCTime(action, crc, reverse) for crc in self.TreeGroups.get_children() }
+        self.TreeFolderUpdateMarks()
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
@@ -2367,36 +2441,36 @@ class Gui:
     def MarkInCRCGroupByCTime(self,orderStr,action):
         reverse=1 if orderStr=='oldest' else 0
         self.MarkInSpecifiedCRCGroupByCTime(action,self.SelCrc,reverse,True)
-        self.PathTreeUpdateMarks()
+        self.TreeFolderUpdateMarks()
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
     def MarkInSpecifiedCRCGroup(self,action,crc):
-        { action(item,self.tree1) for item in self.tree1.get_children(crc) }
+        { action(item,self.TreeGroups) for item in self.TreeGroups.get_children(crc) }
 
     @MainWatchCursor
     def MarkInCRCGroup(self,action):
         self.MarkInSpecifiedCRCGroup(action,self.SelCrc)
-        self.PathTreeUpdateMarks()
+        self.TreeFolderUpdateMarks()
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
     @MainWatchCursor
     def MarkOnAll(self,action):
-        { self.MarkInSpecifiedCRCGroup(action,crc) for crc in self.tree1.get_children() }
-        self.PathTreeUpdateMarks()
+        { self.MarkInSpecifiedCRCGroup(action,crc) for crc in self.TreeGroups.get_children() }
+        self.TreeFolderUpdateMarks()
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
     def ActionOnPathPane(self,action,items):
-        { (action(item,self.tree2),action(item,self.tree1)) for item in items if self.tree2.set(item,'kind')==FILE }
+        { (action(item,self.TreeFolder),action(item,self.TreeGroups)) for item in items if self.TreeFolder.set(item,'kind')==FILE }
 
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
     @MainWatchCursor
     def MarkLowerPane(self,action):
-        { (action(item,self.tree2),action(item,self.tree1)) for item in self.tree2.get_children() if self.tree2.set(item,'kind')==FILE }
+        { (action(item,self.TreeFolder),action(item,self.TreeGroups)) for item in self.TreeFolder.get_children() if self.TreeFolder.set(item,'kind')==FILE }
 
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
@@ -2413,23 +2487,23 @@ class Gui:
     @MainWatchCursor
     def ActionOnSpecifiedPath(self,pathParam,action,AllGroups=True):
         if AllGroups:
-            CrcRange = self.tree1.get_children()
+            CrcRange = self.TreeGroups.get_children()
         else :
             CrcRange = [str(self.SelCrc)]
 
         selCount=0
         for crcitem in CrcRange:
-            for item in self.tree1.get_children(crcitem):
+            for item in self.TreeGroups.get_children(crcitem):
                 fullpath = self.FullPath1(item)
 
                 if fullpath.startswith(pathParam + os.sep):
-                    action(item,self.tree1)
+                    action(item,self.TreeGroups)
                     selCount+=1
 
         if selCount==0 :
             self.DialogWithEntry(title='No files found for specified path', prompt=pathParam,parent=self.main,OnlyInfo=True)
         else:
-            self.PathTreeUpdateMarks()
+            self.TreeFolderUpdateMarks()
             self.CalcMarkStatsAll()
             self.CalcMarkStatsPath()
 
@@ -2444,7 +2518,7 @@ class Gui:
         else:
             initialvalue='.*'
 
-        if tree==self.tree1:
+        if tree==self.TreeGroups:
             RangeStr = " (all groups)" if AllGroups else " (selected group)"
             title=f'Specify Expression for full file path.'
         else:
@@ -2459,14 +2533,14 @@ class Gui:
         if Expression:
             self.TreeExpr[tree]=Expression
 
-            if tree==self.tree1:
+            if tree==self.TreeGroups:
                 if AllGroups:
-                    CrcRange = self.tree1.get_children()
+                    CrcRange = self.TreeGroups.get_children()
                 else :
                     CrcRange = [str(self.SelCrc)]
 
                 for crcitem in CrcRange:
-                    for item in self.tree1.get_children(crcitem):
+                    for item in self.TreeGroups.get_children(crcitem):
                         fullpath = self.FullPath1(item)
                         try:
                             if (UseRegExpr and re.search(Expression,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,Expression) ):
@@ -2477,9 +2551,9 @@ class Gui:
                             tree.focus_set()
                             return
             else:
-                for item in self.tree2.get_children():
+                for item in self.TreeFolder.get_children():
                     if tree.set(item,'kind')==FILE:
-                        file=self.tree2.set(item,'file')
+                        file=self.TreeFolder.set(item,'file')
                         try:
                             if (UseRegExpr and re.search(Expression,file)) or (not UseRegExpr and fnmatch.fnmatch(file,Expression) ):
                                 items.append(item)
@@ -2497,19 +2571,19 @@ class Gui:
                 tree.focus(FirstItem)
                 tree.see(FirstItem)
 
-                if tree==self.tree1:
+                if tree==self.TreeGroups:
                     for item in items:
                         action(item,tree)
 
-                    self.Tree1SelChange(FirstItem)
+                    self.TreeGroupsSelChange(FirstItem)
                 else:
                     for item in items:
-                        action(item,self.tree1)
-                        action(item,self.tree2)
+                        action(item,self.TreeGroups)
+                        action(item,self.TreeFolder)
 
-                    self.Tree2SelChange(FirstItem)
+                    self.TreeFolderSelChange(FirstItem)
 
-                self.PathTreeUpdateMarks()
+                self.TreeFolderUpdateMarks()
                 self.CalcMarkStatsAll()
                 self.CalcMarkStatsPath()
 
@@ -2533,31 +2607,32 @@ class Gui:
             else:
                 item=self.SelItem
 
-            pool=marked if tree.tag_has(MARK,item) else self.FlatItemsList if tree==self.tree1 else self.tree2.get_children()
+            pool=marked if tree.tag_has(MARK,item) else self.FlatItemsList if tree==self.TreeGroups else self.TreeFolder.get_children()
             poollen=len(pool)
+            
+            if poollen:
+                index = pool.index(item)
 
-            index = pool.index(item)
+                while True:
+                    index=(index+direction)%poollen
+                    NextItem=pool[index]
+                    if MARK in tree.item(NextItem)['tags']:
+                        tree.focus(NextItem)
+                        tree.see(NextItem)
 
-            while True:
-                index=(index+direction)%poollen
-                NextItem=pool[index]
-                if MARK in tree.item(NextItem)['tags']:
-                    tree.focus(NextItem)
-                    tree.see(NextItem)
+                        if tree==self.TreeGroups:
+                            self.TreeGroupsSelChange(NextItem)
+                        else:
+                            self.TreeFolderSelChange(NextItem)
 
-                    if tree==self.tree1:
-                        self.Tree1SelChange(NextItem)
-                    else:
-                        self.Tree2SelChange(NextItem)
-
-                    break
+                        break
 
     @MainWatchCursor
     def GoToMaxGroup(self,sizeFlag=0):
         biggestsizesum=0
         biggestcrc=None
-        for crcitem in self.tree1.get_children():
-            sizesum=sum([(int(self.tree1.set(item,'size')) if sizeFlag else 1) for item in self.tree1.get_children(crcitem)])
+        for crcitem in self.TreeGroups.get_children():
+            sizesum=sum([(int(self.TreeGroups.set(item,'size')) if sizeFlag else 1) for item in self.TreeGroups.get_children(crcitem)])
             if sizesum>biggestsizesum:
                 biggestsizesum=sizesum
                 biggestcrc=crcitem
@@ -2588,23 +2663,23 @@ class Gui:
 
             item=FileidOfBiggest[(pathnr,path)]
 
-            self.tree1.focus(item)
-            self.tree1.see(item)
-            self.Tree1SelChange(item)
-            self.tree1.update()
+            self.TreeGroups.focus(item)
+            self.TreeGroups.see(item)
+            self.TreeGroupsSelChange(item)
+            self.TreeGroups.update()
 
-            self.UpdatePathTree(item)
+            self.TreeFolderUpdate()
 
-            self.tree2.focus_set()
-            self.tree2.focus(item)
-            self.tree2.see(item)
+            self.TreeFolder.focus_set()
+            self.TreeFolder.focus(item)
+            self.TreeFolder.see(item)
 
             self.UpdateMainTree(item)
 
     def FullPath1(self,item):
-        pathnr=int(self.tree1.set(item,'pathnr'))
-        path=self.tree1.set(item,'path')
-        file=self.tree1.set(item,'file')
+        pathnr=int(self.TreeGroups.set(item,'pathnr'))
+        path=self.TreeGroups.set(item,'path')
+        file=self.TreeGroups.set(item,'file')
         return os.path.abspath(self.D.ScannedPathFull(pathnr,path,file))
 
     def CheckFileState(self,item):
@@ -2618,7 +2693,7 @@ class Gui:
             logging.error(mesage)
             return mesage
 
-        if ctimeCheck != (ctime:=self.tree1.set(item,'ctime')) :
+        if ctimeCheck != (ctime:=self.TreeGroups.set(item,'ctime')) :
             message = {f'ctime inconsistency {ctimeCheck} vs {ctime}'}
             return message
 
@@ -2634,11 +2709,11 @@ class Gui:
 
         if all:
             ScopeTitle='All Marked Files.'
-            for crc in self.tree1.get_children():
-                if tempList:=[item for item in self.tree1.get_children(crc) if self.tree1.tag_has(MARK,item)]:
+            for crc in self.TreeGroups.get_children():
+                if tempList:=[item for item in self.TreeGroups.get_children(crc) if self.TreeGroups.tag_has(MARK,item)]:
                     ProcessedItems[crc]=tempList
         else:
-            if tree==self.tree1:
+            if tree==self.TreeGroups:
                 #tylko na gornym drzewie, na dolnym moze byc inny plik
                 crc=self.SelCrc
 
@@ -2670,8 +2745,8 @@ class Gui:
         #RemainingItems dla wszystkich (moze byc akcja z folderu)
         #istotna kolejnosc
         RemainingItems={}
-        for crc in self.tree1.get_children():
-            RemainingItems[crc]=[item for item in self.tree1.get_children(crc) if not self.tree1.tag_has(MARK,item)]
+        for crc in self.TreeGroups.get_children():
+            RemainingItems[crc]=[item for item in self.TreeGroups.get_children(crc) if not self.TreeGroups.tag_has(MARK,item)]
 
         if action=="hardlink":
             for crc in ProcessedItems:
@@ -2695,7 +2770,7 @@ class Gui:
         message=[]
         for crc in ProcessedItems:
             message.append('')
-            size=int(self.tree1.set(crc,'size'))
+            size=int(self.TreeGroups.set(crc,'size'))
             message.append('CRC:' + crc + ' size:' + bytes2str(size) + '|GRAY')
             for item in ProcessedItems[crc]:
                 message.append((self.FullPath1(item) if ShowFullPath else tree.set(item,'file')) + '|RED' )
@@ -2703,7 +2778,7 @@ class Gui:
             if action=='softlink':
                 if RemainingItems[crc]:
                     item = RemainingItems[crc][0]
-                    message.append('➝ ' + (self.FullPath1(item) if ShowFullPath else self.tree1.set(item,'file')) )
+                    message.append('➝ ' + (self.FullPath1(item) if ShowFullPath else self.TreeGroups.set(item,'file')) )
 
         if action=='delete':
             if not self.Ask('Delete marked files ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message),self.main):
@@ -2730,7 +2805,7 @@ class Gui:
         #############################################
         if action=='hardlink':
             for crc in ProcessedItems:
-                if len({int(self.tree1.set(item,'dev')) for item in ProcessedItems[crc]})>1:
+                if len({int(self.TreeGroups.set(item,'dev')) for item in ProcessedItems[crc]})>1:
                     message1='Can\'t create hardlinks.'
                     message2=f"Files on multiple devices selected. Crc:{crc}"
                     logging.error(message1)
@@ -2744,13 +2819,13 @@ class Gui:
         self.main.config(cursor="watch")
         self.main.update()
 
-        orglist=self.tree1.get_children()
+        orglist=self.TreeGroups.get_children()
 
         if action=='delete':
             for crc in ProcessedItems:
                 for item in ProcessedItems[crc]:
-                    size=int(self.tree1.set(item,'size'))
-                    IndexTuple=self.GetIndexTupleTree1(item)
+                    size=int(self.TreeGroups.set(item,'size'))
+                    IndexTuple=self.GetIndexTupleTreeGroups(item)
 
                     if resmsg:=self.D.DeleteFileWrapper(size,crc,IndexTuple):
                         logging.error(resmsg)
@@ -2763,11 +2838,11 @@ class Gui:
             for crc in ProcessedItems:
 
                 toKeepItem=list(RemainingItems[crc])[0]
-                #self.tree1.focus()
-                IndexTupleRef=self.GetIndexTupleTree1(toKeepItem)
-                size=int(self.tree1.set(toKeepItem,'size'))
+                #self.TreeGroups.focus()
+                IndexTupleRef=self.GetIndexTupleTreeGroups(toKeepItem)
+                size=int(self.TreeGroups.set(toKeepItem,'size'))
 
-                if resmsg:=self.D.LinkWrapper(True, RelSymlink, size,crc, IndexTupleRef, [self.GetIndexTupleTree1(item) for item in ProcessedItems[crc] ] ):
+                if resmsg:=self.D.LinkWrapper(True, RelSymlink, size,crc, IndexTupleRef, [self.GetIndexTupleTreeGroups(item) for item in ProcessedItems[crc] ] ):
                     logging.error(resmsg)
                     self.Info('Error',resmsg,self.main)
 
@@ -2777,53 +2852,55 @@ class Gui:
             for crc in ProcessedItems:
 
                 refItem=ProcessedItems[crc][0]
-                IndexTupleRef=self.GetIndexTupleTree1(refItem)
-                size=int(self.tree1.set(refItem,'size'))
+                IndexTupleRef=self.GetIndexTupleTreeGroups(refItem)
+                size=int(self.TreeGroups.set(refItem,'size'))
 
-                if resmsg:=self.D.LinkWrapper(False, False, size,crc, IndexTupleRef, [self.GetIndexTupleTree1(item) for item in ProcessedItems[crc][1:] ] ):
+                if resmsg:=self.D.LinkWrapper(False, False, size,crc, IndexTupleRef, [self.GetIndexTupleTreeGroups(item) for item in ProcessedItems[crc][1:] ] ):
                     logging.error(resmsg)
                     self.Info('Error',resmsg,self.main)
 
                 self.UpdateCrcNode(crc)
 
-        self.ScandirCache={}
-        self.StatCache={}
-
         self.ByPathCacheUpdate()
         self.GroupsNumberUpdate()
         self.FlatItemsListUpdate()
 
-        newlist=self.tree1.get_children()
-
-        if self.SelCrc in newlist:
-            self.SelectFocusAndSeeCrcItemTree(self.SelCrc,True)
-        elif not newlist:
-            self.InitialFocus()
+        newlist=self.TreeGroups.get_children()
+            
+        ItemToSel = self.GimmeClosest(orglist,self.SelCrc,newlist)
+        
+        if ItemToSel:
+            self.SelectFocusAndSeeCrcItemTree(ItemToSel,True)
         else:
-            SelCrcIndex=orglist.index(self.SelCrc)
-
-            NewlistLen=len(newlist)
-            for i in range(NewlistLen):
-                IndexM1 = SelCrcIndex-i
-                IndexP1 = SelCrcIndex+i
-                if IndexM1>=0:
-                    NearestCrc1 = orglist[IndexM1]
-                    if NearestCrc1 in newlist:
-                        self.SelectFocusAndSeeCrcItemTree(NearestCrc1,True)
-                        break
-                elif IndexP1<NewlistLen:
-                    NearestCrc1 = orglist[IndexP1]
-                    if NearestCrc1 in newlist:
-                        self.SelectFocusAndSeeCrcItemTree(NearestCrc1,True)
-                        break
-                else:
-                    self.InitialFocus()
-                    break
-
+            self.InitialFocus()
+        
         self.CalcMarkStatsAll()
 
         self.main.config(cursor="")
         self.main.update()
+        
+        self.FindResult=[]
+    
+    def GimmeClosest(self,PrevList,item,NewList):
+        if item in NewList:
+            return item
+        elif not NewList:
+            return None
+        else:
+            SelCrcIndex=PrevList.index(item)
+
+            NewListLen=len(NewList)
+            for i in range(NewListLen):
+                if (IndexM1:=SelCrcIndex-i) >=0:
+                    Nearest = PrevList[IndexM1]
+                    if Nearest in NewList:
+                        return Nearest
+                elif (IndexP1:=SelCrcIndex+i) < NewListLen:
+                    Nearest = PrevList[IndexP1]
+                    if Nearest in NewList:
+                        return Nearest
+                else:
+                    return None
 
     def CleanCache(self):
         try:
@@ -2858,30 +2935,72 @@ class Gui:
             if windows:
                 os.startfile(self.SelFullPath)
             else:
-                os.system("xdg-open " + '"' + self.SelFullPath + '"')
+                os.system("xdg-open " + '"' + self.SelFullPath.replace("'","\'").replace("`","\`") + '"')
 
-    def TreeEventOpenFileEvent(self,event):
+    def EnterDir(self,fullpath,sel):
+        if self.TreeFolderUpdate(fullpath):
+            children=self.TreeFolder.get_children()
+            resList=[nodeid for nodeid in children if self.TreeFolder.set(nodeid,'file')==sel]
+            if resList:
+                item=resList[0]
+                self.TreeFolder.see(item)
+                self.TreeFolder.focus(item)
+                self.TreeFolderSelChange(item)
+                
+            elif children:
+                self.TreeFolder.focus(children[0])
+                self.SelFile = self.TreeGroups.set(children[0],'file')
+                self.TreeFolderSelChange(children[0])
+
+    def TreeEventDoubleLeft(self,event):
         tree=event.widget
         if tree.identify("region", event.x, event.y) != 'heading':
-            self.TreeEventOpenFile()
+            if item:=tree.identify('item',event.x,event.y):
+                self.TreeAction(tree,item)
+    
+    def TreeAction(self,tree,item):
+        if tree.set(item,'kind') == DIR:
 
+            if tree.set(item,'file') == '..':
+                head,tail=os.path.split(self.SelFullPath)
+                self.EnterDir(os.path.normpath(str(pathlib.Path(self.SelFullPath).parent.absolute())),tail)
+            else:
+                self.EnterDir(self.SelFullPath+self.TreeFolder.set(item,'file') if self.SelFullPath=='/' else os.sep.join([self.SelFullPath,self.TreeFolder.set(item,'file')]),'..' )
+                
+        elif tree.set(item,'kind')!=CRC:
+            self.TreeEventOpenFile()
+        
     def TreeEventOpenFile(self):
         if self.SelKind==FILE or self.SelKind==LINK or self.SelKind==SINGLE:
             if windows:
                 os.startfile(os.sep.join([self.SelFullPath,self.SelFile]))
             else:
-                os.system("xdg-open "+ '"' + os.sep.join([self.SelFullPath,self.SelFile]) + '"')
+                os.system("xdg-open "+ '"' + os.sep.join([self.SelFullPath,self.SelFile]).replace("'","\'").replace("`","\`") + '"')
         elif self.SelKind==DIR:
             self.OpenFolder()
 
-    def SetCommonVar(self,val=None):
-        self.StatusVarFullPath.set(os.sep.join([self.SelSearchPath+self.SelPath,self.SelFile]))
+    def SetCommonVarWin(self):
+        self.StatusVarFullPath.set(pathlib.Path(os.sep.join([self.SelFullPath,self.SelFile])))
+        
+    def SetCommonVarLin(self):
+        self.StatusVarFullPath.set(self.SelFullPath+self.SelFile if self.SelFullPath=='/' else os.sep.join([self.SelFullPath,self.SelFile]))
+        
+    SetCommonVarOS = SetCommonVarWin if windows else SetCommonVarLin
+    
+    def SetCommonVar(self):
+        try:
+            self.SetCommonVarOS()
+        except Exception as e:
+            pass
+
         self.SetCommonVarFg()
 
     def SetCommonVarFg(self):
-        if self.SelItem:
-            self.StatusVarFullPathLabel.config(fg = 'red' if self.SelItem and (self.tree1,self.tree2)[self.SelTreeIndex].tag_has(MARK,self.SelItem) else 'black')
-
+        try:
+            self.StatusVarFullPathLabel.config(fg = 'red' if self.SelItem and (self.TreeGroups,self.TreeFolder)[self.SelTreeIndex].tag_has(MARK,self.SelItem) else 'black')
+        except Exception as e:
+            pass
+        
 LoggingLevels={'DEBUG':logging.DEBUG,'INFO':logging.INFO,'WARNING':logging.WARNING,'ERROR':logging.ERROR,'CRITICAL':logging.CRITICAL}
 
 if __name__ == "__main__":

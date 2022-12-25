@@ -379,8 +379,7 @@ class DudeCore:
             self.InfoFoundFolders = len({(pathnr,path) for sizeDict in self.filesOfSizeOfCRC.values() for crcDict in sizeDict.values() for pathnr,path,file,ctime,dev,inode in crcDict})
             
         end=time.time()
-        
-        self.Log.debug('total time = ',(end-start),'s')
+        self.Log.debug(f'total time = (end-start)s')
         
         self.CalcCrcMinLen()
 
@@ -388,7 +387,49 @@ class DudeCore:
 
         if self.writeLog:
             self.LogScanResults()
-
+    
+    def CheckGroupFilesState(self,size,crc):
+        #print('CheckGroupFilesState',size,crc,self.filesOfSizeOfCRC[size][crc])
+        resProblems=[]
+        toRemove=[]
+        if not self.filesOfSizeOfCRC[size][crc]:
+            resProblems.append('no data')
+            #print('no data')
+        else :
+            for pathnr,path,file,ctime,dev,inode in self.filesOfSizeOfCRC[size][crc]:
+                FullPath=self.Path2ScanFull(pathnr,path,file)
+                problem=False
+                #print(FullPath)
+                try:
+                    stat = os.stat(FullPath)
+                    #print(stat)
+                except Exception as e:
+                    resProblems.append(f'{e}|RED')
+                    #print(e)
+                    problem=True
+                else:
+                    if stat.st_nlink!=1:
+                        resProblems.append(f'file became hardlink:{stat.st_nlink} - {pathNr},{path},{file}')
+                        #print('problem1')
+                        problem=True
+                    else:
+                        if  (size,ctime,dev,inode) != (stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino):
+                            resProblems.append(f'file changed:{size},{ctime},{dev},{inode} vs {stat.st_size},{round(stat.st_ctime)},{stat.st_dev},{stat.st_ino}')
+                            problem=True
+                            #print('problem2')
+                if problem:
+                    #print('removing data',pathnr,path,file,ctime,dev,inode)
+                    IndexTuple=(pathnr,path,file,ctime,dev,inode)
+                    toRemove.append(IndexTuple)
+        
+            
+        #print(resProblems)
+        return (resProblems,toRemove)
+        
+    def RemoveTuples(self,size,crc,toRemove):
+        for IndexTuple in toRemove:
+            self.RemoveFromDataPool(size,crc,IndexTuple)
+        
     def LogScanResults(self):
         self.Log.info('#######################################################')
         self.Log.info('scan and crc calculation complete')
@@ -484,7 +525,7 @@ class DudeCore:
 
         if IndexTuple in self.filesOfSizeOfCRC[size][crc]:
             if message:=self.DeleteFile(FullFilePath):
-                self.Info('Error',message,self.main)
+                #self.Info('Error',message,self.main)
                 return message
             else:
                 self.RemoveFromDataPool(size,crc,IndexTuple)
@@ -524,7 +565,8 @@ class DudeCore:
                             return AnyProblem
                         else:
                             if message:=self.DeleteFile(tempFile):
-                                self.Info('Error',message,self.main)
+                                self.Log.error(message)
+                                #self.Info('Error',message,self.main)
                             #self.RemoveFromDataPool(size,crc,IndexTuple)
                             self.filesOfSizeOfCRC[size][crc].remove(IndexTuple)
             if not soft:
