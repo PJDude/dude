@@ -2355,9 +2355,6 @@ class Gui:
         self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
         itemsToInsert=[]
         
-        if self.TwoDotsConditionOS():
-            itemsToInsert.append( ('','..',0,0,0,0,'..','',1,0,DIR,DIR,'0UP','' ) )
-            
         i=0
         for DirEntry in ScanDirRes:
             file=DirEntry.name
@@ -2415,6 +2412,11 @@ class Gui:
 
         self.TreeFolder.delete(*self.TreeFolder.get_children())
         
+        if self.TwoDotsConditionOS():
+            #always at the beginning
+            (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH)=('','..',0,0,0,0,'..','',1,0,DIR,DIR,'0UP','' )
+            self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,'',kind),tags=tags)
+            
         for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(itemsToInsert,key=lambda x : (DIR0 if x[self.kindIndex]==DIR else DIR1,float(x[sortIndex])) if IsNumeric else (DIR0 if x[self.kindIndex]==DIR else DIR1,x[sortIndex]),reverse=reverse):
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE else '',kind),tags=tags)
 
@@ -2813,7 +2815,7 @@ class Gui:
             RemainingItems[crc]=[item for item in self.TreeGroups.get_children(crc) if not self.TreeGroups.tag_has(MARK,item)]
         
         self.StatusLine.set('checking selection correctness...')
-        if action=="hardlink":
+        if action==HARDLINK:
             for crc in ProcessedItems:
                 if len(ProcessedItems[crc])==1:
                     self.DialogWithEntry(title='Error - Can\'t hardlink single file.',prompt="                    Mark more files.                    ",parent=self.main,OnlyInfo=True)
@@ -2821,7 +2823,7 @@ class Gui:
                     self.SelectFocusAndSeeCrcItemTree(crc,True)
                     return
 
-        elif action in ("delete","softlink"):
+        elif action in (DELETE,SOFTLINK):
             for crc in ProcessedItems:
                 if len(RemainingItems[crc])==0:
                     self.DialogWithEntry(title=f'Error {action} - All files marked',prompt="          Keep at least one file unmarked.          ",parent=self.main,OnlyInfo=True)
