@@ -22,6 +22,7 @@ from tkinter.filedialog import askdirectory
 from collections import defaultdict
 from threading import Thread
 from sys import exit
+from sys import argv
 
 
 import core
@@ -3121,10 +3122,10 @@ if __name__ == "__main__":
     print('log:',log)
     logging.basicConfig(level=logginLevel,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
     
-    ArgsQuant = len(sys.argv)
+    ArgsQuant = len(argv)
     if ArgsQuant>1:
         for i in range(1,ArgsQuant):
-            self.addPath(sys.argv[i])
+            self.addPath(argv[i])
 
     try:
         Gui(os.getcwd())
