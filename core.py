@@ -52,11 +52,11 @@ class DudeCore:
 
     def SetPathsToScan(self,paths):
         pathsLen=len(paths)
-        
+
         if self.windows:
             paths=[path + ('\\' if path[-1]==':' else '') for path in paths ]
             paths=[path.replace('/','\\').upper() for path in paths]
-        
+
         abspaths=[os.path.abspath(path) for path in paths]
 
         for path in abspaths:
@@ -293,10 +293,10 @@ class DudeCore:
     InfoFoundFolders=0
     InfoDuplicatesSpace=0
     infoSpeed=0
-    
+
     SizeThreshold=64*1024*1024
     CacheSizeTheshold=1024*1024
-    
+
     def CrcCalc(self):
         self.ReadCRCCache()
 
@@ -311,11 +311,11 @@ class DudeCore:
         self.InfoDuplicatesSpace=0
         self.InfoFileNr=0
         self.infoSpeed=0
-        
+
         self.InfoTotal = len([ 1 for size in self.ScanResultsBySize for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size] ])
 
         MeasuresPool=[]
-        
+
         start = time.time()
         for size in list(sorted(self.ScanResultsBySize,reverse=True)):
             if self.AbortAction:
@@ -331,17 +331,17 @@ class DudeCore:
 
                 self.InfoFileNr+=1
                 self.InfoSizeDone+=size
-                
+
                 crc=None
-                    
+
                 if UseCache:
                     CacheKey=(int(inode),int(mtime))
                     if CacheKey in self.CRCCache[dev]:
                         crc=self.CRCCache[dev][CacheKey]
-                
+
                 if not crc:
                     FullPath=self.Path2ScanFull(pathnr,path,file)
-                    
+
                     if UseHashlib:
                         try:
                             f=open(FullPath,'rb')
@@ -355,15 +355,15 @@ class DudeCore:
                                 self.CRCCache[dev][CacheKey]=crc
                     else:
                         crc=self.Run([self.CRCExec,self.CRCExecParams,FullPath])
-                        if crc:        
+                        if crc:
                             if UseCache:
                                 self.CRCCache[dev][CacheKey]=crc
                 if crc:
                     self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
-                
+
                 now=time.time()
                 MeasuresPool.append((size,now))
-                
+
                 MeasuresPool=MeasuresPool[-100:]
                 LastPeriodSizeSum=sum([size for (size,time) in MeasuresPool])
                 if timeDIff:=now-MeasuresPool[0][1]:
@@ -377,17 +377,17 @@ class DudeCore:
                 self.InfoDuplicatesSpace += size*sum([1 for crcDict in self.filesOfSizeOfCRC[size].values() for pathnr,path,file,ctime,dev,inode in crcDict])
 
             self.InfoFoundFolders = len({(pathnr,path) for sizeDict in self.filesOfSizeOfCRC.values() for crcDict in sizeDict.values() for pathnr,path,file,ctime,dev,inode in crcDict})
-            
+
         end=time.time()
         self.Log.debug(f'total time = (end-start)s')
-        
+
         self.CalcCrcMinLen()
 
         self.WriteCRCCache()
 
         if self.writeLog:
             self.LogScanResults()
-    
+
     def CheckGroupFilesState(self,size,crc):
         #print('CheckGroupFilesState',size,crc,self.filesOfSizeOfCRC[size][crc])
         resProblems=[]
@@ -421,15 +421,15 @@ class DudeCore:
                     #print('removing data',pathnr,path,file,ctime,dev,inode)
                     IndexTuple=(pathnr,path,file,ctime,dev,inode)
                     toRemove.append(IndexTuple)
-        
-            
+
+
         #print(resProblems)
         return (resProblems,toRemove)
-        
+
     def RemoveTuples(self,size,crc,toRemove):
         for IndexTuple in toRemove:
             self.RemoveFromDataPool(size,crc,IndexTuple)
-        
+
     def LogScanResults(self):
         self.Log.info('#######################################################')
         self.Log.info('scan and crc calculation complete')
@@ -516,6 +516,11 @@ class DudeCore:
 
         self.CheckCrcPoolAndPrune(size)
         self.ReduceCrcCut(size,crc)
+
+    def GetPath(self,IndexTuple):
+        (pathnr,path,file,ctime,dev,inode)=IndexTuple
+        #FullFilePath=self.ScannedPathFull(pathnr,path,file)
+        return self.ScannedPaths[pathnr]+path
 
     def DeleteFileWrapper(self,size,crc,IndexTuple):
         self.Log.debug(f"DeleteFileWrapper:{size},{crc},{IndexTuple}")
