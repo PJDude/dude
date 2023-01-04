@@ -16,6 +16,7 @@ import logging
 import tkinter as tk
 from tkinter import *
 from tkinter import ttk
+#from tkinter import font
 from tkinter import scrolledtext
 from tkinter.filedialog import askdirectory
 
@@ -23,7 +24,6 @@ from collections import defaultdict
 from threading import Thread
 from sys import exit
 from sys import argv
-
 
 import core
 
@@ -82,6 +82,7 @@ CFG_KEY_FULLPATHS='show_full_paths'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
 
 CFG_KEY_USE_REG_EXPR='use_reg_expr'
+CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
 
 ERASE_EMPTY_DIRS='erase_empty_dirs'
 CONFIRM_SHOW_CRCSIZE='confirm_show_crcsize'
@@ -91,7 +92,19 @@ CFG_KEY_GEOMETRY='geometry'
 CFG_KEY_GEOMETRY_DIALOG='geometry_dialog'
 
 CFG_KEY_EXCLUDE='exclude'
-CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
+
+CfgDefaults={
+    CFG_KEY_STARTUP_ADD_CWD:False,
+    CFG_KEY_STARTUP_SCAN:False,
+    CFG_KEY_FULLCRC:False,
+    CFG_KEY_FULLPATHS:False,
+    CFG_KEY_REL_SYMLINKS:True,
+    CFG_KEY_USE_REG_EXPR:False,
+    CFG_KEY_EXCLUDE_REGEXP:False,
+    ERASE_EMPTY_DIRS:True,
+    CONFIRM_SHOW_CRCSIZE:False,
+    CONFIRM_SHOW_LINKSTARGETS:True
+    }
 
 MARK='M'
 UPDIR='0'
@@ -99,6 +112,7 @@ DIR='1'
 LINK='2'
 FILE='3'
 SINGLE='4'
+SINGLEHARDLINKED='5'
 CRC='C'
 
 DELETE=0
@@ -135,6 +149,9 @@ class Config:
     def Set(self,key,val,section='main'):
         self.config.set(section,key,val)
 
+    def SetBool(self,key,val,section='main'):
+        self.config.set(section,key,('0','1')[val])
+
     def Get(self,key,default=None,section='main'):
         try:
             res=self.config.get(section,key)
@@ -145,6 +162,18 @@ class Config:
             self.Set(key,str(default),section=section)
 
         return str(res).replace('[','').replace(']','').replace('"','').replace("'",'').replace(',','').replace(' ','')
+
+    def GetBool(self,key,section='main'):
+        try:
+            res=self.config.get(section,key)
+            return res=='1'
+
+        except Exception as e:
+            logging.warning(f'gettting config key {key}')
+            logging.warning(e)
+            res=CfgDefaults[key]
+            self.SetBool(key,res,section=section)
+            return res
 
 def CenterToParentGeometry(widget,parent):
     x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -205,7 +234,11 @@ class Gui:
             tree=self.main.focus_get()
             tree.configure(style='semi_focus.Treeview')
 
-            res=f(self,*args,**kwargs)
+            try:
+                res=f(self,*args,**kwargs)
+            except Exception as e:
+                res=None
+                print("error on:",f,e)
 
             tree.configure(style='default.Treeview')
 
@@ -347,6 +380,11 @@ class Gui:
         self.main.bind('<KeyPress-F1>', lambda event : self.About())
         self.main.bind('<KeyPress-s>', lambda event : self.ScanDialogShow())
         self.main.bind('<KeyPress-S>', lambda event : self.ScanDialogShow())
+
+        #self.defaultFont = font.nametofont("TkDefaultFont")
+        #self.defaultFont.configure(family="Monospace regular",size=8,weight=font.BOLD)
+        #self.defaultFont.configure(family="Monospace regular",size=10)
+        #self.main.option_add("*Font", self.defaultFont)
 
         ####################################################################
         style = ttk.Style()
@@ -637,7 +675,7 @@ class Gui:
 
         ##############
         self.ScanExcludeRegExpr=tk.BooleanVar()
-        self.ScanExcludeRegExpr.set(self.cfg.Get(CFG_KEY_EXCLUDE_REGEXP,False) == 'True')
+        self.ScanExcludeRegExpr.set(self.cfg.GetBool(CFG_KEY_EXCLUDE_REGEXP))
 
         self.ExcludeFRame = tk.LabelFrame(self.ScanDialogMainFrame,text='Exclude from scan:',borderwidth=2,bg=self.bg)
         self.ExcludeFRame.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
@@ -776,9 +814,7 @@ class Gui:
         #######################################################################
         self.ResetSels()
 
-        self.SettingsSetBools()
-
-        if self.AddCwdAtStartup:
+        if self.addCwdAtStartup:
             self.addPath(cwd)
 
         self.ScanDialogShow()
@@ -792,7 +828,7 @@ class Gui:
 
         self.ShowGroups()
 
-        if self.ScanAtStarup:
+        if self.cfg.GetBool(CFG_KEY_STARTUP_SCAN):
             self.main.update()
             self.Scan()
 
@@ -882,7 +918,6 @@ class Gui:
 
     @KeepSemiFocus
     def FindDialogShow(self):
-
         self.main.config(cursor="watch")
         self.FindDialogShown=1
         self.FindEntryModified=1
@@ -912,7 +947,7 @@ class Gui:
             self.GeometryStore(dialog)
             dialog.destroy()
 
-            self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(self.DialogRegExpr.get()))
+            self.cfg.SetBool(CFG_KEY_USE_REG_EXPR,self.DialogRegExpr.get())
 
             try:
                 dialog.update()
@@ -1023,7 +1058,7 @@ class Gui:
         tk.Label(dialog,text='',anchor='n',justify='center',bg=self.bg).grid(sticky='news',row=0,column=0,padx=5,pady=5)
 
         self.DialogRegExpr=tk.BooleanVar()
-        self.DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
+        self.DialogRegExpr.set(self.cfg.GetBool(CFG_KEY_USE_REG_EXPR))
         ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=self.DialogRegExpr,command=FindModEvent).grid(row=1,column=0,sticky='news',padx=5)
 
         (Entry:=ttk.Entry(dialog,textvariable=self.FindEntryVar)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
@@ -1097,7 +1132,7 @@ class Gui:
             self.GeometryStore(dialog)
             nonlocal ShowRegExpCheckButton
             if ShowRegExpCheckButton:
-                self.cfg.Set(CFG_KEY_USE_REG_EXPR,str(self.DialogRegExpr.get()))
+                self.cfg.SetBool(CFG_KEY_USE_REG_EXPR,self.DialogRegExpr.get())
 
             dialog.destroy()
             try:
@@ -1135,7 +1170,7 @@ class Gui:
         if not OnlyInfo:
             if ShowRegExpCheckButton:
                 self.DialogRegExpr=tk.BooleanVar()
-                self.DialogRegExpr.set(True if self.cfg.Get(CFG_KEY_USE_REG_EXPR,False)=='True' else False)
+                self.DialogRegExpr.set(self.cfg.GetBool(CFG_KEY_USE_REG_EXPR))
                 ttk.Checkbutton(dialog,text='Use regular expressions matching',variable=self.DialogRegExpr).grid(row=1,column=0,sticky='news',padx=5)
 
             (entry:=ttk.Entry(dialog,textvariable=EntryVar)).grid(sticky='news',row=2,column=0,padx=5,pady=5)
@@ -1309,8 +1344,6 @@ class Gui:
 
     @MainWatchCursor
     def KeyPressTreeCommon(self,event):
-        #self.StatusLine.set('')
-
         tree=event.widget
         item=tree.focus()
 
@@ -1324,7 +1357,6 @@ class Gui:
                 pool=tree.get_children()
                 poolLen=len(pool)
 
-            #print(self.SelItem,self.SelItemTree[tree])
             index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree]) if self.SelItemTree[tree] in pool else pool.index(item) if item in  pool else 0
             if poolLen:
                 index=(index+self.DirectionOfKeysym[event.keysym])%poolLen
@@ -1382,14 +1414,6 @@ class Gui:
             item=tree.focus()
             if item:
                 self.TreeAction(tree,item)
-        elif event.keysym=='KP_Add' or event.keysym=='plus':
-            StrEvent=str(event)
-            CtrPressed = 'Control' in StrEvent
-            self.MarkExpression(self.SetMark,'Mark files',CtrPressed)
-        elif event.keysym=='KP_Subtract' or event.keysym=='minus':
-            StrEvent=str(event)
-            CtrPressed = 'Control' in StrEvent
-            self.MarkExpression(self.UnsetMark,'Unmark files',CtrPressed)
         else:
             StrEvent=str(event)
 
@@ -1402,16 +1426,22 @@ class Gui:
                 else:
                     self.FindNext()
 
-            if event.keysym == "Delete":
+            elif event.keysym=='KP_Add' or event.keysym=='plus':
+                StrEvent=str(event)
+                self.MarkExpression(self.SetMark,'Mark files',CtrPressed)
+            elif event.keysym=='KP_Subtract' or event.keysym=='minus':
+                StrEvent=str(event)
+                self.MarkExpression(self.UnsetMark,'Unmark files',CtrPressed)
+            elif event.keysym == "Delete":
                 if tree==self.TreeGroups:
                     self.ProcessFilesTreeCrcWrapper(DELETE,CtrPressed)
                 else:
                     self.ProcessFilesTreeFolderWrapper(DELETE,self.SelKind==DIR)
             elif event.keysym == "Insert":
                 if tree==self.TreeGroups:
-                    self.ProcessFilesTreeCrcWrapper(HARDLINK if ShiftPressed else SOFTLINK,CtrPressed)
+                    self.ProcessFilesTreeCrcWrapper((SOFTLINK,HARDLINK)[ShiftPressed],CtrPressed)
                 else:
-                    self.ProcessFilesTreeFolderWrapper(HARDLINK if ShiftPressed else SOFTLINK,self.SelKind==DIR)
+                    self.ProcessFilesTreeFolderWrapper((SOFTLINK,HARDLINK)[ShiftPressed],self.SelKind==DIR)
             elif event.keysym=='BackSpace':
                 if ShiftPressed:
                     self.GoToMaxGroup(not CtrPressed)
@@ -1647,7 +1677,9 @@ class Gui:
         if self.TreeFolder.set(item,'kind')==FILE:
             self.UpdateMainTree(item)
         elif self.TreeFolder.set(item,'kind')==LINK:
-            self.StatusLine.set('  ➩  ' + os.readlink(self.StatusVarFullPath.get()))
+            self.StatusLine.set('  🠖  ' + os.readlink(self.StatusVarFullPath.get()))
+        elif self.TreeFolder.set(item,'kind')==SINGLEHARDLINKED:
+            self.StatusLine.set('File with hardlinks')
         else:
             self.UpdateMainTreeNone()
 
@@ -1799,6 +1831,8 @@ class Gui:
             cSelSub.entryconfig(3,foreground='red',activeforeground='red')
             cSelSub.entryconfig(4,foreground='red',activeforeground='red')
             #cSelSub.entryconfig(5,foreground='red',activeforeground='red')
+            cSelSub.add_separator()
+            cSelSub.add_command(label = 'Remove Empty Folders in Subdirectory Tree',command=lambda : self.RemoveEmptyFolders(),state=DirActionsState)
 
             pop.add_cascade(label = 'Selected Subdirectory',menu = cSelSub,state=DirActionsState)
 
@@ -1833,6 +1867,10 @@ class Gui:
             print(e)
 
         pop.grab_release()
+
+    def RemoveEmptyFolders(self):
+        self.EmptyDirsRemoval(os.path.join(self.SelFullPath,self.SelFile))
+        self.TreeFolderUpdate(self.SelFullPath)
 
     def SelDir(self,action):
         self.ActionOnSpecifiedPath(self.StatusVarFullPath.get(),action,True)
@@ -1905,7 +1943,7 @@ class Gui:
             self.Info('Error. Fix paths selection.',res,self.ScanDialog)
             return
 
-        if res:=self.D.SetExcludeMasks(self.cfg.Get(CFG_KEY_EXCLUDE_REGEXP,False) == 'True',ExcludeVarsFromEntry):
+        if res:=self.D.SetExcludeMasks(self.cfg.GetBool(CFG_KEY_EXCLUDE_REGEXP),ExcludeVarsFromEntry):
             self.Info('Error. Fix Exclude masks.',res,self.ScanDialog)
             return
 
@@ -1962,7 +2000,7 @@ class Gui:
                     + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) \
                     + '\n' \
                     + '\ncurrent file size: ' + bytes2str(self.D.InfoCurrentSize) \
-                    + '\n\nSpeed:' + bytes2str(self.D.infoSpeed,0) + '/s'
+                    + '\n\nSpeed: ' + bytes2str(self.D.infoSpeed,1) + '/s'
             self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,PrefixInfo=self.D.InfoCurrentFile)
 
             if self.LongActionAbort:
@@ -2040,7 +2078,7 @@ class Gui:
             #self.AddDrivesButton.configure(state=NORMAL,text='Add drives ...')
 
     def ScanExcludeRegExprCommand(self):
-        self.cfg.Set(CFG_KEY_EXCLUDE_REGEXP,str(self.ScanExcludeRegExpr.get()))
+        self.cfg.SetBool(CFG_KEY_EXCLUDE_REGEXP,self.ScanExcludeRegExpr.get())
 
     def UpdateExcludeMasks(self) :
         for subframe in self.ExcludeFrames:
@@ -2135,14 +2173,14 @@ class Gui:
     def KeyboardShortcuts(self):
         self.Info('Keyboard Shortcuts',self.keyboardshortcuts,self.main,textwidth=80,width=600)
 
-    def setConfVar(self,title,prompt,parent,tkvar,initialvalue,configkey,validation):
-        if (res := self.DialogWithEntry(title,prompt, initialvalue=initialvalue,parent=parent)):
-            if (validation(res)):
-                tkvar.set(res)
-                self.cfg.Set(configkey,res)
-                self.cfg.Write()
-            else:
-                self.setConfVar(title,prompt,parent,tkvar,res,configkey,validation)
+    #def setConfVar(self,title,prompt,parent,tkvar,initialvalue,configkey,validation):
+    #    if (res := self.DialogWithEntry(title,prompt, initialvalue=initialvalue,parent=parent)):
+    #        if (validation(res)):
+    #            tkvar.set(res)
+    #            self.cfg.Set(configkey,res)
+    #            self.cfg.Write()
+    #        else:
+    #            self.setConfVar(title,prompt,parent,tkvar,res,configkey,validation)
 
     def StoreSplitter(self):
         try:
@@ -2167,18 +2205,18 @@ class Gui:
         self.main.config(cursor="watch")
 
         settings = [
-            (self.addCwdAtStartup,CFG_KEY_STARTUP_ADD_CWD,True),
-            (self.scanAtStartup,CFG_KEY_STARTUP_SCAN,False),
-            (self.fullCRC,CFG_KEY_FULLCRC,False),
-            (self.fullPaths,CFG_KEY_FULLPATHS,False),
-            (self.relSymlinks,CFG_KEY_REL_SYMLINKS,True),
-            (self.EraseEmptyDirs,ERASE_EMPTY_DIRS,True),
-            (self.ConfirmShowCrcSize,CONFIRM_SHOW_CRCSIZE,False),
-            (self.ConfirmShowLinksTargets,CONFIRM_SHOW_LINKSTARGETS,False)
+            (self.addCwdAtStartup,CFG_KEY_STARTUP_ADD_CWD),
+            (self.scanAtStartup,CFG_KEY_STARTUP_SCAN),
+            (self.fullCRC,CFG_KEY_FULLCRC),
+            (self.fullPaths,CFG_KEY_FULLPATHS),
+            (self.relSymlinks,CFG_KEY_REL_SYMLINKS),
+            (self.EraseEmptyDirs,ERASE_EMPTY_DIRS),
+            (self.ConfirmShowCrcSize,CONFIRM_SHOW_CRCSIZE),
+            (self.ConfirmShowLinksTargets,CONFIRM_SHOW_LINKSTARGETS)
         ]
-        for var,key,default in settings:
+        for var,key in settings:
             try:
-                var.set(self.cfg.Get(key,default))
+                var.set(self.cfg.GetBool(key))
             except Exception as e:
                 print(e)
 
@@ -2203,37 +2241,35 @@ class Gui:
             pass
 
     def SettingsDialogOK(self):
-        self.cfg.Set(CFG_KEY_STARTUP_ADD_CWD,str(self.addCwdAtStartup.get()))
-        self.cfg.Set(CFG_KEY_STARTUP_SCAN,str(self.scanAtStartup.get()))
+        self.cfg.SetBool(CFG_KEY_STARTUP_ADD_CWD,self.addCwdAtStartup.get())
+        self.cfg.SetBool(CFG_KEY_STARTUP_SCAN,self.scanAtStartup.get())
 
         update1=False
         update2=False
 
-        if self.cfg.Get(CFG_KEY_FULLCRC,False)!=self.fullCRC.get():
-            self.cfg.Set(CFG_KEY_FULLCRC,str(self.fullCRC.get()))
+        if self.cfg.GetBool(CFG_KEY_FULLCRC)!=self.fullCRC.get():
+            self.cfg.SetBool(CFG_KEY_FULLCRC,self.fullCRC.get())
             update1=True
             update2=True
 
-        if self.cfg.Get(CFG_KEY_FULLPATHS,False)!=self.fullPaths.get():
-            self.cfg.Set(CFG_KEY_FULLPATHS,str(self.fullPaths.get()))
+        if self.cfg.GetBool(CFG_KEY_FULLPATHS)!=self.fullPaths.get():
+            self.cfg.SetBool(CFG_KEY_FULLPATHS,self.fullPaths.get())
             update1=True
             update2=True
 
-        if self.cfg.Get(CFG_KEY_REL_SYMLINKS,False)!=self.relSymlinks.get():
-            self.cfg.Set(CFG_KEY_REL_SYMLINKS,str(self.relSymlinks.get()))
+        if self.cfg.GetBool(CFG_KEY_REL_SYMLINKS)!=self.relSymlinks.get():
+            self.cfg.SetBool(CFG_KEY_REL_SYMLINKS,self.relSymlinks.get())
 
-        if self.cfg.Get(ERASE_EMPTY_DIRS,False)!=self.EraseEmptyDirs.get():
-            self.cfg.Set(ERASE_EMPTY_DIRS,str(self.EraseEmptyDirs.get()))
+        if self.cfg.GetBool(ERASE_EMPTY_DIRS)!=self.EraseEmptyDirs.get():
+            self.cfg.SetBool(ERASE_EMPTY_DIRS,self.EraseEmptyDirs.get())
 
-        if self.cfg.Get(CONFIRM_SHOW_CRCSIZE,False)!=self.ConfirmShowCrcSize.get():
-            self.cfg.Set(CONFIRM_SHOW_CRCSIZE,str(self.ConfirmShowCrcSize.get()))
+        if self.cfg.GetBool(CONFIRM_SHOW_CRCSIZE)!=self.ConfirmShowCrcSize.get():
+            self.cfg.SetBool(CONFIRM_SHOW_CRCSIZE,self.ConfirmShowCrcSize.get())
 
-        if self.cfg.Get(CONFIRM_SHOW_LINKSTARGETS,False)!=self.ConfirmShowLinksTargets.get():
-            self.cfg.Set(CONFIRM_SHOW_LINKSTARGETS,str(self.ConfirmShowLinksTargets.get()))
+        if self.cfg.GetBool(CONFIRM_SHOW_LINKSTARGETS)!=self.ConfirmShowLinksTargets.get():
+            self.cfg.SetBool(CONFIRM_SHOW_LINKSTARGETS,self.ConfirmShowLinksTargets.get())
 
         self.cfg.Write()
-
-        self.SettingsSetBools()
 
         if update1:
             self.TreeGroupsCrcAndPathUpdate()
@@ -2245,17 +2281,6 @@ class Gui:
                 self.TreeFolderUpdateNone()
 
         self.SettingsDialogClose()
-
-    AddCwdAtStartup = False
-    ScanAtStarup = False
-    FullCRC = False
-    FullPaths = False
-
-    def SettingsSetBools(self):
-        self.AddCwdAtStartup = self.cfg.Get(CFG_KEY_STARTUP_ADD_CWD,'True') == 'True'
-        self.ScanAtStarup = self.cfg.Get(CFG_KEY_STARTUP_SCAN,'True') == 'True'
-        self.FullCRC = self.cfg.Get(CFG_KEY_FULLCRC,False) == 'True'
-        self.FullPaths = self.cfg.Get(CFG_KEY_FULLPATHS,False) == 'True'
 
     def SettingsDialogReset(self):
         self.addCwdAtStartup.set(True)
@@ -2349,11 +2374,14 @@ class Gui:
         self.CalcMarkStatsAll()
 
     def TreeGroupsCrcAndPathUpdate(self):
+        FullCRC=self.cfg.GetBool(CFG_KEY_FULLCRC)
+        FullPaths=self.cfg.GetBool(CFG_KEY_FULLPATHS)
+
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
-                self.TreeGroups.item(crc,text=crc if self.FullCRC else self.D.crccut[crc])
+                self.TreeGroups.item(crc,text=crc if FullCRC else self.D.crccut[crc])
                 for pathnr,path,file,ctime,dev,inode in crcDict:
-                    self.TreeGroups.item(self.idfunc(inode,dev),text=self.D.ScannedPaths[pathnr] if self.FullPaths else self.Numbers[pathnr])
+                    self.TreeGroups.item(self.idfunc(inode,dev),text=self.D.ScannedPaths[pathnr] if FullPaths else self.Numbers[pathnr])
 
     def UpdateMainTreeNone(self):
         self.TreeGroups.selection_remove(self.TreeGroups.selection())
@@ -2407,6 +2435,8 @@ class Gui:
         self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
         itemsToInsert=[]
 
+        FullCRC=self.cfg.GetBool(CFG_KEY_FULLCRC)
+
         i=0
         for DirEntry in ScanDirRes:
             file=DirEntry.name
@@ -2428,7 +2458,7 @@ class Gui:
                     dev=stat.st_dev
                     inode=stat.st_ino
 
-                    itemsToInsert.append( ( '\t  ⇠',file,0,ctime,dev,inode,'','',1,0,LINK,LINK,istr+'FL','' ) )
+                    itemsToInsert.append( ( '\t  🠔',file,0,ctime,dev,inode,'','',1,0,LINK,LINK,istr+'FL','' ) )
             elif DirEntry.is_dir():
                 itemsToInsert.append( ('\t📁',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'D','' ) )
             elif DirEntry.is_file():
@@ -2442,7 +2472,7 @@ class Gui:
                 if (FILEID,ctime) in self.ByIdCtimeCache:
                     crc,crccut = self.ByIdCtimeCache[(FILEID,ctime)]
 
-                    itemsToInsert.append( tuple([ crc if self.FullCRC else crccut, \
+                    itemsToInsert.append( tuple([ crc if FullCRC else crccut, \
                                                 file,\
                                                 size,\
                                                 ctime,\
@@ -2457,7 +2487,11 @@ class Gui:
                                                 FILEID,\
                                                 bytes2str(size) ]) )
                 else:
-                    itemsToInsert.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ) )
+                    if stat.st_nlink!=1:
+                        #hardlink
+                        itemsToInsert.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLEHARDLINKED,istr+'O',bytes2str(size) ) )
+                    else:
+                        itemsToInsert.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ) )
 
 
             else:
@@ -2480,7 +2514,7 @@ class Gui:
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,'',kind),tags=tags)
 
         for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(itemsToInsert,key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse):
-            self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE else '',kind),tags=tags)
+            self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE or kind==SINGLEHARDLINKED else '',kind),tags=tags)
 
         #self.TreeFolder.update()
 
@@ -2894,19 +2928,23 @@ class Gui:
         ShowFullPath=1
 
         message=[]
-        for crc in ProcessedItems:
+        if not self.cfg.Get(CONFIRM_SHOW_CRCSIZE,False)=='True':
             message.append('')
-            size=int(self.TreeGroups.set(crc,'size'))
+
+        for crc in ProcessedItems:
             if self.cfg.Get(CONFIRM_SHOW_CRCSIZE,False)=='True':
+                size=int(self.TreeGroups.set(crc,'size'))
+                message.append('')
                 message.append('CRC:' + crc + ' size:' + bytes2str(size) + '|GRAY')
+
             for item in ProcessedItems[crc]:
                 message.append((self.ItemFullPath(item) if ShowFullPath else tree.set(item,'file')) + '|RED' )
 
             if action==SOFTLINK:
                 if RemainingItems[crc]:
                     item = RemainingItems[crc][0]
-                    if self.cfg.Get(CONFIRM_SHOW_LINKSTARGETS,False)=='True':
-                        message.append('➝ ' + (self.ItemFullPath(item) if ShowFullPath else self.TreeGroups.set(item,'file')) )
+                    if self.cfg.GetBool(CONFIRM_SHOW_LINKSTARGETS):
+                        message.append('🠖 ' + (self.ItemFullPath(item) if ShowFullPath else self.TreeGroups.set(item,'file')) )
 
         if action==DELETE:
             if not self.Ask('Delete marked files ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message),self.main):
@@ -2921,6 +2959,17 @@ class Gui:
         {logging.warning(line) for line in message}
         logging.warning('###########################################################################################')
         logging.warning('Confirmed.')
+
+    def EmptyDirsRemoval(self,startpath):
+        self.StatusLine.set(f'Removing empty directories in:{startpath}')
+        for (path, dirs, files) in os.walk(startpath, topdown=False, followlinks=False):
+            if not files:
+                try:
+                    os.rmdir(path)
+                    logging.info(f'Removed:{path}')
+                except Exception as e:
+                    logging.error(f'EmptyDirsRemoval:{e}')
+        self.StatusLine.set('')
 
     def ProcessFilesCore(self,action,ProcessedItems,RemainingItems):
         self.main.config(cursor="watch")
@@ -2940,12 +2989,12 @@ class Gui:
                         break
                     DirectoriesToCheck.add(self.D.GetPath(IndexTuple))
                 self.UpdateCrcNode(crc)
-            print('DirectoriesToCheck',DirectoriesToCheck)
 
             if self.cfg.Get(ERASE_EMPTY_DIRS,False)=="True":
-                DirectoriesToCheckList=list(DirectoriesToCheck).sort(key=lambda dir : len(str(dir).split(os.sep)))
-                for directory in DirectoriesToCheck:
-                    print(directory)
+                DirectoriesToCheckList=list(DirectoriesToCheck)
+                DirectoriesToCheckList.sort(key=lambda d : (len(str(d).split(os.sep)),d),reverse=True )
+                for directory in DirectoriesToCheckList:
+                    self.EmptyDirsRemoval(directory)
 
         elif action==SOFTLINK:
             RelSymlink = True if self.cfg.Get(CFG_KEY_REL_SYMLINKS,False)=='True' else False
@@ -3192,7 +3241,7 @@ class Gui:
 
     @StatusLineRestore
     def TreeEventOpenFile(self):
-        if self.SelKind==FILE or self.SelKind==LINK or self.SelKind==SINGLE:
+        if self.SelKind==FILE or self.SelKind==LINK or self.SelKind==SINGLE or self.SelKind==SINGLEHARDLINKED:
             self.StatusLine.set(f'Opening {self.SelFile}')
             if windows:
                 os.startfile(os.sep.join([self.SelFullPath,self.SelFile]))
