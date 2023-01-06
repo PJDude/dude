@@ -12,6 +12,7 @@ import re
 import time
 import configparser
 import logging
+import traceback
 
 import tkinter as tk
 from tkinter import *
@@ -45,6 +46,12 @@ multDict={'k':k,'K':k,'M':M,'G':G,'T':T}
 
 windows = (os.name=='nt')
 
+def EPrint(e):
+   stack = traceback.extract_stack()[:-3] + traceback.extract_tb(e.__traceback__)
+   pretty = traceback.format_list(stack)
+   return ''.join(pretty) + '\n  {} {}'.format(e.__class__,e)
+
+
 def bytes2str(num,digits=2):
     kb=num/k
 
@@ -77,8 +84,8 @@ def str2bytes(string):
 
 CFG_KEY_STARTUP_ADD_CWD='add_cwd_at_startup'
 CFG_KEY_STARTUP_SCAN='scan_at_startup'
-CFG_KEY_FULLCRC='show_full_crc'
-CFG_KEY_FULLPATHS='show_full_paths'
+CFG_KEY_FULL_CRC='show_full_crc'
+CFG_KEY_FULL_PATHS='show_full_paths'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
 
 CFG_KEY_USE_REG_EXPR='use_reg_expr'
@@ -96,8 +103,8 @@ CFG_KEY_EXCLUDE='exclude'
 CfgDefaults={
     CFG_KEY_STARTUP_ADD_CWD:False,
     CFG_KEY_STARTUP_SCAN:False,
-    CFG_KEY_FULLCRC:False,
-    CFG_KEY_FULLPATHS:False,
+    CFG_KEY_FULL_CRC:False,
+    CFG_KEY_FULL_PATHS:False,
     CFG_KEY_REL_SYMLINKS:True,
     CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
@@ -201,7 +208,7 @@ class Gui:
     SelItemTree = {}
 
     def MainWatchCursor(f):
-        def wrapp(self,*args,**kwargs):
+        def MainWatchCursorWrapp(self,*args,**kwargs):
             prevCursor=self.main.cget('cursor')
             self.main.config(cursor="watch")
             self.main.update()
@@ -210,27 +217,27 @@ class Gui:
                 res=f(self,*args,**kwargs)
             except Exception as e:
                 res=None
-                print("error on:",f,e)
+                print(EPrint(e))
 
             self.main.config(cursor=prevCursor)
             return res
-        return wrapp
+        return MainWatchCursorWrapp
 
     def StatusLineRestore(f):
-        def wrapp(self,*args,**kwargs):
+        def StatusLineRestoreWrapp(self,*args,**kwargs):
             prev=self.StatusLine.get()
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
                 res=None
-                print("error on:",f,e)
+                print(EPrint(e))
 
             self.StatusLine.set(prev)
             return res
-        return wrapp
+        return StatusLineRestoreWrapp
 
     def KeepSemiFocus(f):
-        def wrapp(self,*args,**kwargs):
+        def KeepSemiFocusWrapp(self,*args,**kwargs):
             tree=self.main.focus_get()
             tree.configure(style='semi_focus.Treeview')
 
@@ -238,12 +245,12 @@ class Gui:
                 res=f(self,*args,**kwargs)
             except Exception as e:
                 res=None
-                print("error on:",f,e)
+                print(EPrint(e))
 
             tree.configure(style='default.Treeview')
 
             return res
-        return wrapp
+        return KeepSemiFocusWrapp
 
     #######################################################################
     LongActionAbort=False
@@ -709,14 +716,25 @@ class Gui:
         self.SetingsDialog.withdraw()
         self.SetingsDialog.iconphoto(False, self.iconphoto)
 
-        self.addCwdAtStartup = tk.BooleanVar()
-        self.scanAtStartup = tk.BooleanVar()
-        self.fullCRC = tk.BooleanVar()
-        self.fullPaths = tk.BooleanVar()
-        self.relSymlinks = tk.BooleanVar()
+        self.AddCwdAtStartup = tk.BooleanVar()
+        self.ScanAtStartup = tk.BooleanVar()
+        self.FullCRC = tk.BooleanVar()
+        self.FullPaths = tk.BooleanVar()
+        self.RelSymlinks = tk.BooleanVar()
         self.EraseEmptyDirs = tk.BooleanVar()
         self.ConfirmShowCrcSize = tk.BooleanVar()
         self.ConfirmShowLinksTargets = tk.BooleanVar()
+
+        self.settings = [
+            (self.AddCwdAtStartup,CFG_KEY_STARTUP_ADD_CWD),
+            (self.ScanAtStartup,CFG_KEY_STARTUP_SCAN),
+            (self.FullCRC,CFG_KEY_FULL_CRC),
+            (self.FullPaths,CFG_KEY_FULL_PATHS),
+            (self.RelSymlinks,CFG_KEY_REL_SYMLINKS),
+            (self.EraseEmptyDirs,ERASE_EMPTY_DIRS),
+            (self.ConfirmShowCrcSize,CONFIRM_SHOW_CRCSIZE),
+            (self.ConfirmShowLinksTargets,CONFIRM_SHOW_LINKSTARGETS)
+        ]
 
         self.SetingsDialog.wm_title('Settings')
 
@@ -724,22 +742,22 @@ class Gui:
         fr.pack(expand=1,fill='both')
 
         def AddPathAtStartupChange(self):
-            if not self.addCwdAtStartup.get():
-                self.scanAtStartup.set(False)
+            if not self.AddCwdAtStartup.get():
+                self.ScanAtStartup.set(False)
 
         def ScanAtStartupChange(self):
-            if self.scanAtStartup.get():
-                self.addCwdAtStartup.set(True)
+            if self.ScanAtStartup.get():
+                self.AddCwdAtStartup.set(True)
 
         row = 0
-        self.AddCwdCB=ttk.Checkbutton(fr, text = 'At startup add current directory to paths to scan', variable=self.addCwdAtStartup,command=lambda : AddPathAtStartupChange(self) )
+        self.AddCwdCB=ttk.Checkbutton(fr, text = 'At startup add current directory to paths to scan', variable=self.AddCwdAtStartup,command=lambda : AddPathAtStartupChange(self) )
         self.AddCwdCB.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        self.StartScanCB=ttk.Checkbutton(fr, text = 'Start scanning at startup', variable=self.scanAtStartup,command=lambda : ScanAtStartupChange(self)                              )
+        self.StartScanCB=ttk.Checkbutton(fr, text = 'Start scanning at startup', variable=self.ScanAtStartup,command=lambda : ScanAtStartupChange(self)                              )
         self.StartScanCB.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
-        ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.fullCRC                                       ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.fullPaths                              ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.relSymlinks                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.FullCRC                                       ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.FullPaths                              ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.RelSymlinks                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
         ttk.Checkbutton(fr, text = 'Erase Empty directories', variable=self.EraseEmptyDirs                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
@@ -814,7 +832,7 @@ class Gui:
         #######################################################################
         self.ResetSels()
 
-        if self.addCwdAtStartup:
+        if self.AddCwdAtStartup:
             self.addPath(cwd)
 
         self.ScanDialogShow()
@@ -843,6 +861,7 @@ class Gui:
         self.SelItemTree = {}
         self.SelItemTree[self.TreeGroups]=None
         self.SelItemTree[self.TreeFolder]=None
+        self.FullPathToFile = None
 
         self.SelTreeIndex = 0
         self.SelKind = None
@@ -1520,7 +1539,6 @@ class Gui:
             else:
                 #print(event.keysym)
                 pass
-                #if windows:
 
 #################################################
     def SelectFocusAndSeeCrcItemTree(self,crc,TryToShowAll=False):
@@ -1593,6 +1611,14 @@ class Gui:
         tree=event.widget
         tree.selection_set(tree.focus())
 
+    def SetFullPathToFileWin(self):
+        self.SelFullPathToFile=pathlib.Path(os.sep.join([self.SelFullPath,self.SelFile]))
+
+    def SetFullPathToFileLin(self):
+        self.SelFullPathToFile=(self.SelFullPath+self.SelFile if self.SelFullPath=='/' else os.sep.join([self.SelFullPath,self.SelFile])) if self.SelFullPath and self.SelFile else None
+
+    SetFullPathToFile = SetFullPathToFileWin if windows else SetFullPathToFileLin
+
     def TreeGroupsSelChange(self,item,force=False):
         self.StatusLine.set('')
 
@@ -1650,6 +1676,7 @@ class Gui:
                     self.SelSearchPath = None
                     self.SelPath = None
                     self.SelFullPath= None
+                self.SetFullPathToFile()
 
                 UpdateTreeFolder=True
             else:
@@ -1672,12 +1699,14 @@ class Gui:
         self.SelItemTree[self.TreeFolder] = item
         self.SelTreeIndex=1
 
+        self.SetFullPathToFile()
+
         self.SetCommonVar()
 
         if self.TreeFolder.set(item,'kind')==FILE:
             self.UpdateMainTree(item)
         elif self.TreeFolder.set(item,'kind')==LINK:
-            self.StatusLine.set('  🠖  ' + os.readlink(self.StatusVarFullPath.get()))
+            self.StatusLine.set('  🠖  ' + os.readlink(self.SelFullPathToFile))
         elif self.TreeFolder.set(item,'kind')==SINGLEHARDLINKED:
             self.StatusLine.set('File with hardlinks')
         else:
@@ -1869,11 +1898,11 @@ class Gui:
         pop.grab_release()
 
     def RemoveEmptyFolders(self):
-        self.EmptyDirsRemoval(os.path.join(self.SelFullPath,self.SelFile))
+        self.EmptyDirsRemoval(self.SelFullPathToFile)
         self.TreeFolderUpdate(self.SelFullPath)
 
     def SelDir(self,action):
-        self.ActionOnSpecifiedPath(self.StatusVarFullPath.get(),action,True)
+        self.ActionOnSpecifiedPath(self.SelFullPathToFile,action,True)
 
     def ColumnSortClick(self, tree, colname):
         prev_colname,prev_reverse=self.ColumnSortLastParams[tree]
@@ -2173,15 +2202,6 @@ class Gui:
     def KeyboardShortcuts(self):
         self.Info('Keyboard Shortcuts',self.keyboardshortcuts,self.main,textwidth=80,width=600)
 
-    #def setConfVar(self,title,prompt,parent,tkvar,initialvalue,configkey,validation):
-    #    if (res := self.DialogWithEntry(title,prompt, initialvalue=initialvalue,parent=parent)):
-    #        if (validation(res)):
-    #            tkvar.set(res)
-    #            self.cfg.Set(configkey,res)
-    #            self.cfg.Write()
-    #        else:
-    #            self.setConfVar(title,prompt,parent,tkvar,res,configkey,validation)
-
     def StoreSplitter(self):
         try:
             coords=self.paned.sash_coord(0)
@@ -2204,21 +2224,7 @@ class Gui:
         self.SetingsDialog.grab_set()
         self.main.config(cursor="watch")
 
-        settings = [
-            (self.addCwdAtStartup,CFG_KEY_STARTUP_ADD_CWD),
-            (self.scanAtStartup,CFG_KEY_STARTUP_SCAN),
-            (self.fullCRC,CFG_KEY_FULLCRC),
-            (self.fullPaths,CFG_KEY_FULLPATHS),
-            (self.relSymlinks,CFG_KEY_REL_SYMLINKS),
-            (self.EraseEmptyDirs,ERASE_EMPTY_DIRS),
-            (self.ConfirmShowCrcSize,CONFIRM_SHOW_CRCSIZE),
-            (self.ConfirmShowLinksTargets,CONFIRM_SHOW_LINKSTARGETS)
-        ]
-        for var,key in settings:
-            try:
-                var.set(self.cfg.GetBool(key))
-            except Exception as e:
-                print(e)
+        {var.set(self.cfg.GetBool(key)) for var,key in self.settings}
 
         self.SetDefaultGeometryAndShow(self.SetingsDialog,self.main)
 
@@ -2241,24 +2247,24 @@ class Gui:
             pass
 
     def SettingsDialogOK(self):
-        self.cfg.SetBool(CFG_KEY_STARTUP_ADD_CWD,self.addCwdAtStartup.get())
-        self.cfg.SetBool(CFG_KEY_STARTUP_SCAN,self.scanAtStartup.get())
+        self.cfg.SetBool(CFG_KEY_STARTUP_ADD_CWD,self.AddCwdAtStartup.get())
+        self.cfg.SetBool(CFG_KEY_STARTUP_SCAN,self.ScanAtStartup.get())
 
         update1=False
         update2=False
 
-        if self.cfg.GetBool(CFG_KEY_FULLCRC)!=self.fullCRC.get():
-            self.cfg.SetBool(CFG_KEY_FULLCRC,self.fullCRC.get())
+        if self.cfg.GetBool(CFG_KEY_FULL_CRC)!=self.FullCRC.get():
+            self.cfg.SetBool(CFG_KEY_FULL_CRC,self.FullCRC.get())
             update1=True
             update2=True
 
-        if self.cfg.GetBool(CFG_KEY_FULLPATHS)!=self.fullPaths.get():
-            self.cfg.SetBool(CFG_KEY_FULLPATHS,self.fullPaths.get())
+        if self.cfg.GetBool(CFG_KEY_FULL_PATHS)!=self.FullPaths.get():
+            self.cfg.SetBool(CFG_KEY_FULL_PATHS,self.FullPaths.get())
             update1=True
             update2=True
 
-        if self.cfg.GetBool(CFG_KEY_REL_SYMLINKS)!=self.relSymlinks.get():
-            self.cfg.SetBool(CFG_KEY_REL_SYMLINKS,self.relSymlinks.get())
+        if self.cfg.GetBool(CFG_KEY_REL_SYMLINKS)!=self.RelSymlinks.get():
+            self.cfg.SetBool(CFG_KEY_REL_SYMLINKS,self.RelSymlinks.get())
 
         if self.cfg.GetBool(ERASE_EMPTY_DIRS)!=self.EraseEmptyDirs.get():
             self.cfg.SetBool(ERASE_EMPTY_DIRS,self.EraseEmptyDirs.get())
@@ -2283,14 +2289,7 @@ class Gui:
         self.SettingsDialogClose()
 
     def SettingsDialogReset(self):
-        self.addCwdAtStartup.set(True)
-        self.scanAtStartup.set(False)
-        self.fullCRC.set(False)
-        self.fullPaths.set(False)
-        self.relSymlinks.set(True)
-        self.EraseEmptyDirs.set(True)
-        self.ConfirmShowCrcSize.set(False)
-        self.ConfirmShowLinksTargets.set(False)
+        {var.set(CfgDefaults[key]) for var,key in self.settings}
 
     def UpdateCrcNode(self,crc):
         size=int(self.TreeGroups.set(crc,'size'))
@@ -2319,7 +2318,6 @@ class Gui:
                 CrcRemoved=True
 
     def ByIdCtimeCacheUpdate(self):
-        #self.ByIdCtimeCache = { (pathnr,path,file):(size,ctime,dev,inode,crc,self.D.crccut[crc]) for size,sizeDict in self.D.filesOfSizeOfCRC.items() for crc,crcDict in sizeDict.items() for pathnr,path,file,ctime,dev,inode in crcDict }
         self.ByIdCtimeCache = { (self.idfunc(inode,dev),ctime):(crc,self.D.crccut[crc]) for size,sizeDict in self.D.filesOfSizeOfCRC.items() for crc,crcDict in sizeDict.items() for pathnr,path,file,ctime,dev,inode in crcDict }
 
     def GroupsNumberUpdate(self):
@@ -2374,8 +2372,8 @@ class Gui:
         self.CalcMarkStatsAll()
 
     def TreeGroupsCrcAndPathUpdate(self):
-        FullCRC=self.cfg.GetBool(CFG_KEY_FULLCRC)
-        FullPaths=self.cfg.GetBool(CFG_KEY_FULLPATHS)
+        FullCRC=self.cfg.GetBool(CFG_KEY_FULL_CRC)
+        FullPaths=self.cfg.GetBool(CFG_KEY_FULL_PATHS)
 
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
@@ -2419,6 +2417,11 @@ class Gui:
     def TreeFolderUpdate(self,ArbitraryPath=None):
         CurrentPath=ArbitraryPath if ArbitraryPath else self.SelFullPath
 
+        if not CurrentPath:
+            return False
+
+        self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
+
         try:
             ScanDirRes=list(os.scandir(CurrentPath))
         except Exception as e:
@@ -2432,21 +2435,21 @@ class Gui:
             self.SelPath=prevSelPath
             self.SelFullPath=str(pathlib.Path(ArbitraryPath))
 
-        self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
         itemsToInsert=[]
 
-        FullCRC=self.cfg.GetBool(CFG_KEY_FULLCRC)
+        FullCRC=self.cfg.GetBool(CFG_KEY_FULL_CRC)
 
         i=0
         for DirEntry in ScanDirRes:
             file=DirEntry.name
             istr=str(i)
 
-            FullFilePath=os.path.join(CurrentPath,file)
-
             try:
+                FullFilePath=os.path.join(CurrentPath,file)
                 stat = os.stat(FullFilePath)
             except Exception as e:
+                print(f'{CurrentPath},{file},{e}')
+                print(EPrint(e))
                 logging.error(f'ERROR: ,{e}')
                 continue
 
@@ -2516,21 +2519,12 @@ class Gui:
         for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(itemsToInsert,key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse):
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE or kind==SINGLEHARDLINKED else '',kind),tags=tags)
 
-        #self.TreeFolder.update()
-
         if not ArbitraryPath:
-            #wejscie do pod/nad folderu
-            #self.SelItem = self.TreeFolder.get_children()[0]
-
-            #self.TreeFolder.see(self.SelItem)
-            #self.TreeFolder.focus(self.SelItem)
-
             if self.SelItem and self.SelItem in self.TreeFolder.get_children():
                 self.TreeFolder.selection_set(self.SelItem)
                 self.TreeFolder.see(self.SelItem)
 
         self.CalcMarkStatsPath()
-        #self.TreeFolder.update()
 
         return True
 
@@ -2869,7 +2863,7 @@ class Gui:
         if OnDirAction:
             ScopeTitle='All marked files on selected directory sub-tree.'
 
-            SelPathWithSep=self.StatusVarFullPath.get() + os.sep
+            SelPathWithSep=self.SelFullPathToFile + os.sep
             for crc in self.TreeGroups.get_children():
                 for item in self.TreeGroups.get_children(crc):
                     if self.ItemFullPath(item).startswith(SelPathWithSep):
@@ -2884,6 +2878,7 @@ class Gui:
 
         return self.ProcessFiles(action,ProcessedItems,ScopeTitle)
 
+    @StatusLineRestore
     def ProcessFilesCheckCorrectness(self,action,ProcessedItems,RemainingItems):
         self.StatusLine.set('checking selection correctness...')
         if action==HARDLINK:
@@ -2902,6 +2897,7 @@ class Gui:
                     self.SelectFocusAndSeeCrcItemTree(crc,True)
                     return True
 
+    @StatusLineRestore
     def ProcessFilesCheckCorrectnessLast(self,action,ProcessedItems,RemainingItems):
         self.StatusLine.set('final checking selection correctness')
 
@@ -2923,6 +2919,7 @@ class Gui:
                     return True
         logging.info('remaining files checking complete.')
 
+    @StatusLineRestore
     def ProcessFilesConfirm(self,action,ProcessedItems,RemainingItems,ScopeTitle):
         self.StatusLine.set('confirmation required...')
         ShowFullPath=1
@@ -2962,20 +2959,24 @@ class Gui:
 
     def EmptyDirsRemoval(self,startpath):
         self.StatusLine.set(f'Removing empty directories in:{startpath}')
+        Removed=[]
         for (path, dirs, files) in os.walk(startpath, topdown=False, followlinks=False):
             if not files:
                 try:
                     os.rmdir(path)
                     logging.info(f'Removed:{path}')
+                    Removed.append(path)
                 except Exception as e:
                     logging.error(f'EmptyDirsRemoval:{e}')
         self.StatusLine.set('')
+        return Removed
 
     def ProcessFilesCore(self,action,ProcessedItems,RemainingItems):
         self.main.config(cursor="watch")
         self.StatusLine.set('processing files ...')
         self.main.update()
 
+        FinalInfo=[]
         if action==DELETE:
             DirectoriesToCheck=set()
             for crc in ProcessedItems:
@@ -2990,14 +2991,18 @@ class Gui:
                     DirectoriesToCheck.add(self.D.GetPath(IndexTuple))
                 self.UpdateCrcNode(crc)
 
-            if self.cfg.Get(ERASE_EMPTY_DIRS,False)=="True":
+            if self.cfg.GetBool(ERASE_EMPTY_DIRS):
                 DirectoriesToCheckList=list(DirectoriesToCheck)
                 DirectoriesToCheckList.sort(key=lambda d : (len(str(d).split(os.sep)),d),reverse=True )
+
+                Removed=[]
                 for directory in DirectoriesToCheckList:
-                    self.EmptyDirsRemoval(directory)
+                    Removed.extend(self.EmptyDirsRemoval(directory))
+
+                FinalInfo.extend(Removed)
 
         elif action==SOFTLINK:
-            RelSymlink = True if self.cfg.Get(CFG_KEY_REL_SYMLINKS,False)=='True' else False
+            RelSymlink = self.cfg.GetBool(CFG_KEY_REL_SYMLINKS)
             for crc in ProcessedItems:
                 toKeepItem=list(RemainingItems[crc])[0]
                 #self.TreeGroups.focus()
@@ -3027,8 +3032,10 @@ class Gui:
         self.GroupsNumberUpdate()
         self.TreeGroupsFlatItemsListUpdate()
 
+        if FinalInfo:
+            self.Info('Removed empty directories','\n'.join(FinalInfo),self.main,textwidth=160,width=800)
+
     @KeepSemiFocus
-    @StatusLineRestore
     def ProcessFiles(self,action,ProcessedItems,ScopeTitle):
         tree=(self.TreeGroups,self.TreeFolder)[self.SelTreeIndex]
 
@@ -3058,6 +3065,7 @@ class Gui:
         logging.warning('###########################################################################################')
         logging.warning(f'action:{action}')
 
+        self.StatusLine.set('')
         if self.ProcessFilesConfirm(action,ProcessedItems,RemainingItems,ScopeTitle):
             return
 
@@ -3256,20 +3264,15 @@ class Gui:
     def SetCommonVarLin(self):
         self.StatusVarFullPath.set(self.SelFullPath+self.SelFile if self.SelFullPath=='/' else os.sep.join([self.SelFullPath,self.SelFile]))
 
-    SetCommonVarOS = SetCommonVarWin if windows else SetCommonVarLin
-
     def SetCommonVar(self):
-        try:
-            self.SetCommonVarOS()
-        except Exception as e:
-            pass
-
+        self.StatusVarFullPath.set(self.SelFullPathToFile)
         self.SetCommonVarFg()
 
     def SetCommonVarFg(self):
         try:
             self.StatusVarFullPathLabel.config(fg = 'red' if self.SelItem and (self.TreeGroups,self.TreeFolder)[self.SelTreeIndex].tag_has(MARK,self.SelItem) else 'black')
         except Exception as e:
+            print(e)
             pass
 
 LoggingLevels={'DEBUG':logging.DEBUG,'INFO':logging.INFO,'WARNING':logging.WARNING,'ERROR':logging.ERROR,'CRITICAL':logging.CRITICAL}
@@ -3290,8 +3293,10 @@ if __name__ == "__main__":
         for i in range(1,ArgsQuant):
             self.addPath(argv[i])
 
+
     try:
         Gui(os.getcwd())
+    
     except Exception as e:
         print(e)
         logging.error(e)
