@@ -812,15 +812,15 @@ class Gui:
         def GoToCascadeFill():
             self.GoToCascade.delete(0,END)
             ItemActionsState=('disabled','normal')[self.SelItem!=None]
-            self.GoToCascade.add_command(label = 'dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace",state=ItemActionsState)
-            self.GoToCascade.add_command(label = 'dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace",state=ItemActionsState)
             self.GoToCascade.add_separator()
-            self.GoToCascade.add_command(label = 'dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace",state=ItemActionsState)
-            self.GoToCascade.add_command(label = 'dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="Ctrl+Backspace",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="Ctrl+Backspace",state=ItemActionsState)
 
         self.GoToCascade= Menu(self.menubar,tearoff=0,bg=self.bg,postcommand=GoToCascadeFill)
 
-        self.menubar.add_cascade(label = 'Go To',menu = self.GoToCascade)
+        self.menubar.add_cascade(label = 'Navigation',menu = self.GoToCascade)
 
         self.HelpCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
         self.HelpCascade.add_command(label = 'About',command=self.About,accelerator="F1")
@@ -1651,7 +1651,7 @@ class Gui:
             self.GroupsNumberUpdate()
 
             newlist=self.TreeGroups.get_children()
-            ItemToSel = self.GimmeClosest(orglist,self.SelCrc,newlist)
+            ItemToSel = self.GimmeClosestInCrc(orglist,self.SelCrc,newlist)
 
             self.ResetSels()
 
@@ -2178,13 +2178,12 @@ class Gui:
         info=[]
         info.append('==============================================================================')
         info.append('                                                                              ')
-        info.append(f'                       DUDE (DUplicates DEtector) v{VERSION}                    ')
+        info.append(f'                       DUDE (DUplicates DEtector) v{VERSION}                 ')
+        info.append('                            Author: Piotr Jochymek                            ')
         info.append('                                                                              ')
         info.append('                        https://github.com/PJDude/dude                        ')
-        info.append('                                                                              ')
         info.append('                        https://pjdude.github.io/dude/                        ')
         info.append('                                                                              ')
-        info.append('                                Piotr Jochymek                                ')
         info.append('                            PJ.soft.dev.x@gmail.com                           ')
         info.append('                                                                              ')
         info.append('==============================================================================')
