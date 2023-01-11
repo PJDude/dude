@@ -206,19 +206,21 @@ class Gui:
     MAX_PATHS=10
 
     SelItemTree = {}
-
+    
+    SelFullPath={}
+    
     def MainWatchCursor(f):
         def MainWatchCursorWrapp(self,*args,**kwargs):
             prevCursor=self.main.cget('cursor')
             self.main.config(cursor="watch")
             self.main.update()
-
+            
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
                 res=None
                 print(EPrint(e))
-
+            
             self.main.config(cursor=prevCursor)
             return res
         return MainWatchCursorWrapp
@@ -1427,6 +1429,7 @@ class Gui:
         elif event.keysym == "Tab":
             tree.selection_set(tree.focus())
             self.FromTabSwicth=True
+            self.DominantIndex = -1
         elif event.keysym=='KP_Multiply' or event.keysym=='asterisk':
             self.MarkOnAll(self.InvertMark)
         elif event.keysym=='Return':
@@ -1463,9 +1466,9 @@ class Gui:
                     self.ProcessFilesTreeFolderWrapper((SOFTLINK,HARDLINK)[ShiftPressed],self.SelKind==DIR)
             elif event.keysym=='BackSpace':
                 if ShiftPressed:
-                    self.GoToMaxGroup(not CtrPressed)
+                    self.GoToMaxGroup(0 if CtrPressed else 1)
                 else:
-                    self.GoToMaxFolder(not CtrPressed)
+                    self.GoToMaxFolder(0 if CtrPressed else 1)
             elif event.keysym=='i' or event.keysym=='I':
                 if CtrPressed:
                     self.MarkOnAll(self.InvertMark)
@@ -1580,6 +1583,7 @@ class Gui:
 
     FromTabSwicth=False
     def TreeEventFocusIn(self,event):
+        self.DominantIndex = -1
         tree=event.widget
 
         item=None
@@ -1618,6 +1622,12 @@ class Gui:
         self.SelFullPathToFile=(self.SelFullPath+self.SelFile if self.SelFullPath=='/' else os.sep.join([self.SelFullPath,self.SelFile])) if self.SelFullPath and self.SelFile else None
 
     SetFullPathToFile = SetFullPathToFileWin if windows else SetFullPathToFileLin
+    
+    def SetSelPath(self,path):
+        if self.SelFullPath != path:
+            self.SelFullPath = path
+
+            self.DominantIndexFolders = -1
 
     def TreeGroupsSelChange(self,item,force=False):
         self.StatusLine.set('')
@@ -1626,7 +1636,13 @@ class Gui:
         path=self.TreeGroups.set(item,'path')
 
         self.SelFile = self.TreeGroups.set(item,'file')
-        self.SelCrc = self.TreeGroups.set(item,'crc')
+        newCrc = self.TreeGroups.set(item,'crc')
+        
+        if self.SelCrc != newCrc:
+            self.SelCrc = newCrc
+
+            self.DominantIndexGroups = -1
+
         self.SelKind = self.TreeGroups.set(item,'kind')
         self.SelItem = item
         self.SelItemTree[self.TreeGroups]=item
@@ -1670,12 +1686,12 @@ class Gui:
                     self.SelPathnrInt= int(pathnr)
                     self.SelSearchPath = self.D.ScannedPaths[self.SelPathnrInt]
                     self.SelPath = path
-                    self.SelFullPath=self.SelSearchPath+self.SelPath
+                    self.SetSelPath(self.SelSearchPath+self.SelPath)
                 else :
                     self.SelPathnrInt= 0
                     self.SelSearchPath = None
                     self.SelPath = None
-                    self.SelFullPath= None
+                    self.SetSelPath(None)
                 self.SetFullPathToFile()
 
                 UpdateTreeFolder=True
@@ -1690,7 +1706,6 @@ class Gui:
                 self.TreeFolderUpdateNone()
 
     def TreeFolderSelChange(self,item):
-        self.StatusLine.set('')
 
         self.SelFile = self.TreeFolder.set(item,'file')
         self.SelCrc = self.TreeFolder.set(item,'crc')
@@ -1704,12 +1719,14 @@ class Gui:
         self.SetCommonVar()
 
         if self.TreeFolder.set(item,'kind')==FILE:
+            self.StatusLine.set('')
             self.UpdateMainTree(item)
         elif self.TreeFolder.set(item,'kind')==LINK:
             self.StatusLine.set('  🠖  ' + os.readlink(self.SelFullPathToFile))
         elif self.TreeFolder.set(item,'kind')==SINGLEHARDLINKED:
             self.StatusLine.set('File with hardlinks')
         else:
+            self.StatusLine.set('')
             self.UpdateMainTreeNone()
 
     def MenubarUnpost(self):
@@ -2432,7 +2449,7 @@ class Gui:
             prevSelPath=self.SelPath
             self.ResetSels()
             self.SelPath=prevSelPath
-            self.SelFullPath=str(pathlib.Path(ArbitraryPath))
+            self.SetSelPath(str(pathlib.Path(ArbitraryPath)))
 
         itemsToInsert=[]
 
@@ -2771,22 +2788,46 @@ class Gui:
                             self.TreeFolderSelChange(NextItem)
 
                         break
-
+    
+    DominantIndexGroups = -1
+    DominantIndexFolders = -1
+    
+    byWhat={}
+    byWhat[0] = "by quantity"
+    byWhat[1] = "by sum size"
+    
     @MainWatchCursor
     def GoToMaxGroup(self,sizeFlag=0):
-        biggestsizesum=0
-        biggestcrc=None
-        for crcitem in self.TreeGroups.get_children():
-            sizesum=sum([(int(self.TreeGroups.set(item,'size')) if sizeFlag else 1) for item in self.TreeGroups.get_children(crcitem)])
-            if sizesum>biggestsizesum:
-                biggestsizesum=sizesum
-                biggestcrc=crcitem
-
+        self.DominantIndexGroups +=1
+        temp=str(self.DominantIndexGroups)
+        
+        #biggestsizesum=0
+        #biggestcrc=None
+        GroupsCombos = [(crcitem,sum([(int(self.TreeGroups.set(item,'size')) if sizeFlag else 1) for item in self.TreeGroups.get_children(crcitem)])) for crcitem in self.TreeGroups.get_children()]
+        GroupsCombos.sort(key = lambda x : x[1],reverse = True)
+            
+            #sizesum=
+            #if sizesum>biggestsizesum:
+            #    biggestsizesum=sizesum
+            #    biggestcrc=crcitem
+        biggestcrc,biggestcrcSizeSum = GroupsCombos[self.DominantIndexGroups % len(GroupsCombos)]
         if biggestcrc:
             self.SelectFocusAndSeeCrcItemTree(biggestcrc,True)
+            #self.TreeGroupsSelChange(crc)
+            
+            self.DominantIndexGroups = int(temp)
+            Info = bytes2str(biggestcrcSizeSum) if sizeFlag else str(biggestcrcSizeSum)
+            self.StatusLine.set(f'Dominant (index:{self.DominantIndexGroups % 10}) group ({self.byWhat[sizeFlag]}:{Info})')
+
+    DominantIndex={}
+    DominantIndex[0]=0
+    DominantIndex[1]=0
 
     @MainWatchCursor
     def GoToMaxFolder(self,sizeFlag=0):
+        self.DominantIndexFolders += 1
+        temp = str(self.DominantIndexFolders)
+        
         PathStat={}
         Biggest={}
         FileidOfBiggest={}
@@ -2803,8 +2844,8 @@ class Gui:
         if PathStat:
             PathStatList=[(pathnr,path,number) for (pathnr,path),number in PathStat.items()]
             PathStatList.sort(key=lambda x : x[2],reverse=True)
-
-            [pathnr,path,num] = PathStatList[0]
+            
+            [pathnr,path,num] = PathStatList[self.DominantIndexFolders % len(PathStatList)]
 
             item=FileidOfBiggest[(pathnr,path)]
 
@@ -2818,9 +2859,16 @@ class Gui:
             self.TreeFolder.focus_set()
             self.TreeFolder.focus(item)
             self.TreeFolder.see(item)
-
+            
+            self.TreeFolderSelChange(item)
+            
             self.UpdateMainTree(item)
-
+            
+            self.DominantIndexFolders = int(temp)
+            Info = bytes2str(num) if sizeFlag else str(num)
+            self.StatusLine.set(f'Dominant (index:{self.DominantIndexFolders}) folder ({self.byWhat[sizeFlag]}:{Info})')
+        
+        
     def ItemFullPath(self,item):
         pathnr=int(self.TreeGroups.set(item,'pathnr'))
         path=self.TreeGroups.set(item,'path')
