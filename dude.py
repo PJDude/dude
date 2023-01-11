@@ -51,7 +51,6 @@ def EPrint(e):
    pretty = traceback.format_list(stack)
    return ''.join(pretty) + '\n  {} {}'.format(e.__class__,e)
 
-
 def bytes2str(num,digits=2):
     kb=num/k
 
@@ -218,6 +217,7 @@ class Gui:
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
+                self.StatusLine.set(str(e))
                 res=None
                 print(EPrint(e))
             
@@ -231,6 +231,7 @@ class Gui:
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
+                self.StatusLine.set(str(e))
                 res=None
                 print(EPrint(e))
 
@@ -246,6 +247,7 @@ class Gui:
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
+                self.StatusLine.set(str(e))
                 res=None
                 print(EPrint(e))
 
@@ -498,9 +500,6 @@ class Gui:
         self.main.bind_class('Treeview','<FocusIn>',    self.TreeEventFocusIn )
         self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOut )
 
-        self.main.bind_class('Treeview','<ButtonPress-1>', self.TreeButtonPress)
-        self.main.bind_class('Treeview','<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
-
         self.main.bind_class('Treeview','<ButtonPress-3>', self.TreeContexMenu)
 
         self.TreeGroups=ttk.Treeview(FrameTop,takefocus=True,selectmode='none',show=('tree','headings') )
@@ -535,6 +534,10 @@ class Gui:
 
         self.TreeGroups.heading('sizeH', text='Size \u25BC')
 
+        #bind_class breaks columns resizing
+        self.TreeGroups.bind('<ButtonPress-1>', self.TreeButtonPress)
+        self.TreeGroups.bind('<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
+        
         self.col2sortOf={}
         self.col2sortOf['path'] = 'path'
         self.col2sortOf['file'] = 'file'
@@ -609,7 +612,11 @@ class Gui:
         self.TreeFolder.tag_configure(SINGLE, foreground='gray')
         self.TreeFolder.tag_configure(DIR, foreground='blue2')
         self.TreeFolder.tag_configure(LINK, foreground='darkgray')
-
+        
+        #bind_class breaks columns resizing
+        self.TreeFolder.bind('<ButtonPress-1>', self.TreeButtonPress)
+        self.TreeFolder.bind('<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
+        
         self.SetDefaultGeometryAndShow(self.main,None)
 
         self.PopupGroups = Menu(self.TreeGroups, tearoff=0,bg=self.bg)
@@ -787,12 +794,14 @@ class Gui:
         try:
             self.license=pathlib.Path(os.path.join(os.path.dirname(__file__),'LICENSE')).read_text()
         except Exception as e:
+            self.StatusLine.set(str(e))
             logging.error(e)
             self.exit()
 
         try:
             self.keyboardshortcuts=pathlib.Path(os.path.join(os.path.dirname(__file__),'keyboard.shortcuts.txt')).read_text()
         except Exception as e:
+            self.StatusLine.set(str(e))
             logging.error(e)
             self.exit()
 
@@ -899,6 +908,7 @@ class Gui:
             else:
                 widget.geometry(CenterToScreenGeometry(widget))
         except Exception as e:
+            self.StatusLine.set(str(e))
             print('widget:',widget,'parent:',parent,'error:',e)
             CfgGeometry = None
 
@@ -1441,7 +1451,7 @@ class Gui:
 
             CtrPressed = 'Control' in StrEvent
             ShiftPressed = 'Shift' in StrEvent
-
+            
             if event.keysym=='F3':
                 if ShiftPressed:
                     self.FindPrev()
@@ -1539,9 +1549,6 @@ class Gui:
                 self.MarkSubpath(self.UnsetMark,True)
             elif event.keysym=='f' or event.keysym=='F':
                 self.FindDialogShow()
-            else:
-                #print(event.keysym)
-                pass
 
 #################################################
     def SelectFocusAndSeeCrcItemTree(self,crc,TryToShowAll=False):
@@ -1616,7 +1623,7 @@ class Gui:
         tree.selection_set(tree.focus())
 
     def SetFullPathToFileWin(self):
-        self.SelFullPathToFile=pathlib.Path(os.sep.join([self.SelFullPath,self.SelFile]))
+        self.SelFullPathToFile=pathlib.Path(os.sep.join([self.SelFullPath,self.SelFile])) if self.SelFullPath and self.SelFile else None
 
     def SetFullPathToFileLin(self):
         self.SelFullPathToFile=(self.SelFullPath+self.SelFile if self.SelFullPath=='/' else os.sep.join([self.SelFullPath,self.SelFile])) if self.SelFullPath and self.SelFile else None
@@ -2429,7 +2436,6 @@ class Gui:
     TwoDotsConditionOS = TwoDotsConditionWin if windows else TwoDotsConditionLin
 
     @MainWatchCursor
-    @StatusLineRestore
     def TreeFolderUpdate(self,ArbitraryPath=None):
         CurrentPath=ArbitraryPath if ArbitraryPath else self.SelFullPath
 
@@ -2441,6 +2447,7 @@ class Gui:
         try:
             ScanDirRes=list(os.scandir(CurrentPath))
         except Exception as e:
+            self.StatusLine.set(str(e))
             logging.error(e)
             return False
 
@@ -2464,6 +2471,7 @@ class Gui:
                 FullFilePath=os.path.join(CurrentPath,file)
                 stat = os.stat(FullFilePath)
             except Exception as e:
+                self.StatusLine.set(str(e))
                 print(f'{CurrentPath},{file},{e}')
                 print(EPrint(e))
                 logging.error(f'ERROR: ,{e}')
@@ -2541,7 +2549,9 @@ class Gui:
                 self.TreeFolder.see(self.SelItem)
 
         self.CalcMarkStatsPath()
-
+        
+        self.StatusLine.set('')
+        
         return True
 
     def TreeFolderUpdateMarks(self):
@@ -2690,7 +2700,6 @@ class Gui:
                             if (UseRegExpr and re.search(Expression,fullpath)) or (not UseRegExpr and fnmatch.fnmatch(fullpath,Expression) ):
                                 items.append(item)
                         except Exception as e:
-
                             self.DialogWithEntry(title='Expression Error !',prompt=f'expression:"{Expression}"  {UseRegExprInfo}\n\nERROR:{e}',parent=self.main,OnlyInfo=True)
                             tree.focus_set()
                             return
@@ -2800,24 +2809,19 @@ class Gui:
     def GoToMaxGroup(self,sizeFlag=0):
         self.DominantIndexGroups +=1
         temp=str(self.DominantIndexGroups)
-        
-        #biggestsizesum=0
-        #biggestcrc=None
+
         GroupsCombos = [(crcitem,sum([(int(self.TreeGroups.set(item,'size')) if sizeFlag else 1) for item in self.TreeGroups.get_children(crcitem)])) for crcitem in self.TreeGroups.get_children()]
         GroupsCombos.sort(key = lambda x : x[1],reverse = True)
-            
-            #sizesum=
-            #if sizesum>biggestsizesum:
-            #    biggestsizesum=sizesum
-            #    biggestcrc=crcitem
-        biggestcrc,biggestcrcSizeSum = GroupsCombos[self.DominantIndexGroups % len(GroupsCombos)]
-        if biggestcrc:
-            self.SelectFocusAndSeeCrcItemTree(biggestcrc,True)
-            #self.TreeGroupsSelChange(crc)
-            
-            self.DominantIndexGroups = int(temp)
-            Info = bytes2str(biggestcrcSizeSum) if sizeFlag else str(biggestcrcSizeSum)
-            self.StatusLine.set(f'Dominant (index:{self.DominantIndexGroups % 10}) group ({self.byWhat[sizeFlag]}:{Info})')
+        
+        if GroupsCombos:
+            biggestcrc,biggestcrcSizeSum = GroupsCombos[self.DominantIndexGroups % len(GroupsCombos)]
+
+            if biggestcrc:
+                self.SelectFocusAndSeeCrcItemTree(biggestcrc,True)
+                
+                self.DominantIndexGroups = int(temp)
+                Info = bytes2str(biggestcrcSizeSum) if sizeFlag else str(biggestcrcSizeSum)
+                self.StatusLine.set(f'Dominant (index:{self.DominantIndexGroups}) group ({self.byWhat[sizeFlag]}: {Info})')
 
     DominantIndex={}
     DominantIndex[0]=0
@@ -2866,8 +2870,7 @@ class Gui:
             
             self.DominantIndexFolders = int(temp)
             Info = bytes2str(num) if sizeFlag else str(num)
-            self.StatusLine.set(f'Dominant (index:{self.DominantIndexFolders}) folder ({self.byWhat[sizeFlag]}:{Info})')
-        
+            self.StatusLine.set(f'Dominant (index:{self.DominantIndexFolders}) folder ({self.byWhat[sizeFlag]}: {Info})')
         
     def ItemFullPath(self,item):
         pathnr=int(self.TreeGroups.set(item,'pathnr'))
@@ -2882,6 +2885,7 @@ class Gui:
             stat = os.stat(fullpath)
             ctimeCheck=str(round(stat.st_ctime))
         except Exception as e:
+            self.StatusLine.set(str(e))
             mesage = f'can\'t check file: {fullpath}\n\n{e}'
             logging.error(mesage)
             return mesage
@@ -3253,8 +3257,8 @@ class Gui:
     def ClipCopy(self,what):
         self.main.clipboard_clear()
         self.main.clipboard_append(what)
-
-    @StatusLineRestore
+    
+    @MainWatchCursor
     def OpenFolder(self):
         if self.SelFullPath:
             self.StatusLine.set(f'Opening {self.SelFullPath}')
@@ -3294,7 +3298,8 @@ class Gui:
         elif tree.set(item,'kind')!=CRC:
             self.TreeEventOpenFile()
 
-    @StatusLineRestore
+    #@StatusLineRestore
+    @MainWatchCursor
     def TreeEventOpenFile(self):
         if self.SelKind==FILE or self.SelKind==LINK or self.SelKind==SINGLE or self.SelKind==SINGLEHARDLINKED:
             self.StatusLine.set(f'Opening {self.SelFile}')
@@ -3339,7 +3344,6 @@ if __name__ == "__main__":
     if ArgsQuant>1:
         for i in range(1,ArgsQuant):
             self.addPath(argv[i])
-
 
     try:
         Gui(os.getcwd())
