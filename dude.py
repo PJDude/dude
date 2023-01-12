@@ -30,8 +30,8 @@ import core
 
 try:
     from appdirs import *
-    CACHE_DIR = os.sep.join([user_cache_dir('dude'),"cache"])
-    LOG_DIR = user_log_dir('dude')
+    CACHE_DIR = os.sep.join([user_cache_dir('dude','PJDude'),"cache"])
+    LOG_DIR = user_log_dir('dude','PJDude')
     CONFIG_DIR = user_config_dir('dude')
 except Exception as e:
     print(e)
@@ -91,8 +91,11 @@ CFG_KEY_USE_REG_EXPR='use_reg_expr'
 CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
 
 ERASE_EMPTY_DIRS='erase_empty_dirs'
-CONFIRM_SHOW_CRCSIZE='confirm_show_crcsize'
-CONFIRM_SHOW_LINKSTARGETS='confirm_show_links_targets'
+CFG_CONFIRM_SHOW_CRCSIZE='confirm_show_crcsize'
+CFG_CONFIRM_SHOW_LINKSTARGETS='confirm_show_links_targets'
+
+CFG_ALLOW_DELETE_ALL='allow_delete_all'
+CFG_ALLOW_DELETE_NON_DUPLICATES='allow_delete_non_duplicates'
 
 CFG_KEY_GEOMETRY='geometry'
 CFG_KEY_GEOMETRY_DIALOG='geometry_dialog'
@@ -108,8 +111,10 @@ CfgDefaults={
     CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
     ERASE_EMPTY_DIRS:True,
-    CONFIRM_SHOW_CRCSIZE:False,
-    CONFIRM_SHOW_LINKSTARGETS:True
+    CFG_CONFIRM_SHOW_CRCSIZE:False,
+    CFG_CONFIRM_SHOW_LINKSTARGETS:True,
+    CFG_ALLOW_DELETE_ALL:False,
+    CFG_ALLOW_DELETE_NON_DUPLICATES:False
     }
 
 MARK='M'
@@ -241,17 +246,25 @@ class Gui:
 
     def KeepSemiFocus(f):
         def KeepSemiFocusWrapp(self,*args,**kwargs):
-            tree=self.main.focus_get()
-            tree.configure(style='semi_focus.Treeview')
 
+            tree=self.main.focus_get()
+            
+            try:
+                tree.configure(style='semi_focus.Treeview')
+            except:
+                pass
+                
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
                 self.StatusLine.set(str(e))
                 res=None
                 print(EPrint(e))
-
-            tree.configure(style='default.Treeview')
+                
+            try:
+                tree.configure(style='default.Treeview')
+            except:
+                pass
 
             return res
         return KeepSemiFocusWrapp
@@ -537,7 +550,8 @@ class Gui:
         #bind_class breaks columns resizing
         self.TreeGroups.bind('<ButtonPress-1>', self.TreeButtonPress)
         self.TreeGroups.bind('<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
-        
+        self.TreeGroups.bind('<<TreeviewClose>>',  self.TreeClose )
+
         self.col2sortOf={}
         self.col2sortOf['path'] = 'path'
         self.col2sortOf['file'] = 'file'
@@ -732,7 +746,11 @@ class Gui:
         self.RelSymlinks = tk.BooleanVar()
         self.EraseEmptyDirs = tk.BooleanVar()
         self.ConfirmShowCrcSize = tk.BooleanVar()
+        
         self.ConfirmShowLinksTargets = tk.BooleanVar()
+        
+        #CFG_ALLOW_DELETE_ALL:False,
+        #CFG_ALLOW_DELETE_NON_DUPLICATES:False
 
         self.settings = [
             (self.AddCwdAtStartup,CFG_KEY_STARTUP_ADD_CWD),
@@ -741,8 +759,8 @@ class Gui:
             (self.FullPaths,CFG_KEY_FULL_PATHS),
             (self.RelSymlinks,CFG_KEY_REL_SYMLINKS),
             (self.EraseEmptyDirs,ERASE_EMPTY_DIRS),
-            (self.ConfirmShowCrcSize,CONFIRM_SHOW_CRCSIZE),
-            (self.ConfirmShowLinksTargets,CONFIRM_SHOW_LINKSTARGETS)
+            (self.ConfirmShowCrcSize,CFG_CONFIRM_SHOW_CRCSIZE),
+            (self.ConfirmShowLinksTargets,CFG_CONFIRM_SHOW_LINKSTARGETS)
         ]
 
         self.SetingsDialog.wm_title('Settings')
@@ -862,7 +880,12 @@ class Gui:
             self.Scan()
 
         self.main.mainloop()
-
+    
+    def TreeClose(self,event):
+        tree=event.widget
+        item=tree.focus()
+        tree.item(item, open=True)
+        
     def ResetSels(self):
         self.SelPathnr = None
         self.SelPath = None
@@ -2292,11 +2315,11 @@ class Gui:
         if self.cfg.GetBool(ERASE_EMPTY_DIRS)!=self.EraseEmptyDirs.get():
             self.cfg.SetBool(ERASE_EMPTY_DIRS,self.EraseEmptyDirs.get())
 
-        if self.cfg.GetBool(CONFIRM_SHOW_CRCSIZE)!=self.ConfirmShowCrcSize.get():
-            self.cfg.SetBool(CONFIRM_SHOW_CRCSIZE,self.ConfirmShowCrcSize.get())
+        if self.cfg.GetBool(CFG_CONFIRM_SHOW_CRCSIZE)!=self.ConfirmShowCrcSize.get():
+            self.cfg.SetBool(CFG_CONFIRM_SHOW_CRCSIZE,self.ConfirmShowCrcSize.get())
 
-        if self.cfg.GetBool(CONFIRM_SHOW_LINKSTARGETS)!=self.ConfirmShowLinksTargets.get():
-            self.cfg.SetBool(CONFIRM_SHOW_LINKSTARGETS,self.ConfirmShowLinksTargets.get())
+        if self.cfg.GetBool(CFG_CONFIRM_SHOW_LINKSTARGETS)!=self.ConfirmShowLinksTargets.get():
+            self.cfg.SetBool(CFG_CONFIRM_SHOW_LINKSTARGETS,self.ConfirmShowLinksTargets.get())
 
         self.cfg.Write()
 
@@ -2976,11 +2999,11 @@ class Gui:
         ShowFullPath=1
 
         message=[]
-        if not self.cfg.Get(CONFIRM_SHOW_CRCSIZE,False)=='True':
+        if not self.cfg.Get(CFG_CONFIRM_SHOW_CRCSIZE,False)=='True':
             message.append('')
 
         for crc in ProcessedItems:
-            if self.cfg.Get(CONFIRM_SHOW_CRCSIZE,False)=='True':
+            if self.cfg.Get(CFG_CONFIRM_SHOW_CRCSIZE,False)=='True':
                 size=int(self.TreeGroups.set(crc,'size'))
                 message.append('')
                 message.append('CRC:' + crc + ' size:' + bytes2str(size) + '|GRAY')
@@ -2991,7 +3014,7 @@ class Gui:
             if action==SOFTLINK:
                 if RemainingItems[crc]:
                     item = RemainingItems[crc][0]
-                    if self.cfg.GetBool(CONFIRM_SHOW_LINKSTARGETS):
+                    if self.cfg.GetBool(CFG_CONFIRM_SHOW_LINKSTARGETS):
                         message.append('🠖 ' + (self.ItemFullPath(item) if ShowFullPath else self.TreeGroups.set(item,'file')) )
 
         if action==DELETE:
