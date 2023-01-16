@@ -36,11 +36,6 @@ class DudeCore:
         self.CacheDir=CacheDir
         self.Log=Log
         self.windows = (os.name=='nt')
-        self.CRCExec='certutil' if self.windows else 'sha1sum'
-        self.CRCExecParams='-hashfile' if self.windows else '-b'
-        self.GetCrc=(lambda string : string.split('\n')[1]) if self.windows else (lambda string : string[:40])
-
-        self.CheckCRC()
 
         self.INIT()
 
@@ -212,22 +207,6 @@ class DudeCore:
         ######################################################################
         return True
 
-    def CheckCRC(self):
-        stream=subprocess.Popen([self.CRCExec,self.CRCExecParams,os.path.join(os.path.dirname(__file__),'LICENSE')], stdout=PIPE, stderr=PIPE,bufsize=1,universal_newlines=True, shell=self.windows)
-
-        stdout, stderr = stream.communicate()
-        res=stdout
-        if stderr:
-            self.Log.error(f"Cannot execute {self.CRCExec}")
-            self.Log.error(stderr)
-            self.Log.error('exiting ')
-            exit(10)
-        elif exitCode:=stream.poll():
-            self.Log.error(f'exit code:{exitCode}')
-            exit(11)
-        else:
-            self.Log.debug(f"all fine. stdout:{stdout} crc:{self.GetCrc(stdout)}")
-
     def ReadCRCCache(self):
         self.CRCCache={}
         for dev in self.devs:
@@ -255,33 +234,6 @@ class DudeCore:
                     cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
         del self.CRCCache
 
-    SubprocessStream=None
-
-    def Run(self,command):
-        try:
-            self.SubprocessStream=subprocess.Popen(command, stdout=PIPE, stderr=PIPE,bufsize= 1,universal_newlines=True,shell=self.windows )
-            stdout, stderr = self.SubprocessStream.communicate()
-
-            if stderr:
-                self.Log.error(f"command:{command}->{stderr}")
-                return None
-            elif exitCode:=self.SubprocessStream.poll():
-                self.Log.error(f"command:{command}->exitCode:{exitCode}")
-                return None
-
-        except Exception as e:
-            self.Log.error(e)
-            return None
-
-        return self.GetCrc(stdout)
-
-    def Kill(self):
-        try:
-            if self.SubprocessStream:
-                self.SubprocessStream.kill()
-        except Exception as e:
-            self.Log.error(e)
-
     writeLog=False
 
     InfoSizeDone=0
@@ -294,7 +246,6 @@ class DudeCore:
     InfoDuplicatesSpace=0
     infoSpeed=0
 
-    #SizeThreshold=64*1024*1024
     CacheSizeTheshold=1024
 
     def CrcCalc(self):
@@ -394,39 +345,30 @@ class DudeCore:
             self.LogScanResults()
 
     def CheckGroupFilesState(self,size,crc):
-        #print('CheckGroupFilesState',size,crc,self.filesOfSizeOfCRC[size][crc])
         resProblems=[]
         toRemove=[]
         if not self.filesOfSizeOfCRC[size][crc]:
             resProblems.append('no data')
-            #print('no data')
         else :
             for pathnr,path,file,ctime,dev,inode in self.filesOfSizeOfCRC[size][crc]:
                 FullPath=self.Path2ScanFull(pathnr,path,file)
                 problem=False
-                #print(FullPath)
                 try:
                     stat = os.stat(FullPath)
-                    #print(stat)
                 except Exception as e:
                     resProblems.append(f'{e}|RED')
-                    #print(e)
                     problem=True
                 else:
                     if stat.st_nlink!=1:
                         resProblems.append(f'file became hardlink:{stat.st_nlink} - {pathNr},{path},{file}')
-                        #print('problem1')
                         problem=True
                     else:
                         if  (size,ctime,dev,inode) != (stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino):
                             resProblems.append(f'file changed:{size},{ctime},{dev},{inode} vs {stat.st_size},{round(stat.st_ctime)},{stat.st_dev},{stat.st_ino}')
                             problem=True
-                            #print('problem2')
                 if problem:
-                    #print('removing data',pathnr,path,file,ctime,dev,inode)
                     IndexTuple=(pathnr,path,file,ctime,dev,inode)
                     toRemove.append(IndexTuple)
-
 
         return (resProblems,toRemove)
 
@@ -520,7 +462,6 @@ class DudeCore:
 
     def GetPath(self,IndexTuple):
         (pathnr,path,file,ctime,dev,inode)=IndexTuple
-        #FullFilePath=self.ScannedPathFull(pathnr,path,file)
         return self.ScannedPaths[pathnr]+path
 
     def DeleteFileWrapper(self,size,crc,IndexTuplesList):
@@ -611,7 +552,6 @@ if __name__ == "__main__":
     if not os.path.exists(TestDir):
         test.generate(TestDir)
 
-    #core.setLimit(100)
     core.SetPathsToScan([TestDir])
     core.SetExcludeMasks(False,[])
 
