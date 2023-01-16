@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.11
 
 from collections import defaultdict
 
@@ -11,7 +11,7 @@ import fnmatch
 import re
 
 import time
-import hashlib
+import io, hashlib, hmac
 
 class DudeCore:
     ScanResultsBySize=defaultdict(set)
@@ -294,8 +294,8 @@ class DudeCore:
     InfoDuplicatesSpace=0
     infoSpeed=0
 
-    SizeThreshold=64*1024*1024
-    CacheSizeTheshold=1024*1024
+    #SizeThreshold=64*1024*1024
+    CacheSizeTheshold=1024
 
     def CrcCalc(self):
         self.ReadCRCCache()
@@ -315,15 +315,17 @@ class DudeCore:
         self.InfoTotal = len([ 1 for size in self.ScanResultsBySize for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size] ])
 
         MeasuresPool=[]
+        MeasuresPoolLen=64
 
         start = time.time()
+
         for size in list(sorted(self.ScanResultsBySize,reverse=True)):
             if self.AbortAction:
                 break
 
             self.InfoCurrentSize=size
             UseCache = True if size>self.CacheSizeTheshold else False
-            UseHashlib = True if size<self.SizeThreshold else False
+
             for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size]:
                 self.InfoCurrentFile=file
                 if self.AbortAction:
@@ -342,32 +344,35 @@ class DudeCore:
                 if not crc:
                     FullPath=self.Path2ScanFull(pathnr,path,file)
 
-                    if UseHashlib:
-                        try:
-                            f=open(FullPath,'rb')
-                            crc=hashlib.sha1(f.read()).hexdigest()
-                            f.close()
-                        except Exception as e:
-                            self.Log.error(e)
-                            crc=None
-                        else:
-                            if UseCache:
-                                self.CRCCache[dev][CacheKey]=crc
+                    try:
+                        with open(FullPath,'rb') as f:
+                            crc = hashlib.file_digest(f, "sha1").hexdigest()
+
+                    except Exception as e:
+                        self.Log.error(e)
+                        crc=None
                     else:
-                        crc=self.Run([self.CRCExec,self.CRCExecParams,FullPath])
-                        if crc:
-                            if UseCache:
-                                self.CRCCache[dev][CacheKey]=crc
+                        if UseCache:
+                            self.CRCCache[dev][CacheKey]=crc
+
                 if crc:
                     self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
 
                 now=time.time()
-                MeasuresPool.append((size,now))
+                MeasuresPool.append((now,self.InfoSizeDone))
 
-                MeasuresPool=MeasuresPool[-100:]
-                LastPeriodSizeSum=sum([size for (size,time) in MeasuresPool])
-                if timeDIff:=now-MeasuresPool[0][1]:
-                    self.infoSpeed=int(LastPeriodSizeSum/timeDIff)
+                MeasuresPool=MeasuresPool[-MeasuresPoolLen:]
+
+                LastPeriodTimeDiff = now - MeasuresPool[0][0]
+                LastPeriodSizeSum = self.InfoSizeDone - MeasuresPool[0][1]
+
+                if LastPeriodTimeDiff:
+                    if LastPeriodTimeDiff<3:
+                        MeasuresPoolLen+=1
+                    elif LastPeriodTimeDiff>4:
+                        MeasuresPoolLen-=1
+
+                    self.infoSpeed=int(LastPeriodSizeSum/LastPeriodTimeDiff)
 
             if size in self.filesOfSizeOfCRC:
                 self.CheckCrcPoolAndPrune(size)
@@ -423,12 +428,7 @@ class DudeCore:
                     toRemove.append(IndexTuple)
 
 
-        #print(resProblems)
         return (resProblems,toRemove)
-
-    def RemoveTuples(self,size,crc,toRemove):
-        for IndexTuple in toRemove:
-            self.RemoveFromDataPool(size,crc,IndexTuple)
 
     def LogScanResults(self):
         self.Log.info('#######################################################')
@@ -510,9 +510,10 @@ class DudeCore:
         if size not in self.filesOfSizeOfCRC or crc not in self.filesOfSizeOfCRC[size]:
             del self.crccut[crc]
 
-    def RemoveFromDataPool(self,size,crc,IndexTuple):
-        self.Log.debug(f'RemoveFromDataPool:{size},{crc},{IndexTuple}')
-        self.filesOfSizeOfCRC[size][crc].remove(IndexTuple)
+    def RemoveFromDataPool(self,size,crc,IndexTuplesList):
+        for IndexTuple in IndexTuplesList:
+            self.Log.debug(f'RemoveFromDataPool:{size},{crc},{IndexTuple}')
+            self.filesOfSizeOfCRC[size][crc].remove(IndexTuple)
 
         self.CheckCrcPoolAndPrune(size)
         self.ReduceCrcCut(size,crc)
@@ -522,20 +523,27 @@ class DudeCore:
         #FullFilePath=self.ScannedPathFull(pathnr,path,file)
         return self.ScannedPaths[pathnr]+path
 
-    def DeleteFileWrapper(self,size,crc,IndexTuple):
-        self.Log.debug(f"DeleteFileWrapper:{size},{crc},{IndexTuple}")
+    def DeleteFileWrapper(self,size,crc,IndexTuplesList):
+        Messages=[]
+        IndexTuplesListDone=[]
+        for IndexTuple in IndexTuplesList:
+            self.Log.debug(f"DeleteFileWrapper:{size},{crc},{IndexTuple}")
 
-        (pathnr,path,file,ctime,dev,inode)=IndexTuple
-        FullFilePath=self.ScannedPathFull(pathnr,path,file)
+            (pathnr,path,file,ctime,dev,inode)=IndexTuple
+            FullFilePath=self.ScannedPathFull(pathnr,path,file)
 
-        if IndexTuple in self.filesOfSizeOfCRC[size][crc]:
-            if message:=self.DeleteFile(FullFilePath):
-                #self.Info('Error',message,self.main)
-                return message
+            if IndexTuple in self.filesOfSizeOfCRC[size][crc]:
+                if message:=self.DeleteFile(FullFilePath):
+                    #self.Info('Error',message,self.main)
+                    Messages.append(message)
+                else:
+                    IndexTuplesListDone.append(IndexTuple)
             else:
-                self.RemoveFromDataPool(size,crc,IndexTuple)
-        else:
-            return 'DeleteFileWrapper - Internal Data Inconsistency:' + FullFilePath + ' / ' + str(IndexTuple)
+                Messages.append('DeleteFileWrapper - Internal Data Inconsistency:' + FullFilePath + ' / ' + str(IndexTuple))
+
+        self.RemoveFromDataPool(size,crc,IndexTuplesListDone)
+
+        return Messages
 
     def LinkWrapper(self,\
             soft,relative,size,crc,\

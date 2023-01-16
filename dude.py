@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.11
 
 VERSION='0.96'
 
@@ -210,22 +210,22 @@ class Gui:
     MAX_PATHS=10
 
     SelItemTree = {}
-    
+
     SelFullPath={}
-    
+
     def MainWatchCursor(f):
         def MainWatchCursorWrapp(self,*args,**kwargs):
             prevCursor=self.main.cget('cursor')
             self.main.config(cursor="watch")
             self.main.update()
-            
+
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
                 self.StatusLine.set(str(e))
                 res=None
                 print(EPrint(e))
-            
+
             self.main.config(cursor=prevCursor)
             return res
         return MainWatchCursorWrapp
@@ -248,19 +248,19 @@ class Gui:
         def KeepSemiFocusWrapp(self,*args,**kwargs):
 
             tree=self.main.focus_get()
-            
+
             try:
                 tree.configure(style='semi_focus.Treeview')
             except:
                 pass
-                
+
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
                 self.StatusLine.set(str(e))
                 res=None
                 print(EPrint(e))
-                
+
             try:
                 tree.configure(style='default.Treeview')
             except:
@@ -626,11 +626,11 @@ class Gui:
         self.TreeFolder.tag_configure(SINGLE, foreground='gray')
         self.TreeFolder.tag_configure(DIR, foreground='blue2')
         self.TreeFolder.tag_configure(LINK, foreground='darkgray')
-        
+
         #bind_class breaks columns resizing
         self.TreeFolder.bind('<ButtonPress-1>', self.TreeButtonPress)
         self.TreeFolder.bind('<Control-ButtonPress-1>',  lambda event :self.TreeButtonPress(event,True) )
-        
+
         self.SetDefaultGeometryAndShow(self.main,None)
 
         self.PopupGroups = Menu(self.TreeGroups, tearoff=0,bg=self.bg)
@@ -733,7 +733,7 @@ class Gui:
         #Settings Dialog
         self.SetingsDialog = tk.Toplevel(self.main)
         self.SetingsDialog.protocol("WM_DELETE_WINDOW", self.SettingsDialogClose)
-        self.SetingsDialog.minsize(400, 300)
+        self.SetingsDialog.minsize(600, 400)
         self.SetingsDialog.wm_transient(self.main)
         self.SetingsDialog.update()
         self.SetingsDialog.withdraw()
@@ -751,7 +751,7 @@ class Gui:
 
         self.ConfirmShowCrcSize = tk.BooleanVar()
         self.ConfirmShowLinksTargets = tk.BooleanVar()
-        
+
         self.settings = [
             (self.AddCwdAtStartup,CFG_KEY_STARTUP_ADD_CWD),
             (self.ScanAtStartup,CFG_KEY_STARTUP_SCAN),
@@ -789,8 +789,8 @@ class Gui:
         ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.RelSymlinks                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
         ttk.Checkbutton(fr, text = 'Erase Empty directories', variable=self.EraseEmptyDirs                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        
-        ttk.Checkbutton(fr, text = 'Allow to delete of all copies (WARNING!)', variable=self.AllowDeleteAll                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+
+        ttk.Checkbutton(fr, text = 'Allow to delete all copies (WARNING!)', variable=self.AllowDeleteAll                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         #ttk.Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.AllowDeleteNonDuplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
         ttk.Label(fr, text = '').grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
@@ -848,15 +848,15 @@ class Gui:
         def GoToCascadeFill():
             self.GoToCascade.delete(0,END)
             ItemActionsState=('disabled','normal')[self.SelItem!=None]
-            self.GoToCascade.add_command(label = 'Go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace",state=ItemActionsState)
-            self.GoToCascade.add_command(label = 'Go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="F7",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="F8",state=ItemActionsState)
             self.GoToCascade.add_separator()
-            self.GoToCascade.add_command(label = 'Go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace",state=ItemActionsState)
-            self.GoToCascade.add_command(label = 'Go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="Ctrl+Backspace",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="F5",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="F6",state=ItemActionsState)
             #self.GoToCascade.add_separator()
             #self.GoToCascade.add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.GoToMaxFolder(1,1),accelerator="Backspace",state=ItemActionsState)
             #self.GoToCascade.add_command(label = 'Go to dominant folder (by duplicates/other files quantity ratio)',command = lambda : self.GoToMaxFolder(0,1), accelerator="Ctrl+Backspace",state=ItemActionsState)
-            
+
         self.GoToCascade= Menu(self.menubar,tearoff=0,bg=self.bg,postcommand=GoToCascadeFill)
 
         self.menubar.add_cascade(label = 'Navigation',menu = self.GoToCascade)
@@ -890,12 +890,12 @@ class Gui:
             self.Scan()
 
         self.main.mainloop()
-    
+
     def TreeClose(self,event):
         tree=event.widget
         item=tree.focus()
         tree.item(item, open=True)
-        
+
     def ResetSels(self):
         self.SelPathnr = None
         self.SelPath = None
@@ -1484,7 +1484,7 @@ class Gui:
 
             CtrPressed = 'Control' in StrEvent
             ShiftPressed = 'Shift' in StrEvent
-            
+
             if event.keysym=='F3':
                 if ShiftPressed:
                     self.FindPrev()
@@ -1507,11 +1507,20 @@ class Gui:
                     self.ProcessFilesTreeCrcWrapper((SOFTLINK,HARDLINK)[ShiftPressed],CtrPressed)
                 else:
                     self.ProcessFilesTreeFolderWrapper((SOFTLINK,HARDLINK)[ShiftPressed],self.SelKind==DIR)
+            elif event.keysym=='F5':
+                self.GoToMaxFolder(0,-1 if ShiftPressed else 1)
+            elif event.keysym=='F6':
+                self.GoToMaxFolder(1,-1 if ShiftPressed else 1)
+            elif event.keysym=='F7':
+                self.GoToMaxGroup(0,-1 if ShiftPressed else 1)
+            elif event.keysym=='F8':
+                self.GoToMaxGroup(1,-1 if ShiftPressed else 1)
             elif event.keysym=='BackSpace':
-                if ShiftPressed:
-                    self.GoToMaxGroup(0 if CtrPressed else 1)
-                else:
-                    self.GoToMaxFolder(0 if CtrPressed else 1)
+                if self.SelFullPath :
+                    if self.TwoDotsConditionOS():
+                        self.TreeFolder.focus_set()
+                        head,tail=os.path.split(self.SelFullPath)
+                        self.EnterDir(os.path.normpath(str(pathlib.Path(self.SelFullPath).parent.absolute())),tail)
             elif event.keysym=='i' or event.keysym=='I':
                 if CtrPressed:
                     self.MarkOnAll(self.InvertMark)
@@ -1662,7 +1671,7 @@ class Gui:
         self.SelFullPathToFile=(self.SelFullPath+self.SelFile if self.SelFullPath=='/' else os.sep.join([self.SelFullPath,self.SelFile])) if self.SelFullPath and self.SelFile else None
 
     SetFullPathToFile = SetFullPathToFileWin if windows else SetFullPathToFileLin
-    
+
     def SetSelPath(self,path):
         if self.SelFullPath != path:
             self.SelFullPath = path
@@ -1677,7 +1686,7 @@ class Gui:
 
         self.SelFile = self.TreeGroups.set(item,'file')
         newCrc = self.TreeGroups.set(item,'crc')
-        
+
         if self.SelCrc != newCrc:
             self.SelCrc = newCrc
 
@@ -1697,7 +1706,7 @@ class Gui:
             self.Info('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.',self.main)
             orglist=self.TreeGroups.get_children()
 
-            self.D.RemoveTuples(size,self.SelCrc,TuplesToRemove)
+            self.D.RemoveFromDataPool(size,self.SelCrc,TuplesToRemove)
 
             self.UpdateCrcNode(self.SelCrc)
 
@@ -1876,8 +1885,8 @@ class Gui:
             pop.add_cascade(label = 'All Files',menu = cAll,state=ItemActionsState)
 
             cNav = Menu(self.menubar,tearoff=0,bg=self.bg)
-            cNav.add_command(label = 'go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="Shift+Backspace")
-            cNav.add_command(label = 'go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="Shift+Ctrl+Backspace")
+            cNav.add_command(label = 'go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="F7")
+            cNav.add_command(label = 'go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="F8")
 
         else:
             DirActionsState=('disabled','normal')[self.SelKind==DIR]
@@ -1923,8 +1932,8 @@ class Gui:
             pop.add_cascade(label = 'Selected Subdirectory',menu = cSelSub,state=DirActionsState)
 
             cNav = Menu(pop,tearoff=0,bg=self.bg)
-            cNav.add_command(label = 'go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="Backspace")
-            cNav.add_command(label = 'go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0) ,accelerator="Ctrl+Backspace")
+            cNav.add_command(label = 'go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="F5")
+            cNav.add_command(label = 'go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0) ,accelerator="F6")
             #cNav.add_separator()
             #cNav.add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.GoToMaxFolder(1,1),accelerator="Backspace")
             #cNav.add_command(label = 'Go to dominant folder (by duplicates/other files quantity ratio)',command = lambda : self.GoToMaxFolder(0,1) ,accelerator="Ctrl+Backspace")
@@ -1956,15 +1965,15 @@ class Gui:
             print(e)
 
         pop.grab_release()
-    
+
     def RemoveEmptyFoldersAsk(self):
         if res:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.main):
             FinalInfo = self.EmptyDirsRemoval(res,True)
-            
+
             self.Info('Removed empty directories','\n'.join(FinalInfo),self.main,textwidth=160,width=800)
-            
+
             self.TreeFolderUpdate(self.SelFullPath)
-    
+
     def SelDir(self,action):
         self.ActionOnSpecifiedPath(self.SelFullPathToFile,action,True)
 
@@ -2331,10 +2340,10 @@ class Gui:
 
         if self.cfg.GetBool(ERASE_EMPTY_DIRS)!=self.EraseEmptyDirs.get():
             self.cfg.SetBool(ERASE_EMPTY_DIRS,self.EraseEmptyDirs.get())
-            
+
         if self.cfg.GetBool(CFG_ALLOW_DELETE_ALL)!=self.AllowDeleteAll.get():
             self.cfg.SetBool(CFG_ALLOW_DELETE_ALL,self.AllowDeleteAll.get())
-            
+
         if self.cfg.GetBool(CFG_ALLOW_DELETE_NON_DUPLICATES)!=self.AllowDeleteNonDuplicates.get():
             self.cfg.SetBool(CFG_ALLOW_DELETE_NON_DUPLICATES,self.AllowDeleteNonDuplicates.get())
 
@@ -2595,9 +2604,9 @@ class Gui:
                 self.TreeFolder.see(self.SelItem)
 
         self.CalcMarkStatsPath()
-        
+
         self.StatusLine.set('')
-        
+
         return True
 
     def TreeFolderUpdateMarks(self):
@@ -2843,28 +2852,30 @@ class Gui:
                             self.TreeFolderSelChange(NextItem)
 
                         break
-    
+
     DominantIndexGroups = -1
     DominantIndexFolders = -1
-    
+
     byWhat={}
     byWhat[0] = "by quantity"
     byWhat[1] = "by sum size"
-    
+
     @MainWatchCursor
-    def GoToMaxGroup(self,sizeFlag=0):
-        self.DominantIndexGroups +=1
-        temp=str(self.DominantIndexGroups)
+    def GoToMaxGroup(self,sizeFlag=0,Direction=1):
 
         GroupsCombos = [(crcitem,sum([(int(self.TreeGroups.set(item,'size')) if sizeFlag else 1) for item in self.TreeGroups.get_children(crcitem)])) for crcitem in self.TreeGroups.get_children()]
         GroupsCombos.sort(key = lambda x : x[1],reverse = True)
-        
+
         if GroupsCombos:
-            biggestcrc,biggestcrcSizeSum = GroupsCombos[self.DominantIndexGroups % len(GroupsCombos)]
+            self.DominantIndexGroups += Direction
+            self.DominantIndexGroups %= len(GroupsCombos)
+            temp=str(self.DominantIndexGroups)
+
+            biggestcrc,biggestcrcSizeSum = GroupsCombos[self.DominantIndexGroups]
 
             if biggestcrc:
                 self.SelectFocusAndSeeCrcItemTree(biggestcrc,True)
-                
+
                 self.DominantIndexGroups = int(temp)
                 Info = bytes2str(biggestcrcSizeSum) if sizeFlag else str(biggestcrcSizeSum)
                 self.StatusLine.set(f'Dominant (index:{self.DominantIndexGroups}) group ({self.byWhat[sizeFlag]}: {Info})')
@@ -2874,10 +2885,8 @@ class Gui:
     DominantIndex[1]=0
 
     @MainWatchCursor
-    def GoToMaxFolder(self,sizeFlag=0,ratioFlag=0):
-        self.DominantIndexFolders += 1
-        temp = str(self.DominantIndexFolders)
-        
+    def GoToMaxFolder(self,sizeFlag=0,Direction=1):
+
         PathStat={}
         BiggestFile={}
         FileidOfBiggestFile={}
@@ -2887,7 +2896,7 @@ class Gui:
                 for pathnr,path,file,ctime,dev,inode in crcDict:
                     pathindex=(pathnr,path)
                     PathStat[pathindex] = PathStat.get(pathindex,0) + (size if sizeFlag else 1)
-                    
+
                     if size>BiggestFile.get(pathindex,0):
                         BiggestFile[pathindex]=size
                         FileidOfBiggestFile[pathindex]=self.idfunc(inode,dev)
@@ -2895,8 +2904,12 @@ class Gui:
         if PathStat:
             PathStatList=[(pathnr,path,number) for (pathnr,path),number in PathStat.items()]
             PathStatList.sort(key=lambda x : x[2],reverse=True)
-            
-            [pathnr,path,num] = PathStatList[self.DominantIndexFolders % len(PathStatList)]
+
+            self.DominantIndexFolders += Direction
+            self.DominantIndexFolders %= len(PathStatList)
+            temp = str(self.DominantIndexFolders)
+
+            [pathnr,path,num] = PathStatList[self.DominantIndexFolders]
 
             item=FileidOfBiggestFile[(pathnr,path)]
 
@@ -2910,15 +2923,15 @@ class Gui:
             self.TreeFolder.focus_set()
             self.TreeFolder.focus(item)
             self.TreeFolder.see(item)
-            
+
             self.TreeFolderSelChange(item)
-            
+
             self.UpdateMainTree(item)
-            
+
             self.DominantIndexFolders = int(temp)
             Info = bytes2str(num) if sizeFlag else str(num)
             self.StatusLine.set(f'Dominant (index:{self.DominantIndexFolders}) folder ({self.byWhat[sizeFlag]}: {Info})')
-        
+
     def ItemFullPath(self,item):
         pathnr=int(self.TreeGroups.set(item,'pathnr'))
         path=self.TreeGroups.set(item,'path')
@@ -2989,16 +3002,21 @@ class Gui:
 
 
         elif action==DELETE:
-            if (self.cfg.GetBool(CFG_ALLOW_DELETE_ALL)):
-                return False
-            else:
-                for crc in ProcessedItems:
-                    if len(RemainingItems[crc])==0:
+            ShowAllDeleteWarning=False
+            for crc in ProcessedItems:
+                if len(RemainingItems[crc])==0:
+                    if (self.cfg.GetBool(CFG_ALLOW_DELETE_ALL)):
+                        ShowAllDeleteWarning=True
+                    else:
                         self.DialogWithEntry(title=f'Error (Delete) - All files marked',prompt="          Keep at least one file unmarked.          ",parent=self.main,OnlyInfo=True)
 
                         self.SelectFocusAndSeeCrcItemTree(crc,True)
                         return True
-                
+
+            if ShowAllDeleteWarning:
+                if not self.Ask('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies in one or more groups are selected.|RED\n\nProceed ?|RED',self.main):
+                    return True
+
         elif action==SOFTLINK:
             for crc in ProcessedItems:
                 if len(RemainingItems[crc])==0:
@@ -3066,14 +3084,14 @@ class Gui:
         {logging.warning(line) for line in message}
         logging.warning('###########################################################################################')
         logging.warning('Confirmed.')
-    
+
     @MainWatchCursor
     def EmptyDirsRemoval(self,startpath,ReportEmpty=False):
         string=f'Removing empty directories in:\'{startpath}\''
         self.StatusLine.set(string)
         self.main.update()
         logging.info(string)
-        
+
         Removed=[]
         index=0
         for (path, dirs, files) in os.walk(startpath, topdown=False, followlinks=False):
@@ -3089,9 +3107,9 @@ class Gui:
                     Removed.append(path)
                 except Exception as e:
                     logging.error(f'EmptyDirsRemoval:{e}')
-        
+
         self.StatusLine.set('')
-        
+
         if ReportEmpty and not Removed:
             Removed.append(f'No empty subdirectories in:\'{startpath}\'')
 
@@ -3106,15 +3124,17 @@ class Gui:
         if action==DELETE:
             DirectoriesToCheck=set()
             for crc in ProcessedItems:
+                TuplesToDelete=set()
+                size=int(self.TreeGroups.set(ProcessedItems[crc][0],'size'))
                 for item in ProcessedItems[crc]:
-                    size=int(self.TreeGroups.set(item,'size'))
                     IndexTuple=self.GetIndexTupleTreeGroups(item)
-
-                    if resmsg:=self.D.DeleteFileWrapper(size,crc,IndexTuple):
-                        logging.error(resmsg)
-                        self.Info('Error',resmsg,self.main)
-                        break
+                    TuplesToDelete.add(IndexTuple)
                     DirectoriesToCheck.add(self.D.GetPath(IndexTuple))
+
+                if resmsg:=self.D.DeleteFileWrapper(size,crc,TuplesToDelete):
+                    logging.error(resmsg)
+                    self.Info('Error',resmsg,self.main)
+
                 self.UpdateCrcNode(crc)
 
             if self.cfg.GetBool(ERASE_EMPTY_DIRS):
@@ -3160,13 +3180,13 @@ class Gui:
 
         if FinalInfo:
             self.Info('Removed empty directories','\n'.join(FinalInfo),self.main,textwidth=160,width=800)
-    
+
     def GetThisOrExistingParent(self,path):
         if os.path.exists(path):
             return path
         else:
             return self.GetThisOrExistingParent(pathlib.Path(path).parent.absolute())
-    
+
     @KeepSemiFocus
     def ProcessFiles(self,action,ProcessedItems,ScopeTitle):
         tree=(self.TreeGroups,self.TreeFolder)[self.SelTreeIndex]
@@ -3240,7 +3260,7 @@ class Gui:
                 self.InitialFocus()
         else:
             parent = self.GetThisOrExistingParent(self.SelFullPath)
-            
+
             if self.TreeFolderUpdate(parent):
                 #self.EnterDir(self.SelFullPath,'..')
                 newlist=self.TreeFolder.get_children()
@@ -3340,7 +3360,7 @@ class Gui:
     def ClipCopy(self,what):
         self.main.clipboard_clear()
         self.main.clipboard_append(what)
-    
+
     @MainWatchCursor
     def OpenFolder(self):
         if self.SelFullPath:
@@ -3430,7 +3450,7 @@ if __name__ == "__main__":
 
     try:
         Gui(os.getcwd())
-    
+
     except Exception as e:
         print(e)
         logging.error(e)
