@@ -212,6 +212,7 @@ class Gui:
     SelItemTree = {}
 
     SelFullPath={}
+    FolderItemsCache={}
 
     def MainWatchCursor(f):
         def MainWatchCursorWrapp(self,*args,**kwargs):
@@ -508,7 +509,6 @@ class Gui:
         self.main.unbind_class('Treeview', '<Double-Button-1>')
 
         self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
-        self.main.bind_class('Treeview','<KeyRelease>', self.KeyReleaseTreeCommon )
 
         self.main.bind_class('Treeview','<FocusIn>',    self.TreeEventFocusIn )
         self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOut )
@@ -793,8 +793,8 @@ class Gui:
         ttk.Checkbutton(fr, text = 'Allow to delete all copies (WARNING!)', variable=self.AllowDeleteAll                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         #ttk.Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.AllowDeleteNonDuplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
-        ttk.Label(fr, text = '').grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        ttk.Label(fr, text = 'Confirmation Dialog Options:').grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        tk.Label(fr, text = '',bg=self.bg).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        tk.Label(fr, text = 'Confirmation Dialog Options:',bg=self.bg,anchor='w').grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
         ttk.Checkbutton(fr, text = 'Show soft links targets', variable=self.ConfirmShowLinksTargets                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         ttk.Checkbutton(fr, text = 'Show CRC and size', variable=self.ConfirmShowCrcSize                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
@@ -1403,9 +1403,6 @@ class Gui:
     reftuple1=('1','2','3','4','5','6','7')
     reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
 
-    def KeyReleaseTreeCommon(self,event):
-        pass
-
     @MainWatchCursor
     def KeyPressTreeCommon(self,event):
         tree=event.widget
@@ -1414,41 +1411,36 @@ class Gui:
         tree.selection_remove(tree.selection())
 
         if event.keysym in ("Up",'Down') :
-            if tree==self.TreeGroups:
-                pool=self.TreeGroupsFlatItemsList
-                poolLen=self.TreeGroupsFlatItemsListLen
-            else:
-                pool=tree.get_children()
-                poolLen=len(pool)
+            (pool,poolLen) = (self.TreeGroupsFlatItemsList,self.TreeGroupsFlatItemsListLen ) if self.SelTreeIndex==0 else (self.TreeFolderFlatItemsList,self.TreeFolderFlatItemsListLen)
 
-            index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree]) if self.SelItemTree[tree] in pool else pool.index(item) if item in  pool else 0
             if poolLen:
+                index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree]) if self.SelItemTree[tree] in pool else pool.index(item) if item in  pool else 0
                 index=(index+self.DirectionOfKeysym[event.keysym])%poolLen
                 NextItem=pool[index]
 
                 tree.focus(NextItem)
                 tree.see(NextItem)
 
-                if tree==self.TreeGroups:
+                if self.SelTreeIndex==0:
                     self.TreeGroupsSelChange(NextItem)
                 else:
                     self.TreeFolderSelChange(NextItem)
         elif event.keysym in ("Prior","Next"):
-            if tree==self.TreeGroups:
+            if self.SelTreeIndex==0:
                 pool=tree.get_children()
             else:
                 pool=[item for item in tree.get_children() if tree.set(item,'kind')==FILE]
 
             poolLen=len(pool)
             if poolLen:
-                if tree==self.TreeGroups:
+                if self.SelTreeIndex==0:
                     NextItem=pool[(pool.index(tree.set(item,'crc'))+self.DirectionOfKeysym[event.keysym]) % poolLen]
                     self.SelectFocusAndSeeCrcItemTree(NextItem)
                 else:
                     self.GotoNextDupeFile(tree,self.DirectionOfKeysym[event.keysym])
                     tree.update()
         elif event.keysym in ("Home","End"):
-            if tree==self.TreeGroups:
+            if self.SelTreeIndex==0:
                 if NextItem:=tree.get_children()[0 if event.keysym=="Home" else -1]:
                     self.SelectFocusAndSeeCrcItemTree(NextItem,True)
             else:
@@ -1458,7 +1450,7 @@ class Gui:
                     self.TreeFolderSelChange(NextItem)
                     tree.update()
         elif event.keysym == "space":
-            if tree==self.TreeGroups:
+            if self.SelTreeIndex==0:
                 if tree.set(item,'kind')==CRC:
                     self.ToggleSelectedTag(tree,*tree.get_children(item))
                 else:
@@ -1498,12 +1490,12 @@ class Gui:
                 StrEvent=str(event)
                 self.MarkExpression(self.UnsetMark,'Unmark files',CtrPressed)
             elif event.keysym == "Delete":
-                if tree==self.TreeGroups:
+                if self.SelTreeIndex==0:
                     self.ProcessFilesTreeCrcWrapper(DELETE,CtrPressed)
                 else:
                     self.ProcessFilesTreeFolderWrapper(DELETE,self.SelKind==DIR)
             elif event.keysym == "Insert":
-                if tree==self.TreeGroups:
+                if self.SelTreeIndex==0:
                     self.ProcessFilesTreeCrcWrapper((SOFTLINK,HARDLINK)[ShiftPressed],CtrPressed)
                 else:
                     self.ProcessFilesTreeFolderWrapper((SOFTLINK,HARDLINK)[ShiftPressed],self.SelKind==DIR)
@@ -1525,7 +1517,7 @@ class Gui:
                 if CtrPressed:
                     self.MarkOnAll(self.InvertMark)
                 else:
-                    if tree==self.TreeGroups:
+                    if self.SelTreeIndex==0:
                         self.MarkInCRCGroup(self.InvertMark)
                     else:
                         self.MarkLowerPane(self.InvertMark)
@@ -1536,7 +1528,7 @@ class Gui:
                     else:
                         self.MarkOnAllByCTime('oldest',self.SetMark)
                 else:
-                    if tree==self.TreeGroups:
+                    if self.SelTreeIndex==0:
                         self.MarkInCRCGroupByCTime('oldest',self.InvertMark)
             elif event.keysym=='y' or event.keysym=='Y':
                 if CtrPressed:
@@ -1545,7 +1537,7 @@ class Gui:
                     else:
                         self.MarkOnAllByCTime('youngest',self.SetMark)
                 else:
-                    if tree==self.TreeGroups:
+                    if self.SelTreeIndex==0:
                         self.MarkInCRCGroupByCTime('youngest',self.InvertMark)
             elif event.keysym=='c' or event.keysym=='C':
                 if CtrPressed:
@@ -1557,7 +1549,7 @@ class Gui:
                     self.ClipCopyFull()
 
             elif event.keysym=='a' or event.keysym=='A':
-                if tree==self.TreeGroups:
+                if self.SelTreeIndex==0:
                     if CtrPressed:
                         self.MarkOnAll(self.SetMark)
                     else:
@@ -1566,24 +1558,32 @@ class Gui:
                     self.MarkLowerPane(self.SetMark)
 
             elif event.keysym=='n' or event.keysym=='N':
-                if tree==self.TreeGroups:
+                if self.SelTreeIndex==0:
                     if CtrPressed:
                         self.MarkOnAll(self.UnsetMark)
                     else:
                         self.MarkInCRCGroup(self.UnsetMark)
                 else:
                     self.MarkLowerPane(self.UnsetMark)
+            elif event.keysym=='r' or event.keysym=='R':
+                if self.SelTreeIndex==1:
+                    self.TreeFolderUpdate(Force=True)
+                    self.TreeFolder.focus_set()
+                    try:
+                        self.TreeFolder.focus(self.SelItem)
+                    finally:
+                        pass
             elif event.keysym in self.reftuple1:
                 index = self.reftuple1.index(event.keysym)
 
                 if index<len(self.D.ScannedPaths):
-                    if tree==self.TreeGroups:
+                    if self.SelTreeIndex==0:
                         self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.SetMark,CtrPressed)
             elif event.keysym in self.reftuple2:
                 index = self.reftuple2.index(event.keysym)
 
                 if index<len(self.D.ScannedPaths):
-                    if tree==self.TreeGroups:
+                    if self.SelTreeIndex==0:
                         self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.UnsetMark,CtrPressed)
             elif event.keysym=='KP_Divide' or event.keysym=='slash':
                 self.MarkSubpath(self.SetMark,True)
@@ -1692,70 +1692,35 @@ class Gui:
 
             self.DominantIndexGroups = -1
 
-        self.SelKind = self.TreeGroups.set(item,'kind')
         self.SelItem = item
         self.SelItemTree[self.TreeGroups]=item
         self.SelTreeIndex=0
 
         size = int(self.TreeGroups.set(item,'size'))
 
-        #doskanowac katalogi
-        (checkres,TuplesToRemove)=self.D.CheckGroupFilesState(size,self.SelCrc)
+        if path!=self.SelPath or pathnr!=self.SelPathnr or force:
+            self.SelPathnr = pathnr
 
-        if checkres:
-            self.Info('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.',self.main)
-            orglist=self.TreeGroups.get_children()
+            if pathnr: #non crc node
+                self.SelPathnrInt= int(pathnr)
+                self.SelSearchPath = self.D.ScannedPaths[self.SelPathnrInt]
+                self.SelPath = path
+                self.SetSelPath(self.SelSearchPath+self.SelPath)
+            else :
+                self.SelPathnrInt= 0
+                self.SelSearchPath = None
+                self.SelPath = None
+                self.SetSelPath(None)
+            self.SetFullPathToFile()
 
-            self.D.RemoveFromDataPool(size,self.SelCrc,TuplesToRemove)
-
-            self.UpdateCrcNode(self.SelCrc)
-
-            self.TreeGroupsFlatItemsListUpdate()
-
-            self.ByIdCtimeCacheUpdate()
-            self.GroupsNumberUpdate()
-
-            newlist=self.TreeGroups.get_children()
-            ItemToSel = self.GimmeClosestInCrc(orglist,self.SelCrc,newlist)
-
-            self.ResetSels()
-
-            if ItemToSel:
-                #crc node moze zniknac - trzeba zupdejtowac SelXxx
-                self.SelectFocusAndSeeCrcItemTree(ItemToSel,True)
-            else:
-                self.InitialFocus()
-
-            self.CalcMarkStatsAll()
-        else :
-            if path!=self.SelPath or pathnr!=self.SelPathnr or force:
-                self.SelPathnr = pathnr
-
-                if pathnr: #non crc node
-                    self.SelPathnrInt= int(pathnr)
-                    self.SelSearchPath = self.D.ScannedPaths[self.SelPathnrInt]
-                    self.SelPath = path
-                    self.SetSelPath(self.SelSearchPath+self.SelPath)
-                else :
-                    self.SelPathnrInt= 0
-                    self.SelSearchPath = None
-                    self.SelPath = None
-                    self.SetSelPath(None)
-                self.SetFullPathToFile()
-
-                UpdateTreeFolder=True
-            else:
-                UpdateTreeFolder=False
-
-            if self.SelKind==FILE:
-                self.SetCommonVar()
-                self.TreeFolderUpdate()
-
-            else:
-                self.TreeFolderUpdateNone()
+        self.SelKind = self.TreeGroups.set(item,'kind')
+        if self.SelKind==FILE:
+            self.SetCommonVar()
+            self.TreeFolderUpdate()
+        else:
+            self.TreeFolderUpdateNone()
 
     def TreeFolderSelChange(self,item):
-
         self.SelFile = self.TreeFolder.set(item,'file')
         self.SelCrc = self.TreeFolder.set(item,'crc')
         self.SelKind = self.TreeFolder.set(item,'kind')
@@ -1767,15 +1732,20 @@ class Gui:
 
         self.SetCommonVar()
 
-        if self.TreeFolder.set(item,'kind')==FILE:
+        kind=self.TreeFolder.set(item,'kind')
+        if kind==FILE:
             self.StatusLine.set('')
             self.UpdateMainTree(item)
-        elif self.TreeFolder.set(item,'kind')==LINK:
+        elif kind==LINK:
             self.StatusLine.set('  🠖  ' + os.readlink(self.SelFullPathToFile))
-        elif self.TreeFolder.set(item,'kind')==SINGLEHARDLINKED:
+        elif kind==SINGLEHARDLINKED:
             self.StatusLine.set('File with hardlinks')
-        else:
+        elif kind==SINGLE:
             self.StatusLine.set('')
+        elif kind==DIR:
+            self.StatusLine.set('')
+        else:
+            #self.StatusLine.set('')
             self.UpdateMainTreeNone()
 
     def MenubarUnpost(self):
@@ -1972,7 +1942,7 @@ class Gui:
 
             self.Info('Removed empty directories','\n'.join(FinalInfo),self.main,textwidth=160,width=800)
 
-            self.TreeFolderUpdate(self.SelFullPath)
+            self.TreeFolderUpdate(self.SelFullPath,Force=True)
 
     def SelDir(self,action):
         self.ActionOnSpecifiedPath(self.SelFullPathToFile,action,True)
@@ -2107,7 +2077,7 @@ class Gui:
 
             if self.LongActionAbort:
                 self.D.Abort()
-                self.D.Kill()
+                #self.D.Kill()
                 #self.D.INIT()
                 break
             else:
@@ -2242,7 +2212,8 @@ class Gui:
         self.UpdateExcludeMasks()
 
     def FocusIn(self,event):
-        pass
+        if event.widget==self.main:
+            self.FolderItemsCache={}
 
     def License(self):
         self.Info('License',self.license,self.main,textwidth=80,width=600)
@@ -2360,7 +2331,7 @@ class Gui:
 
         if update2:
             if self.SelCrc and self.SelItem and self.SelFullPath:
-                self.TreeFolderUpdate()
+                self.TreeFolderUpdate(Force=True)
             else:
                 self.TreeFolderUpdateNone()
 
@@ -2491,20 +2462,87 @@ class Gui:
     TwoDotsConditionOS = TwoDotsConditionWin if windows else TwoDotsConditionLin
 
     @MainWatchCursor
-    def TreeFolderUpdate(self,ArbitraryPath=None):
+    def TreeFolderUpdate(self,ArbitraryPath=None,Force=False):
         CurrentPath=ArbitraryPath if ArbitraryPath else self.SelFullPath
 
         if not CurrentPath:
             return False
 
-        self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
+        if Force or not CurrentPath in self.FolderItemsCache.keys():
+            self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
 
-        try:
-            ScanDirRes=list(os.scandir(CurrentPath))
-        except Exception as e:
-            self.StatusLine.set(str(e))
-            logging.error(e)
-            return False
+            try:
+                ScanDirRes=list(os.scandir(CurrentPath))
+            except Exception as e:
+                self.StatusLine.set(str(e))
+                logging.error(e)
+                return False
+
+            FolderItems=[]
+
+            FullCRC=self.cfg.GetBool(CFG_KEY_FULL_CRC)
+
+            i=0
+            for DirEntry in ScanDirRes:
+                file=DirEntry.name
+                istr=str(i)
+
+                try:
+                    FullFilePath=os.path.join(CurrentPath,file)
+                    stat = os.stat(FullFilePath)
+                except Exception as e:
+                    self.StatusLine.set(str(e))
+                    print(f'{CurrentPath},{file},{e}')
+                    print(EPrint(e))
+                    logging.error(f'ERROR: ,{e}')
+                    continue
+
+                if os.path.islink(DirEntry) :
+                    if DirEntry.is_dir():
+                        FolderItems.append( ( '\t📁 ⇦',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'DL','' ) )
+                    else:
+                        FolderItems.append( ( '\t  🠔',file,0,round(stat.st_ctime),stat.st_dev,stat.st_ino,'','',1,0,LINK,LINK,istr+'FL','' ) )
+                elif DirEntry.is_dir():
+                    FolderItems.append( ('\t📁',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'D','' ) )
+                elif DirEntry.is_file():
+
+                    ctime=round(stat.st_ctime)
+                    dev=stat.st_dev
+                    inode=stat.st_ino
+                    size=stat.st_size
+                    FILEID=self.idfunc(inode,dev)
+
+                    if (FILEID,ctime) in self.ByIdCtimeCache:
+                        crc,crccut = self.ByIdCtimeCache[(FILEID,ctime)]
+
+                        FolderItems.append( tuple([ crc if FullCRC else crccut, \
+                                                    file,\
+                                                    size,\
+                                                    ctime,\
+                                                    dev,\
+                                                    inode,\
+                                                    crc,\
+                                                    instances:=len(self.D.filesOfSizeOfCRC[size][crc]),\
+                                                    instances,\
+                                                    FILEID,\
+                                                    self.TreeGroups.item(FILEID)['tags'],\
+                                                    FILE,\
+                                                    FILEID,\
+                                                    bytes2str(size) ]) )
+                    else:
+                        if stat.st_nlink!=1:
+                            #hardlink
+                            FolderItems.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLEHARDLINKED,istr+'O',bytes2str(size) ) )
+                        else:
+                            FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ) )
+
+
+                else:
+                    logging.error(f'what is it: {DirEntry} ?')
+
+                i+=1
+
+            self.FolderItemsCache[CurrentPath]=FolderItems
 
         if ArbitraryPath:
             #TODO - workaround
@@ -2513,80 +2551,14 @@ class Gui:
             self.SelPath=prevSelPath
             self.SetSelPath(str(pathlib.Path(ArbitraryPath)))
 
-        itemsToInsert=[]
-
-        FullCRC=self.cfg.GetBool(CFG_KEY_FULL_CRC)
-
-        i=0
-        for DirEntry in ScanDirRes:
-            file=DirEntry.name
-            istr=str(i)
-
-            try:
-                FullFilePath=os.path.join(CurrentPath,file)
-                stat = os.stat(FullFilePath)
-            except Exception as e:
-                self.StatusLine.set(str(e))
-                print(f'{CurrentPath},{file},{e}')
-                print(EPrint(e))
-                logging.error(f'ERROR: ,{e}')
-                continue
-
-            if os.path.islink(DirEntry) :
-                if DirEntry.is_dir():
-                    itemsToInsert.append( ( '\t📁 ⇦',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'DL','' ) )
-                else:
-                    ctime=round(stat.st_ctime)
-                    dev=stat.st_dev
-                    inode=stat.st_ino
-
-                    itemsToInsert.append( ( '\t  🠔',file,0,ctime,dev,inode,'','',1,0,LINK,LINK,istr+'FL','' ) )
-            elif DirEntry.is_dir():
-                itemsToInsert.append( ('\t📁',file,0,0,0,0,'','',1,0,DIR,DIR,istr+'D','' ) )
-            elif DirEntry.is_file():
-
-                ctime=round(stat.st_ctime)
-                dev=stat.st_dev
-                inode=stat.st_ino
-                size=stat.st_size
-                FILEID=self.idfunc(inode,dev)
-
-                if (FILEID,ctime) in self.ByIdCtimeCache:
-                    crc,crccut = self.ByIdCtimeCache[(FILEID,ctime)]
-
-                    itemsToInsert.append( tuple([ crc if FullCRC else crccut, \
-                                                file,\
-                                                size,\
-                                                ctime,\
-                                                dev,\
-                                                inode,\
-                                                crc,\
-                                                instances:=len(self.D.filesOfSizeOfCRC[size][crc]),\
-                                                instances,\
-                                                FILEID,\
-                                                self.TreeGroups.item(FILEID)['tags'],\
-                                                FILE,\
-                                                FILEID,\
-                                                bytes2str(size) ]) )
-                else:
-                    if stat.st_nlink!=1:
-                        #hardlink
-                        itemsToInsert.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLEHARDLINKED,istr+'O',bytes2str(size) ) )
-                    else:
-                        itemsToInsert.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ) )
-
-
-            else:
-                logging.error(f'what is it: {DirEntry} ?')
-
-            i+=1
-
         colSort,reverse = self.ColumnSortLastParams[self.TreeFolder]
 
         sortIndex=self.sortIndexDict[colSort]
 
         IsNumeric=self.col2sortNumeric[colSort]
         UPDIRCode,DIRCode,NONDIRCode = (2,1,0) if reverse else (0,1,2)
+
+        self.FolderItemsCache[CurrentPath].sort(key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse)
 
         self.TreeFolder.delete(*self.TreeFolder.get_children())
 
@@ -2595,8 +2567,11 @@ class Gui:
             (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH)=('','..',0,0,0,0,'..','',1,0,DIR,UPDIR,'0UP','' )
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,'',kind),tags=tags)
 
-        for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(itemsToInsert,key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse):
+        for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in self.FolderItemsCache[CurrentPath]:
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE or kind==SINGLEHARDLINKED else '',kind),tags=tags)
+
+        self.TreeFolderFlatItemsList=self.TreeFolder.get_children()
+        self.TreeFolderFlatItemsListLen=len(self.TreeFolderFlatItemsList)
 
         if not ArbitraryPath:
             if self.SelItem and self.SelItem in self.TreeFolder.get_children():
@@ -2604,8 +2579,6 @@ class Gui:
                 self.TreeFolder.see(self.SelItem)
 
         self.CalcMarkStatsPath()
-
-        self.StatusLine.set('')
 
         return True
 
@@ -2991,6 +2964,36 @@ class Gui:
 
     @StatusLineRestore
     def ProcessFilesCheckCorrectness(self,action,ProcessedItems,RemainingItems):
+        for crc in ProcessedItems:
+            size = self.D.Crc2Size[crc]
+            (checkres,TuplesToRemove)=self.D.CheckGroupFilesState(size,crc)
+
+            if checkres:
+                self.Info('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.',self.main)
+                orglist=self.TreeGroups.get_children()
+
+                self.D.RemoveFromDataPool(size,crc,TuplesToRemove)
+
+                self.UpdateCrcNode(crc)
+
+                self.TreeGroupsFlatItemsListUpdate()
+
+                self.ByIdCtimeCacheUpdate()
+                self.GroupsNumberUpdate()
+
+                newlist=self.TreeGroups.get_children()
+                ItemToSel = self.GimmeClosestInCrc(orglist,crc,newlist)
+
+                self.ResetSels()
+
+                if ItemToSel:
+                    #crc node moze zniknac - trzeba zupdejtowac SelXxx
+                    self.SelectFocusAndSeeCrcItemTree(ItemToSel,True)
+                else:
+                    self.InitialFocus()
+
+                self.CalcMarkStatsAll()
+
         self.StatusLine.set('checking selection correctness...')
         if action==HARDLINK:
             for crc in ProcessedItems:
@@ -3246,27 +3249,21 @@ class Gui:
             #newlist=self.TreeGroups.get_children()
 
             SelItem = self.SelItem if self.SelItem else self.SelCrc
-            #print(SelItem)
-            #ItemToSel = self.GimmeClosestInCrc(orglist,self.SelCrc,newlist)
             ItemToSel = self.GimmeClosestInCrc(orglist,SelItem,self.TreeGroupsFlatItemsList)
-            #print('ItemToSel',ItemToSel)
 
             if ItemToSel:
                 self.TreeGroups.see(ItemToSel)
                 self.TreeGroups.focus(ItemToSel)
                 self.TreeGroupsSelChange(ItemToSel)
-                #self.SelectFocusAndSeeCrcItemTree(ItemToSel,True)
             else:
                 self.InitialFocus()
         else:
             parent = self.GetThisOrExistingParent(self.SelFullPath)
 
-            if self.TreeFolderUpdate(parent):
-                #self.EnterDir(self.SelFullPath,'..')
+            if self.TreeFolderUpdate(parent,Force=True):
                 newlist=self.TreeFolder.get_children()
 
                 ItemToSel = self.GimmeClosestInDir(orglist,orgSelItem,orgSelItemName,newlist)
-                #print(ItemToSel)
 
                 if ItemToSel:
                     self.TreeFolder.focus(ItemToSel)
@@ -3276,7 +3273,7 @@ class Gui:
 
         self.CalcMarkStatsAll()
 
-        #self.main.update()
+        self.FolderItemsCache={}
 
         self.FindResult=[]
 
@@ -3372,7 +3369,7 @@ class Gui:
 
     @MainWatchCursor
     def EnterDir(self,fullpath,sel):
-        if self.TreeFolderUpdate(fullpath):
+        if self.TreeFolderUpdate(fullpath,Force=True):
             children=self.TreeFolder.get_children()
             resList=[nodeid for nodeid in children if self.TreeFolder.set(nodeid,'file')==sel]
             if resList:

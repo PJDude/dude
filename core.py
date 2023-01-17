@@ -334,6 +334,8 @@ class DudeCore:
 
             self.InfoFoundFolders = len({(pathnr,path) for sizeDict in self.filesOfSizeOfCRC.values() for crcDict in sizeDict.values() for pathnr,path,file,ctime,dev,inode in crcDict})
 
+        self.Crc2Size = {crc:size for size,sizeDict in self.filesOfSizeOfCRC.items() for crc in sizeDict}
+
         end=time.time()
         self.Log.debug(f'total time = (end-start)s')
 
@@ -347,9 +349,8 @@ class DudeCore:
     def CheckGroupFilesState(self,size,crc):
         resProblems=[]
         toRemove=[]
-        if not self.filesOfSizeOfCRC[size][crc]:
-            resProblems.append('no data')
-        else :
+
+        if self.filesOfSizeOfCRC[size][crc]:
             for pathnr,path,file,ctime,dev,inode in self.filesOfSizeOfCRC[size][crc]:
                 FullPath=self.Path2ScanFull(pathnr,path,file)
                 problem=False
@@ -363,12 +364,14 @@ class DudeCore:
                         resProblems.append(f'file became hardlink:{stat.st_nlink} - {pathNr},{path},{file}')
                         problem=True
                     else:
-                        if  (size,ctime,dev,inode) != (stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino):
+                        if (size,ctime,dev,inode) != (stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino):
                             resProblems.append(f'file changed:{size},{ctime},{dev},{inode} vs {stat.st_size},{round(stat.st_ctime)},{stat.st_dev},{stat.st_ino}')
                             problem=True
                 if problem:
                     IndexTuple=(pathnr,path,file,ctime,dev,inode)
                     toRemove.append(IndexTuple)
+        else :
+            resProblems.append('no data')
 
         return (resProblems,toRemove)
 
