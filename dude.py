@@ -2887,15 +2887,19 @@ class Gui:
             item=FileidOfBiggestFile[(pathnr,path)]
 
             self.TreeGroups.focus(item)
-            self.TreeGroups.see(item)
             self.TreeGroupsSelChange(item)
+            
+            LastCrcChild=self.TreeGroups.get_children(self.SelCrc)[-1]
+            self.TreeGroups.see(LastCrcChild)
+            self.TreeGroups.see(self.SelCrc)
+            self.TreeGroups.see(item)
             self.TreeGroups.update()
 
             self.TreeFolderUpdate()
 
             self.TreeFolder.focus_set()
-            self.TreeFolder.focus(item)
             self.TreeFolder.see(item)
+            self.TreeFolder.focus(item)
 
             self.TreeFolderSelChange(item)
 
