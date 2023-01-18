@@ -95,6 +95,7 @@ CFG_CONFIRM_SHOW_CRCSIZE='confirm_show_crcsize'
 CFG_CONFIRM_SHOW_LINKSTARGETS='confirm_show_links_targets'
 
 CFG_ALLOW_DELETE_ALL='allow_delete_all'
+CFG_SKIP_INCORRECT_GROUPS='skip_incorrect_groups'
 CFG_ALLOW_DELETE_NON_DUPLICATES='allow_delete_non_duplicates'
 
 CFG_KEY_GEOMETRY='geometry'
@@ -114,6 +115,7 @@ CfgDefaults={
     CFG_CONFIRM_SHOW_CRCSIZE:False,
     CFG_CONFIRM_SHOW_LINKSTARGETS:True,
     CFG_ALLOW_DELETE_ALL:False,
+    CFG_SKIP_INCORRECT_GROUPS:True,
     CFG_ALLOW_DELETE_NON_DUPLICATES:False
     }
 
@@ -747,6 +749,7 @@ class Gui:
         self.EraseEmptyDirs = tk.BooleanVar()
 
         self.AllowDeleteAll = tk.BooleanVar()
+        self.SkipIncorrectGroups = tk.BooleanVar()
         self.AllowDeleteNonDuplicates = tk.BooleanVar()
 
         self.ConfirmShowCrcSize = tk.BooleanVar()
@@ -762,6 +765,7 @@ class Gui:
             (self.ConfirmShowCrcSize,CFG_CONFIRM_SHOW_CRCSIZE),
             (self.ConfirmShowLinksTargets,CFG_CONFIRM_SHOW_LINKSTARGETS),
             (self.AllowDeleteAll,CFG_ALLOW_DELETE_ALL),
+            (self.SkipIncorrectGroups,CFG_SKIP_INCORRECT_GROUPS),
             (self.AllowDeleteNonDuplicates,CFG_ALLOW_DELETE_NON_DUPLICATES)
         ]
 
@@ -791,6 +795,7 @@ class Gui:
         ttk.Checkbutton(fr, text = 'Erase Empty directories', variable=self.EraseEmptyDirs                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
         ttk.Checkbutton(fr, text = 'Allow to delete all copies (WARNING!)', variable=self.AllowDeleteAll                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        ttk.Checkbutton(fr, text = 'Skip groups with invalid selection', variable=self.SkipIncorrectGroups                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         #ttk.Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.AllowDeleteNonDuplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
         tk.Label(fr, text = '',bg=self.bg).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
@@ -1464,7 +1469,6 @@ class Gui:
         elif event.keysym == "Tab":
             tree.selection_set(tree.focus())
             self.FromTabSwicth=True
-            self.DominantIndex = -1
         elif event.keysym=='KP_Multiply' or event.keysym=='asterisk':
             self.MarkOnAll(self.InvertMark)
         elif event.keysym=='Return':
@@ -1632,7 +1636,6 @@ class Gui:
 
     FromTabSwicth=False
     def TreeEventFocusIn(self,event):
-        self.DominantIndex = -1
         tree=event.widget
 
         item=None
@@ -1676,10 +1679,11 @@ class Gui:
         if self.SelFullPath != path:
             self.SelFullPath = path
 
-            self.DominantIndexFolders = -1
+            self.DominantIndexFolders[0] = -1
+            self.DominantIndexFolders[1] = -1
 
-    def TreeGroupsSelChange(self,item,force=False):
-        self.StatusLine.set('')
+    def TreeGroupsSelChange(self,item,force=False,ChangeStatusLine=True):
+        if ChangeStatusLine : self.StatusLine.set('')
 
         pathnr=self.TreeGroups.set(item,'pathnr')
         path=self.TreeGroups.set(item,'path')
@@ -1690,7 +1694,8 @@ class Gui:
         if self.SelCrc != newCrc:
             self.SelCrc = newCrc
 
-            self.DominantIndexGroups = -1
+            self.DominantIndexGroups[0] = -1
+            self.DominantIndexGroups[1] = -1
 
         self.SelItem = item
         self.SelItemTree[self.TreeGroups]=item
@@ -1720,7 +1725,7 @@ class Gui:
         else:
             self.TreeFolderUpdateNone()
 
-    def TreeFolderSelChange(self,item):
+    def TreeFolderSelChange(self,item,ChangeStatusLine=True):
         self.SelFile = self.TreeFolder.set(item,'file')
         self.SelCrc = self.TreeFolder.set(item,'crc')
         self.SelKind = self.TreeFolder.set(item,'kind')
@@ -1734,16 +1739,16 @@ class Gui:
 
         kind=self.TreeFolder.set(item,'kind')
         if kind==FILE:
-            self.StatusLine.set('')
+            if ChangeStatusLine: self.StatusLine.set('')
             self.UpdateMainTree(item)
         elif kind==LINK:
-            self.StatusLine.set('  🠖  ' + os.readlink(self.SelFullPathToFile))
+            if ChangeStatusLine: self.StatusLine.set('  🠖  ' + os.readlink(self.SelFullPathToFile))
         elif kind==SINGLEHARDLINKED:
-            self.StatusLine.set('File with hardlinks')
+            if ChangeStatusLine: self.StatusLine.set('File with hardlinks')
         elif kind==SINGLE:
-            self.StatusLine.set('')
+            if ChangeStatusLine: self.StatusLine.set('')
         elif kind==DIR:
-            self.StatusLine.set('')
+            if ChangeStatusLine: self.StatusLine.set('')
         else:
             #self.StatusLine.set('')
             self.UpdateMainTreeNone()
@@ -2315,6 +2320,9 @@ class Gui:
         if self.cfg.GetBool(CFG_ALLOW_DELETE_ALL)!=self.AllowDeleteAll.get():
             self.cfg.SetBool(CFG_ALLOW_DELETE_ALL,self.AllowDeleteAll.get())
 
+        if self.cfg.GetBool(CFG_SKIP_INCORRECT_GROUPS)!=self.SkipIncorrectGroups.get():
+            self.cfg.SetBool(CFG_SKIP_INCORRECT_GROUPS,self.SkipIncorrectGroups.get())
+
         if self.cfg.GetBool(CFG_ALLOW_DELETE_NON_DUPLICATES)!=self.AllowDeleteNonDuplicates.get():
             self.cfg.SetBool(CFG_ALLOW_DELETE_NON_DUPLICATES,self.AllowDeleteNonDuplicates.get())
 
@@ -2366,14 +2374,49 @@ class Gui:
                 logging.debug('UpdateCrcNode-4 ' + crc)
                 CrcRemoved=True
 
-    def ByIdCtimeCacheUpdate(self):
+    def DataPrecalc(self):
         self.ByIdCtimeCache = { (self.idfunc(inode,dev),ctime):(crc,self.D.crccut[crc]) for size,sizeDict in self.D.filesOfSizeOfCRC.items() for crc,crcDict in sizeDict.items() for pathnr,path,file,ctime,dev,inode in crcDict }
-
-    def GroupsNumberUpdate(self):
         self.StatusVarGroups.set(len(self.TreeGroups.get_children()))
 
-    TreeGroupsFlatItemsList=[]
-    TreeGroupsFlatItemsListLen=0
+        self.PathStatSize={}
+        self.PathStatQuant={}
+
+        self.BiggestFileOfPath={}
+        self.BiggestFileOfPathId={}
+
+        self.PathStatListSize=[]
+        self.PathStatListQuant=[]
+
+        for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
+            for crc,crcDict in sizeDict.items():
+                for pathnr,path,file,ctime,dev,inode in crcDict:
+                    pathindex=(pathnr,path)
+                    self.PathStatSize[pathindex] = self.PathStatSize.get(pathindex,0) + size
+                    self.PathStatQuant[pathindex] = self.PathStatQuant.get(pathindex,0) + 1
+
+                    if size>self.BiggestFileOfPath.get(pathindex,0):
+                        self.BiggestFileOfPath[pathindex]=size
+                        self.BiggestFileOfPathId[pathindex]=self.idfunc(inode,dev)
+
+
+        self.PathStatListSize=[(pathnr,path,number) for (pathnr,path),number in self.PathStatSize.items()]
+        self.PathStatListSize.sort(key=lambda x : x[2],reverse=True)
+
+        self.PathStatListQuant=[(pathnr,path,number) for (pathnr,path),number in self.PathStatQuant.items()]
+        self.PathStatListQuant.sort(key=lambda x : x[2],reverse=True)
+
+        self.PathsQuant=len(self.PathStatListSize)
+
+        self.GroupsCombosSize = [(crcitem,sum([int(self.TreeGroups.set(item,'size')) for item in self.TreeGroups.get_children(crcitem)])) for crcitem in self.TreeGroups.get_children()]
+        self.GroupsCombosSize.sort(key = lambda x : x[1],reverse = True)
+
+        self.GroupsCombosQuant = [(crcitem,len(self.TreeGroups.get_children(crcitem))) for crcitem in self.TreeGroups.get_children()]
+        self.GroupsCombosQuant.sort(key = lambda x : x[1],reverse = True)
+
+        self.GroupsCombosLen=len(self.GroupsCombosSize)
+
+    #TreeGroupsFlatItemsList=[]
+    #TreeGroupsFlatItemsListLen=0
     def TreeGroupsFlatItemsListUpdate(self):
         self.TreeGroupsFlatItemsList = [elem for sublist in [ tuple([crc])+tuple(self.TreeGroups.get_children(crc)) for crc in self.TreeGroups.get_children() ] for elem in sublist]
         self.TreeGroupsFlatItemsListLen=len(self.TreeGroupsFlatItemsList)
@@ -2412,10 +2455,9 @@ class Gui:
                             '',\
                             time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) ,FILE),tags=[])
 
-        self.ByIdCtimeCacheUpdate()
+        self.DataPrecalc()
 
         self.ColumnSort(self.TreeGroups)
-        self.GroupsNumberUpdate()
         self.TreeGroupsFlatItemsListUpdate() #after sort !
         self.InitialFocus()
         self.CalcMarkStatsAll()
@@ -2462,14 +2504,14 @@ class Gui:
     TwoDotsConditionOS = TwoDotsConditionWin if windows else TwoDotsConditionLin
 
     @MainWatchCursor
-    def TreeFolderUpdate(self,ArbitraryPath=None,Force=False):
+    def TreeFolderUpdate(self,ArbitraryPath=None,Force=False,ChangeStatusLine=False):
         CurrentPath=ArbitraryPath if ArbitraryPath else self.SelFullPath
 
         if not CurrentPath:
             return False
 
         if Force or not CurrentPath in self.FolderItemsCache.keys():
-            self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
+            if ChangeStatusLine : self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
 
             try:
                 ScanDirRes=list(os.scandir(CurrentPath))
@@ -2825,9 +2867,13 @@ class Gui:
                             self.TreeFolderSelChange(NextItem)
 
                         break
+    DominantIndexGroups={}
+    DominantIndexGroups[0] = -1
+    DominantIndexGroups[1] = -1
 
-    DominantIndexGroups = -1
-    DominantIndexFolders = -1
+    DominantIndexFolders={}
+    DominantIndexFolders[0] = -1
+    DominantIndexFolders[1] = -1
 
     byWhat={}
     byWhat[0] = "by quantity"
@@ -2835,79 +2881,60 @@ class Gui:
 
     @MainWatchCursor
     def GoToMaxGroup(self,sizeFlag=0,Direction=1):
+        if self.GroupsCombosLen:
+            WorkingIndex = self.DominantIndexGroups[sizeFlag]
+            WorkingIndex = (WorkingIndex+Direction) % self.GroupsCombosLen
+            temp=str(WorkingIndex)
+            WorkingDict = self.GroupsCombosSize if sizeFlag else self.GroupsCombosQuant
 
-        GroupsCombos = [(crcitem,sum([(int(self.TreeGroups.set(item,'size')) if sizeFlag else 1) for item in self.TreeGroups.get_children(crcitem)])) for crcitem in self.TreeGroups.get_children()]
-        GroupsCombos.sort(key = lambda x : x[1],reverse = True)
-
-        if GroupsCombos:
-            self.DominantIndexGroups += Direction
-            self.DominantIndexGroups %= len(GroupsCombos)
-            temp=str(self.DominantIndexGroups)
-
-            biggestcrc,biggestcrcSizeSum = GroupsCombos[self.DominantIndexGroups]
+            biggestcrc,biggestcrcSizeSum = WorkingDict[WorkingIndex]
 
             if biggestcrc:
                 self.SelectFocusAndSeeCrcItemTree(biggestcrc,True)
 
-                self.DominantIndexGroups = int(temp)
+                self.DominantIndexGroups[sizeFlag] = int(temp)
                 Info = bytes2str(biggestcrcSizeSum) if sizeFlag else str(biggestcrcSizeSum)
-                self.StatusLine.set(f'Dominant (index:{self.DominantIndexGroups}) group ({self.byWhat[sizeFlag]}: {Info})')
-
-    DominantIndex={}
-    DominantIndex[0]=0
-    DominantIndex[1]=0
+                self.StatusLine.set(f'Dominant (index:{WorkingIndex}) group ({self.byWhat[sizeFlag]}: {Info})')
 
     @MainWatchCursor
     def GoToMaxFolder(self,sizeFlag=0,Direction=1):
+        if self.PathsQuant:
+            WorkingIndex = self.DominantIndexFolders[sizeFlag]
+            WorkingIndex = (WorkingIndex+Direction) % self.PathsQuant
+            temp = str(WorkingIndex)
+            WorkingDict = self.PathStatListSize if sizeFlag else self.PathStatListQuant
 
-        PathStat={}
-        BiggestFile={}
-        FileidOfBiggestFile={}
+            [pathnr,path,num] = WorkingDict[WorkingIndex]
 
-        for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
-            for crc,crcDict in sizeDict.items():
-                for pathnr,path,file,ctime,dev,inode in crcDict:
-                    pathindex=(pathnr,path)
-                    PathStat[pathindex] = PathStat.get(pathindex,0) + (size if sizeFlag else 1)
-
-                    if size>BiggestFile.get(pathindex,0):
-                        BiggestFile[pathindex]=size
-                        FileidOfBiggestFile[pathindex]=self.idfunc(inode,dev)
-
-        if PathStat:
-            PathStatList=[(pathnr,path,number) for (pathnr,path),number in PathStat.items()]
-            PathStatList.sort(key=lambda x : x[2],reverse=True)
-
-            self.DominantIndexFolders += Direction
-            self.DominantIndexFolders %= len(PathStatList)
-            temp = str(self.DominantIndexFolders)
-
-            [pathnr,path,num] = PathStatList[self.DominantIndexFolders]
-
-            item=FileidOfBiggestFile[(pathnr,path)]
+            item=self.BiggestFileOfPathId[(pathnr,path)]
 
             self.TreeGroups.focus(item)
-            self.TreeGroupsSelChange(item)
-            
+            self.TreeGroupsSelChange(item,ChangeStatusLine=False)
+
             LastCrcChild=self.TreeGroups.get_children(self.SelCrc)[-1]
-            self.TreeGroups.see(LastCrcChild)
-            self.TreeGroups.see(self.SelCrc)
-            self.TreeGroups.see(item)
-            self.TreeGroups.update()
+            try:
+                self.TreeGroups.see(LastCrcChild)
+                self.TreeGroups.see(self.SelCrc)
+                self.TreeGroups.see(item)
+            except Exception:
+                pass
+            finally:
+                self.TreeFolderUpdate(ChangeStatusLine=False)
 
-            self.TreeFolderUpdate()
+            try:
+                self.TreeFolder.focus_set()
+                self.TreeFolder.see(item)
+                self.TreeFolder.focus(item)
+                self.TreeFolderSelChange(item,ChangeStatusLine=False)
+            except Exception:
+                pass
+            finally:
+                self.UpdateMainTree(item)
 
-            self.TreeFolder.focus_set()
-            self.TreeFolder.see(item)
-            self.TreeFolder.focus(item)
-
-            self.TreeFolderSelChange(item)
-
-            self.UpdateMainTree(item)
-
-            self.DominantIndexFolders = int(temp)
+            self.DominantIndexFolders[sizeFlag] = int(temp)
             Info = bytes2str(num) if sizeFlag else str(num)
-            self.StatusLine.set(f'Dominant (index:{self.DominantIndexFolders}) folder ({self.byWhat[sizeFlag]}: {Info})')
+            self.StatusLine.set(f'Dominant (index:{WorkingIndex}) folder ({self.byWhat[sizeFlag]}: {Info})')
+            #self.TreeGroups.update()
 
     def ItemFullPath(self,item):
         pathnr=int(self.TreeGroups.set(item,'pathnr'))
@@ -2982,8 +3009,7 @@ class Gui:
 
                 self.TreeGroupsFlatItemsListUpdate()
 
-                self.ByIdCtimeCacheUpdate()
-                self.GroupsNumberUpdate()
+                self.DataPrecalc()
 
                 newlist=self.TreeGroups.get_children()
                 ItemToSel = self.GimmeClosestInCrc(orglist,crc,newlist)
@@ -3009,20 +3035,34 @@ class Gui:
 
 
         elif action==DELETE:
-            ShowAllDeleteWarning=False
-            for crc in ProcessedItems:
-                if len(RemainingItems[crc])==0:
-                    if (self.cfg.GetBool(CFG_ALLOW_DELETE_ALL)):
-                        ShowAllDeleteWarning=True
-                    else:
-                        self.DialogWithEntry(title=f'Error (Delete) - All files marked',prompt="          Keep at least one file unmarked.          ",parent=self.main,OnlyInfo=True)
+            if self.cfg.GetBool(CFG_SKIP_INCORRECT_GROUPS):
+                IncorrectGroups=[]
+                for crc in ProcessedItems:
+                    if len(RemainingItems[crc])==0:
+                        IncorrectGroups.append(crc)
+                if IncorrectGroups:
+                    IncorrectGroupsStr='\n'.join(IncorrectGroups)
+                    self.Info(f'Warning (Delete) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFolowing CRC groups will not be processed and remain with markings:\n\n{IncorrectGroupsStr}",self.main)
 
-                        self.SelectFocusAndSeeCrcItemTree(crc,True)
+                self.SelectFocusAndSeeCrcItemTree(IncorrectGroups[0],True)
+                for crc in IncorrectGroups:
+                    del ProcessedItems[crc]
+                    del RemainingItems[crc]
+            else:
+                ShowAllDeleteWarning=False
+                for crc in ProcessedItems:
+                    if len(RemainingItems[crc])==0:
+                        if (self.cfg.GetBool(CFG_ALLOW_DELETE_ALL)):
+                            ShowAllDeleteWarning=True
+                        else:
+                            self.DialogWithEntry(title=f'Error (Delete) - All files marked',prompt="          Keep at least one file unmarked.          ",parent=self.main,OnlyInfo=True)
+
+                            self.SelectFocusAndSeeCrcItemTree(crc,True)
+                            return True
+
+                if ShowAllDeleteWarning:
+                    if not self.Ask('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies in one or more groups are selected.|RED\n\nProceed ?|RED',self.main):
                         return True
-
-            if ShowAllDeleteWarning:
-                if not self.Ask('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies in one or more groups are selected.|RED\n\nProceed ?|RED',self.main):
-                    return True
 
         elif action==SOFTLINK:
             for crc in ProcessedItems:
@@ -3180,9 +3220,7 @@ class Gui:
 
         self.main.config(cursor="")
 
-        self.ByIdCtimeCacheUpdate()
-        self.ByIdCtimeCacheUpdate()
-        self.GroupsNumberUpdate()
+        self.DataPrecalc()
         self.TreeGroupsFlatItemsListUpdate()
 
         if FinalInfo:
@@ -3219,6 +3257,10 @@ class Gui:
             RemainingItems[crc]=[item for item in self.TreeGroups.get_children(crc) if not self.TreeGroups.tag_has(MARK,item)]
 
         if self.ProcessFilesCheckCorrectness(action,ProcessedItems,RemainingItems):
+            return
+
+        if not ProcessedItems:
+            self.DialogWithEntry(title='Info',prompt="          No files left for processing. Fix files selection.          ",parent=self.main,OnlyInfo=True)
             return
 
         logging.warning('###########################################################################################')
