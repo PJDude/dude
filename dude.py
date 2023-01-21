@@ -360,11 +360,13 @@ class Gui:
     LADPrevProg2=''
     LastTimeNoSign=0
 
-    def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None,PrefixInfo=''):
-        prefix='\n\n'
+    def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None):
+        #,PrefixInfo=''
+        prefix='\n'
         if self.LADPrevProg1==progress1Right and self.LADPrevProg2==progress2Right and self.LADPrevMessage==message:
             if time.time()>self.LastTimeNoSign+1.0:
-                prefix=str(self.ProgressSigns[self.psIndex]) + "\n" + PrefixInfo + "\n"
+                prefix=str(self.ProgressSigns[self.psIndex])+ '\n'
+                # + "\n" + PrefixInfo + "\n"
                 self.psIndex=(self.psIndex+1)%4
         else:
             self.LADPrevMessage=message
@@ -2061,10 +2063,10 @@ class Gui:
 
         self.D.writeLog=self.WriteScanToLog.get()
 
-        ScanThread=Thread(target=self.D.CrcCalc,daemon=True)
-        ScanThread.start()
+        CrcThread=Thread(target=self.D.CrcCalc,daemon=True)
+        CrcThread.start()
 
-        while ScanThread.is_alive():
+        while CrcThread.is_alive():
             sumSizeStr='/' + bytes2str(self.D.sumSize)
             progress1Right=bytes2str(self.D.InfoSizeDone) + sumSizeStr
             progress2Right=str(self.D.InfoFileNr) + '/' + str(self.D.InfoTotal)
@@ -2072,13 +2074,15 @@ class Gui:
             InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sumSize)
             InfoProgQuant=float(100)*float(self.D.InfoFileNr)/float(self.D.InfoTotal)
 
-            info = 'CRC groups: ' + str(self.D.InfoFoundGroups) \
-                    + '\nfolders: ' + str(self.D.InfoFoundFolders) \
-                    + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) \
-                    + '\n' \
-                    + '\ncurrent file size: ' + bytes2str(self.D.InfoCurrentSize) \
-                    + '\n\nSpeed: ' + bytes2str(self.D.infoSpeed,1) + '/s'
-            self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,PrefixInfo=self.D.InfoCurrentFile)
+                #'CRC groups: ' + str(self.D.InfoFoundGroups) \
+                #+ '\nfolders: ' + str(self.D.InfoFoundFolders) \
+                #+ '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) \
+                #+ '\n' \
+            info = self.D.InfoCurrentFile \
+                    + '\n\nAvarage file size: ' + bytes2str(self.D.InfoCurrentSize) \
+                    + '\nAvarage speed: ' + bytes2str(self.D.infoSpeed,1) + '/s'
+            self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right)
+            #,PrefixInfo=self.D.InfoCurrentFile
 
             if self.LongActionAbort:
                 self.D.Abort()
@@ -2088,7 +2092,7 @@ class Gui:
             else:
                 time.sleep(0.04)
 
-        ScanThread.join()
+        CrcThread.join()
         #############################
 
         if self.LongActionAbort:
