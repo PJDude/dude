@@ -337,11 +337,14 @@ class Gui:
         self.message=tk.StringVar()
         tk.Label(f1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg).pack(side='top',padx=8,pady=8,expand=1,fill='x')
         ttk.Button(f1, text='Abort', width=10 ,command=self.LongActionDialogAbort ).pack(side='bottom',padx=8,pady=8)
-
-        self.LongActionDialog.grab_set()
-        self.LongActionDialog.update()
-        self.LongActionDialog.geometry(CenterToParentGeometry(self.LongActionDialog,parent))
-
+        
+        try:
+            self.LongActionDialog.update()
+            self.LongActionDialog.grab_set()
+            self.LongActionDialog.geometry(CenterToParentGeometry(self.LongActionDialog,parent))
+        finally:
+            pass
+            
         self.prevParentCursor=parent.cget('cursor')
         parent.config(cursor="watch")
 

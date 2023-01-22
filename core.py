@@ -256,64 +256,78 @@ class DudeCore:
     CacheSizeTheshold=1024
 
     Status=''
-    #https://www.informit.com/articles/article.aspx?p=2808702&seqNum=6
-
-    def CrcCalcOnQueue(self,t,SrcQ,ResQ):
-        while self.KeepThreadsRunning and not self.AbortAction:
-            if dev:=self.DeviceSelectedForThread[t]:
-                ActQ=SrcQ[dev]
-
-                while self.KeepThreadsRunning and not self.AbortAction:
-                    try:
-                        (size,pathnr,path,file,mtime,ctime,inode) = ActQ.get_nowait()
-                    except Exception as qe:
-                        self.DeviceSelectedForThread[t]=None
-                        time.sleep(0.1)
-                        break
-                    else:
-                        try:
-                            with open(self.Path2ScanFull(pathnr,path,file),'rb') as f:
-                                self.InfoThreadsCurrentFile[t]=file
-                                self.InfoThreadsCurrentFileSize[t]=size
-                                
-                                crc = hashlib.file_digest(f, "sha1").hexdigest()
-                                
-                                if self.KeepThreadsRunning and not self.AbortAction:
-                                    ResQ.put((size,pathnr,path,file,mtime,ctime,dev,inode,crc))
-                        except Exception as e:
-                            self.Log.error(e)
-                        finally:
-                            ActQ.task_done()
-            else:
-                self.InfoThreadsCurrentFile[t]=''
-                time.sleep(0.1)
-        
-        #print(f'Thread:{t=} finished')
-        return
     
-    def DevToThreadsSchedule(self):
-        ThreadsSheduledPerDeviceIndex={}
-        for dev in self.devs:
-            ThreadsSheduledPerDeviceIndex[dev]=0
+    #https://www.informit.com/articles/article.aspx?p=2808702&seqNum=6
+    
+    #############################################################
+    
+    def ThreadedCrcCalcOnOpenedFilesQueue(self,SrcQ,ResQ):
+        while True:
+            Task = SrcQ.get()
+            SrcQ.task_done()
             
-        FreeThreads=[]
-        for t in range(self.CRCThreadsQuantity):
-            if dev:=self.DeviceSelectedForThread[t]:
-                ThreadsSheduledPerDeviceIndex[dev]+=1
+            if Task:
+                File,IndexTuple,size,mtime = Task
+                
+                if self.AbortAction:
+                    File.close()
+                else:
+                    ResQ.put((File,IndexTuple,size,mtime,hashlib.file_digest(File, "sha1").hexdigest()))
             else:
-                FreeThreads.append(t)
+                break            
+        
+        return
+
+    def ThreadedFileCloser(self,SrcQ):
+        MeasuresPool=[]
+        MeasuresPoolLen=64
+        
+        while True:
+            Task = SrcQ.get()
+            SrcQ.task_done()
+            if Task:
+                File,IndexTuple,size,mtime,crc = Task
                 
-        if FreeThreads:
-            MaxThreadsPerDev=1
-            
-            DevsIndexesToSchedule=[]
-            for dev in self.devs:
-                if ThreadsSheduledPerDeviceIndex[dev]<MaxThreadsPerDev:
-                    DevsIndexesToSchedule.append((dev,ThreadsSheduledPerDeviceIndex[dev]))
+                #print('Closer:',File,IndexTuple,size,mtime,crc)
                 
-            if DevsIndexesToSchedule:
-                DevsIndexesToSchedule.sort(key = lambda x : x[1])
-                self.DeviceSelectedForThread[FreeThreads[0]]=DevsIndexesToSchedule[0][0]
+                self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
+
+                self.InfoCurrentSize=size
+                self.InfoFileNr+=1
+                self.InfoSizeDone+=size
+                
+                if File: #not from cache
+                    File.close()
+                    if size>self.CacheSizeTheshold:
+                        dev=IndexTuple[4]
+                        inode=IndexTuple[5]
+                        CacheKey=(inode,mtime)
+                        #print(f'{dev=},{CacheKey=},{crc=},{self=}')
+                        self.CRCCache[dev][CacheKey]=crc
+                
+                    now=time.time()
+
+                    MeasuresPool.append((now,self.InfoSizeDone))
+                    MeasuresPool=MeasuresPool[-MeasuresPoolLen:]
+
+                    LastPeriodTimeDiff = now - MeasuresPool[0][0]
+                    LastPeriodSizeSum = self.InfoSizeDone - MeasuresPool[0][1]
+
+                    #print(LastPeriodTimeDiff)
+
+                    if LastPeriodTimeDiff:
+                        if LastPeriodTimeDiff<5:
+                            MeasuresPoolLen+=1
+                        elif LastPeriodTimeDiff>6:
+                            MeasuresPoolLen-=1
+
+                        self.infoSpeed=int(LastPeriodSizeSum/LastPeriodTimeDiff)
+            else:
+                break
+                
+        return
+
+    #############################################################
             
     def CrcCalc(self):
         self.ReadCRCCache()
@@ -340,28 +354,33 @@ class DudeCore:
         ScanResultsSizes = list(self.ScanResultsBySize)
         ScanResultsSizes.sort(reverse=True)
 
-        DevCRCTasksQueue={}
-        
         self.DevsQuant = len(self.devs)
-        for dev in self.devs:
-            DevCRCTasksQueue[dev]=Queue()
-            
-        ThreadsResultsQueue={}
+        self.MaxThreads = os.cpu_count()
+        
+        ###########
+        self.SingleTheradMode=True if self.DevsQuant>self.MaxThreads else False
+        ###########
 
-        self.KeepThreadsRunning=True
-        self.DeviceSelectedForThread={}
-
+        FilesQueue={}
+        OpenedFilesQueue={}
+        FilesCrcQueue={}
+        
         CRCThread={}
-        self.InfoThreadsCurrentFile={}
-        self.InfoThreadsCurrentFileSize={}
-        for t in range(self.CRCThreadsQuantity):
-            ThreadsResultsQueue[t]=Queue()
-            self.DeviceSelectedForThread[t]=None
-            self.InfoThreadsCurrentFile[t]=''
-            self.InfoThreadsCurrentFileSize[t]=0
-            CRCThread[t] = Thread(target=self.CrcCalcOnQueue,args=(t,DevCRCTasksQueue,ThreadsResultsQueue[t],),daemon=True,name=f'name:{t}')
-            CRCThread[t].start()
+        FileCloserThread={}
+        
+        TIndexes = [0] if self.SingleTheradMode else self.devs
+        
+        for TIndex in TIndexes:
+            FilesQueue[TIndex]=Queue()
+            OpenedFilesQueue[TIndex]=Queue()
+            FilesCrcQueue[TIndex]=Queue()
+            
+            CRCThread[TIndex] = Thread(target=self.ThreadedCrcCalcOnOpenedFilesQueue,args=(OpenedFilesQueue[TIndex],FilesCrcQueue[TIndex],),daemon=True)
+            CRCThread[TIndex].start()
+            FileCloserThread[TIndex] = Thread(target=self.ThreadedFileCloser,args=(FilesCrcQueue[TIndex],),daemon=True)
+            FileCloserThread[TIndex].start()
 
+        #########################################################################################################
         for size in ScanResultsSizes:
             if self.AbortAction:
                 break
@@ -369,114 +388,67 @@ class DudeCore:
                 if self.AbortAction:
                     break
                 
-                self.InfoCurrentFile=file
+                IndexTuple=(pathnr,path,file,ctime,dev,inode)
+                TIndex = 0 if self.SingleTheradMode else dev
+                
                 if size>self.CacheSizeTheshold:
                     CacheKey=(inode,mtime)
                     if CacheKey in self.CRCCache[dev]:
                         if crc:=self.CRCCache[dev][CacheKey]:
-                            self.InfoCurrentSize=size
-                            self.InfoFileNr+=1
-                            self.InfoSizeDone+=size
-                            self.filesOfSizeOfCRC[size][crc].add( (pathnr,path,file,ctime,dev,inode) )
+                            FilesCrcQueue[TIndex].put((None,IndexTuple,size,mtime,crc))
                             continue
                 
-                DevCRCTasksQueue[dev].put((size,pathnr,path,file,mtime,ctime,inode))
-
+                FilesQueue[TIndex].put((size,pathnr,path,file,mtime,ctime,dev,inode))
+        #########################################################################################################
         while True:
-            SrcTasksAllEmpty=all([devq.empty() for dev,devq in DevCRCTasksQueue.items()])
-            ResAllEmpty=all([devq.empty() for t,devq in ThreadsResultsQueue.items()])
-
-            if self.AbortAction:
-                break
-            elif (SrcTasksAllEmpty and ResAllEmpty):
-                break
-
-            #for dev,devq in DevCRCTasksQueue.items():
-            #    print(f'dev:{dev},size:{devq.qsize()}')
-            
-        
-            InfoCurrentFileTemp=[]
-            InfoCurrentSizeTemp=0
-            RescheduleNeeded=False
-            
-            for t in range(self.CRCThreadsQuantity):
-                if self.DeviceSelectedForThread[t]:
-                    if self.InfoThreadsCurrentFile[t]:
-                        InfoCurrentFileTemp.append(self.InfoThreadsCurrentFile[t])
-                        InfoCurrentSizeTemp+=self.InfoThreadsCurrentFileSize[t]
-            
-            ActiveThreads=len(InfoCurrentFileTemp)
-            if ActiveThreads:
-                self.InfoCurrentSize=InfoCurrentSizeTemp/ActiveThreads
-                self.InfoCurrentFile=f'Active threads:{ActiveThreads}\n\n'+ '\n'.join(InfoCurrentFileTemp)
+            #opening files
+            AnythingOpened=False
+            for TIndex in TIndexes:
+                if not self.AbortAction and FilesQueue[TIndex].qsize()>0 and OpenedFilesQueue[TIndex].qsize()<32:
                 
-            for t in range(self.CRCThreadsQuantity):
-                try:
-                    (size,pathnr,path,file,mtime,ctime,dev,inode,crc) = ThreadsResultsQueue[t].get_nowait() 
-                except Exception as qe:
-                    RescheduleNeeded=True
-                    time.sleep(0.04)
-                else:
-                    #print(size,pathnr,path,file,mtime,ctime,dev,inode,crc)
+                    size,pathnr,path,file,mtime,ctime,dev,inode = FilesQueue[TIndex].get()
+                    FilesQueue[TIndex].task_done()
 
-                    IndexTuple=(pathnr,path,file,ctime,dev,inode)
-
-                    self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
-
-                    if size>self.CacheSizeTheshold:
-                        CacheKey=(inode,mtime)
-                        #print(f'{dev=},{CacheKey=},{crc=},{self=}')
-                        self.CRCCache[dev][CacheKey]=crc
-
-                    self.InfoFileNr+=1
-                    self.InfoSizeDone+=size
-                    
-                    
-                    
-                    if True:
-
-                        now=time.time()
-
-                        MeasuresPool.append((now,self.InfoSizeDone))
-                        MeasuresPool=MeasuresPool[-MeasuresPoolLen:]
-
-                        LastPeriodTimeDiff = now - MeasuresPool[0][0]
-                        LastPeriodSizeSum = self.InfoSizeDone - MeasuresPool[0][1]
-
-                        #print(LastPeriodTimeDiff)
-
-                        if LastPeriodTimeDiff:
-                            if LastPeriodTimeDiff<5:
-                                MeasuresPoolLen+=1
-                            elif LastPeriodTimeDiff>6:
-                                MeasuresPoolLen-=1
-
-                            self.infoSpeed=int(LastPeriodSizeSum/LastPeriodTimeDiff)
-                            
-                            #print(f'self.infoSpeed:{self.infoSpeed}')
-
-                    ThreadsResultsQueue[t].task_done()
+                    try:
+                        File=open(self.Path2ScanFull(pathnr,path,file),'rb')
+                    except Exception as e:
+                        self.Log.error(e)
+                    else:
+                        IndexTuple=(pathnr,path,file,ctime,dev,inode)
+                        OpenedFilesQueue[TIndex].put((File,IndexTuple,size,mtime))
+                        AnythingOpened=True
             
-            if RescheduleNeeded:
-                self.DevToThreadsSchedule()
-
-
-        self.KeepThreadsRunning=False
-
-        #print('Join 1.')
-
-        #kiedy byl abort, kolejka niepusta i sie blokuje
-        #for dev in self.devs:
-        #    DevCRCTasksQueue[dev].join()
-        #print('Join 2.')
-
-        #for i in range(self.CRCThreadsQuantity):
-        #    CRCThread[i].join()
-        #print('Join 4.')
-
-        #self.CRCThreadsJoin()
-        #print('Devs Tasks Queue Done.')
-
+            SomethingLeftToBeDone=False
+            for TIndex in TIndexes:
+                if FilesQueue[TIndex].qsize()>0 or OpenedFilesQueue[TIndex].qsize()>0:
+                    SomethingLeftToBeDone=True
+                    break
+            
+            FilesLeftOpened=False
+            for TIndex in TIndexes:
+                if FilesCrcQueue[TIndex].qsize()>0:
+                    FilesLeftOpened=True
+                    break
+            
+            if self.AbortAction:
+                if not FilesLeftOpened:
+                    break
+                #OpenedFilesQueue
+            elif not SomethingLeftToBeDone and not FilesLeftOpened:
+                break
+            elif not AnythingOpened:
+                time.sleep(0.01)
+        
+        #end queues
+        for TIndex in TIndexes:
+            FilesQueue[TIndex].put(None)
+            OpenedFilesQueue[TIndex].put(None)
+            FilesCrcQueue[TIndex].put(None)
+        
+        for TIndex in TIndexes:
+            CRCThread[TIndex].join()
+            FileCloserThread[TIndex].join()
+          
         for size in ScanResultsSizes:
             self.InfoCurrentSize=size
 
