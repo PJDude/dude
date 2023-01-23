@@ -242,25 +242,20 @@ class DudeCore:
     writeLog=False
 
     InfoSizeDone=0
-    InfoFileNr=0
-    InfoCurrentSize=0
-    InfoCurrentFile=''
-    InfoThreadsCurrentFile={}
-    InfoThreadsCurrentFileSize={}
+    InfoFileDone=0
+    InfoAvarageSize=0
     InfoTotal=1
     InfoFoundGroups=0
     InfoFoundFolders=0
     InfoDuplicatesSpace=0
     infoSpeed=0
 
-    CacheSizeTheshold=1024
-
+    CacheSizeTheshold=64
+    InfoThreads=''
+    
     Status=''
     
-    #https://www.informit.com/articles/article.aspx?p=2808702&seqNum=6
-    
     #############################################################
-    
     def ThreadedCrcCalcOnOpenedFilesQueue(self,SrcQ,ResQ):
         while True:
             Task = SrcQ.get()
@@ -277,56 +272,6 @@ class DudeCore:
                 break            
         
         return
-
-    def ThreadedFileCloser(self,SrcQ):
-        MeasuresPool=[]
-        MeasuresPoolLen=64
-        
-        while True:
-            Task = SrcQ.get()
-            SrcQ.task_done()
-            if Task:
-                File,IndexTuple,size,mtime,crc = Task
-                
-                #print('Closer:',File,IndexTuple,size,mtime,crc)
-                
-                self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
-
-                self.InfoCurrentSize=size
-                self.InfoFileNr+=1
-                self.InfoSizeDone+=size
-                
-                if File: #not from cache
-                    File.close()
-                    if size>self.CacheSizeTheshold:
-                        dev=IndexTuple[4]
-                        inode=IndexTuple[5]
-                        CacheKey=(inode,mtime)
-                        #print(f'{dev=},{CacheKey=},{crc=},{self=}')
-                        self.CRCCache[dev][CacheKey]=crc
-                
-                    now=time.time()
-
-                    MeasuresPool.append((now,self.InfoSizeDone))
-                    MeasuresPool=MeasuresPool[-MeasuresPoolLen:]
-
-                    LastPeriodTimeDiff = now - MeasuresPool[0][0]
-                    LastPeriodSizeSum = self.InfoSizeDone - MeasuresPool[0][1]
-
-                    #print(LastPeriodTimeDiff)
-
-                    if LastPeriodTimeDiff:
-                        if LastPeriodTimeDiff<5:
-                            MeasuresPoolLen+=1
-                        elif LastPeriodTimeDiff>6:
-                            MeasuresPoolLen-=1
-
-                        self.infoSpeed=int(LastPeriodSizeSum/LastPeriodTimeDiff)
-            else:
-                break
-                
-        return
-
     #############################################################
             
     def CrcCalc(self):
@@ -335,13 +280,15 @@ class DudeCore:
         self.ScannedPaths=self.Paths2Scan.copy()
 
         self.InfoSizeDone=0
+        MeasuredFilesQuantity=0
+        MeasuredFilesSize=0
 
         self.AbortAction=False
 
         self.InfoFoundGroups=0
         self.InfoFoundFolders=0
         self.InfoDuplicatesSpace=0
-        self.InfoFileNr=0
+        self.InfoFileDone=0
         self.infoSpeed=0
 
         self.InfoTotal = len([ 1 for size in self.ScanResultsBySize for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size] ])
@@ -364,12 +311,10 @@ class DudeCore:
         FilesQueue={}
         OpenedFilesQueue={}
         FilesCrcQueue={}
-        
-        CRCThread={}
-        FileCloserThread={}
-        
+
         TIndexes = [0] if self.SingleTheradMode else self.devs
         
+        CRCThread={}
         for TIndex in TIndexes:
             FilesQueue[TIndex]=Queue()
             OpenedFilesQueue[TIndex]=Queue()
@@ -377,10 +322,9 @@ class DudeCore:
             
             CRCThread[TIndex] = Thread(target=self.ThreadedCrcCalcOnOpenedFilesQueue,args=(OpenedFilesQueue[TIndex],FilesCrcQueue[TIndex],),daemon=True)
             CRCThread[TIndex].start()
-            FileCloserThread[TIndex] = Thread(target=self.ThreadedFileCloser,args=(FilesCrcQueue[TIndex],),daemon=True)
-            FileCloserThread[TIndex].start()
-
+            
         #########################################################################################################
+        SingleThreadIndex = TIndexes[0]
         for size in ScanResultsSizes:
             if self.AbortAction:
                 break
@@ -389,22 +333,43 @@ class DudeCore:
                     break
                 
                 IndexTuple=(pathnr,path,file,ctime,dev,inode)
-                TIndex = 0 if self.SingleTheradMode else dev
+                TIndex = SingleThreadIndex if self.SingleTheradMode else dev
                 
                 if size>self.CacheSizeTheshold:
                     CacheKey=(inode,mtime)
                     if CacheKey in self.CRCCache[dev]:
                         if crc:=self.CRCCache[dev][CacheKey]:
-                            FilesCrcQueue[TIndex].put((None,IndexTuple,size,mtime,crc))
+                            #FilesCrcQueue[TIndex].put((None,IndexTuple,size,mtime,crc))
+                            self.InfoSizeDone+=size
+                            self.InfoFileDone+=1
+                            
+                            self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
                             continue
                 
                 FilesQueue[TIndex].put((size,pathnr,path,file,mtime,ctime,dev,inode))
         #########################################################################################################
+        
+        OpenedFilesPerDevLimit=32
+        
+        MeasuresPool=[]
+        MeasuresPoolLen=16
+        MeasuresPoolLenMax=512
+        
+        MeasuresPoolLenTimeMin=2
+        MeasuresPoolLenTimeMax=4
+        
+        self.InfoThreads=str(len(TIndexes))
+        
+        LastTimeStats = 0
+        
         while True:
-            #opening files
             AnythingOpened=False
+            AnythingClosed=False
+            
             for TIndex in TIndexes:
-                if not self.AbortAction and FilesQueue[TIndex].qsize()>0 and OpenedFilesQueue[TIndex].qsize()<32:
+                ########################################################################            
+                #opening files
+                while not self.AbortAction and FilesQueue[TIndex].qsize()>0 and OpenedFilesQueue[TIndex].qsize()<OpenedFilesPerDevLimit:
                 
                     size,pathnr,path,file,mtime,ctime,dev,inode = FilesQueue[TIndex].get()
                     FilesQueue[TIndex].task_done()
@@ -418,27 +383,102 @@ class DudeCore:
                         OpenedFilesQueue[TIndex].put((File,IndexTuple,size,mtime))
                         AnythingOpened=True
             
-            SomethingLeftToBeDone=False
-            for TIndex in TIndexes:
-                if FilesQueue[TIndex].qsize()>0 or OpenedFilesQueue[TIndex].qsize()>0:
-                    SomethingLeftToBeDone=True
-                    break
+                ########################################################################            
+                #closing files
             
-            FilesLeftOpened=False
-            for TIndex in TIndexes:
-                if FilesCrcQueue[TIndex].qsize()>0:
-                    FilesLeftOpened=True
-                    break
+                while FilesCrcQueue[TIndex].qsize()>0:
+                    Task = FilesCrcQueue[TIndex].get()
+                    FilesCrcQueue[TIndex].task_done()
+                    
+                    if Task:
+                        File,IndexTuple,size,mtime,crc = Task
+                        File.close()
+                        AnythingClosed=True
+                        
+                        self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
+
+                        self.InfoSizeDone+=size
+                        MeasuredFilesSize+=size
+                        
+                        self.InfoFileDone+=1
+                        MeasuredFilesQuantity+=1
+                        
+                        if size>self.CacheSizeTheshold:
+                            dev=IndexTuple[4]
+                            inode=IndexTuple[5]
+                            CacheKey=(inode,mtime)
+                            self.CRCCache[dev][CacheKey]=crc
+
+            ########################################################################            
             
+            if AnythingClosed:
+                now=time.time()
+                
+                MeasuresPool.append((now,MeasuredFilesSize,MeasuredFilesQuantity))
+            
+                #speed measurement
+                MeasuresPool=MeasuresPool[-MeasuresPoolLen:]
+
+                last=MeasuresPool[-1]
+                first=MeasuresPool[0]
+                
+                LastPeriodTimeDiff = last[0] - first[0]
+                LastPeriodSizeSum  = last[1] - first[1]
+                LastPeriodFilesSum = last[2] - first[2]
+                
+                if LastPeriodFilesSum:
+                    self.InfoAvarageSize=int(LastPeriodSizeSum/LastPeriodFilesSum)
+                
+                if LastPeriodTimeDiff:
+                    if LastPeriodTimeDiff<MeasuresPoolLenTimeMin:
+                        MeasuresPoolLen+=1
+                        if MeasuresPoolLen>MeasuresPoolLenMax:
+                            MeasuresPoolLen=MeasuresPoolLenMax
+                    elif LastPeriodTimeDiff>MeasuresPoolLenTimeMax:
+                        MeasuresPoolLen-=1
+                        if MeasuresPoolLen<2:
+                            MeasuresPoolLen=2
+
+                    self.infoSpeed=int(LastPeriodSizeSum/LastPeriodTimeDiff)
+
+                ################################################
+                #stats
+                
+                if now-LastTimeStats>2:
+                    LastTimeStats=now
+                    
+                    TempInfoFoundGroups=0
+                    TempInfoFoundFolders=set()
+                    TempInfoDuplicatesSpace=0
+                    
+                    for size,sizeDict in self.filesOfSizeOfCRC.items():
+                        for crcDict in sizeDict.values():
+                            if len(crcDict)>1:
+                                TempInfoFoundGroups+=1
+                                for pathnr,path,file,ctime,dev,inode in crcDict:
+                                    TempInfoDuplicatesSpace+=size
+                                    TempInfoFoundFolders.add((pathnr,path))
+                    
+                    self.InfoFoundGroups=TempInfoFoundGroups
+                    self.InfoFoundFolders=len(TempInfoFoundFolders)
+                    self.InfoDuplicatesSpace=TempInfoDuplicatesSpace
+                    
+            ########################################################################            
+            
+            FilesLeftOpened = any({True for TIndex in TIndexes if FilesCrcQueue[TIndex].qsize()>0})
+            
+            ########################################################################            
             if self.AbortAction:
                 if not FilesLeftOpened:
                     break
-                #OpenedFilesQueue
-            elif not SomethingLeftToBeDone and not FilesLeftOpened:
-                break
-            elif not AnythingOpened:
-                time.sleep(0.01)
-        
+            elif not AnythingOpened and not AnythingClosed:
+                SomethingLeftToBeDone=any({True for TIndex in TIndexes if FilesQueue[TIndex].qsize()>0 or OpenedFilesQueue[TIndex].qsize()>0})
+                if SomethingLeftToBeDone or FilesLeftOpened:
+                    time.sleep(0.01)
+                else:
+                    break
+            ########################################################################            
+
         #end queues
         for TIndex in TIndexes:
             FilesQueue[TIndex].put(None)
@@ -447,18 +487,10 @@ class DudeCore:
         
         for TIndex in TIndexes:
             CRCThread[TIndex].join()
-            FileCloserThread[TIndex].join()
           
         for size in ScanResultsSizes:
-            self.InfoCurrentSize=size
-
             self.CheckCrcPoolAndPrune(size)
 
-            if size in self.filesOfSizeOfCRC:
-                self.InfoFoundGroups+=len(self.filesOfSizeOfCRC[size])
-                #self.InfoDuplicatesSpace += size*sum([1 for crcDict in self.filesOfSizeOfCRC[size].values() for pathnr,path,file,ctime,dev,inode in crcDict])
-
-            #self.InfoFoundFolders = len({(pathnr,path) for sizeDict in self.filesOfSizeOfCRC.values() for crcDict in sizeDict.values() for pathnr,path,file,ctime,dev,inode in crcDict})
 
         #print('Postprocessing done.')
 
@@ -700,7 +732,7 @@ if __name__ == "__main__":
     ScanThread.start()
 
     while ScanThread.is_alive():
-        print(f'CrcCalc...{core.InfoFileNr}/{core.InfoTotal} (size:{core.InfoCurrentSize})                ',end='\r')
+        print(f'CrcCalc...{core.InfoFileDone}/{core.InfoTotal} (size:{core.InfoAvarageSize})                ',end='\r')
         time.sleep(0.04)
 
     ScanThread.join()

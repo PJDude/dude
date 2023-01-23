@@ -2072,20 +2072,20 @@ class Gui:
         while CrcThread.is_alive():
             sumSizeStr='/' + bytes2str(self.D.sumSize)
             progress1Right=bytes2str(self.D.InfoSizeDone) + sumSizeStr
-            progress2Right=str(self.D.InfoFileNr) + '/' + str(self.D.InfoTotal)
+            progress2Right=str(self.D.InfoFileDone) + '/' + str(self.D.InfoTotal)
 
             InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sumSize)
-            InfoProgQuant=float(100)*float(self.D.InfoFileNr)/float(self.D.InfoTotal)
+            InfoProgQuant=float(100)*float(self.D.InfoFileDone)/float(self.D.InfoTotal)
 
-                #'CRC groups: ' + str(self.D.InfoFoundGroups) \
-                #+ '\nfolders: ' + str(self.D.InfoFoundFolders) \
-                #+ '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) \
                 #+ '\n' \
-            info = self.D.InfoCurrentFile \
-                    + '\n\nAvarage file size: ' + bytes2str(self.D.InfoCurrentSize) \
-                    + '\nAvarage speed: ' + bytes2str(self.D.infoSpeed,1) + '/s'
+            info =  'Threads: ' + self.D.InfoThreads \
+                    + '\nAvarage file size: ' + bytes2str(self.D.InfoAvarageSize) \
+                    + '\nAvarage speed: ' + bytes2str(self.D.infoSpeed,1) + '/s' \
+                    + '\n\nFound:' \
+                    + '\nCRC groups: ' + str(self.D.InfoFoundGroups) \
+                    + '\nfolders: ' + str(self.D.InfoFoundFolders) \
+                    + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) 
             self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right)
-            #,PrefixInfo=self.D.InfoCurrentFile
 
             if self.LongActionAbort:
                 self.D.Abort()
@@ -2516,7 +2516,7 @@ class Gui:
 
         if not CurrentPath:
             return False
-
+        
         if Force or not CurrentPath in self.FolderItemsCache.keys():
             if ChangeStatusLine : self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
 
@@ -2574,7 +2574,7 @@ class Gui:
                                                     instances:=len(self.D.filesOfSizeOfCRC[size][crc]),\
                                                     instances,\
                                                     FILEID,\
-                                                    self.TreeGroups.item(FILEID)['tags'],\
+                                                    None,\
                                                     FILE,\
                                                     FILEID,\
                                                     bytes2str(size) ]) )
@@ -2593,6 +2593,9 @@ class Gui:
 
             self.FolderItemsCache[CurrentPath]=FolderItems
 
+        #cant cache tags!
+        self.FolderItemsCache[CurrentPath]=[ (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,self.TreeGroups.item(FILEID)['tags'] if kind==FILE else tags,kind,iid,sizeH) for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in self.FolderItemsCache[CurrentPath] ]
+            
         if ArbitraryPath:
             #TODO - workaround
             prevSelPath=self.SelPath
