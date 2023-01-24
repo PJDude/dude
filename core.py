@@ -98,6 +98,7 @@ class DudeCore:
         return False
 
     AbortAction=False
+    CanAbort=True
     def Abort(self):
         self.AbortAction=True
 
@@ -117,7 +118,7 @@ class DudeCore:
         self.InfoPathToScan=''
 
         self.AbortAction=False
-
+        
         pathNr=0
         self.InfoCounter=0
         self.InfoSizeSum=0
@@ -262,12 +263,11 @@ class DudeCore:
             SrcQ.task_done()
             
             if Task:
-                File,IndexTuple,size,mtime = Task
-                
-                if self.AbortAction:
-                    File.close()
-                else:
+                File,IndexTuple,size,mtime = Task                
+                if not self.AbortAction:
                     ResQ.put((File,IndexTuple,size,mtime,hashlib.file_digest(File, "sha1").hexdigest()))
+                
+                File.close()
             else:
                 break            
         
@@ -284,6 +284,7 @@ class DudeCore:
         MeasuredFilesSize=0
 
         self.AbortAction=False
+        self.CanAbort=True
 
         self.InfoFoundGroups=0
         self.InfoFoundFolders=0
@@ -308,7 +309,7 @@ class DudeCore:
         self.SingleTheradMode=True if self.DevsQuant>self.MaxThreads else False
         ###########
 
-        FilesQueue={}
+        FileNamesQueue={}
         OpenedFilesQueue={}
         FilesCrcQueue={}
 
@@ -316,7 +317,7 @@ class DudeCore:
         
         CRCThread={}
         for TIndex in TIndexes:
-            FilesQueue[TIndex]=Queue()
+            FileNamesQueue[TIndex]=Queue()
             OpenedFilesQueue[TIndex]=Queue()
             FilesCrcQueue[TIndex]=Queue()
             
@@ -339,14 +340,13 @@ class DudeCore:
                     CacheKey=(inode,mtime)
                     if CacheKey in self.CRCCache[dev]:
                         if crc:=self.CRCCache[dev][CacheKey]:
-                            #FilesCrcQueue[TIndex].put((None,IndexTuple,size,mtime,crc))
                             self.InfoSizeDone+=size
                             self.InfoFileDone+=1
                             
                             self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
                             continue
                 
-                FilesQueue[TIndex].put((size,pathnr,path,file,mtime,ctime,dev,inode))
+                FileNamesQueue[TIndex].put((size,pathnr,path,file,mtime,ctime,dev,inode))
         #########################################################################################################
         
         OpenedFilesPerDevLimit=32
@@ -362,6 +362,7 @@ class DudeCore:
         
         LastTimeStats = 0
         
+        Info=''
         while True:
             AnythingOpened=False
             AnythingClosed=False
@@ -369,10 +370,10 @@ class DudeCore:
             for TIndex in TIndexes:
                 ########################################################################            
                 #opening files
-                while not self.AbortAction and FilesQueue[TIndex].qsize()>0 and OpenedFilesQueue[TIndex].qsize()<OpenedFilesPerDevLimit:
+                while not self.AbortAction and FileNamesQueue[TIndex].qsize()>0 and OpenedFilesQueue[TIndex].qsize()<OpenedFilesPerDevLimit:
                 
-                    size,pathnr,path,file,mtime,ctime,dev,inode = FilesQueue[TIndex].get()
-                    FilesQueue[TIndex].task_done()
+                    size,pathnr,path,file,mtime,ctime,dev,inode = FileNamesQueue[TIndex].get()
+                    FileNamesQueue[TIndex].task_done()
 
                     try:
                         File=open(self.Path2ScanFull(pathnr,path,file),'rb')
@@ -384,7 +385,7 @@ class DudeCore:
                         AnythingOpened=True
             
                 ########################################################################            
-                #closing files
+                #data processing
             
                 while FilesCrcQueue[TIndex].qsize()>0:
                     Task = FilesCrcQueue[TIndex].get()
@@ -392,7 +393,6 @@ class DudeCore:
                     
                     if Task:
                         File,IndexTuple,size,mtime,crc = Task
-                        File.close()
                         AnythingClosed=True
                         
                         self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
@@ -472,28 +472,31 @@ class DudeCore:
                 if not FilesLeftOpened:
                     break
             elif not AnythingOpened and not AnythingClosed:
-                SomethingLeftToBeDone=any({True for TIndex in TIndexes if FilesQueue[TIndex].qsize()>0 or OpenedFilesQueue[TIndex].qsize()>0})
+                SomethingLeftToBeDone=any({True for TIndex in TIndexes if FileNamesQueue[TIndex].qsize()>0 or OpenedFilesQueue[TIndex].qsize()>0})
                 if SomethingLeftToBeDone or FilesLeftOpened:
                     time.sleep(0.01)
                 else:
                     break
             ########################################################################            
-
+        
+        self.CanAbort=False
+        
+        self.Info='Finishing threads ...'
+        
         #end queues
         for TIndex in TIndexes:
-            FilesQueue[TIndex].put(None)
+            FileNamesQueue[TIndex].put(None)
             OpenedFilesQueue[TIndex].put(None)
             FilesCrcQueue[TIndex].put(None)
         
         for TIndex in TIndexes:
             CRCThread[TIndex].join()
-          
+        
+        self.Info='Pruning data ...'
         for size in ScanResultsSizes:
             self.CheckCrcPoolAndPrune(size)
 
-
-        #print('Postprocessing done.')
-
+        self.Info='Writing cache ...'
         self.WriteCRCCache()
         self.Crc2Size = {crc:size for size,sizeDict in self.filesOfSizeOfCRC.items() for crc in sizeDict}
 
@@ -503,6 +506,7 @@ class DudeCore:
         self.CalcCrcMinLen()
 
         if self.writeLog:
+            self.Info='Writing log ...'
             self.LogScanResults()
 
     def CheckGroupFilesState(self,size,crc):
@@ -560,6 +564,7 @@ class DudeCore:
             del self.filesOfSizeOfCRC[size]
 
     def CalcCrcMinLen(self):
+        self.Info='CRC min length calculation ...'
         allCrcLen=len(AllCrcs:={crc for size,sizeDict in self.filesOfSizeOfCRC.items() for crc in sizeDict})
 
         lenTemp=1
@@ -568,6 +573,7 @@ class DudeCore:
 
         self.CrcCutLen=lenTemp
         self.crccut={crc:crc[0:self.CrcCutLen] for crc in AllCrcs }
+        self.Info=''
 
     def RenameFile(self,src,dest):
         self.Log.info(f'renaming file:{src}->{dest}')

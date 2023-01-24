@@ -2070,14 +2070,6 @@ class Gui:
         CrcThread.start()
 
         while CrcThread.is_alive():
-            sumSizeStr='/' + bytes2str(self.D.sumSize)
-            progress1Right=bytes2str(self.D.InfoSizeDone) + sumSizeStr
-            progress2Right=str(self.D.InfoFileDone) + '/' + str(self.D.InfoTotal)
-
-            InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sumSize)
-            InfoProgQuant=float(100)*float(self.D.InfoFileDone)/float(self.D.InfoTotal)
-
-                #+ '\n' \
             info =  'Threads: ' + self.D.InfoThreads \
                     + '\nAvarage file size: ' + bytes2str(self.D.InfoAvarageSize) \
                     + '\nAvarage speed: ' + bytes2str(self.D.infoSpeed,1) + '/s' \
@@ -2085,15 +2077,23 @@ class Gui:
                     + '\nCRC groups: ' + str(self.D.InfoFoundGroups) \
                     + '\nfolders: ' + str(self.D.InfoFoundFolders) \
                     + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) 
-            self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right)
 
-            if self.LongActionAbort:
-                self.D.Abort()
-                #self.D.Kill()
-                #self.D.INIT()
-                break
-            else:
-                time.sleep(0.04)
+            InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sumSize)
+            InfoProgQuant=float(100)*float(self.D.InfoFileDone)/float(self.D.InfoTotal)
+            
+            progress1Right=bytes2str(self.D.InfoSizeDone) + '/' + bytes2str(self.D.sumSize)
+            progress2Right=str(self.D.InfoFileDone) + '/' + str(self.D.InfoTotal)
+            
+            self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right)
+            
+            if self.D.CanAbort:
+                if self.LongActionAbort:
+                    self.D.Abort()
+            else:            
+                self.ScanDialog.config(cursor="watch")
+                self.StatusLine.set(self.D.Info)
+
+            time.sleep(0.04)
 
         CrcThread.join()
         #############################
@@ -2584,8 +2584,6 @@ class Gui:
                             FolderItems.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLEHARDLINKED,istr+'O',bytes2str(size) ) )
                         else:
                             FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,istr+'O',bytes2str(size) ) )
-
-
                 else:
                     logging.error(f'what is it: {DirEntry} ?')
 
@@ -2594,7 +2592,6 @@ class Gui:
             self.FolderItemsCache[CurrentPath]=FolderItems
 
         #cant cache tags!
-        self.FolderItemsCache[CurrentPath]=[ (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,self.TreeGroups.item(FILEID)['tags'] if kind==FILE else tags,kind,iid,sizeH) for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in self.FolderItemsCache[CurrentPath] ]
             
         if ArbitraryPath:
             #TODO - workaround
@@ -2611,6 +2608,8 @@ class Gui:
         UPDIRCode,DIRCode,NONDIRCode = (2,1,0) if reverse else (0,1,2)
 
         self.FolderItemsCache[CurrentPath].sort(key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse)
+        
+        CurrentList=[ (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,self.TreeGroups.item(FILEID)['tags'] if kind==FILE else tags,kind,iid,sizeH) for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in self.FolderItemsCache[CurrentPath] ]
 
         self.TreeFolder.delete(*self.TreeFolder.get_children())
 
@@ -2619,7 +2618,7 @@ class Gui:
             (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH)=('','..',0,0,0,0,'..','',1,0,DIR,UPDIR,'0UP','' )
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,'',kind),tags=tags)
 
-        for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in self.FolderItemsCache[CurrentPath]:
+        for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in CurrentList:
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE or kind==SINGLEHARDLINKED else '',kind),tags=tags)
 
         self.TreeFolderFlatItemsList=self.TreeFolder.get_children()
