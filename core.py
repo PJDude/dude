@@ -18,7 +18,7 @@ import io, hashlib, hmac
 class DudeCore:
     ScanResultsBySize=defaultdict(set)
     filesOfSizeOfCRC=defaultdict(lambda : defaultdict(set))
-    cache={}
+    
     sumSize=0
     devs=[]
     info=''
@@ -31,15 +31,13 @@ class DudeCore:
         self.CrcCutLen=128
         self.crccut={}
         self.ScannedPaths=[]
-        self.ExcludeRegExp=False
+        
         self.ExcludeList=[]
 
     def __init__(self,CacheDir,Log):
         self.CacheDir=CacheDir
         self.Log=Log
         self.windows = (os.name=='nt')
-
-        self.CRCThreadsQuantity=4
 
         self.INIT()
 
@@ -78,12 +76,7 @@ class DudeCore:
         return False
 
     def SetExcludeMasks(self,RegExp,MasksList):
-        self.ExcludeRegExp=RegExp
-
-        if RegExp:
-            self.ExclFn = lambda expr,string : re.search(expr,string)
-        else:
-            self.ExclFn = lambda expr,string : fnmatch.fnmatch(string,expr)
+        self.ExclFn = (lambda expr,string : re.search(expr,string)) if RegExp else (lambda expr,string : fnmatch.fnmatch(string,expr))
 
         teststring='abc'
         for exclmask in MasksList:
@@ -99,6 +92,7 @@ class DudeCore:
 
     AbortAction=False
     CanAbort=True
+    
     def Abort(self):
         self.AbortAction=True
 
@@ -212,8 +206,8 @@ class DudeCore:
         ######################################################################
         return True
 
-    #CRCCache={}
     def ReadCRCCache(self):
+        self.Info='Reading cache ...'
         self.CRCCache={}
         for dev in self.devs:
             self.CRCCache[dev]=dict()
@@ -232,6 +226,7 @@ class DudeCore:
                 self.CRCCache[dev]=dict()
 
     def WriteCRCCache(self):
+        self.Info='Writing cache ...'
         pathlib.Path(self.CacheDir).mkdir(parents=True,exist_ok=True)
         for dev in self.CRCCache:
             self.Log.debug(f'writing cache:{self.CacheDir}:device:{dev}')
@@ -273,7 +268,7 @@ class DudeCore:
         
         return
     #############################################################
-            
+
     def CrcCalc(self):
         self.ReadCRCCache()
 
@@ -295,7 +290,6 @@ class DudeCore:
         self.InfoTotal = len([ 1 for size in self.ScanResultsBySize for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size] ])
 
         MeasuresPool=[]
-        MeasuresPoolLen=64
 
         start = time.time()
 
@@ -352,11 +346,6 @@ class DudeCore:
         OpenedFilesPerDevLimit=32
         
         MeasuresPool=[]
-        MeasuresPoolLen=16
-        MeasuresPoolLenMax=512
-        
-        MeasuresPoolLenTimeMin=2
-        MeasuresPoolLenTimeMax=4
         
         self.InfoThreads=str(len(TIndexes))
         
@@ -365,7 +354,7 @@ class DudeCore:
         Info=''
         while True:
             AnythingOpened=False
-            AnythingClosed=False
+            AnythingProcessed=False
             
             for TIndex in TIndexes:
                 ########################################################################            
@@ -393,7 +382,7 @@ class DudeCore:
                     
                     if Task:
                         File,IndexTuple,size,mtime,crc = Task
-                        AnythingClosed=True
+                        AnythingProcessed=True
                         
                         self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
 
@@ -411,39 +400,26 @@ class DudeCore:
 
             ########################################################################            
             
-            if AnythingClosed:
+            if AnythingProcessed:
                 now=time.time()
                 
+                #speed measurement
+                MeasuresPool=[(PoolTime,FSize,FQuant) for (PoolTime,FSize,FQuant) in MeasuresPool if (now-PoolTime)<5]
                 MeasuresPool.append((now,MeasuredFilesSize,MeasuredFilesQuantity))
             
-                #speed measurement
-                MeasuresPool=MeasuresPool[-MeasuresPoolLen:]
-
-                last=MeasuresPool[-1]
                 first=MeasuresPool[0]
                 
-                LastPeriodTimeDiff = last[0] - first[0]
-                LastPeriodSizeSum  = last[1] - first[1]
-                LastPeriodFilesSum = last[2] - first[2]
+                LastPeriodFilesSum = MeasuredFilesQuantity - first[2]
                 
                 if LastPeriodFilesSum:
+                    LastPeriodTimeDiff = now - first[0]
+                    LastPeriodSizeSum  = MeasuredFilesSize - first[1]
+                    
                     self.InfoAvarageSize=int(LastPeriodSizeSum/LastPeriodFilesSum)
-                
-                if LastPeriodTimeDiff:
-                    if LastPeriodTimeDiff<MeasuresPoolLenTimeMin:
-                        MeasuresPoolLen+=1
-                        if MeasuresPoolLen>MeasuresPoolLenMax:
-                            MeasuresPoolLen=MeasuresPoolLenMax
-                    elif LastPeriodTimeDiff>MeasuresPoolLenTimeMax:
-                        MeasuresPoolLen-=1
-                        if MeasuresPoolLen<2:
-                            MeasuresPoolLen=2
-
                     self.infoSpeed=int(LastPeriodSizeSum/LastPeriodTimeDiff)
-
+                    
                 ################################################
                 #stats
-                
                 if now-LastTimeStats>2:
                     LastTimeStats=now
                     
@@ -465,15 +441,17 @@ class DudeCore:
                     
             ########################################################################            
             
-            FilesLeftOpened = any({True for TIndex in TIndexes if FilesCrcQueue[TIndex].qsize()>0})
+            ResultsLeftToBeProcessed = any({True for TempQueue in FilesCrcQueue.values() if TempQueue.qsize()>0})
             
             ########################################################################            
             if self.AbortAction:
-                if not FilesLeftOpened:
+                if not ResultsLeftToBeProcessed:
                     break
-            elif not AnythingOpened and not AnythingClosed:
-                SomethingLeftToBeDone=any({True for TIndex in TIndexes if FileNamesQueue[TIndex].qsize()>0 or OpenedFilesQueue[TIndex].qsize()>0})
-                if SomethingLeftToBeDone or FilesLeftOpened:
+            elif not AnythingOpened and not AnythingProcessed:
+                FilesLeftToBeOpened = any({True for TempQueue in FileNamesQueue.values() if TempQueue.qsize()>0})
+                FilesLeftToBeProcessed = any({True for TempQueue in OpenedFilesQueue.values() if TempQueue.qsize()>0})
+                
+                if FilesLeftToBeOpened or ResultsLeftToBeProcessed or FilesLeftToBeProcessed:
                     time.sleep(0.01)
                 else:
                     break
@@ -496,12 +474,11 @@ class DudeCore:
         for size in ScanResultsSizes:
             self.CheckCrcPoolAndPrune(size)
 
-        self.Info='Writing cache ...'
         self.WriteCRCCache()
         self.Crc2Size = {crc:size for size,sizeDict in self.filesOfSizeOfCRC.items() for crc in sizeDict}
 
         end=time.time()
-        self.Log.debug(f'total time = (end-start)s')
+        self.Log.debug(f'total time = {end-start}s')
 
         self.CalcCrcMinLen()
 

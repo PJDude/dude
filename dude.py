@@ -47,9 +47,9 @@ multDict={'k':k,'K':k,'M':M,'G':G,'T':T}
 windows = (os.name=='nt')
 
 def EPrint(e):
-   stack = traceback.extract_stack()[:-3] + traceback.extract_tb(e.__traceback__)
-   pretty = traceback.format_list(stack)
-   return ''.join(pretty) + '\n  {} {}'.format(e.__class__,e)
+    stack = traceback.extract_stack()[:-3] + traceback.extract_tb(e.__traceback__)
+    pretty = traceback.format_list(stack)
+    return ''.join(pretty) + '\n  {} {}'.format(e.__class__,e)
 
 def bytes2str(num,digits=2):
     kb=num/k
@@ -70,6 +70,7 @@ def bytes2str(num,digits=2):
 def str2bytes(string):
     if not string:
         return None
+
     elif match := re.search('^\s*(\d+)\s*([kKMGT]?)B?\s*$',string):
         res = int(match.group(1))
 
@@ -337,14 +338,14 @@ class Gui:
         self.message=tk.StringVar()
         tk.Label(f1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg).pack(side='top',padx=8,pady=8,expand=1,fill='x')
         ttk.Button(f1, text='Abort', width=10 ,command=self.LongActionDialogAbort ).pack(side='bottom',padx=8,pady=8)
-        
+
         try:
             self.LongActionDialog.update()
             self.LongActionDialog.grab_set()
             self.LongActionDialog.geometry(CenterToParentGeometry(self.LongActionDialog,parent))
         finally:
             pass
-            
+
         self.prevParentCursor=parent.cget('cursor')
         parent.config(cursor="watch")
 
@@ -516,6 +517,7 @@ class Gui:
         self.main.unbind_class('Treeview', '<Double-Button-1>')
 
         self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
+        self.main.bind_class('Treeview','<KeyRelease>', self.KeyReleaseTreeCommon )
 
         self.main.bind_class('Treeview','<FocusIn>',    self.TreeEventFocusIn )
         self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOut )
@@ -1413,8 +1415,18 @@ class Gui:
     reftuple1=('1','2','3','4','5','6','7')
     reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
 
+    KeyReleased=True
+    def KeyReleaseTreeCommon(self,event):
+        self.KeyReleased=True
+
     @MainWatchCursor
     def KeyPressTreeCommon(self,event):
+        if not self.KeyReleased:
+            #prevents (?) windows auto-repeat problem
+            self.main.update()
+
+        self.KeyReleased=False
+
         tree=event.widget
         item=tree.focus()
 
@@ -2080,12 +2092,12 @@ class Gui:
 
             InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sumSize)
             InfoProgQuant=float(100)*float(self.D.InfoFileDone)/float(self.D.InfoTotal)
-            
+
             progress1Right=bytes2str(self.D.InfoSizeDone) + '/' + bytes2str(self.D.sumSize)
             progress2Right=str(self.D.InfoFileDone) + '/' + str(self.D.InfoTotal)
             
             self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right)
-            
+
             if self.D.CanAbort:
                 if self.LongActionAbort:
                     self.D.Abort()
@@ -2516,7 +2528,7 @@ class Gui:
 
         if not CurrentPath:
             return False
-        
+
         if Force or not CurrentPath in self.FolderItemsCache.keys():
             if ChangeStatusLine : self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
 
@@ -2591,8 +2603,6 @@ class Gui:
 
             self.FolderItemsCache[CurrentPath]=FolderItems
 
-        #cant cache tags!
-            
         if ArbitraryPath:
             #TODO - workaround
             prevSelPath=self.SelPath
@@ -2608,7 +2618,8 @@ class Gui:
         UPDIRCode,DIRCode,NONDIRCode = (2,1,0) if reverse else (0,1,2)
 
         self.FolderItemsCache[CurrentPath].sort(key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse)
-        
+
+        #cant cache tags!
         CurrentList=[ (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,self.TreeGroups.item(FILEID)['tags'] if kind==FILE else tags,kind,iid,sizeH) for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in self.FolderItemsCache[CurrentPath] ]
 
         self.TreeFolder.delete(*self.TreeFolder.get_children())
@@ -3061,7 +3072,7 @@ class Gui:
                 ShowAllDeleteWarning=False
                 for crc in ProcessedItems:
                     if len(RemainingItems[crc])==0:
-                        if (self.cfg.GetBool(CFG_ALLOW_DELETE_ALL)):
+                        if self.cfg.GetBool(CFG_ALLOW_DELETE_ALL):
                             ShowAllDeleteWarning=True
                         else:
                             self.DialogWithEntry(title=f'Error (Delete) - All files marked',prompt="          Keep at least one file unmarked.          ",parent=self.main,OnlyInfo=True)
