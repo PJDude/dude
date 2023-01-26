@@ -116,9 +116,11 @@ class DudeCore:
         pathNr=0
         self.InfoCounter=0
         self.InfoSizeSum=0
-
+        
         self.ScanResultsBySize.clear()
 
+        self.ScanDirCache={}
+        
         for PathToScan in self.Paths2Scan:
             loopList=[PathToScan]
 
@@ -275,8 +277,12 @@ class DudeCore:
         self.ScannedPaths=self.Paths2Scan.copy()
 
         self.InfoSizeDone=0
+
         MeasuredFilesQuantity=0
         MeasuredFilesSize=0
+        
+        MeasuredFilesQuantityPerThread={}
+        MeasuredFilesSizePerThread={}
 
         self.AbortAction=False
         self.CanAbort=True
@@ -288,8 +294,6 @@ class DudeCore:
         self.infoSpeed=0
 
         self.InfoTotal = len([ 1 for size in self.ScanResultsBySize for pathnr,path,file,mtime,ctime,dev,inode in self.ScanResultsBySize[size] ])
-
-        MeasuresPool=[]
 
         start = time.time()
 
@@ -310,6 +314,7 @@ class DudeCore:
         TIndexes = [0] if self.SingleTheradMode else self.devs
         
         CRCThread={}
+        MeasuresPoolPerThread={}
         for TIndex in TIndexes:
             FileNamesQueue[TIndex]=Queue()
             OpenedFilesQueue[TIndex]=Queue()
@@ -317,6 +322,10 @@ class DudeCore:
             
             CRCThread[TIndex] = Thread(target=self.ThreadedCrcCalcOnOpenedFilesQueue,args=(OpenedFilesQueue[TIndex],FilesCrcQueue[TIndex],),daemon=True)
             CRCThread[TIndex].start()
+            
+            MeasuresPoolPerThread[TIndex]=[]
+            MeasuredFilesQuantityPerThread[TIndex]=0
+            MeasuredFilesSizePerThread[TIndex]=0
             
         #########################################################################################################
         SingleThreadIndex = TIndexes[0]
@@ -381,16 +390,23 @@ class DudeCore:
                     FilesCrcQueue[TIndex].task_done()
                     
                     if Task:
+                        now=time.time()
                         File,IndexTuple,size,mtime,crc = Task
                         AnythingProcessed=True
-                        
+                            
                         self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
 
                         self.InfoSizeDone+=size
                         MeasuredFilesSize+=size
+                        MeasuredFilesSizePerThread[TIndex]+=size
                         
                         self.InfoFileDone+=1
                         MeasuredFilesQuantity+=1
+                        
+                        MeasuredFilesQuantityPerThread[TIndex]+=1
+                        
+                        MeasuresPoolPerThread[TIndex].append((now,MeasuredFilesSizePerThread[TIndex],MeasuredFilesQuantityPerThread[TIndex]))
+                        #for (PoolTime,FSize,FQuant) in MeasuresPoolPerThread[TIndex][0:-4]: #always leave last 
                         
                         if size>self.CacheSizeTheshold:
                             dev=IndexTuple[4]
@@ -403,8 +419,12 @@ class DudeCore:
             if AnythingProcessed:
                 now=time.time()
                 
+                for TIndex in TIndexes:
+                    MeasuresPoolPerThread[TIndex] = [(PoolTime,FSize,FQuant) for (PoolTime,FSize,FQuant) in MeasuresPoolPerThread[TIndex] if (now-PoolTime)<3]
+                    #MeasuresPoolPerThread[TIndex].append((now,MeasuredFilesSizePerThread[TIndex],MeasuredFilesQuantityPerThread[TIndex]))
+
                 #speed measurement
-                MeasuresPool=[(PoolTime,FSize,FQuant) for (PoolTime,FSize,FQuant) in MeasuresPool if (now-PoolTime)<5]
+                MeasuresPool=[(PoolTime,FSize,FQuant) for (PoolTime,FSize,FQuant) in MeasuresPool if (now-PoolTime)<3]
                 MeasuresPool.append((now,MeasuredFilesSize,MeasuredFilesQuantity))
             
                 first=MeasuresPool[0]

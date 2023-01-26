@@ -978,6 +978,7 @@ class Gui:
             self.FindDialogShow()
         else:
             self.FindSelection(-1)
+            self.StatusLine.set('Find Previous')
 
     @MainWatchCursor
     def FindNext(self):
@@ -985,6 +986,7 @@ class Gui:
             self.FindDialogShow()
         else:
             self.FindSelection(1)
+            self.StatusLine.set('Find Next')
 
     FindModIndex=0
     FindTree=''
@@ -1433,7 +1435,7 @@ class Gui:
         tree.selection_remove(tree.selection())
 
         if event.keysym in ("Up",'Down') :
-            (pool,poolLen) = (self.TreeGroupsFlatItemsList,self.TreeGroupsFlatItemsListLen ) if self.SelTreeIndex==0 else (self.TreeFolderFlatItemsList,self.TreeFolderFlatItemsListLen)
+            (pool,poolLen) = (self.TreeGroupsFlatItemsTouple,len(self.TreeGroupsFlatItemsTouple) ) if self.SelTreeIndex==0 else (self.TreeFolderFlatItemsList,len(self.TreeFolderFlatItemsList))
 
             if poolLen:
                 index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree]) if self.SelItemTree[tree] in pool else pool.index(item) if item in  pool else 0
@@ -1765,7 +1767,9 @@ class Gui:
         elif kind==SINGLE:
             if ChangeStatusLine: self.StatusLine.set('')
         elif kind==DIR:
-            if ChangeStatusLine: self.StatusLine.set('')
+            if ChangeStatusLine: self.StatusLine.set('Subdirectory')
+        elif kind==UPDIR:
+            if ChangeStatusLine: self.StatusLine.set('Parent directory')
         else:
             #self.StatusLine.set('')
             self.UpdateMainTreeNone()
@@ -2009,7 +2013,7 @@ class Gui:
         tree.heading(colname, text=self.OrgLabel[colname] + ' ' + str(u'\u25BC' if reverse else u'\u25B2') )
 
         if tree==self.TreeGroups:
-            self.TreeGroupsFlatItemsListUpdate()
+            self.TreeGroupsFlatItemsToupleUpdate()
 
     def addPath(self,path):
         if len(self.PathsToScanFromDialog)<10:
@@ -2394,51 +2398,37 @@ class Gui:
                 CrcRemoved=True
 
     def DataPrecalc(self):
-        self.ByIdCtimeCache = { (self.idfunc(inode,dev),ctime):(crc,self.D.crccut[crc]) for size,sizeDict in self.D.filesOfSizeOfCRC.items() for crc,crcDict in sizeDict.items() for pathnr,path,file,ctime,dev,inode in crcDict }
+        self.ByIdCtimeCache = { (self.idfunc(inode,dev),ctime):(crc,self.D.crccut[crc],len(self.D.filesOfSizeOfCRC[size][crc]) ) for size,sizeDict in self.D.filesOfSizeOfCRC.items() for crc,crcDict in sizeDict.items() for pathnr,path,file,ctime,dev,inode in crcDict }
         self.StatusVarGroups.set(len(self.TreeGroups.get_children()))
 
-        self.PathStatSize={}
-        self.PathStatQuant={}
+        PathStatSize={}
+        PathStatQuant={}
 
         self.BiggestFileOfPath={}
         self.BiggestFileOfPathId={}
-
-        self.PathStatListSize=[]
-        self.PathStatListQuant=[]
 
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             for crc,crcDict in sizeDict.items():
                 for pathnr,path,file,ctime,dev,inode in crcDict:
                     pathindex=(pathnr,path)
-                    self.PathStatSize[pathindex] = self.PathStatSize.get(pathindex,0) + size
-                    self.PathStatQuant[pathindex] = self.PathStatQuant.get(pathindex,0) + 1
+                    PathStatSize[pathindex] = PathStatSize.get(pathindex,0) + size
+                    PathStatQuant[pathindex] = PathStatQuant.get(pathindex,0) + 1
 
                     if size>self.BiggestFileOfPath.get(pathindex,0):
                         self.BiggestFileOfPath[pathindex]=size
                         self.BiggestFileOfPathId[pathindex]=self.idfunc(inode,dev)
 
 
-        self.PathStatListSize=[(pathnr,path,number) for (pathnr,path),number in self.PathStatSize.items()]
-        self.PathStatListSize.sort(key=lambda x : x[2],reverse=True)
-
-        self.PathStatListQuant=[(pathnr,path,number) for (pathnr,path),number in self.PathStatQuant.items()]
-        self.PathStatListQuant.sort(key=lambda x : x[2],reverse=True)
+        self.PathStatListSize=tuple(sorted([(pathnr,path,number) for (pathnr,path),number in PathStatSize.items()],key=lambda x : x[2],reverse=True))
+        self.PathStatListQuant=tuple(sorted([(pathnr,path,number) for (pathnr,path),number in PathStatQuant.items()],key=lambda x : x[2],reverse=True))
+        self.GroupsCombosSize = tuple(sorted([(crcitem,sum([int(self.TreeGroups.set(item,'size')) for item in self.TreeGroups.get_children(crcitem)])) for crcitem in self.TreeGroups.get_children()],key = lambda x : x[1],reverse = True))
+        self.GroupsCombosQuant = tuple(sorted([(crcitem,len(self.TreeGroups.get_children(crcitem))) for crcitem in self.TreeGroups.get_children()],key = lambda x : x[1],reverse = True))
 
         self.PathsQuant=len(self.PathStatListSize)
-
-        self.GroupsCombosSize = [(crcitem,sum([int(self.TreeGroups.set(item,'size')) for item in self.TreeGroups.get_children(crcitem)])) for crcitem in self.TreeGroups.get_children()]
-        self.GroupsCombosSize.sort(key = lambda x : x[1],reverse = True)
-
-        self.GroupsCombosQuant = [(crcitem,len(self.TreeGroups.get_children(crcitem))) for crcitem in self.TreeGroups.get_children()]
-        self.GroupsCombosQuant.sort(key = lambda x : x[1],reverse = True)
-
         self.GroupsCombosLen=len(self.GroupsCombosSize)
 
-    #TreeGroupsFlatItemsList=[]
-    #TreeGroupsFlatItemsListLen=0
-    def TreeGroupsFlatItemsListUpdate(self):
-        self.TreeGroupsFlatItemsList = [elem for sublist in [ tuple([crc])+tuple(self.TreeGroups.get_children(crc)) for crc in self.TreeGroups.get_children() ] for elem in sublist]
-        self.TreeGroupsFlatItemsListLen=len(self.TreeGroupsFlatItemsList)
+    def TreeGroupsFlatItemsToupleUpdate(self):
+        self.TreeGroupsFlatItemsTouple = tuple([elem for sublist in [ tuple([crc])+tuple(self.TreeGroups.get_children(crc)) for crc in self.TreeGroups.get_children() ] for elem in sublist])
 
     def InitialFocus(self):
         if self.TreeGroups.get_children():
@@ -2477,7 +2467,7 @@ class Gui:
         self.DataPrecalc()
 
         self.ColumnSort(self.TreeGroups)
-        self.TreeGroupsFlatItemsListUpdate() #after sort !
+        self.TreeGroupsFlatItemsToupleUpdate() #after sort !
         self.InitialFocus()
         self.CalcMarkStatsAll()
 
@@ -2529,7 +2519,7 @@ class Gui:
         if not CurrentPath:
             return False
 
-        if Force or not CurrentPath in self.FolderItemsCache.keys():
+        if Force or not (CurrentPath in self.FolderItemsCache):
             if ChangeStatusLine : self.StatusLine.set(f'Scanning path:{self.SelFullPath}')
 
             try:
@@ -2574,22 +2564,22 @@ class Gui:
                     FILEID=self.idfunc(inode,dev)
 
                     if (FILEID,ctime) in self.ByIdCtimeCache:
-                        crc,crccut = self.ByIdCtimeCache[(FILEID,ctime)]
+                        crc,crccut,instances = self.ByIdCtimeCache[(FILEID,ctime)]
 
-                        FolderItems.append( tuple([ crc if FullCRC else crccut, \
+                        FolderItems.append( (crc if FullCRC else crccut, \
                                                     file,\
                                                     size,\
                                                     ctime,\
                                                     dev,\
                                                     inode,\
                                                     crc,\
-                                                    instances:=len(self.D.filesOfSizeOfCRC[size][crc]),\
+                                                    instances,\
                                                     instances,\
                                                     FILEID,\
-                                                    None,\
+                                                    None, \
                                                     FILE,\
                                                     FILEID,\
-                                                    bytes2str(size) ]) )
+                                                    bytes2str(size))  )
                     else:
                         if stat.st_nlink!=1:
                             #hardlink
@@ -2601,8 +2591,10 @@ class Gui:
 
                 i+=1
 
-            self.FolderItemsCache[CurrentPath]=FolderItems
-
+            self.FolderItemsCache[CurrentPath]=tuple(FolderItems)
+        
+        #cant cache tags! 
+        
         if ArbitraryPath:
             #TODO - workaround
             prevSelPath=self.SelPath
@@ -2617,11 +2609,6 @@ class Gui:
         IsNumeric=self.col2sortNumeric[colSort]
         UPDIRCode,DIRCode,NONDIRCode = (2,1,0) if reverse else (0,1,2)
 
-        self.FolderItemsCache[CurrentPath].sort(key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse)
-
-        #cant cache tags!
-        CurrentList=[ (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,self.TreeGroups.item(FILEID)['tags'] if kind==FILE else tags,kind,iid,sizeH) for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in self.FolderItemsCache[CurrentPath] ]
-
         self.TreeFolder.delete(*self.TreeFolder.get_children())
 
         if self.TwoDotsConditionOS():
@@ -2629,12 +2616,11 @@ class Gui:
             (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH)=('','..',0,0,0,0,'..','',1,0,DIR,UPDIR,'0UP','' )
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,'',kind),tags=tags)
 
-        for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in CurrentList:
+        for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in [ (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,self.TreeGroups.item(FILEID)['tags'] if kind==FILE else tags,kind,iid,sizeH) for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH) in sorted(self.FolderItemsCache[CurrentPath],key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse) ]:
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) if crc or kind==SINGLE or kind==SINGLEHARDLINKED else '',kind),tags=tags)
 
         self.TreeFolderFlatItemsList=self.TreeFolder.get_children()
-        self.TreeFolderFlatItemsListLen=len(self.TreeFolderFlatItemsList)
-
+        
         if not ArbitraryPath:
             if self.SelItem and self.SelItem in self.TreeFolder.get_children():
                 self.TreeFolder.selection_set(self.SelItem)
@@ -2778,10 +2764,8 @@ class Gui:
             self.TreeExpr[tree]=Expression
 
             if tree==self.TreeGroups:
-                if AllGroups:
-                    CrcRange = self.TreeGroups.get_children()
-                else :
-                    CrcRange = [str(self.SelCrc)]
+                
+                CrcRange = self.TreeGroups.get_children() if AllGroups else [str(self.SelCrc)]
 
                 for crcitem in CrcRange:
                     for item in self.TreeGroups.get_children(crcitem):
@@ -2845,7 +2829,7 @@ class Gui:
     def GotoNextMark(self,tree,direction):
         marked=tree.tag_has(MARK)
         if marked:
-            pool=marked if tree.tag_has(MARK,self.SelItem) else self.TreeGroupsFlatItemsList if tree==self.TreeGroups else self.TreeFolder.get_children()
+            pool=marked if tree.tag_has(MARK,self.SelItem) else self.TreeGroupsFlatItemsTouple if tree==self.TreeGroups else self.TreeFolder.get_children()
             poollen=len(pool)
 
             if poollen:
@@ -2902,6 +2886,7 @@ class Gui:
     @MainWatchCursor
     def GoToMaxGroup(self,sizeFlag=0,Direction=1):
         if self.GroupsCombosLen:
+            self.StatusLine.set(f'Setting dominant group ...')
             WorkingIndex = self.DominantIndexGroups[sizeFlag]
             WorkingIndex = (WorkingIndex+Direction) % self.GroupsCombosLen
             temp=str(WorkingIndex)
@@ -2919,12 +2904,13 @@ class Gui:
     @MainWatchCursor
     def GoToMaxFolder(self,sizeFlag=0,Direction=1):
         if self.PathsQuant:
+            self.StatusLine.set(f'Setting dominant folder ...')
             WorkingIndex = self.DominantIndexFolders[sizeFlag]
             WorkingIndex = (WorkingIndex+Direction) % self.PathsQuant
             temp = str(WorkingIndex)
             WorkingDict = self.PathStatListSize if sizeFlag else self.PathStatListQuant
 
-            [pathnr,path,num] = WorkingDict[WorkingIndex]
+            pathnr,path,num = WorkingDict[WorkingIndex]
 
             item=self.BiggestFileOfPathId[(pathnr,path)]
 
@@ -3027,7 +3013,7 @@ class Gui:
 
                 self.UpdateCrcNode(crc)
 
-                self.TreeGroupsFlatItemsListUpdate()
+                self.TreeGroupsFlatItemsToupleUpdate()
 
                 self.DataPrecalc()
 
@@ -3241,7 +3227,7 @@ class Gui:
         self.main.config(cursor="")
 
         self.DataPrecalc()
-        self.TreeGroupsFlatItemsListUpdate()
+        self.TreeGroupsFlatItemsToupleUpdate()
 
         if FinalInfo:
             self.Info('Removed empty directories','\n'.join(FinalInfo),self.main,textwidth=160,width=800)
@@ -3299,7 +3285,7 @@ class Gui:
 
         if tree==self.TreeGroups:
             #orglist=self.TreeGroups.get_children()
-            orglist=self.TreeGroupsFlatItemsList
+            orglist=self.TreeGroupsFlatItemsTouple
         else:
             orgSelItem=self.SelItem
             orglist=self.TreeFolder.get_children()
@@ -3315,7 +3301,7 @@ class Gui:
             #newlist=self.TreeGroups.get_children()
 
             SelItem = self.SelItem if self.SelItem else self.SelCrc
-            ItemToSel = self.GimmeClosestInCrc(orglist,SelItem,self.TreeGroupsFlatItemsList)
+            ItemToSel = self.GimmeClosestInCrc(orglist,SelItem,self.TreeGroupsFlatItemsTouple)
 
             if ItemToSel:
                 self.TreeGroups.see(ItemToSel)
