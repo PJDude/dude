@@ -253,6 +253,8 @@ class DudeCore:
     
     Status=''
     
+    InfoLine=''
+    
     #############################################################
     def ThreadedCrcCalcOnOpenedFilesQueue(self,SrcQ,ResQ):
         while True:
@@ -260,8 +262,10 @@ class DudeCore:
             SrcQ.task_done()
             
             if Task:
-                File,IndexTuple,size,mtime = Task                
+                File,IndexTuple,size,mtime = Task
                 if not self.AbortAction:
+                    #TODO
+                    #self.InfoLine=IndexTuple[3]
                     ResQ.put((File,IndexTuple,size,mtime,hashlib.file_digest(File, "sha1").hexdigest()))
                 
                 File.close()
