@@ -13,6 +13,7 @@ import time
 import configparser
 import logging
 import traceback
+import argparse
 
 import tkinter as tk
 from tkinter import *
@@ -389,7 +390,7 @@ class Gui:
         self.message.set('%s\n%s'%(prefix,message))
         self.LongActionDialog.update()
 
-    def __init__(self,cwd):
+    def __init__(self,cwd,pathsToAdd=None,exclude=None,excluderegexp=None,norun=None):
         self.D = core.DudeCore(CACHE_DIR,logging)
         self.cwd=cwd
 
@@ -521,7 +522,7 @@ class Gui:
         self.main.unbind_class('Treeview', '<ButtonPress-1>')
 
         self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
-        self.main.bind_class('Treeview','<KeyRelease>', self.KeyReleaseTreeCommon )
+        #self.main.bind_class('Treeview','<KeyRelease>', self.KeyReleaseTreeCommon )
 
         self.main.bind_class('Treeview','<FocusIn>',    self.TreeEventFocusIn )
         self.main.bind_class('Treeview','<FocusOut>',   self.TreeFocusOut )
@@ -887,10 +888,16 @@ class Gui:
         #######################################################################
         self.ResetSels()
 
-        if self.AddCwdAtStartup:
-            self.addPath(cwd)
+        if pathsToAdd:
+            for path in pathsToAdd:
+                self.addPath(os.path.abspath(path))
+            
+            self.ScanDialogShow()
+        else:
+            if self.AddCwdAtStartup:
+                self.addPath(cwd)
 
-        self.ScanDialogShow()
+            self.ScanDialogShow()
 
         self.ColumnSortLastParams={}
         self.ColumnSortLastParams[self.TreeGroups]=['sizeH',1]
@@ -900,10 +907,15 @@ class Gui:
         self.SelItemTree[self.TreeFolder]=None
 
         self.ShowGroups()
-
-        if self.cfg.GetBool(CFG_KEY_STARTUP_SCAN):
-            self.main.update()
-            self.Scan()
+        
+        if pathsToAdd:
+            if not norun:
+                self.main.update()
+                self.Scan()
+        else:
+            if self.cfg.GetBool(CFG_KEY_STARTUP_SCAN):
+                self.main.update()
+                self.Scan()
 
         self.main.mainloop()
 
@@ -1421,205 +1433,209 @@ class Gui:
     reftuple1=('1','2','3','4','5','6','7')
     reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
 
-    KeyReleased=True
-    def KeyReleaseTreeCommon(self,event):
-        self.main.update()
-        self.KeyReleased=True
+    #KeyReleased=True
+    #def KeyReleaseTreeCommon(self,event):
+    #    self.main.update()
+    #    self.KeyReleased=True
 
     @MainWatchCursor
     def KeyPressTreeCommon(self,event):
-        if not self.KeyReleased:
+        self.main.unbind_class('Treeview','<KeyPress>')
+        
+        #if not self.KeyReleased:
             #prevents (?) windows auto-repeat problem
-            self.main.update()
+        #    self.main.update()
+        try:
+            self.KeyReleased=False
 
-        self.KeyReleased=False
+            tree=event.widget
+            item=tree.focus()
 
-        tree=event.widget
-        item=tree.focus()
+            tree.selection_remove(tree.selection())
 
-        tree.selection_remove(tree.selection())
+            if event.keysym in ("Up",'Down') :
+                (pool,poolLen) = (self.TreeGroupsFlatItemsTouple,len(self.TreeGroupsFlatItemsTouple) ) if self.SelTreeIndex==0 else (self.TreeFolderFlatItemsList,len(self.TreeFolderFlatItemsList))
 
-        if event.keysym in ("Up",'Down') :
-            (pool,poolLen) = (self.TreeGroupsFlatItemsTouple,len(self.TreeGroupsFlatItemsTouple) ) if self.SelTreeIndex==0 else (self.TreeFolderFlatItemsList,len(self.TreeFolderFlatItemsList))
+                if poolLen:
+                    index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree]) if self.SelItemTree[tree] in pool else pool.index(item) if item in  pool else 0
+                    index=(index+self.DirectionOfKeysym[event.keysym])%poolLen
+                    NextItem=pool[index]
 
-            if poolLen:
-                index = pool.index(self.SelItem) if self.SelItem in pool else pool.index(self.SelItemTree[tree]) if self.SelItemTree[tree] in pool else pool.index(item) if item in  pool else 0
-                index=(index+self.DirectionOfKeysym[event.keysym])%poolLen
-                NextItem=pool[index]
-
-                tree.focus(NextItem)
-                tree.see(NextItem)
-
-                if self.SelTreeIndex==0:
-                    self.TreeGroupsSelChange(NextItem)
-                else:
-                    self.TreeFolderSelChange(NextItem)
-        elif event.keysym in ("Prior","Next"):
-            if self.SelTreeIndex==0:
-                pool=tree.get_children()
-            else:
-                pool=[item for item in tree.get_children() if tree.set(item,'kind')==FILE]
-
-            poolLen=len(pool)
-            if poolLen:
-                if self.SelTreeIndex==0:
-                    NextItem=pool[(pool.index(tree.set(item,'crc'))+self.DirectionOfKeysym[event.keysym]) % poolLen]
-                    self.SelectFocusAndSeeCrcItemTree(NextItem)
-                else:
-                    self.GotoNextDupeFile(tree,self.DirectionOfKeysym[event.keysym])
-                    tree.update()
-        elif event.keysym in ("Home","End"):
-            if self.SelTreeIndex==0:
-                if NextItem:=tree.get_children()[0 if event.keysym=="Home" else -1]:
-                    self.SelectFocusAndSeeCrcItemTree(NextItem,True)
-            else:
-                if NextItem:=tree.get_children()[0 if event.keysym=='Home' else -1]:
-                    tree.see(NextItem)
                     tree.focus(NextItem)
-                    self.TreeFolderSelChange(NextItem)
-                    tree.update()
-        elif event.keysym == "space":
-            if self.SelTreeIndex==0:
-                if tree.set(item,'kind')==CRC:
-                    self.ToggleSelectedTag(tree,*tree.get_children(item))
+                    tree.see(NextItem)
+
+                    if self.SelTreeIndex==0:
+                        self.TreeGroupsSelChange(NextItem)
+                    else:
+                        self.TreeFolderSelChange(NextItem)
+            elif event.keysym in ("Prior","Next"):
+                if self.SelTreeIndex==0:
+                    pool=tree.get_children()
+                else:
+                    pool=[item for item in tree.get_children() if tree.set(item,'kind')==FILE]
+
+                poolLen=len(pool)
+                if poolLen:
+                    if self.SelTreeIndex==0:
+                        NextItem=pool[(pool.index(tree.set(item,'crc'))+self.DirectionOfKeysym[event.keysym]) % poolLen]
+                        self.SelectFocusAndSeeCrcItemTree(NextItem)
+                    else:
+                        self.GotoNextDupeFile(tree,self.DirectionOfKeysym[event.keysym])
+                        tree.update()
+            elif event.keysym in ("Home","End"):
+                if self.SelTreeIndex==0:
+                    if NextItem:=tree.get_children()[0 if event.keysym=="Home" else -1]:
+                        self.SelectFocusAndSeeCrcItemTree(NextItem,True)
+                else:
+                    if NextItem:=tree.get_children()[0 if event.keysym=='Home' else -1]:
+                        tree.see(NextItem)
+                        tree.focus(NextItem)
+                        self.TreeFolderSelChange(NextItem)
+                        tree.update()
+            elif event.keysym == "space":
+                if self.SelTreeIndex==0:
+                    if tree.set(item,'kind')==CRC:
+                        self.ToggleSelectedTag(tree,*tree.get_children(item))
+                    else:
+                        self.ToggleSelectedTag(tree,item)
                 else:
                     self.ToggleSelectedTag(tree,item)
+            elif event.keysym == "Right":
+                self.GotoNextMark(event.widget,1)
+            elif event.keysym == "Left":
+                self.GotoNextMark(event.widget,-1)
+            elif event.keysym == "Tab":
+                tree.selection_set(tree.focus())
+                self.FromTabSwicth=True
+            elif event.keysym=='KP_Multiply' or event.keysym=='asterisk':
+                self.MarkOnAll(self.InvertMark)
+            elif event.keysym=='Return':
+                item=tree.focus()
+                if item:
+                    self.TreeAction(tree,item)
             else:
-                self.ToggleSelectedTag(tree,item)
-        elif event.keysym == "Right":
-            self.GotoNextMark(event.widget,1)
-        elif event.keysym == "Left":
-            self.GotoNextMark(event.widget,-1)
-        elif event.keysym == "Tab":
-            tree.selection_set(tree.focus())
-            self.FromTabSwicth=True
-        elif event.keysym=='KP_Multiply' or event.keysym=='asterisk':
-            self.MarkOnAll(self.InvertMark)
-        elif event.keysym=='Return':
-            item=tree.focus()
-            if item:
-                self.TreeAction(tree,item)
-        else:
-            StrEvent=str(event)
-
-            CtrPressed = 'Control' in StrEvent
-            ShiftPressed = 'Shift' in StrEvent
-
-            if event.keysym=='F3':
-                if ShiftPressed:
-                    self.FindPrev()
-                else:
-                    self.FindNext()
-
-            elif event.keysym=='KP_Add' or event.keysym=='plus':
                 StrEvent=str(event)
-                self.MarkExpression(self.SetMark,'Mark files',CtrPressed)
-            elif event.keysym=='KP_Subtract' or event.keysym=='minus':
-                StrEvent=str(event)
-                self.MarkExpression(self.UnsetMark,'Unmark files',CtrPressed)
-            elif event.keysym == "Delete":
-                if self.SelTreeIndex==0:
-                    self.ProcessFilesTreeCrcWrapper(DELETE,CtrPressed)
-                else:
-                    self.ProcessFilesTreeFolderWrapper(DELETE,self.SelKind==DIR)
-            elif event.keysym == "Insert":
-                if self.SelTreeIndex==0:
-                    self.ProcessFilesTreeCrcWrapper((SOFTLINK,HARDLINK)[ShiftPressed],CtrPressed)
-                else:
-                    self.ProcessFilesTreeFolderWrapper((SOFTLINK,HARDLINK)[ShiftPressed],self.SelKind==DIR)
-            elif event.keysym=='F5':
-                self.GoToMaxFolder(0,-1 if ShiftPressed else 1)
-            elif event.keysym=='F6':
-                self.GoToMaxFolder(1,-1 if ShiftPressed else 1)
-            elif event.keysym=='F7':
-                self.GoToMaxGroup(0,-1 if ShiftPressed else 1)
-            elif event.keysym=='F8':
-                self.GoToMaxGroup(1,-1 if ShiftPressed else 1)
-            elif event.keysym=='BackSpace':
-                if self.SelFullPath :
-                    if self.TwoDotsConditionOS():
+
+                CtrPressed = 'Control' in StrEvent
+                ShiftPressed = 'Shift' in StrEvent
+
+                if event.keysym=='F3':
+                    if ShiftPressed:
+                        self.FindPrev()
+                    else:
+                        self.FindNext()
+
+                elif event.keysym=='KP_Add' or event.keysym=='plus':
+                    StrEvent=str(event)
+                    self.MarkExpression(self.SetMark,'Mark files',CtrPressed)
+                elif event.keysym=='KP_Subtract' or event.keysym=='minus':
+                    StrEvent=str(event)
+                    self.MarkExpression(self.UnsetMark,'Unmark files',CtrPressed)
+                elif event.keysym == "Delete":
+                    if self.SelTreeIndex==0:
+                        self.ProcessFilesTreeCrcWrapper(DELETE,CtrPressed)
+                    else:
+                        self.ProcessFilesTreeFolderWrapper(DELETE,self.SelKind==DIR)
+                elif event.keysym == "Insert":
+                    if self.SelTreeIndex==0:
+                        self.ProcessFilesTreeCrcWrapper((SOFTLINK,HARDLINK)[ShiftPressed],CtrPressed)
+                    else:
+                        self.ProcessFilesTreeFolderWrapper((SOFTLINK,HARDLINK)[ShiftPressed],self.SelKind==DIR)
+                elif event.keysym=='F5':
+                    self.GoToMaxFolder(0,-1 if ShiftPressed else 1)
+                elif event.keysym=='F6':
+                    self.GoToMaxFolder(1,-1 if ShiftPressed else 1)
+                elif event.keysym=='F7':
+                    self.GoToMaxGroup(0,-1 if ShiftPressed else 1)
+                elif event.keysym=='F8':
+                    self.GoToMaxGroup(1,-1 if ShiftPressed else 1)
+                elif event.keysym=='BackSpace':
+                    if self.SelFullPath :
+                        if self.TwoDotsConditionOS():
+                            self.TreeFolder.focus_set()
+                            head,tail=os.path.split(self.SelFullPath)
+                            self.EnterDir(os.path.normpath(str(pathlib.Path(self.SelFullPath).parent.absolute())),tail)
+                elif event.keysym=='i' or event.keysym=='I':
+                    if CtrPressed:
+                        self.MarkOnAll(self.InvertMark)
+                    else:
+                        if self.SelTreeIndex==0:
+                            self.MarkInCRCGroup(self.InvertMark)
+                        else:
+                            self.MarkLowerPane(self.InvertMark)
+                elif event.keysym=='o' or event.keysym=='O':
+                    if CtrPressed:
+                        if ShiftPressed:
+                            self.MarkOnAllByCTime('oldest',self.UnsetMark)
+                        else:
+                            self.MarkOnAllByCTime('oldest',self.SetMark)
+                    else:
+                        if self.SelTreeIndex==0:
+                            self.MarkInCRCGroupByCTime('oldest',self.InvertMark)
+                elif event.keysym=='y' or event.keysym=='Y':
+                    if CtrPressed:
+                        if ShiftPressed:
+                            self.MarkOnAllByCTime('youngest',self.UnsetMark)
+                        else:
+                            self.MarkOnAllByCTime('youngest',self.SetMark)
+                    else:
+                        if self.SelTreeIndex==0:
+                            self.MarkInCRCGroupByCTime('youngest',self.InvertMark)
+                elif event.keysym=='c' or event.keysym=='C':
+                    if CtrPressed:
+                        if ShiftPressed:
+                            self.ClipCopyFile()
+                        else:
+                            self.ClipCopyFullWithFile()
+                    else:
+                        self.ClipCopyFull()
+
+                elif event.keysym=='a' or event.keysym=='A':
+                    if self.SelTreeIndex==0:
+                        if CtrPressed:
+                            self.MarkOnAll(self.SetMark)
+                        else:
+                            self.MarkInCRCGroup(self.SetMark)
+                    else:
+                        self.MarkLowerPane(self.SetMark)
+
+                elif event.keysym=='n' or event.keysym=='N':
+                    if self.SelTreeIndex==0:
+                        if CtrPressed:
+                            self.MarkOnAll(self.UnsetMark)
+                        else:
+                            self.MarkInCRCGroup(self.UnsetMark)
+                    else:
+                        self.MarkLowerPane(self.UnsetMark)
+                elif event.keysym=='r' or event.keysym=='R':
+                    if self.SelTreeIndex==1:
+                        self.TreeFolderUpdate()
                         self.TreeFolder.focus_set()
-                        head,tail=os.path.split(self.SelFullPath)
-                        self.EnterDir(os.path.normpath(str(pathlib.Path(self.SelFullPath).parent.absolute())),tail)
-            elif event.keysym=='i' or event.keysym=='I':
-                if CtrPressed:
-                    self.MarkOnAll(self.InvertMark)
-                else:
-                    if self.SelTreeIndex==0:
-                        self.MarkInCRCGroup(self.InvertMark)
-                    else:
-                        self.MarkLowerPane(self.InvertMark)
-            elif event.keysym=='o' or event.keysym=='O':
-                if CtrPressed:
-                    if ShiftPressed:
-                        self.MarkOnAllByCTime('oldest',self.UnsetMark)
-                    else:
-                        self.MarkOnAllByCTime('oldest',self.SetMark)
-                else:
-                    if self.SelTreeIndex==0:
-                        self.MarkInCRCGroupByCTime('oldest',self.InvertMark)
-            elif event.keysym=='y' or event.keysym=='Y':
-                if CtrPressed:
-                    if ShiftPressed:
-                        self.MarkOnAllByCTime('youngest',self.UnsetMark)
-                    else:
-                        self.MarkOnAllByCTime('youngest',self.SetMark)
-                else:
-                    if self.SelTreeIndex==0:
-                        self.MarkInCRCGroupByCTime('youngest',self.InvertMark)
-            elif event.keysym=='c' or event.keysym=='C':
-                if CtrPressed:
-                    if ShiftPressed:
-                        self.ClipCopyFile()
-                    else:
-                        self.ClipCopyFullWithFile()
-                else:
-                    self.ClipCopyFull()
+                        try:
+                            self.TreeFolder.focus(self.SelItem)
+                        finally:
+                            pass
+                elif event.keysym in self.reftuple1:
+                    index = self.reftuple1.index(event.keysym)
 
-            elif event.keysym=='a' or event.keysym=='A':
-                if self.SelTreeIndex==0:
-                    if CtrPressed:
-                        self.MarkOnAll(self.SetMark)
-                    else:
-                        self.MarkInCRCGroup(self.SetMark)
-                else:
-                    self.MarkLowerPane(self.SetMark)
+                    if index<len(self.D.ScannedPaths):
+                        if self.SelTreeIndex==0:
+                            self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.SetMark,CtrPressed)
+                elif event.keysym in self.reftuple2:
+                    index = self.reftuple2.index(event.keysym)
 
-            elif event.keysym=='n' or event.keysym=='N':
-                if self.SelTreeIndex==0:
-                    if CtrPressed:
-                        self.MarkOnAll(self.UnsetMark)
-                    else:
-                        self.MarkInCRCGroup(self.UnsetMark)
-                else:
-                    self.MarkLowerPane(self.UnsetMark)
-            elif event.keysym=='r' or event.keysym=='R':
-                if self.SelTreeIndex==1:
-                    self.TreeFolderUpdate()
-                    self.TreeFolder.focus_set()
-                    try:
-                        self.TreeFolder.focus(self.SelItem)
-                    finally:
-                        pass
-            elif event.keysym in self.reftuple1:
-                index = self.reftuple1.index(event.keysym)
-
-                if index<len(self.D.ScannedPaths):
-                    if self.SelTreeIndex==0:
-                        self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.SetMark,CtrPressed)
-            elif event.keysym in self.reftuple2:
-                index = self.reftuple2.index(event.keysym)
-
-                if index<len(self.D.ScannedPaths):
-                    if self.SelTreeIndex==0:
-                        self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.UnsetMark,CtrPressed)
-            elif event.keysym=='KP_Divide' or event.keysym=='slash':
-                self.MarkSubpath(self.SetMark,True)
-            elif event.keysym=='question':
-                self.MarkSubpath(self.UnsetMark,True)
-            elif event.keysym=='f' or event.keysym=='F':
-                self.FindDialogShow()
-
+                    if index<len(self.D.ScannedPaths):
+                        if self.SelTreeIndex==0:
+                            self.ActionOnSpecifiedPath(self.D.ScannedPaths[index],self.UnsetMark,CtrPressed)
+                elif event.keysym=='KP_Divide' or event.keysym=='slash':
+                    self.MarkSubpath(self.SetMark,True)
+                elif event.keysym=='question':
+                    self.MarkSubpath(self.UnsetMark,True)
+                elif event.keysym=='f' or event.keysym=='F':
+                    self.FindDialogShow()
+        finally:
+            self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
+        
 #################################################
     def SelectFocusAndSeeCrcItemTree(self,crc,TryToShowAll=False):
         self.TreeGroups.focus_set()
@@ -2284,7 +2300,7 @@ class Gui:
         info.append('SETTINGS DIRECTORY :  '+CONFIG_DIR)
         info.append('CACHE DIRECTORY    :  '+CACHE_DIR)
         info.append('                                                                              ')
-        info.append('MESSAGE_LEVEL      :  '+ (MESSAGE_LEVEL if MESSAGE_LEVEL else 'INFO(Default)') )
+        info.append('LOGGING LEVEL      :  '+ LoggingLevels[LoggingLevel] )
         info.append('                                                                              ')
         info.append('Current log file   :  '+log)
 
@@ -3532,27 +3548,41 @@ class Gui:
             print(e)
             pass
 
-LoggingLevels={'DEBUG':logging.DEBUG,'INFO':logging.INFO,'WARNING':logging.WARNING,'ERROR':logging.ERROR,'CRITICAL':logging.CRITICAL}
+LoggingLevels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 
 if __name__ == "__main__":
-    pathlib.Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
-    log=LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.log'
-
-    MESSAGE_LEVEL = os.environ.get('MESSAGE_LEVEL')
-
-    logginLevel = LoggingLevels[MESSAGE_LEVEL] if MESSAGE_LEVEL in LoggingLevels else logging.INFO
-
-    print('log:',log)
-    logging.basicConfig(level=logginLevel,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
-
-    ArgsQuant = len(argv)
-    if ArgsQuant>1:
-        for i in range(1,ArgsQuant):
-            self.addPath(argv[i])
+    
 
     try:
-        Gui(os.getcwd())
+        parser = argparse.ArgumentParser(
+                formatter_class=argparse.RawTextHelpFormatter,
+                prog = 'dude.exe' if windows else 'dude',
+                description = f"dude version {VERSION}\nCopyright (c) 2022 Piotr Jochymek\n\nhttps://github.com/PJDude/dude",
+                )
+        
+        parser.add_argument('paths'                 ,nargs='*'          ,help='path to scan')
+        parser.add_argument('-e','--exclude'        ,nargs='*'          ,help='exclude expressions')
+        parser.add_argument('-er','--excluderegexp' ,nargs='*'          ,help='exclude regular expressions')
+        parser.add_argument('--norun'           ,action='store_true'    ,help='don\'t run scanning, only show scan dialog')
+        parser.add_argument('-l','--log' ,nargs='?'                     ,help='specify log file')
+        parser.add_argument('-d','--debug' ,action='store_true'         ,help='set debug logging level')
 
+        args = parser.parse_args()
+        
+        log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.log'        
+        LoggingLevel = logging.DEBUG if args.debug else logging.INFO
+        
+        pathlib.Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
+
+        print('log:',log)
+        
+        logging.basicConfig(level=LoggingLevel,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
+        
+        if args.debug:
+            logging.debug('DEBUG LEVEL')
+            
+        Gui(os.getcwd(),args.paths,args.exclude,args.excluderegexp,args.norun)
+        
     except Exception as e:
         print(e)
         logging.error(e)
