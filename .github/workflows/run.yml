@@ -35,7 +35,7 @@ jobs:
       
     - uses: actions/upload-artifact@v3
       with:
-        name: dude-win
+        name: dude-win-pyinstaller
         path: "./dist/dude.exe"
       
     - name: STAGE install nuitka
@@ -77,12 +77,18 @@ jobs:
     - name: STAGE install pyinstaller
       run: pip install pyinstaller==5.7.0
     
+    - name: STAGE find python
+      run: find $pythonLocation -name libpython3*
+    
+    - name: STAGE strip libs
+      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
+      
     - name: STAGE run pyinstaller
       run: bash "pyinstaller.run.sh"
       
     - uses: actions/upload-artifact@v3
       with:
-        name: dude-lin
+        name: dude-lin-pyinstaller
         path: "./dist/dude"
       
     - name: STAGE install nuitka
@@ -94,21 +100,9 @@ jobs:
     - name: STAGE install zstandard
       run: pip install zstandard==0.18.0
     
-    - name: STAGE find myself
-      run: pwd
-    
-    - name: STAGE find python
-      run: find $pythonLocation -name libpython3*
-    
-    - name: STAGE strip libs
-      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
-
     - name: STAGE run nuitka
       run: bash "nuitka.run.sh"
 
-    - name: STAGE check executable file
-      run: ls -l ./dist/dude
-    
     - uses: actions/upload-artifact@v3
       with:
         name: dude-lin-nuitka
