@@ -375,7 +375,7 @@ class Gui:
                 self.StatusLine.set(StatusInfo)
         else:
             self.StatusLine.set('')
-            
+
             self.LADPrevMessage=message
             self.LADPrevProg1=progress1Right
             self.LADPrevProg2=progress2Right
@@ -518,7 +518,7 @@ class Gui:
         self.main.unbind_class('Treeview', '<KeyPress-Left>')
         self.main.unbind_class('Treeview', '<KeyPress-Right>')
         self.main.unbind_class('Treeview', '<Double-Button-1>')
-        
+
         self.main.unbind_class('Treeview', '<ButtonPress-1>')
 
         self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
@@ -719,7 +719,6 @@ class Gui:
 
         ##############
         self.ScanExcludeRegExpr=tk.BooleanVar()
-        self.ScanExcludeRegExpr.set(self.cfg.GetBool(CFG_KEY_EXCLUDE_REGEXP))
 
         self.ExcludeFRame = tk.LabelFrame(self.ScanDialogMainFrame,text='Exclude from scan:',borderwidth=2,bg=self.bg)
         self.ExcludeFRame.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
@@ -890,14 +889,22 @@ class Gui:
 
         if pathsToAdd:
             for path in pathsToAdd:
+                print(path)
                 self.addPath(os.path.abspath(path))
-            
-            self.ScanDialogShow()
         else:
             if self.AddCwdAtStartup:
                 self.addPath(cwd)
 
-            self.ScanDialogShow()
+        if exclude:
+            self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(exclude))
+            self.cfg.SetBool(CFG_KEY_EXCLUDE_REGEXP,False)
+        elif excluderegexp:
+            self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(excluderegexp))
+            self.cfg.SetBool(CFG_KEY_EXCLUDE_REGEXP,True)
+
+        self.ScanExcludeRegExpr.set(self.cfg.GetBool(CFG_KEY_EXCLUDE_REGEXP))
+
+        self.ScanDialogShow()
 
         self.ColumnSortLastParams={}
         self.ColumnSortLastParams[self.TreeGroups]=['sizeH',1]
@@ -907,7 +914,7 @@ class Gui:
         self.SelItemTree[self.TreeFolder]=None
 
         self.ShowGroups()
-        
+
         if pathsToAdd:
             if not norun:
                 self.main.update()
@@ -1441,7 +1448,7 @@ class Gui:
     @MainWatchCursor
     def KeyPressTreeCommon(self,event):
         self.main.unbind_class('Treeview','<KeyPress>')
-        
+
         #if not self.KeyReleased:
             #prevents (?) windows auto-repeat problem
         #    self.main.update()
@@ -1635,7 +1642,7 @@ class Gui:
                     self.FindDialogShow()
         finally:
             self.main.bind_class('Treeview','<KeyPress>', self.KeyPressTreeCommon )
-        
+
 #################################################
     def SelectFocusAndSeeCrcItemTree(self,crc,TryToShowAll=False):
         self.TreeGroups.focus_set()
@@ -1658,10 +1665,10 @@ class Gui:
         if tree.identify("region", event.x, event.y) == 'heading':
             if (colname:=tree.column(tree.identify_column(event.x),'id') ) in self.col2sortOf:
                 self.ColumnSortClick(tree,colname)
-                
+
                 if self.SelKind==FILE:
                     tree.focus_set()
-                    
+
                     tree.focus(self.SelItem)
                     tree.see(self.SelItem)
 
@@ -1669,7 +1676,7 @@ class Gui:
                         self.TreeGroupsSelChange(self.SelItem)
                     else:
                         self.TreeFolderSelChange(self.SelItem)
-                    
+
         elif item:=tree.identify('item',event.x,event.y):
             tree.selection_remove(tree.selection())
 
@@ -2010,10 +2017,10 @@ class Gui:
         tree.heading(prev_colname, text=self.OrgLabel[prev_colname])
 
         self.ColumnSortLastParams[tree]=[colname,reverse]
-        
+
         if tree == self.TreeFolder:
             self.FolderItemsCache={}
-        
+
         self.ColumnSort (tree)
 
     @MainWatchCursor
@@ -2127,20 +2134,20 @@ class Gui:
                     + '\n\nFound:' \
                     + '\nCRC groups: ' + str(self.D.InfoFoundGroups) \
                     + '\nfolders: ' + str(self.D.InfoFoundFolders) \
-                    + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace) 
+                    + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace)
 
             InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sumSize)
             InfoProgQuant=float(100)*float(self.D.InfoFileDone)/float(self.D.InfoTotal)
 
             progress1Right=bytes2str(self.D.InfoSizeDone) + '/' + bytes2str(self.D.sumSize)
             progress2Right=str(self.D.InfoFileDone) + '/' + str(self.D.InfoTotal)
-            
+
             self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,self.D.InfoLine)
 
             if self.D.CanAbort:
                 if self.LongActionAbort:
                     self.D.Abort()
-            else:            
+            else:
                 self.ScanDialog.config(cursor="watch")
                 self.StatusLine.set(self.D.Info)
 
@@ -2555,10 +2562,10 @@ class Gui:
 
         if not CurrentPath:
             return False
-        
+
         Refresh=True
         DirCtime=0
-        
+
         try:
             TopStat = os.stat(CurrentPath)
         except Exception as e:
@@ -2567,14 +2574,14 @@ class Gui:
             logging.error(f'ERROR: ,{e}')
         else:
             DirCtime=round(TopStat.st_ctime)
-            
+
             if CurrentPath in self.FolderItemsCache:
                 if DirCtime==self.FolderItemsCache[CurrentPath][0]:
                     Refresh=False
-            
+
         if Refresh :
             RefreshScandir=True
-            
+
             if CurrentPath in self.FolderScandirCache:
                 if DirCtime==self.FolderScandirCache[CurrentPath][0]:
                     RefreshScandir=False
@@ -2596,9 +2603,9 @@ class Gui:
             i=0
             for DirEntry in self.FolderScandirCache[CurrentPath][1]:
                 file=DirEntry.name
-                
+
                 TopStat
-                
+
                 try:
                     stat = os.stat(os.path.join(CurrentPath,file))
                 except Exception as e:
@@ -2652,21 +2659,21 @@ class Gui:
                     logging.error(f'what is it: {DirEntry} ?')
 
                 i+=1
-            
-            ############################################################            
+
+            ############################################################
             colSort,reverse = self.ColumnSortLastParams[self.TreeFolder]
             sortIndex=self.sortIndexDict[colSort]
             IsNumeric=self.col2sortNumeric[colSort]
-            
+
             UPDIRCode,DIRCode,NONDIRCode = (2,1,0) if reverse else (0,1,2)
-            ############################################################            
-            
+            ############################################################
+
             self.FolderItemsCache[CurrentPath]=(DirCtime,tuple(sorted(FolderItems,key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse)))
 
 #            print('full dir processing:%s %s' % (Refresh,CurrentPath))
 #        else :
 #            print('using cache !')
-        
+
         if ArbitraryPath:
             #TODO - workaround
             prevSelPath=self.SelPath
@@ -2684,13 +2691,13 @@ class Gui:
             self.TreeFolder.insert(parent="", index=END, iid='0UP' , text='', values=(self.SelPathnrInt,self.SelPath,'..',0,'',0,0,0,'..','',0,'',UPDIR),tags=DIR)
 
         for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH,ctimeH) in self.FolderItemsCache[CurrentPath][1]:
-            #cant cache tags! 
-            
+            #cant cache tags!
+
             #(self.SelPathnrInt,self.SelPath) + (file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,ctimeH,kind)
             self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=('','',file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,ctimeH,kind),tags=self.TreeGroups.item(FILEID)['tags'] if kind==FILE else tags)
 
         self.TreeFolderFlatItemsList=self.TreeFolder.get_children()
-        
+
         if not ArbitraryPath:
             if self.SelItem and self.SelItem in self.TreeFolder.get_children():
                 self.TreeFolder.selection_set(self.SelItem)
@@ -2834,7 +2841,7 @@ class Gui:
             self.TreeExpr[tree]=Expression
 
             if tree==self.TreeGroups:
-                
+
                 CrcRange = self.TreeGroups.get_children() if AllGroups else [str(self.SelCrc)]
 
                 for crcitem in CrcRange:
@@ -3551,7 +3558,7 @@ class Gui:
 LoggingLevels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 
 if __name__ == "__main__":
-    
+
 
     try:
         parser = argparse.ArgumentParser(
@@ -3559,7 +3566,7 @@ if __name__ == "__main__":
                 prog = 'dude.exe' if windows else 'dude',
                 description = f"dude version {VERSION}\nCopyright (c) 2022 Piotr Jochymek\n\nhttps://github.com/PJDude/dude",
                 )
-        
+
         parser.add_argument('paths'                 ,nargs='*'          ,help='path to scan')
         parser.add_argument('-e','--exclude'        ,nargs='*'          ,help='exclude expressions')
         parser.add_argument('-er','--excluderegexp' ,nargs='*'          ,help='exclude regular expressions')
@@ -3568,21 +3575,21 @@ if __name__ == "__main__":
         parser.add_argument('-d','--debug' ,action='store_true'         ,help='set debug logging level')
 
         args = parser.parse_args()
-        
-        log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.log'        
+
+        log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.log'
         LoggingLevel = logging.DEBUG if args.debug else logging.INFO
-        
+
         pathlib.Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
 
         print('log:',log)
-        
+
         logging.basicConfig(level=LoggingLevel,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
-        
+
         if args.debug:
             logging.debug('DEBUG LEVEL')
-            
+
         Gui(os.getcwd(),args.paths,args.exclude,args.excluderegexp,args.norun)
-        
+
     except Exception as e:
         print(e)
         logging.error(e)
