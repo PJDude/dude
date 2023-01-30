@@ -80,10 +80,10 @@ jobs:
     - name: STAGE install nuitka
       run: pip install nuitka==1.4.1
       
-      - name: STAGE install ordered-set
+    - name: STAGE install ordered-set
       run: pip install ordered-set==4.1.0
       
-      - name: STAGE install zstandard
+    - name: STAGE install zstandard
       run: pip install zstandard==0.18.0
     
     - name: STAGE find myself
