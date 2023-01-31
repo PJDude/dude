@@ -38,48 +38,12 @@ except Exception as e:
     print(e)
     CONFIG_DIR=LOG_DIR=CACHE_DIR = os.sep.join([os.getcwd(),"dude-no-appdirs"])
 
-k=1024
-M=k*1024
-G=M*1024
-T=G*1024
-
-multDict={'k':k,'K':k,'M':M,'G':G,'T':T}
-
 windows = (os.name=='nt')
 
 def EPrint(e):
     stack = traceback.extract_stack()[:-3] + traceback.extract_tb(e.__traceback__)
     pretty = traceback.format_list(stack)
     return ''.join(pretty) + '\n  {} {}'.format(e.__class__,e)
-
-def bytes2str(num,digits=2):
-    kb=num/k
-
-    if kb<k:
-        string=str(round(kb,digits))
-        if string[0:digits+1]=='0.00'[0:digits+1]:
-            return str(num)+'B'
-        else:
-            return str(round(kb,digits))+'kB'
-    elif kb<M:
-        return str(round(kb/k,digits))+'MB'
-    elif kb<G:
-        return str(round(kb/M,digits))+'GB'
-    else:
-        return str(round(kb/G,digits))+'TB'
-
-def str2bytes(string):
-    if not string:
-        return None
-
-    elif match := re.search('^\s*(\d+)\s*([kKMGT]?)B?\s*$',string):
-        res = int(match.group(1))
-
-        if (multChar := match.group(2)) in multDict:
-            res*=multDict[multChar]
-        return res
-    else:
-        return None
 
 ###########################################################################################################################################
 
@@ -366,15 +330,21 @@ class Gui:
     LADPrevProg2=''
     LastTimeNoSign=0
 
-    def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None,StatusInfo=''):
+    def LongActionDialogUpdate(self,message,progress1=None,progress2=None,progress1Right=None,progress2Right=None,StatusInfo=None):
         prefix=''
+
+        if StatusInfo:
+            self.StatusLine.set(StatusInfo)
+        else:
+            self.StatusLine.set('')
+
         if self.LADPrevProg1==progress1Right and self.LADPrevProg2==progress2Right and self.LADPrevMessage==message:
             if time.time()>self.LastTimeNoSign+1.0:
                 prefix=self.ProgressSigns[self.psIndex]
                 self.psIndex=(self.psIndex+1)%4
-                self.StatusLine.set(StatusInfo)
+
+
         else:
-            self.StatusLine.set('')
 
             self.LADPrevMessage=message
             self.LADPrevProg1=progress1Right
@@ -889,7 +859,6 @@ class Gui:
 
         if pathsToAdd:
             for path in pathsToAdd:
-                print(path)
                 self.addPath(os.path.abspath(path))
         else:
             if self.AddCwdAtStartup:
@@ -2099,7 +2068,7 @@ class Gui:
         ScanThread.start()
 
         while ScanThread.is_alive():
-            self.LongActionDialogUpdate(self.Numbers[self.D.InfoPathNr] + '\n' + self.D.InfoPathToScan + '\n\n' + str(self.D.InfoCounter) + '\n' + bytes2str(self.D.InfoSizeSum))
+            self.LongActionDialogUpdate(self.Numbers[self.D.InfoPathNr] + '\n' + self.D.InfoPathToScan + '\n\n' + str(self.D.InfoCounter) + '\n' + core.bytes2str(self.D.InfoSizeSum))
 
             if self.LongActionAbort:
                 self.D.Abort()
@@ -2127,19 +2096,19 @@ class Gui:
         CrcThread=Thread(target=self.D.CrcCalc,daemon=True)
         CrcThread.start()
 
+        #+ '\nAvarage file size: ' + core.bytes2str(self.D.InfoAvarageSize) \
         while CrcThread.is_alive():
             info =  'Threads: ' + self.D.InfoThreads \
-                    + '\nAvarage file size: ' + bytes2str(self.D.InfoAvarageSize) \
-                    + '\nAvarage speed: ' + bytes2str(self.D.infoSpeed,1) + '/s' \
+                    + '\nAvarage speed: ' + core.bytes2str(self.D.infoSpeed,1) + '/s' \
                     + '\n\nFound:' \
                     + '\nCRC groups: ' + str(self.D.InfoFoundGroups) \
                     + '\nfolders: ' + str(self.D.InfoFoundFolders) \
-                    + '\nspace: ' + bytes2str(self.D.InfoDuplicatesSpace)
+                    + '\nspace: ' + core.bytes2str(self.D.InfoDuplicatesSpace)
 
             InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sumSize)
             InfoProgQuant=float(100)*float(self.D.InfoFileDone)/float(self.D.InfoTotal)
 
-            progress1Right=bytes2str(self.D.InfoSizeDone) + '/' + bytes2str(self.D.sumSize)
+            progress1Right=core.bytes2str(self.D.InfoSizeDone) + '/' + core.bytes2str(self.D.sumSize)
             progress2Right=str(self.D.InfoFileDone) + '/' + str(self.D.InfoTotal)
 
             self.LongActionDialogUpdate(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,self.D.InfoLine)
@@ -2496,7 +2465,7 @@ class Gui:
         self.TreeGroups.delete(*self.TreeGroups.get_children())
 
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
-            SizeBytes = bytes2str(size)
+            SizeBytes = core.bytes2str(size)
             for crc,crcDict in sizeDict.items():
                 crcitem=self.TreeGroups.insert(parent='', index=END,iid=crc, values=('','','',size,SizeBytes,'','','',crc,len(crcDict),'',CRC),tags=[CRC],open=True)
 
@@ -2646,15 +2615,15 @@ class Gui:
                                                     None, \
                                                     FILE,\
                                                     FILEID,\
-                                                    bytes2str(size),\
+                                                    core.bytes2str(size),\
                                                     time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) \
                                             )  )
                     else:
                         if stat.st_nlink!=1:
                             #hardlink
-                            FolderItems.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLEHARDLINKED,'%sO' % i,bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
+                            FolderItems.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLEHARDLINKED,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
                         else:
-                            FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,'%sO' % i,bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
+                            FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
                 else:
                     logging.error(f'what is it: {DirEntry} ?')
 
@@ -2722,7 +2691,7 @@ class Gui:
     def CalcMarkStatsCore(self,tree,varSize,varQuant):
         marked=tree.tag_has(MARK)
         varQuant.set(len(marked))
-        varSize.set(bytes2str(sum(int(tree.set(item,'size')) for item in marked)))
+        varSize.set(core.bytes2str(sum(int(tree.set(item,'size')) for item in marked)))
 
     def MarkInSpecifiedCRCGroupByCTime(self, action, crc, reverse,select=False):
         item=sorted([ (item,self.TreeGroups.set(item,'ctime') ) for item in self.TreeGroups.get_children(crc)],key=lambda x : float(x[1]),reverse=reverse)[0][0]
@@ -2975,7 +2944,7 @@ class Gui:
                 self.SelectFocusAndSeeCrcItemTree(biggestcrc,True)
 
                 self.DominantIndexGroups[sizeFlag] = int(temp)
-                Info = bytes2str(biggestcrcSizeSum) if sizeFlag else str(biggestcrcSizeSum)
+                Info = core.bytes2str(biggestcrcSizeSum) if sizeFlag else str(biggestcrcSizeSum)
                 self.StatusLine.set(f'Dominant (index:{WorkingIndex}) group ({self.byWhat[sizeFlag]}: {Info})')
 
     @MainWatchCursor
@@ -3015,7 +2984,7 @@ class Gui:
                 self.UpdateMainTree(item)
 
             self.DominantIndexFolders[sizeFlag] = int(temp)
-            Info = bytes2str(num) if sizeFlag else str(num)
+            Info = core.bytes2str(num) if sizeFlag else str(num)
             self.StatusLine.set(f'Dominant (index:{WorkingIndex}) folder ({self.byWhat[sizeFlag]}: {Info})')
 
     def ItemFullPath(self,item):
@@ -3189,7 +3158,7 @@ class Gui:
             if self.cfg.Get(CFG_CONFIRM_SHOW_CRCSIZE,False)=='True':
                 size=int(self.TreeGroups.set(crc,'size'))
                 message.append('')
-                message.append('CRC:' + crc + ' size:' + bytes2str(size) + '|GRAY')
+                message.append('CRC:' + crc + ' size:' + core.bytes2str(size) + '|GRAY')
 
             for item in ProcessedItems[crc]:
                 message.append((self.ItemFullPath(item) if ShowFullPath else tree.set(item,'file')) + '|RED' )
