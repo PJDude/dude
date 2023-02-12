@@ -4,9 +4,6 @@ from collections import defaultdict
 from queue import Queue
 from threading import Thread
 
-import subprocess
-from subprocess import Popen, PIPE
-
 import os
 import pathlib
 import fnmatch

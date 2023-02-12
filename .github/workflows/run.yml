@@ -42,7 +42,9 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: dude-win
-        path: dude.exe
+        path: |
+          dude.exe
+          dudegui.exe
 
   build-lin:
     runs-on: ubuntu-latest

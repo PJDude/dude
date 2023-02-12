@@ -27,7 +27,9 @@ from threading import Thread
 from sys import exit
 from sys import argv
 
+import version
 import core
+import console
 
 try:
     from appdirs import *
@@ -374,7 +376,7 @@ class Gui:
 
         ####################################################################
         self.main = tk.Tk()
-        self.main.title(f'Dude (DUplicates DEtector) v{VERSION}')
+        self.main.title(f'Dude (DUplicates DEtector) v{version.VERSION}')
         self.main.protocol("WM_DELETE_WINDOW", self.exit)
         self.main.minsize(1200, 800)
         self.main.bind('<FocusIn>', self.FocusIn)
@@ -2262,7 +2264,7 @@ class Gui:
         info=[]
         info.append('==============================================================================')
         info.append('                                                                              ')
-        info.append(f'                       DUDE (DUplicates DEtector) v{VERSION}                 ')
+        info.append(f'                       DUDE (DUplicates DEtector) v{version.VERSION}                 ')
         info.append('                            Author: Piotr Jochymek                            ')
         info.append('                                                                              ')
         info.append('                        https://github.com/PJDude/dude                        ')
@@ -3527,24 +3529,9 @@ class Gui:
 LoggingLevels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 
 if __name__ == "__main__":
-
-
     try:
-        parser = argparse.ArgumentParser(
-                formatter_class=argparse.RawTextHelpFormatter,
-                prog = 'dude.exe' if windows else 'dude',
-                description = f"dude version {VERSION}\nCopyright (c) 2022 Piotr Jochymek\n\nhttps://github.com/PJDude/dude",
-                )
-
-        parser.add_argument('paths'                 ,nargs='*'          ,help='path to scan')
-        parser.add_argument('-e','--exclude'        ,nargs='*'          ,help='exclude expressions')
-        parser.add_argument('-er','--excluderegexp' ,nargs='*'          ,help='exclude regular expressions')
-        parser.add_argument('--norun'           ,action='store_true'    ,help='don\'t run scanning, only show scan dialog')
-        parser.add_argument('-l','--log' ,nargs='?'                     ,help='specify log file')
-        parser.add_argument('-d','--debug' ,action='store_true'         ,help='set debug logging level')
-
-        args = parser.parse_args()
-
+        args = console.ParseArgs(version.VERSION)
+        
         log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.log'
         LoggingLevel = logging.DEBUG if args.debug else logging.INFO
 

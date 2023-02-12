@@ -1,1 +1,1 @@
-python3 ./dude.py
+python3 ./dude.py $*
