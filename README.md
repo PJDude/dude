@@ -13,9 +13,10 @@ GUI utility for finding duplicated files, delete or link them to save space.
   - **Confirmation required before any destructive action**
 - **Supported platforms: Linux, Windows**
 - **Written in Python3 + Tkinter**
+- **Compiled with [Nuitka](https://github.com/Nuitka/Nuitka) (great tool) to standalone executable binary file**
 - **MIT license**
 
-## Dude GUI:
+## Dude GUI (gif not up to date):
 ![image info](./dude.gif)
 
 ## How to get dude executable:
@@ -24,19 +25,11 @@ download latest build (GitHub Actions artifact) for Linux or Windows:
 https://pjdude.github.io/dude/
 
 ## How to start dude:
-**run downloaded dude executable**  
-or
+**run downloaded executable (on Linux change file permissions if necessary)**  or
 **run dude.py in python3 interpreter with Tkinter**
 
 - *pip install -r requirements.txt*
 - *python3 ./dude.py*
-
-or
-**prepare standalone executable (below)**
-
-## How to create standalone exe with pyinstaller:
-- *build.pyinstaller.sh*
-- *build.pyinstaller.bat*
 
 ## How to use:
 - **open Scan dialog** (S)
@@ -45,3 +38,5 @@ or
 - **mark files for processing** (Try Tab, space, arrows, A, I etc. )
 - **take action on marked files** (Delete,Insert etc.)
 - **check keyboard shortcuts any time** (F1)
+
+Dude is in working, pre-release stage.
