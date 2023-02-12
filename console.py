@@ -1,6 +1,7 @@
 import argparse
 import os
 import signal
+from sys import exit
 from subprocess import Popen
 from subprocess import DEVNULL
 import version
@@ -26,7 +27,8 @@ def ParseArgs(ver):
 if __name__ == "__main__":
     args=ParseArgs(version.VERSION)
     
-    command =['dudegui.exe']
+    GuiMainApp='dudegui.exe'
+    command =[GuiMainApp]
 
     if args.norun:
         command.append('--norun')
@@ -48,12 +50,15 @@ if __name__ == "__main__":
     
     if args.paths:
         command.extend(args.paths)
-
-    try:
-        Popen(command,stdin=DEVNULL,stdout=DEVNULL,stderr=DEVNULL)
-        #dont wait with open console for main process
-        os.kill(os.getppid(),signal.SIGTERM)
-    except Exception as e:
-        print(e)
+    
+    if os.path.exists(GuiMainApp):
+        try:
+            Popen(command,stdin=DEVNULL,stdout=DEVNULL,stderr=DEVNULL)
+            #dont wait with open console for main process
+            os.kill(os.getppid(),signal.SIGTERM)
+        except Exception as e:
+            print(e)
+            exit()
+    else:
+        print(f'Cannot find {GuiMainApp}')
         exit()
-        
