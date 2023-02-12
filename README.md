@@ -11,6 +11,7 @@ GUI utility for finding duplicated files, delete or link them to save space.
   - **marking of files with multiple criteria**
   - **taking action on marked files**
   - **Confirmation required before any destructive action**
+- **Command line parameters for integration with favorite file manager (e.g. Double Commander)**
 - **Supported platforms: Linux, Windows**
 - **Written in Python3 + Tkinter**
 - **Compiled with [Nuitka](https://github.com/Nuitka/Nuitka) (great tool) to standalone executable binary file**
