@@ -2127,15 +2127,15 @@ class Gui:
         CrcThread.join()
         #############################
 
-        if self.LongActionAbort:
-            self.DialogWithEntry(title='CRC Calculation aborted.',prompt='\nResults are partial.\nSome files may remain unidentified as duplicates.',parent=self.LongActionDialog,OnlyInfo=True,width=300,height=200)
-
-        self.LongActionDialogEnd()
-
         self.ScanDialog.config(cursor="watch")
+        self.LongActionDialogEnd()
         self.ShowGroups()
-        self.ScanDialogClose()
         self.ScanDialog.config(cursor="")
+        self.ScanDialogClose()
+        
+        if self.LongActionAbort:
+            self.DialogWithEntry(title='CRC Calculation aborted.',prompt='\nResults are partial.\nSome files may remain unidentified as duplicates.',parent=self.main,OnlyInfo=True,width=300,height=200)
+            
 
     def ScanDialogShow(self):
         if self.D.ScannedPaths:
