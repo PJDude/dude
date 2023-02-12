@@ -26,7 +26,7 @@ jobs:
     - name: STAGE requirements
       run: pip install -r requirements.txt
 
-    - name: STAGE install nuitka
+    - name: STAGE install Nuitka
       run: pip install nuitka==1.4.1
       
     - name: STAGE install ordered-set
@@ -35,14 +35,14 @@ jobs:
     - name: STAGE install zstandard
       run: pip install zstandard==0.18.0
 
-    - name: STAGE run nuitka
+    - name: STAGE run Nuitka
       run: "nuitka.run.bat"
       shell: cmd
 
     - uses: actions/upload-artifact@v3
       with:
         name: dude-win
-        path: "./dude.exe"
+        path: dude.exe
 
   build-lin:
     runs-on: ubuntu-latest
@@ -68,7 +68,7 @@ jobs:
     - name: STAGE strip libs
       run: find $pythonLocation -name *.so* -type f -exec strip {} \;
       
-    - name: STAGE install nuitka
+    - name: STAGE install Nuitka
       run: pip install nuitka==1.4.1
       
     - name: STAGE install ordered-set
@@ -77,10 +77,10 @@ jobs:
     - name: STAGE install zstandard
       run: pip install zstandard==0.18.0
     
-    - name: STAGE run nuitka
+    - name: STAGE run Nuitka
       run: bash "nuitka.run.sh"
 
     - uses: actions/upload-artifact@v3
       with:
         name: dude-lin
-        path: "./dude"
+        path: dude
