@@ -183,7 +183,6 @@ class Gui:
 
     SelFullPath={}
     FolderItemsCache={}
-    FolderScandirCache={}
 
     def MainWatchCursor(f):
         def MainWatchCursorWrapp(self,*args,**kwargs):
@@ -2132,10 +2131,10 @@ class Gui:
         self.ShowGroups()
         self.ScanDialog.config(cursor="")
         self.ScanDialogClose()
-        
+
         if self.LongActionAbort:
             self.DialogWithEntry(title='CRC Calculation aborted.',prompt='\nResults are partial.\nSome files may remain unidentified as duplicates.',parent=self.main,OnlyInfo=True,width=300,height=200)
-            
+
 
     def ScanDialogShow(self):
         if self.D.ScannedPaths:
@@ -2534,66 +2533,40 @@ class Gui:
         if not CurrentPath:
             return False
 
+        (DirCtime,ScanDirRes)=self.D.StatScanDir(CurrentPath)
+
+        if not ScanDirRes:
+            return False
+
         Refresh=True
-        DirCtime=0
-
-        try:
-            TopStat = os.stat(CurrentPath)
-        except Exception as e:
-            print(f'{CurrentPath},{file},{e}')
-            print(EPrint(e))
-            logging.error(f'ERROR: ,{e}')
-        else:
-            DirCtime=round(TopStat.st_ctime)
-
-            if CurrentPath in self.FolderItemsCache:
-                if DirCtime==self.FolderItemsCache[CurrentPath][0]:
-                    Refresh=False
+        if CurrentPath in self.FolderItemsCache:
+            if DirCtime==self.FolderItemsCache[CurrentPath][0]:
+                Refresh=False
 
         if Refresh :
-            RefreshScandir=True
-
-            if CurrentPath in self.FolderScandirCache:
-                if DirCtime==self.FolderScandirCache[CurrentPath][0]:
-                    RefreshScandir=False
-
-            if RefreshScandir:
-                try:
-                    ScanDirRes=tuple(os.scandir(CurrentPath))
-                except Exception as e:
-                    self.StatusLine.set(str(e))
-                    logging.error(e)
-                    return False
-                else:
-                    self.FolderScandirCache[CurrentPath]=(DirCtime,ScanDirRes)
-
             FolderItems=[]
 
             FullCRC=self.cfg.GetBool(CFG_KEY_FULL_CRC)
 
             i=0
-            for DirEntry in self.FolderScandirCache[CurrentPath][1]:
-                file=DirEntry.name
-
-                TopStat
-
+            for file,islink,isdir,isfile in ScanDirRes:
                 try:
                     stat = os.stat(os.path.join(CurrentPath,file))
                 except Exception as e:
                     self.StatusLine.set(str(e))
-                    print(f'{CurrentPath},{file},{e}')
-                    print(EPrint(e))
+                    #print(f'{CurrentPath},{file},{e}')
+                    #print(EPrint(e))
                     logging.error(f'ERROR: ,{e}')
                     continue
 
-                if os.path.islink(DirEntry) :
-                    if DirEntry.is_dir():
+                if islink :
+                    if isdir:
                         FolderItems.append( ( '\t📁 ⇦',file,0,0,0,0,'','',1,0,DIR,DIR,'%sDL' % i,'','' ) )
                     else:
                         FolderItems.append( ( '\t  🠔',file,0,round(stat.st_ctime),stat.st_dev,stat.st_ino,'','',1,0,LINK,LINK,'%sFL' % i,'','' ) )
-                elif DirEntry.is_dir():
+                elif isdir:
                     FolderItems.append( ('\t📁',file,0,0,0,0,'','',1,0,DIR,DIR,'%sD' % i,'','' ) )
-                elif DirEntry.is_file():
+                elif isfile:
 
                     ctime=round(stat.st_ctime)
                     dev=stat.st_dev
@@ -2627,7 +2600,7 @@ class Gui:
                         else:
                             FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
                 else:
-                    logging.error(f'what is it: {DirEntry} ?')
+                    logging.error(f'what is it: {file},{islink},{isdir},{isfile} ?')
 
                 i+=1
 
@@ -3372,7 +3345,7 @@ class Gui:
 
         self.CalcMarkStatsAll()
 
-        #self.FolderItemsCache={}
+        self.FolderItemsCache={}
 
         self.FindResult=[]
 
@@ -3531,7 +3504,7 @@ LoggingLevels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 if __name__ == "__main__":
     try:
         args = console.ParseArgs(version.VERSION)
-        
+
         log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.log'
         LoggingLevel = logging.DEBUG if args.debug else logging.INFO
 

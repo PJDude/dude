@@ -133,6 +133,34 @@ class DudeCore:
     InfoCounter=0
     InfoSizeSum=0
 
+    ScanDirCache={}
+    def StatScanDir(self,path):
+        try:
+            PathStat = os.stat(path)
+        except Exception as e:
+            logging.error(f'ERROR:{e}')
+            return (0,tuple([]))
+
+        DirCtime=round(PathStat.st_ctime)
+
+        if path not in self.ScanDirCache or self.ScanDirCache[path][0]!=DirCtime:
+            try:
+                with os.scandir(path) as res:
+                    reslist=[]
+                    for entry in res:
+                        try:
+                            #name,islink,isdir,isfile
+                            reslist.append( (entry.name,os.path.islink(entry),entry.is_dir(),entry.is_file()) )
+                        except Exception as e:
+                            self.Log.error('scandir(2): %s' % str(e))
+                    self.ScanDirCache[path] = ( DirCtime,tuple(reslist) )
+
+            except Exception as e:
+                self.Log.error('scandir(1): %s' % str(e))
+                self.ScanDirCache[path] = (0,tuple([]))
+
+        return self.ScanDirCache[path]
+
     def Scan(self):
         self.Log.info('')
         self.Log.info('SCANNING')
@@ -151,7 +179,7 @@ class DudeCore:
 
         self.ScanResultsBySize.clear()
 
-        self.ScanDirCache={}
+        #self.ScanDirCache={}
 
         for PathToScan in self.Paths2Scan:
             loopList=[PathToScan]
@@ -159,19 +187,19 @@ class DudeCore:
             while loopList:
                 try:
                     path = loopList.pop(0)
-                    for entry in os.scandir(path):
-                        file=entry.name
+                    for file,islink,isdir,isfile in self.StatScanDir(path)[1]:
+                        #file=entry.name
                         fullpath=os.path.join(path,file)
                         if self.ExcludeList:
                             if any({self.ExclFn(expr,fullpath) for expr in self.ExcludeList}):
                                 self.Log.info(f'skipping by Exclude Mask:{fullpath}')
                                 continue
                         try:
-                            if os.path.islink(entry) :
+                            if islink :
                                 self.Log.debug(f'skippping link: {path} / {file}')
-                            elif entry.is_dir():
+                            elif isdir:
                                 loopList.append(os.path.join(path,file))
-                            elif entry.is_file():
+                            elif isfile:
                                 try:
                                     stat = os.stat(fullpath)
                                 except Exception as e:
