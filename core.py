@@ -134,29 +134,58 @@ class DudeCore:
     InfoSizeSum=0
 
     ScanDirCache={}
-    def StatScanDir(self,path):
-        try:
-            PathStat = os.stat(path)
-        except Exception as e:
-            logging.error(f'ERROR:{e}')
-            return (0,tuple([]))
+    def StatScanDir(self,path,pathctime=None):
 
-        DirCtime=round(PathStat.st_ctime)
+        if not pathctime:
+            try:
+                PathStat = os.stat(path)
+                pathctime=round(PathStat.st_ctime)
+            except Exception as e:
+                logging.error(f'ERROR:{e}')
+                return (0,tuple([]))
 
-        if path not in self.ScanDirCache or self.ScanDirCache[path][0]!=DirCtime:
+
+        if path not in self.ScanDirCache or self.ScanDirCache[path][0]!=pathctime:
             try:
                 with os.scandir(path) as res:
                     reslist=[]
                     for entry in res:
-                        try:
-                            #name,islink,isdir,isfile
-                            reslist.append( (entry.name,os.path.islink(entry),entry.is_dir(),entry.is_file()) )
-                        except Exception as e:
-                            self.Log.error('scandir(2): %s' % str(e))
-                    self.ScanDirCache[path] = ( DirCtime,tuple(reslist) )
+                        name = entry.name
+                        
+                        #islink=entry.is_symlink()
+                        #faster ?
+                        islink=os.path.islink(entry)
+                        
+                        is_dir=entry.is_dir()
+                        is_file=entry.is_file()
+                        
+                        mtime=None
+                        ctime=None
+                        dev=None
+                        inode=None
+                        size=None
+                        nlink=None
+
+                        if not islink:
+                            try:
+                                stat = os.stat(os.path.join(path,name))
+
+                                mtime=round(stat.st_mtime)
+                                ctime=round(stat.st_ctime)
+                                dev=stat.st_dev
+                                inode=stat.st_ino
+                                size=stat.st_size
+                                nlink=stat.st_nlink
+
+                            except Exception as e:
+                                self.Log.error('scandir(stat): DUPA %s islink:%s is_dir:%s' % (str(e),str(islink),str(is_dir) ) )
+
+                        reslist.append( (name,islink,is_dir,is_file,mtime,ctime,dev,inode,size,nlink) )
+                        
+                    self.ScanDirCache[path] = ( pathctime,tuple(reslist) )
 
             except Exception as e:
-                self.Log.error('scandir(1): %s' % str(e))
+                self.Log.error('scandir: %s' % str(e))
                 self.ScanDirCache[path] = (0,tuple([]))
 
         return self.ScanDirCache[path]
@@ -182,13 +211,13 @@ class DudeCore:
         #self.ScanDirCache={}
 
         for PathToScan in self.Paths2Scan:
-            loopList=[PathToScan]
+            loopList=[(PathToScan,None)]
 
             while loopList:
                 try:
-                    path = loopList.pop(0)
-                    for file,islink,isdir,isfile in self.StatScanDir(path)[1]:
-                        #file=entry.name
+                    path,pathctime = loopList.pop(0)
+                    for file,islink,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self.StatScanDir(path,pathctime)[1]:
+
                         fullpath=os.path.join(path,file)
                         if self.ExcludeList:
                             if any({self.ExclFn(expr,fullpath) for expr in self.ExcludeList}):
@@ -198,21 +227,18 @@ class DudeCore:
                             if islink :
                                 self.Log.debug(f'skippping link: {path} / {file}')
                             elif isdir:
-                                loopList.append(os.path.join(path,file))
+                                loopList.append((os.path.join(path,file),ctime))
                             elif isfile:
-                                try:
-                                    stat = os.stat(fullpath)
-                                except Exception as e:
-                                    self.Log.error(f'scan skipp {e}')
-                                else:
-                                    if stat.st_nlink!=1:
-                                        self.Log.debug(f'scan skipp - hardlinks {stat.st_nlink} - {pathNr},{path},{file}')
+
+                                if mtime: #stat succeeded
+                                    if nlink!=1:
+                                        self.Log.debug(f'scan skipp - hardlinks {nlink} - {pathNr},{path},{file}')
                                     else:
-                                        if stat.st_size>0:
-                                            self.InfoSizeSum+=stat.st_size
+                                        if size>0:
+                                            self.InfoSizeSum+=size
 
                                             subpath=path.replace(PathToScan,'')
-                                            self.ScanResultsBySize[stat.st_size].add( (pathNr,subpath,file,round(stat.st_mtime),round(stat.st_ctime),stat.st_dev,stat.st_ino) )
+                                            self.ScanResultsBySize[size].add( (pathNr,subpath,file,mtime,ctime,dev,inode) )
 
                                 self.InfoCounter+=1
 
@@ -309,14 +335,15 @@ class DudeCore:
     infoSpeed=0
 
     CacheSizeTheshold=64
-    InfoThreads=''
+    InfoThreads='?'
 
     Status=''
 
     CRCBUfferSize=4*1024*1024
 
     #############################################################
-    def ThreadedCrcCalcOnOpenedFilesQueue(self,SrcQ,ResQ,TotalList,FileInfoList,ProgressList):
+    def ThreadedCrcCalcOnOpenedFilesQueue(self,TIndex,SrcQ,ResQ):
+        #,TotalList,FileInfoList,ProgressList
         buf = bytearray(self.CRCBUfferSize)
         view = memoryview(buf)
 
@@ -331,14 +358,12 @@ class DudeCore:
                 File,IndexTuple,size,mtime = Task
                 h = hashlib.sha1()
 
-                SizeSum=0
-                #IndexTuple == pathnr,path,file,ctime,dev,inode
-                #-> size,pathnr,path,file
-                FileInfoList[0]=(size,IndexTuple[0],IndexTuple[1],IndexTuple[2])
+                self.CrcThreadProgressInfo[TIndex]=0
+
+                self.CrcThreadFileInfo[TIndex]=(size,IndexTuple)
                 while rsize := File.readinto(buf):
                     h.update(view[:rsize])
-                    SizeSum+=rsize
-                    ProgressList[0]=SizeSum
+                    self.CrcThreadProgressInfo[TIndex]+=rsize
 
                     if self.AbortAction:
                         break
@@ -347,10 +372,10 @@ class DudeCore:
                     ResQ.put((File,IndexTuple,size,mtime,h.hexdigest()))
                     FilesDone+=1
                     SizeDone+=size
-                    TotalList[0]=(FilesDone,SizeDone)
+                    self.CrcThreadTotalInfo[TIndex]=(FilesDone,SizeDone)
 
-                ProgressList[0]=None
-                FileInfoList[0]=None
+                self.CrcThreadProgressInfo[TIndex]=0
+                self.CrcThreadFileInfo[TIndex]=None
 
                 File.close()
             else:
@@ -383,37 +408,35 @@ class DudeCore:
         ScanResultsSizes = list(self.ScanResultsBySize)
         ScanResultsSizes.sort(reverse=True)
 
-        self.DevsQuant = len(self.devs)
-        self.MaxThreads = os.cpu_count()
-
-        ###########
-        self.SingleTheradMode=True if self.DevsQuant>self.MaxThreads else False
-        ###########
-
+        MaxThreads = os.cpu_count()
+        
         FileNamesQueue={}
         OpenedFilesQueue={}
         FilesCrcQueue={}
 
-        TIndexes = [0] if self.SingleTheradMode else self.devs
+        TIndexes = self.devs
 
-        CrcThreadTotalInfo={}
-        CrcThreadFileInfo={}
-        CrcThreadProgressInfo={}
+        self.CrcThreadTotalInfo={}
+        self.CrcThreadFileInfo={}
+        self.CrcThreadProgressInfo={}
 
         CRCThread={}
+        ThreadStarted={}
+
         for TIndex in TIndexes:
             FileNamesQueue[TIndex]=Queue()
             OpenedFilesQueue[TIndex]=Queue()
             FilesCrcQueue[TIndex]=Queue()
-            CrcThreadTotalInfo[TIndex]=[(0,0)]
-            CrcThreadFileInfo[TIndex]=[None]
-            CrcThreadProgressInfo[TIndex]=[None]
 
-            CRCThread[TIndex] = Thread(target=self.ThreadedCrcCalcOnOpenedFilesQueue,args=(OpenedFilesQueue[TIndex],FilesCrcQueue[TIndex],CrcThreadTotalInfo[TIndex],CrcThreadFileInfo[TIndex],CrcThreadProgressInfo[TIndex],),daemon=True)
-            CRCThread[TIndex].start()
+            self.CrcThreadTotalInfo[TIndex]=(0,0)
+            self.CrcThreadFileInfo[TIndex]=None
+            self.CrcThreadProgressInfo[TIndex]=0
+
+            ThreadStarted[TIndex]=False
+
+            CRCThread[TIndex] = Thread(target=self.ThreadedCrcCalcOnOpenedFilesQueue,args=(TIndex,OpenedFilesQueue[TIndex],FilesCrcQueue[TIndex],),daemon=True)
 
         #########################################################################################################
-        SingleThreadIndex = TIndexes[0]
         for size in ScanResultsSizes:
             if self.AbortAction:
                 break
@@ -422,7 +445,7 @@ class DudeCore:
                     break
 
                 IndexTuple=(pathnr,path,file,ctime,dev,inode)
-                TIndex = SingleThreadIndex if self.SingleTheradMode else dev
+                TIndex = dev
 
                 if size>self.CacheSizeTheshold:
                     CacheKey=(inode,mtime)
@@ -437,14 +460,12 @@ class DudeCore:
                 FileNamesQueue[TIndex].put((size,pathnr,path,file,mtime,ctime,dev,inode))
         #########################################################################################################
 
-        self.InfoSizeDoneFromCache=self.InfoSizeDone
-        self.InfoFileDoneFromCache=self.InfoFileDone
+        InfoSizeDoneFromCache=self.InfoSizeDone
+        InfoFileDoneFromCache=self.InfoFileDone
 
         OpenedFilesPerDevLimit=32
 
         MeasuresPool=[]
-
-        self.InfoThreads=str(len(TIndexes))
 
         LastTimeStats = 0
 
@@ -459,66 +480,86 @@ class DudeCore:
             prevLineShowSameMax[TIndex]=0
 
         while True:
+            ########################################################################
+            # files opening
             AnythingOpened=False
-            AnythingProcessed=False
-
             for TIndex in TIndexes:
-                ########################################################################
-                #opening files
                 while not self.AbortAction and FileNamesQueue[TIndex].qsize()>0 and OpenedFilesQueue[TIndex].qsize()<OpenedFilesPerDevLimit:
-
                     NameCombo = FileNamesQueue[TIndex].get()
-                    if NameCombo:
-                        size,pathnr,path,file,mtime,ctime,dev,inode = NameCombo
+                    FileNamesQueue[TIndex].task_done()
 
-                        FileNamesQueue[TIndex].task_done()
+                    size,pathnr,path,file,mtime,ctime,dev,inode = NameCombo
 
-                        try:
-                            File=open(self.Path2ScanFull(pathnr,path,file),'rb')
-                        except Exception as e:
-                            self.Log.error(e)
-                        else:
-                            IndexTuple=(pathnr,path,file,ctime,dev,inode)
-                            OpenedFilesQueue[TIndex].put((File,IndexTuple,size,mtime))
-                            AnythingOpened=True
+                    try:
+                        File=open(self.Path2ScanFull(pathnr,path,file),'rb')
+                    except Exception as e:
+                        self.Log.error(e)
+                    else:
+                        IndexTuple=(pathnr,path,file,ctime,dev,inode)
+                        OpenedFilesQueue[TIndex].put((File,IndexTuple,size,mtime))
+                        AnythingOpened=True
 
-                #if FileNamesQueue[TIndex].qsize()==0:
-                #    OpenedFilesQueue[TIndex].put(None)
-
-                ########################################################################
-                #data processing
-
+            ########################################################################
+            # CRC data processing
+            AnythingProcessed=False
+            for TIndex in TIndexes:
                 while FilesCrcQueue[TIndex].qsize()>0:
                     Task = FilesCrcQueue[TIndex].get()
                     FilesCrcQueue[TIndex].task_done()
 
-                    if Task:
-                        File,IndexTuple,size,mtime,crc = Task
-                        AnythingProcessed=True
+                    File,IndexTuple,size,mtime,crc = Task
 
-                        self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
+                    self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
+                    AnythingProcessed=True
 
-                        if size>self.CacheSizeTheshold:
-                            dev=IndexTuple[4]
-                            inode=IndexTuple[5]
-                            CacheKey=(inode,mtime)
-                            self.CRCCache[dev][CacheKey]=crc
+                    if size>self.CacheSizeTheshold:
+                        dev=IndexTuple[4]
+                        inode=IndexTuple[5]
+                        CacheKey=(inode,mtime)
+                        self.CRCCache[dev][CacheKey]=crc
 
             ########################################################################
+            # threads starting/finishing
+
+            AliveThreads=sum([1 if CRCThread[TIndex].is_alive() else 0 for TIndex in TIndexes])
+            AllCrcProcessed=all(FilesCrcQueue[TIndex].qsize()==0 for TIndex in TIndexes)
+
+            NothingStarted=True
+            if AliveThreads<MaxThreads:
+                for TIndex in TIndexes:
+                    if not ThreadStarted[TIndex] and not CRCThread[TIndex].is_alive():
+                        CRCThread[TIndex].start()
+                        ThreadStarted[TIndex]=True
+                        NothingStarted=False
+                        break
+
+
+            for TIndex in TIndexes:
+                if self.AbortAction or (FileNamesQueue[TIndex].qsize()==0 and OpenedFilesQueue[TIndex].qsize()==0):
+                    if CRCThread[TIndex].is_alive():
+                        OpenedFilesQueue[TIndex].put(None)
+
+            if NothingStarted and AliveThreads==0 and AllCrcProcessed:
+                break
+            elif not AnythingOpened and not AnythingProcessed and NothingStarted:
+                self.InfoThreads=str(AliveThreads)
+                time.sleep(0.01)
+
+            ########################################################################
+            # info/stats
             now=time.time()
 
             if now-PrevNow>0.02 and not self.AbortAction:
                 PrevNow=now
 
-                InfoSizeDoneTemp=self.InfoSizeDoneFromCache
-                InfoFilesDoneTemp=self.InfoFileDoneFromCache
+                InfoSizeDoneTemp=InfoSizeDoneFromCache
+                InfoFilesDoneTemp=InfoFileDoneFromCache
 
                 for TIndex in TIndexes:
-                    FilesDone,SizeDone= CrcThreadTotalInfo[TIndex][0]
+                    FilesDone,SizeDone= self.CrcThreadTotalInfo[TIndex]
                     InfoSizeDoneTemp+=SizeDone
+                    InfoSizeDoneTemp+=self.CrcThreadProgressInfo[TIndex]
                     InfoFilesDoneTemp+=FilesDone
-                    if CrcThreadProgressInfo[TIndex][0]:
-                        InfoSizeDoneTemp+=CrcThreadProgressInfo[TIndex][0]
 
                 self.InfoFileDone=InfoFilesDoneTemp
                 self.InfoSizeDone=InfoSizeDoneTemp
@@ -557,45 +598,20 @@ class DudeCore:
                 LineInfoList=[]
                 for TIndex in TIndexes:
                     #size,pathnr,path,file
-                    if CrcThreadProgressInfo[TIndex][0] and CrcThreadFileInfo[TIndex][0]:
-                        currLineInfoFileSize=CrcThreadFileInfo[TIndex][0][0]
+                    if self.CrcThreadProgressInfo[TIndex] and self.CrcThreadFileInfo[TIndex]:
+                        currLineInfoFileSize=self.CrcThreadFileInfo[TIndex][0]
 
                         if currLineInfoFileSize==prevLineInfo[TIndex]:
                             if now-prevLineShowSameMax[TIndex]>1:
-                                LineInfoList.append( (currLineInfoFileSize,bytes2str(CrcThreadProgressInfo[TIndex][0]) + '/' + bytes2str(currLineInfoFileSize)) )
+                                LineInfoList.append( (currLineInfoFileSize,bytes2str(self.CrcThreadProgressInfo[TIndex]) + '/' + bytes2str(currLineInfoFileSize)) )
                         else:
                             prevLineShowSameMax[TIndex]=now
                             prevLineInfo[TIndex]=currLineInfoFileSize
 
                 self.InfoLine = '    '.join([elem[1] for elem in sorted(LineInfoList,key=lambda x : x[0],reverse=True)])
-
-            ########################################################################
-
-            ResultsLeftToBeProcessed = any({True for TempQueue in FilesCrcQueue.values() if TempQueue.qsize()>0})
-
-            ########################################################################
-            if self.AbortAction:
-                if not ResultsLeftToBeProcessed:
-                    break
-            elif not AnythingOpened and not AnythingProcessed:
-                FilesLeftToBeOpened = any({True for TempQueue in FileNamesQueue.values() if TempQueue.qsize()>0})
-                FilesLeftToBeProcessed = any({True for TempQueue in OpenedFilesQueue.values() if TempQueue.qsize()>0})
-
-                if FilesLeftToBeOpened or ResultsLeftToBeProcessed or FilesLeftToBeProcessed:
-                    time.sleep(0.01)
-                else:
-                    break
             ########################################################################
 
         self.CanAbort=False
-
-        self.Info='Finishing threads ...'
-
-        #end queues
-        for TIndex in TIndexes:
-            FileNamesQueue[TIndex].put(None)
-            OpenedFilesQueue[TIndex].put(None)
-            FilesCrcQueue[TIndex].put(None)
 
         for TIndex in TIndexes:
             CRCThread[TIndex].join()

@@ -1477,10 +1477,6 @@ class Gui:
                         self.ToggleSelectedTag(tree,item)
                 else:
                     self.ToggleSelectedTag(tree,item)
-            elif event.keysym == "Right":
-                self.GotoNextMark(event.widget,1)
-            elif event.keysym == "Left":
-                self.GotoNextMark(event.widget,-1)
             elif event.keysym == "Tab":
                 tree.selection_set(tree.focus())
                 self.FromTabSwicth=True
@@ -1501,7 +1497,10 @@ class Gui:
                         self.FindPrev()
                     else:
                         self.FindNext()
-
+                elif event.keysym == "Right":
+                    self.GotoNextMark(event.widget,1,ShiftPressed)
+                elif event.keysym == "Left":
+                    self.GotoNextMark(event.widget,-1,ShiftPressed)
                 elif event.keysym=='KP_Add' or event.keysym=='plus':
                     StrEvent=str(event)
                     self.MarkExpression(self.SetMark,'Mark files',CtrPressed)
@@ -2099,7 +2098,7 @@ class Gui:
 
         #+ '\nAvarage file size: ' + core.bytes2str(self.D.InfoAvarageSize) \
         while CrcThread.is_alive():
-            info =  'Threads: ' + self.D.InfoThreads \
+            info =  'Active Threads: ' + self.D.InfoThreads \
                     + '\nAvarage speed: ' + core.bytes2str(self.D.infoSpeed,1) + '/s' \
                     + '\n\nFound:' \
                     + '\nCRC groups: ' + str(self.D.InfoFoundGroups) \
@@ -2126,15 +2125,14 @@ class Gui:
         CrcThread.join()
         #############################
 
-        self.ScanDialog.config(cursor="watch")
+        #self.ScanDialog.config(cursor="watch")
         self.LongActionDialogEnd()
-        self.ShowGroups()
         self.ScanDialog.config(cursor="")
         self.ScanDialogClose()
+        self.ShowGroups()
 
         if self.LongActionAbort:
             self.DialogWithEntry(title='CRC Calculation aborted.',prompt='\nResults are partial.\nSome files may remain unidentified as duplicates.',parent=self.main,OnlyInfo=True,width=300,height=200)
-
 
     def ScanDialogShow(self):
         if self.D.ScannedPaths:
@@ -2468,6 +2466,7 @@ class Gui:
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             SizeBytes = core.bytes2str(size)
             for crc,crcDict in sizeDict.items():
+                #logging.info('size:%s,crc:%s CONT:%s' % (size,crc,crcDict))
                 crcitem=self.TreeGroups.insert(parent='', index=END,iid=crc, values=('','','',size,SizeBytes,'','','',crc,len(crcDict),'',CRC),tags=[CRC],open=True)
 
                 for pathnr,path,file,ctime,dev,inode in crcDict:
@@ -2549,29 +2548,16 @@ class Gui:
             FullCRC=self.cfg.GetBool(CFG_KEY_FULL_CRC)
 
             i=0
-            for file,islink,isdir,isfile in ScanDirRes:
-                try:
-                    stat = os.stat(os.path.join(CurrentPath,file))
-                except Exception as e:
-                    self.StatusLine.set(str(e))
-                    #print(f'{CurrentPath},{file},{e}')
-                    #print(EPrint(e))
-                    logging.error(f'ERROR: ,{e}')
-                    continue
-
+            for file,islink,isdir,isfile,mtime,ctime,dev,inode,size,nlink in ScanDirRes:
                 if islink :
                     if isdir:
                         FolderItems.append( ( '\t📁 ⇦',file,0,0,0,0,'','',1,0,DIR,DIR,'%sDL' % i,'','' ) )
                     else:
-                        FolderItems.append( ( '\t  🠔',file,0,round(stat.st_ctime),stat.st_dev,stat.st_ino,'','',1,0,LINK,LINK,'%sFL' % i,'','' ) )
+                        FolderItems.append( ( '\t  🠔',file,0,ctime,dev,inode,'','',1,0,LINK,LINK,'%sFL' % i,'','' ) )
                 elif isdir:
                     FolderItems.append( ('\t📁',file,0,0,0,0,'','',1,0,DIR,DIR,'%sD' % i,'','' ) )
                 elif isfile:
 
-                    ctime=round(stat.st_ctime)
-                    dev=stat.st_dev
-                    inode=stat.st_ino
-                    size=stat.st_size
                     FILEID=self.idfunc(inode,dev)
 
                     if (FILEID,ctime) in self.ByIdCtimeCache:
@@ -2594,8 +2580,8 @@ class Gui:
                                                     time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) \
                                             )  )
                     else:
-                        if stat.st_nlink!=1:
-                            #hardlink
+                        if nlink!=1:
+                            #hardlinks
                             FolderItems.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLEHARDLINKED,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
                         else:
                             FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
@@ -2613,10 +2599,6 @@ class Gui:
             ############################################################
 
             self.FolderItemsCache[CurrentPath]=(DirCtime,tuple(sorted(FolderItems,key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse)))
-
-#            print('full dir processing:%s %s' % (Refresh,CurrentPath))
-#        else :
-#            print('using cache !')
 
         if ArbitraryPath:
             #TODO - workaround
@@ -2847,10 +2829,15 @@ class Gui:
         if path:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd):
             self.ActionOnSpecifiedPath(path,action,AllGroups)
 
-    def GotoNextMark(self,tree,direction):
-        marked=tree.tag_has(MARK)
+    def GotoNextMark(self,tree,direction,GoToNoMark=False):
+        marked=[item for item in tree.get_children() if not tree.tag_has(MARK,item)] if GoToNoMark else tree.tag_has(MARK)
         if marked:
-            pool=marked if tree.tag_has(MARK,self.SelItem) else self.TreeGroupsFlatItemsTouple if tree==self.TreeGroups else self.TreeFolder.get_children()
+            if GoToNoMark:
+                #marked if not tree.tag_has(MARK,self.SelItem) else
+                pool= self.TreeGroupsFlatItemsTouple if tree==self.TreeGroups else self.TreeFolder.get_children()
+            else:
+                pool=marked if tree.tag_has(MARK,self.SelItem) else self.TreeGroupsFlatItemsTouple if tree==self.TreeGroups else self.TreeFolder.get_children()
+
             poollen=len(pool)
 
             if poollen:
@@ -2859,7 +2846,7 @@ class Gui:
                 while True:
                     index=(index+direction)%poollen
                     NextItem=pool[index]
-                    if MARK in tree.item(NextItem)['tags']:
+                    if (not GoToNoMark and MARK in tree.item(NextItem)['tags']) or (GoToNoMark and MARK not in tree.item(NextItem)['tags']):
                         tree.focus(NextItem)
                         tree.see(NextItem)
 
@@ -3070,7 +3057,8 @@ class Gui:
                     IncorrectGroupsStr='\n'.join(IncorrectGroups)
                     self.Info(f'Warning (Delete) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFolowing CRC groups will not be processed and remain with markings:\n\n{IncorrectGroupsStr}",self.main)
 
-                self.SelectFocusAndSeeCrcItemTree(IncorrectGroups[0],True)
+                    self.SelectFocusAndSeeCrcItemTree(IncorrectGroups[0],True)
+
                 for crc in IncorrectGroups:
                     del ProcessedItems[crc]
                     del RemainingItems[crc]
