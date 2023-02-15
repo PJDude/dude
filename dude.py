@@ -1,6 +1,30 @@
-#!/usr/bin/python3.11
+#!/usr/bin/python3
 
-VERSION='0.96'
+####################################################################################
+#
+#  Copyright (c) 2022 Piotr Jochymek
+#
+#  MIT License
+#  
+#  Permission is hereby granted, free of charge, to any person obtaining a copy
+#  of this software and associated documentation files (the "Software"), to deal
+#  in the Software without restriction, including without limitation the rights
+#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#  copies of the Software, and to permit persons to whom the Software is
+#  furnished to do so, subject to the following conditions:
+#  
+#  The above copyright notice and this permission notice shall be included in all
+#  copies or substantial portions of the Software.
+#  
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#  SOFTWARE.
+#
+####################################################################################
 
 import fnmatch
 import shutil
@@ -49,8 +73,6 @@ def EPrint(e):
 
 ###########################################################################################################################################
 
-CFG_KEY_STARTUP_ADD_CWD='add_cwd_at_startup'
-CFG_KEY_STARTUP_SCAN='scan_at_startup'
 CFG_KEY_FULL_CRC='show_full_crc'
 CFG_KEY_FULL_PATHS='show_full_paths'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
@@ -72,8 +94,6 @@ CFG_KEY_GEOMETRY_DIALOG='geometry_dialog'
 CFG_KEY_EXCLUDE='exclude'
 
 CfgDefaults={
-    CFG_KEY_STARTUP_ADD_CWD:False,
-    CFG_KEY_STARTUP_SCAN:False,
     CFG_KEY_FULL_CRC:False,
     CFG_KEY_FULL_PATHS:False,
     CFG_KEY_REL_SYMLINKS:True,
@@ -723,8 +743,6 @@ class Gui:
         self.SetingsDialog.withdraw()
         self.SetingsDialog.iconphoto(False, self.iconphoto)
 
-        self.AddCwdAtStartup = tk.BooleanVar()
-        self.ScanAtStartup = tk.BooleanVar()
         self.FullCRC = tk.BooleanVar()
         self.FullPaths = tk.BooleanVar()
         self.RelSymlinks = tk.BooleanVar()
@@ -738,8 +756,6 @@ class Gui:
         self.ConfirmShowLinksTargets = tk.BooleanVar()
 
         self.settings = [
-            (self.AddCwdAtStartup,CFG_KEY_STARTUP_ADD_CWD),
-            (self.ScanAtStartup,CFG_KEY_STARTUP_SCAN),
             (self.FullCRC,CFG_KEY_FULL_CRC),
             (self.FullPaths,CFG_KEY_FULL_PATHS),
             (self.RelSymlinks,CFG_KEY_REL_SYMLINKS),
@@ -756,20 +772,7 @@ class Gui:
         fr=tk.Frame(self.SetingsDialog,bg=self.bg)
         fr.pack(expand=1,fill='both')
 
-        def AddPathAtStartupChange(self):
-            if not self.AddCwdAtStartup.get():
-                self.ScanAtStartup.set(False)
-
-        def ScanAtStartupChange(self):
-            if self.ScanAtStartup.get():
-                self.AddCwdAtStartup.set(True)
-
         row = 0
-        self.AddCwdCB=ttk.Checkbutton(fr, text = 'At startup add current directory to paths to scan', variable=self.AddCwdAtStartup,command=lambda : AddPathAtStartupChange(self) )
-        self.AddCwdCB.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        self.StartScanCB=ttk.Checkbutton(fr, text = 'Start scanning at startup', variable=self.ScanAtStartup,command=lambda : ScanAtStartupChange(self)                              )
-        self.StartScanCB.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-
         ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.FullCRC                                       ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.FullPaths                              ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
         ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.RelSymlinks                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
@@ -840,6 +843,13 @@ class Gui:
             self.GoToCascade.add_separator()
             self.GoToCascade.add_command(label = 'Go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="F5",state=ItemActionsState)
             self.GoToCascade.add_command(label = 'Go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="F6",state=ItemActionsState)
+            self.GoToCascade.add_separator()
+            self.GoToCascade.add_command(label = 'Go to next marked file'       ,command = lambda : self.GotoNextMarkMenu(1,0),accelerator="Right",state='normal')
+            self.GoToCascade.add_command(label = 'Go to previous marked file'   ,command = lambda : self.GotoNextMarkMenu(-1,0), accelerator="Left",state='normal')
+            self.GoToCascade.add_separator()
+            self.GoToCascade.add_command(label = 'Go to next not marked file'       ,command = lambda : self.GotoNextMarkMenu(1,1),accelerator="Shift+Right",state='normal')
+            self.GoToCascade.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.GotoNextMarkMenu(-1,1), accelerator="Shift+Left",state='normal')
+            
             #self.GoToCascade.add_separator()
             #self.GoToCascade.add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.GoToMaxFolder(1,1),accelerator="Backspace",state=ItemActionsState)
             #self.GoToCascade.add_command(label = 'Go to dominant folder (by duplicates/other files quantity ratio)',command = lambda : self.GoToMaxFolder(0,1), accelerator="Ctrl+Backspace",state=ItemActionsState)
@@ -861,10 +871,7 @@ class Gui:
         if pathsToAdd:
             for path in pathsToAdd:
                 self.addPath(os.path.abspath(path))
-        else:
-            if self.AddCwdAtStartup:
-                self.addPath(cwd)
-
+        
         if exclude:
             self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(exclude))
             self.cfg.SetBool(CFG_KEY_EXCLUDE_REGEXP,False)
@@ -1895,6 +1902,13 @@ class Gui:
             cNav = Menu(self.menubar,tearoff=0,bg=self.bg)
             cNav.add_command(label = 'go to dominant group (by size sum)',command = lambda : self.GoToMaxGroup(1), accelerator="F7")
             cNav.add_command(label = 'go to dominant group (by quantity)',command = lambda : self.GoToMaxGroup(0), accelerator="F8")
+            cNav.add_separator()
+            cNav.add_command(label = 'Go to next marked file'       ,command = lambda : self.GotoNextMark(self.TreeGroups,1,0),accelerator="Right",state='normal')
+            cNav.add_command(label = 'Go to previous marked file'   ,command = lambda : self.GotoNextMark(self.TreeGroups,-1,0), accelerator="Left",state='normal')
+            cNav.add_separator()
+            cNav.add_command(label = 'Go to next not marked file'       ,command = lambda : self.GotoNextMark(self.TreeGroups,1,1),accelerator="Shift+Right",state='normal')
+            cNav.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.GotoNextMark(self.TreeGroups,-1,1), accelerator="Shift+Left",state='normal')
+            
 
         else:
             DirActionsState=('disabled','normal')[self.SelKind==DIR]
@@ -1942,6 +1956,12 @@ class Gui:
             cNav = Menu(pop,tearoff=0,bg=self.bg)
             cNav.add_command(label = 'go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="F5")
             cNav.add_command(label = 'go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0) ,accelerator="F6")
+            cNav.add_separator()
+            cNav.add_command(label = 'Go to next marked file'       ,command = lambda : self.GotoNextMark(self.TreeFolder,1,0),accelerator="Right",state='normal')
+            cNav.add_command(label = 'Go to previous marked file'   ,command = lambda : self.GotoNextMark(self.TreeFolder,-1,0), accelerator="Left",state='normal')
+            cNav.add_separator()
+            cNav.add_command(label = 'Go to next not marked file'       ,command = lambda : self.GotoNextMark(self.TreeFolder,1,1),accelerator="Shift+Right",state='normal')
+            cNav.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.GotoNextMark(self.TreeFolder,-1,1), accelerator="Shift+Left",state='normal')
             #cNav.add_separator()
             #cNav.add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.GoToMaxFolder(1,1),accelerator="Backspace")
             #cNav.add_command(label = 'Go to dominant folder (by duplicates/other files quantity ratio)',command = lambda : self.GoToMaxFolder(0,1) ,accelerator="Ctrl+Backspace")
@@ -2333,9 +2353,6 @@ class Gui:
             pass
 
     def SettingsDialogOK(self):
-        self.cfg.SetBool(CFG_KEY_STARTUP_ADD_CWD,self.AddCwdAtStartup.get())
-        self.cfg.SetBool(CFG_KEY_STARTUP_SCAN,self.ScanAtStartup.get())
-
         update1=False
         update2=False
 
@@ -2833,6 +2850,10 @@ class Gui:
         if path:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd):
             self.ActionOnSpecifiedPath(path,action,AllGroups)
 
+    def GotoNextMarkMenu(self,direction,GoToNoMark=False):
+        tree=(self.TreeGroups,self.TreeFolder)[self.SelTreeIndex]
+        self.GotoNextMark(tree,direction,GoToNoMark)
+            
     def GotoNextMark(self,tree,direction,GoToNoMark=False):
         marked=[item for item in tree.get_children() if not tree.tag_has(MARK,item)] if GoToNoMark else tree.tag_has(MARK)
         if marked:
