@@ -994,7 +994,9 @@ class Gui:
         self.FindEntryModified=1
 
         self.FindDialog=dialog = tk.Toplevel(self.main)
-        PrevGrab = dialog.grab_current()
+
+        try: PrevGrab = dialog.grab_current()
+        except : PrevGrab=None
 
         dialog.minsize(400, 100)
         dialog.wm_transient(self.main)
@@ -1263,7 +1265,8 @@ class Gui:
         dialog.bind('<Escape>', No)
         dialog.bind('<KeyPress-Return>', ReturnPressed)
 
-        PrevGrab = dialog.grab_current()
+        try: PrevGrab = dialog.grab_current()
+        except : PrevGrab=None
 
         self.SetDefaultGeometryAndShow(dialog,parent)
 
@@ -1291,7 +1294,9 @@ class Gui:
         parent.config(cursor="watch")
 
         dialog = tk.Toplevel(parent)
-        PrevGrab = dialog.grab_current()
+
+        try: PrevGrab = dialog.grab_current()
+        except : PrevGrab=None
 
         dialog.minsize(width,height)
         dialog.wm_transient(parent)
@@ -2096,7 +2101,6 @@ class Gui:
         CrcThread=Thread(target=self.D.CrcCalc,daemon=True)
         CrcThread.start()
 
-        #+ '\nAvarage file size: ' + core.bytes2str(self.D.InfoAvarageSize) \
         while CrcThread.is_alive():
             info =  'Active Threads: ' + self.D.InfoThreads \
                     + '\nAvarage speed: ' + core.bytes2str(self.D.infoSpeed,1) + '/s' \
