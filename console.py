@@ -1,3 +1,31 @@
+#!/usr/bin/python3
+
+####################################################################################
+#
+#  Copyright (c) 2022 Piotr Jochymek
+#
+#  MIT License
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a copy
+#  of this software and associated documentation files (the "Software"), to deal
+#  in the Software without restriction, including without limitation the rights
+#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#  copies of the Software, and to permit persons to whom the Software is
+#  furnished to do so, subject to the following conditions:
+#
+#  The above copyright notice and this permission notice shall be included in all
+#  copies or substantial portions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#  SOFTWARE.
+#
+####################################################################################
+
 import argparse
 import os
 import signal
@@ -14,7 +42,7 @@ def ParseArgs(ver):
             )
 
     parser.add_argument('paths'                 ,nargs='*'          ,help='path to scan')
-    
+
     parser.add_argument('-e','--exclude'        ,nargs='*'          ,help='exclude expressions')
     parser.add_argument('-er','--excluderegexp' ,nargs='*'          ,help='exclude regular expressions')
     parser.add_argument('--norun'           ,action='store_true'    ,help='don\'t run scanning, only show scan dialog')
@@ -26,31 +54,31 @@ def ParseArgs(ver):
 #windows console problem case
 if __name__ == "__main__":
     args=ParseArgs(version.VERSION)
-    
+
     GuiMainApp='dudegui.exe'
     command =[GuiMainApp]
 
     if args.norun:
         command.append('--norun')
-    
+
     if args.exclude:
         command.append('--exclude')
         command.extend(args.exclude)
-        
+
     if args.excluderegexp:
         command.append('--excluderegexp')
         command.extend(args.excluderegexp)
-    
+
     if args.log:
         command.append('--log')
         command.append(args.log)
-    
+
     if args.debug:
         command.append('--debug')
-    
+
     if args.paths:
         command.extend(args.paths)
-    
+
     if os.path.exists(GuiMainApp):
         try:
             Popen(command,stdin=DEVNULL,stdout=DEVNULL,stderr=DEVNULL)
