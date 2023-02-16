@@ -5,17 +5,17 @@
 #  Copyright (c) 2022 Piotr Jochymek
 #
 #  MIT License
-#  
+#
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
 #  in the Software without restriction, including without limitation the rights
 #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #  copies of the Software, and to permit persons to whom the Software is
 #  furnished to do so, subject to the following conditions:
-#  
+#
 #  The above copyright notice and this permission notice shall be included in all
 #  copies or substantial portions of the Software.
-#  
+#
 #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -204,11 +204,36 @@ class Gui:
     SelFullPath={}
     FolderItemsCache={}
 
+    StopProcessingEventsReasonsSet=set()
+
+    ###############################################################
+    def StopProcessingEvents(self,caller):
+        return
+        if not self.StopProcessingEventsReasonsSet:
+            self.menubar.entryconfig("File", state="disabled")
+            self.menubar.entryconfig("Navigation", state="disabled")
+            self.menubar.entryconfig("Help", state="disabled")
+            self.menubar.config(cursor="watch")
+        self.StopProcessingEventsReasonsSet.add(caller)
+
+    def StartProcessingEvents(self,caller):
+        return
+        self.StopProcessingEventsReasonsSet.remove(caller)
+        if not self.StopProcessingEventsReasonsSet:
+            self.menubar.entryconfig("File", state="normal")
+            self.menubar.entryconfig("Navigation", state="normal")
+            self.menubar.entryconfig("Help", state="normal")
+            self.menubar.config(cursor="")
+    ###############################################################
+
     def MainWatchCursor(f):
         def MainWatchCursorWrapp(self,*args,**kwargs):
-            prevCursor=self.main.cget('cursor')
-            self.main.config(cursor="watch")
-            self.main.update()
+            #prevCursor=self.main.cget('cursor')
+            #self.main.config(cursor="watch")
+
+            #self.MenuDisable()
+            #self.main.update()
+            self.StopProcessingEvents(f)
 
             try:
                 res=f(self,*args,**kwargs)
@@ -217,7 +242,10 @@ class Gui:
                 res=None
                 print(EPrint(e))
 
-            self.main.config(cursor=prevCursor)
+            #self.MenuEnable()
+            #self.main.config(cursor=prevCursor)
+            #self.menubar.config(cursor=prevCursor)
+            self.StartProcessingEvents(f)
             return res
         return MainWatchCursorWrapp
 
@@ -532,7 +560,15 @@ class Gui:
         self.TreeGroups["columns"]=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','ctimeH','kind')
 
         #pathnr,path,file,ctime,dev,inode
-        self.IndexTupleIndexesWithFnCommon=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
+        #self.IndexTupleIndexesWithFnCommon=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
+
+        #'pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','ctimeH','kind' ->
+        #pathnr,path,file,ctime,dev,inode
+        self.IndexTupleIndexesWithFnGroups=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
+
+        #'file','size','sizeH','ctime','dev','inode','crc','instances','instancesnum','ctimeH','kind' ->
+        #file,ctime,dev,inode
+        #self.IndexTupleIndexesWithFnFolder=((raw,0),(int,3),(int,4),(int,5))
 
         self.TreeGroups["displaycolumns"]=('path','file','sizeH','instances','ctimeH')
 
@@ -588,8 +624,8 @@ class Gui:
 
         self.TreeFolder=ttk.Treeview(FrameBottom,takefocus=True,selectmode='none')
 
-        self.TreeFolder['columns']=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','instancesnum','ctimeH','kind')
-
+        self.TreeFolder['columns']=('file','size','sizeH','ctime','dev','inode','crc','instances','instancesnum','ctimeH','kind')
+        
         self.TreeFolder['displaycolumns']=('file','sizeH','instances','ctimeH')
 
         self.TreeFolder.column('#0', width=120, minwidth=100, stretch=tk.NO)
@@ -600,7 +636,6 @@ class Gui:
         self.TreeFolder.column('ctimeH', width=150, minwidth=100, stretch=tk.NO)
 
         self.TreeFolder.heading('#0',text='CRC',anchor=tk.W)
-        self.TreeFolder.heading('path',anchor=tk.W)
         self.TreeFolder.heading('file',anchor=tk.W)
         self.TreeFolder.heading('sizeH',anchor=tk.W)
         self.TreeFolder.heading('ctimeH',anchor=tk.W)
@@ -811,13 +846,6 @@ class Gui:
             logging.error(e)
             self.exit()
 
-        try:
-            self.keyboardshortcuts=pathlib.Path(os.path.join(os.path.dirname(__file__),'keyboard.shortcuts.txt')).read_text()
-        except Exception as e:
-            self.StatusLine.set(str(e))
-            logging.error(e)
-            self.exit()
-
         def FileCascadeFill():
             self.FileCascade.delete(0,END)
             ItemActionsState=('disabled','normal')[self.SelItem!=None]
@@ -849,7 +877,7 @@ class Gui:
             self.GoToCascade.add_separator()
             self.GoToCascade.add_command(label = 'Go to next not marked file'       ,command = lambda : self.GotoNextMarkMenu(1,1),accelerator="Shift+Right",state='normal')
             self.GoToCascade.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.GotoNextMarkMenu(-1,1), accelerator="Shift+Left",state='normal')
-            
+
             #self.GoToCascade.add_separator()
             #self.GoToCascade.add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.GoToMaxFolder(1,1),accelerator="Backspace",state=ItemActionsState)
             #self.GoToCascade.add_command(label = 'Go to dominant folder (by duplicates/other files quantity ratio)',command = lambda : self.GoToMaxFolder(0,1), accelerator="Ctrl+Backspace",state=ItemActionsState)
@@ -860,7 +888,6 @@ class Gui:
 
         self.HelpCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
         self.HelpCascade.add_command(label = 'About',command=self.About,accelerator="F1")
-        self.HelpCascade.add_command(label = 'Keyboard Shortcuts',command=self.KeyboardShortcuts)
         self.HelpCascade.add_command(label = 'License',command=self.License)
 
         self.menubar.add_cascade(label = 'Help',menu = self.HelpCascade)
@@ -871,7 +898,7 @@ class Gui:
         if pathsToAdd:
             for path in pathsToAdd:
                 self.addPath(os.path.abspath(path))
-        
+
         if exclude:
             self.cfg.Set(CFG_KEY_EXCLUDE,'|'.join(exclude))
             self.cfg.SetBool(CFG_KEY_EXCLUDE_REGEXP,False)
@@ -896,12 +923,29 @@ class Gui:
             if not norun:
                 self.main.update()
                 self.Scan()
-        else:
-            if self.cfg.GetBool(CFG_KEY_STARTUP_SCAN):
-                self.main.update()
-                self.Scan()
 
         self.main.mainloop()
+
+    MenuStack=[]
+    def MenuEnable(self):
+        #print('MenuEnable')
+        #traceback.print_stack()
+        #print(''.join(traceback.format_stack()))
+        self.MenuStack.pop(0)
+        if not len(self.MenuStack):
+            self.menubar.entryconfig("File", state="normal")
+            self.menubar.entryconfig("Navigation", state="normal")
+            self.menubar.entryconfig("Help", state="normal")
+
+    def MenuDisable(self):
+        #print('MenuDisable')
+        #traceback.print_stack()
+        #print(''.join(traceback.format_stack()))
+        self.menubar.entryconfig("File", state="disabled")
+        self.menubar.entryconfig("Navigation", state="disabled")
+        self.menubar.entryconfig("Help", state="disabled")
+        #self.menubar.update()
+        self.MenuStack.append('x')
 
     def TreeClose(self,event):
         tree=event.widget
@@ -923,13 +967,16 @@ class Gui:
         self.SelKind = None
 
     def GetIndexTupleTreeGroups(self,item):
-        return self.GetIndexTuple(item,self.TreeGroups)
+        #return self.GetIndexTuple(item,self.TreeGroups)
+        return tuple([ fn(self.TreeGroups.item(item)['values'][index]) for fn,index in self.IndexTupleIndexesWithFnGroups ])
 
-    def GetIndexTupleTreeFolder(self,item):
-        return self.GetIndexTuple(item,self.TreeFolder)
+    #nie uzywane ??
+    #def GetIndexTupleTreeFolder(self,item):
+        #return self.GetIndexTuple(item,self.TreeFolder)
+    #    return tuple([self.SelPathnr,self.SelPath] + [ fn(tree.item(item)['values'][index]) for fn,index in self.IndexTupleIndexesWithFnFolder ])
 
-    def GetIndexTuple(self,item,tree):
-        return tuple([ fn(tree.item(item)['values'][index]) for fn,index in self.IndexTupleIndexesWithFnCommon ])
+    #def GetIndexTuple(self,item,tree):
+    #    return tuple([ fn(tree.item(item)['values'][index]) for fn,index in self.IndexTupleIndexesWithFnCommon ])
 
     def exit(self):
         self.GeometryStore(self.main)
@@ -1422,21 +1469,14 @@ class Gui:
     reftuple1=('1','2','3','4','5','6','7')
     reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
 
-    #KeyReleased=True
-    #def KeyReleaseTreeCommon(self,event):
-    #    self.main.update()
-    #    self.KeyReleased=True
-
     @MainWatchCursor
     def KeyPressTreeCommon(self,event):
+        if self.StopProcessingEventsReasonsSet:
+            return
+
         self.main.unbind_class('Treeview','<KeyPress>')
 
-        #if not self.KeyReleased:
-            #prevents (?) windows auto-repeat problem
-        #    self.main.update()
         try:
-            self.KeyReleased=False
-
             tree=event.widget
             item=tree.focus()
 
@@ -1641,6 +1681,9 @@ class Gui:
     def TreeButtonPress(self,event,toggle=False):
         self.MenubarUnpost()
 
+        if self.StopProcessingEventsReasonsSet:
+            return
+
         tree=event.widget
 
         if tree.identify("region", event.x, event.y) == 'heading':
@@ -1800,6 +1843,9 @@ class Gui:
             print(e)
 
     def TreeContexMenu(self,event):
+        if self.StopProcessingEventsReasonsSet:
+            return
+
         self.TreeButtonPress(event)
 
         tree=event.widget
@@ -1908,7 +1954,7 @@ class Gui:
             cNav.add_separator()
             cNav.add_command(label = 'Go to next not marked file'       ,command = lambda : self.GotoNextMark(self.TreeGroups,1,1),accelerator="Shift+Right",state='normal')
             cNav.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.GotoNextMark(self.TreeGroups,-1,1), accelerator="Shift+Left",state='normal')
-            
+
 
         else:
             DirActionsState=('disabled','normal')[self.SelKind==DIR]
@@ -2153,12 +2199,16 @@ class Gui:
         self.LongActionDialogEnd()
         self.ScanDialog.config(cursor="")
         self.ScanDialogClose()
+        self.MenuDisable()
         self.ShowGroups()
 
         if self.LongActionAbort:
             self.DialogWithEntry(title='CRC Calculation aborted.',prompt='\nResults are partial.\nSome files may remain unidentified as duplicates.',parent=self.main,OnlyInfo=True,width=300,height=200)
 
+        self.MenuEnable()
+
     def ScanDialogShow(self):
+        self.MenuDisable()
         if self.D.ScannedPaths:
             self.PathsToScanFromDialog=self.D.ScannedPaths.copy()
 
@@ -2172,6 +2222,7 @@ class Gui:
         self.ScanButton.focus_set()
 
     def ScanDialogClose(self,event=None):
+        self.MenuEnable()
         self.ScanDialog.grab_release()
         self.main.config(cursor="")
         self.GeometryStore(self.ScanDialog)
@@ -2295,18 +2346,19 @@ class Gui:
         info.append('                                                                              ')
         info.append('==============================================================================')
         info.append('                                                                              ')
-        info.append('LOGS DIRECTORY     :  '+LOG_DIR)
-        info.append('SETTINGS DIRECTORY :  '+CONFIG_DIR)
-        info.append('CACHE DIRECTORY    :  '+CACHE_DIR)
+        info.append('LOGS DIRECTORY     :  ' + LOG_DIR)
+        info.append('SETTINGS DIRECTORY :  ' + CONFIG_DIR)
+        info.append('CACHE DIRECTORY    :  ' + CACHE_DIR)
         info.append('                                                                              ')
-        info.append('LOGGING LEVEL      :  '+ LoggingLevels[LoggingLevel] )
+        info.append('LOGGING LEVEL      :  ' + LoggingLevels[LoggingLevel] )
         info.append('                                                                              ')
-        info.append('Current log file   :  '+log)
+        info.append('Current log file   :  ' + log)
+        info.append('                                                                              ')
+        info.append('==============================================================================')
+        info.append('    Run DUDE with "--help" command line parameter to check startup options    ')
+        info.append('==============================================================================')
 
         self.Info('About DUDE','\n'.join(info),self.main,textwidth=80,width=600)
-
-    def KeyboardShortcuts(self):
-        self.Info('Keyboard Shortcuts',self.keyboardshortcuts,self.main,textwidth=80,width=600)
 
     def StoreSplitter(self):
         try:
@@ -2487,8 +2539,7 @@ class Gui:
         for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
             SizeBytes = core.bytes2str(size)
             for crc,crcDict in sizeDict.items():
-                #logging.info('size:%s,crc:%s CONT:%s' % (size,crc,crcDict))
-                crcitem=self.TreeGroups.insert(parent='', index=END,iid=crc, values=('','','',size,SizeBytes,'','','',crc,len(crcDict),'',CRC),tags=[CRC],open=True)
+                crcitem=self.TreeGroups.insert(parent='', index=END,iid=crc, values=('','','',size,SizeBytes,'','','',crc,len(crcDict),'',CRC),tags=CRC,open=True)
 
                 for pathnr,path,file,ctime,dev,inode in crcDict:
                     self.TreeGroups.insert(parent=crcitem, index=END,iid=self.idfunc(inode,dev), values=(\
@@ -2536,7 +2587,7 @@ class Gui:
         self.StatusVarFullPathLabel.config(fg = 'black')
 
     sortIndexDict={'file':1,'sizeH':2,'ctimeH':3,'instances':8}
-    kindIndex=11
+    kindIndex=10
 
     def TwoDotsConditionWin(self):
         return True if self.SelFullPath.split(os.sep)[1]!='' else  False
@@ -2571,12 +2622,9 @@ class Gui:
             i=0
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size,nlink in ScanDirRes:
                 if islink :
-                    if isdir:
-                        FolderItems.append( ( '\t📁 ⇦',file,0,0,0,0,'','',1,0,DIR,DIR,'%sDL' % i,'','' ) )
-                    else:
-                        FolderItems.append( ( '\t  🠔',file,0,ctime,dev,inode,'','',1,0,LINK,LINK,'%sFL' % i,'','' ) )
+                    FolderItems.append( ( '\t📁 ⇦',file,0,0,0,0,'','',1,0,DIR,'%sDL' % i,'','' ) if isdir else ( '\t  🠔',file,0,ctime,dev,inode,'','',1,0,LINK,'%sFL' % i,'','' ) )
                 elif isdir:
-                    FolderItems.append( ('\t📁',file,0,0,0,0,'','',1,0,DIR,DIR,'%sD' % i,'','' ) )
+                    FolderItems.append( ('\t📁',file,0,0,0,0,'','',1,0,DIR,'%sD' % i,'','' ) )
                 elif isfile:
 
                     FILEID=self.idfunc(inode,dev)
@@ -2594,7 +2642,6 @@ class Gui:
                                                     instances,\
                                                     instances,\
                                                     FILEID,\
-                                                    None, \
                                                     FILE,\
                                                     FILEID,\
                                                     core.bytes2str(size),\
@@ -2603,9 +2650,9 @@ class Gui:
                     else:
                         if nlink!=1:
                             #hardlinks
-                            FolderItems.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLEHARDLINKED,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
+                            FolderItems.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLEHARDLINKED,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
                         else:
-                            FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,SINGLE,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
+                            FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
                 else:
                     logging.error(f'what is it: {file},{islink},{isdir},{isfile} ?')
 
@@ -2618,8 +2665,13 @@ class Gui:
 
             UPDIRCode,DIRCode,NONDIRCode = (2,1,0) if reverse else (0,1,2)
             ############################################################
-
-            self.FolderItemsCache[CurrentPath]=(DirCtime,tuple(sorted(FolderItems,key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse)))
+            
+            FolderItemsSorted=sorted(FolderItems,key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse)
+            
+            #self.FolderItemsCache[CurrentPath]=(DirCtime,tuple([(text,file,str(size),str(ctime),str(dev),str(inode),crc,str(instances),str(instancesnum),FILEID,kind,iid,sizeH,ctimeH) for text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,kind,iid,sizeH,ctimeH in FolderItemsSorted]))
+            
+            #text,values,FILEID,kind,iid,defaulttag
+            self.FolderItemsCache[CurrentPath]=(DirCtime,tuple([ (text,(file,str(size),sizeH,str(ctime),str(dev),str(inode),crc,str(instances),str(instancesnum),ctimeH,kind),FILEID,kind,iid,SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR) else LINK if kind==LINK else "") for text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,kind,iid,sizeH,ctimeH in FolderItemsSorted] ) )
 
         if ArbitraryPath:
             #TODO - workaround
@@ -2631,17 +2683,10 @@ class Gui:
         self.TreeFolder.delete(*self.TreeFolder.get_children())
 
         if self.TwoDotsConditionOS():
-            #always at the beginning
-            #(text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH)=('','..',0,0,0,0,'..','',1,0,DIR,UPDIR,'0UP','' )
-            #self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=(self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,'',kind),tags=tags)
-            #self.SelPathnrInt,self.SelPath,file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,ctimeH,kind
-            self.TreeFolder.insert(parent="", index=END, iid='0UP' , text='', values=(self.SelPathnrInt,self.SelPath,'..',0,'',0,0,0,'..','',0,'',UPDIR),tags=DIR)
+            self.TreeFolder.insert(parent="", index=END, iid='0UP' , text='', values=('..','0','','0','0','0','..','','0','',UPDIR),tags=DIR)
 
-        for (text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,tags,kind,iid,sizeH,ctimeH) in self.FolderItemsCache[CurrentPath][1]:
-            #cant cache tags!
-
-            #(self.SelPathnrInt,self.SelPath) + (file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,ctimeH,kind)
-            self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=('','',file,size,sizeH,ctime,dev,inode,crc,instances,instancesnum,ctimeH,kind),tags=self.TreeGroups.item(FILEID)['tags'] if kind==FILE else tags)
+        for (text,values,FILEID,kind,iid,defaulttag) in self.FolderItemsCache[CurrentPath][1]:
+            self.TreeFolder.insert(parent="", index=END, iid=iid , text=text, values=values,tags=self.TreeGroups.item(FILEID)['tags'] if kind==FILE else defaulttag)
 
         self.TreeFolderFlatItemsList=self.TreeFolder.get_children()
 
@@ -2853,7 +2898,7 @@ class Gui:
     def GotoNextMarkMenu(self,direction,GoToNoMark=False):
         tree=(self.TreeGroups,self.TreeFolder)[self.SelTreeIndex]
         self.GotoNextMark(tree,direction,GoToNoMark)
-            
+
     def GotoNextMark(self,tree,direction,GoToNoMark=False):
         marked=[item for item in tree.get_children() if not tree.tag_has(MARK,item)] if GoToNoMark else tree.tag_has(MARK)
         if marked:
