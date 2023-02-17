@@ -5,17 +5,17 @@
 #  Copyright (c) 2022 Piotr Jochymek
 #
 #  MIT License
-#  
+#
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
 #  in the Software without restriction, including without limitation the rights
 #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #  copies of the Software, and to permit persons to whom the Software is
 #  furnished to do so, subject to the following conditions:
-#  
+#
 #  The above copyright notice and this permission notice shall be included in all
 #  copies or substantial portions of the Software.
-#  
+#
 #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -160,18 +160,16 @@ class DudeCore:
     InfoSizeSum=0
 
     ScanDirCache={}
-    def StatScanDir(self,path,pathctime=None):
+    def StatScanDir(self,path,PathCTime=None):
 
-        if not pathctime:
+        if not PathCTime:
             try:
-                PathStat = os.stat(path)
-                pathctime=round(PathStat.st_ctime)
+                PathCTime=round(os.stat(path).st_ctime)
             except Exception as e:
-                logging.error(f'ERROR:{e}')
+                self.Log.error(f'ERROR:{e}')
                 return (0,tuple([]))
 
-
-        if path not in self.ScanDirCache or self.ScanDirCache[path][0]!=pathctime:
+        if path not in self.ScanDirCache or self.ScanDirCache[path][0]!=PathCTime:
             try:
                 with os.scandir(path) as res:
                     reslist=[]
@@ -208,7 +206,7 @@ class DudeCore:
 
                         reslist.append( (name,islink,is_dir,is_file,mtime,ctime,dev,inode,size,nlink) )
 
-                    self.ScanDirCache[path] = ( pathctime,tuple(reslist) )
+                    self.ScanDirCache[path] = ( PathCTime,tuple(reslist) )
 
             except Exception as e:
                 self.Log.error('scandir: %s' % str(e))
@@ -241,8 +239,8 @@ class DudeCore:
 
             while loopList:
                 try:
-                    path,pathctime = loopList.pop(0)
-                    for file,islink,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self.StatScanDir(path,pathctime)[1]:
+                    path,PathCTime = loopList.pop(0)
+                    for file,islink,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self.StatScanDir(path,PathCTime)[1]:
 
                         fullpath=os.path.join(path,file)
                         if self.ExcludeList:
@@ -360,7 +358,6 @@ class DudeCore:
     InfoDuplicatesSpace=0
     infoSpeed=0
 
-    CacheSizeTheshold=64
     InfoThreads='?'
 
     Status=''
@@ -456,10 +453,12 @@ class DudeCore:
 
             CRCThread[dev] = Thread(target=self.ThreadedCrcCalcOnOpenedFilesQueue,args=(dev,OpenedFilesQueue[dev],FilesCrcQueue[dev],),daemon=True)
 
-
         ScanResultsSizes = list(self.ScanResultsBySize)
         ScanResultsSizes.sort(reverse=True)
+
         #########################################################################################################
+        self.InfoLine="Using cached CRC data ..."
+
         for size in ScanResultsSizes:
             if self.AbortAction:
                 break
@@ -468,16 +467,15 @@ class DudeCore:
                 if self.AbortAction:
                     break
 
-                if size>self.CacheSizeTheshold:
-                    CacheKey=(inode,mtime)
-                    if CacheKey in self.CRCCache[dev]:
-                        if crc:=self.CRCCache[dev][CacheKey]:
-                            self.InfoSizeDone+=size
-                            self.InfoFileDone+=1
+                CacheKey=(inode,mtime)
+                if CacheKey in self.CRCCache[dev]:
+                    if crc:=self.CRCCache[dev][CacheKey]:
+                        self.InfoSizeDone+=size
+                        self.InfoFileDone+=1
 
-                            IndexTuple=(pathnr,path,file,ctime,dev,inode)
-                            self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
-                            continue
+                        IndexTuple=(pathnr,path,file,ctime,dev,inode)
+                        self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
+                        continue
 
                 FileNamesQueue[dev].put((size,pathnr,path,file,mtime,ctime,inode))
         #########################################################################################################
@@ -502,8 +500,7 @@ class DudeCore:
             prevLineInfo[dev]=''
             prevLineShowSameMax[dev]=0
 
-        #InfoSizeSkippedByErrors=0
-        #InfoFilesSkippedByErrors=0
+        self.InfoLine="CRC calculation ..."
 
         while True:
             ########################################################################
@@ -540,11 +537,10 @@ class DudeCore:
                     self.filesOfSizeOfCRC[size][crc].add( IndexTuple )
                     AnythingProcessed=True
 
-                    if size>self.CacheSizeTheshold:
-                        dev=IndexTuple[4]
-                        inode=IndexTuple[5]
-                        CacheKey=(inode,mtime)
-                        self.CRCCache[dev][CacheKey]=crc
+                    dev=IndexTuple[4]
+                    inode=IndexTuple[5]
+                    CacheKey=(inode,mtime)
+                    self.CRCCache[dev][CacheKey]=crc
 
             ########################################################################
             # threads starting/finishing
@@ -572,7 +568,6 @@ class DudeCore:
             elif not AnythingOpened and not AnythingProcessed and NothingStarted:
                 self.InfoThreads=str(AliveThreads)
                 time.sleep(0.01)
-
 
             ########################################################################
             # info
@@ -730,6 +725,7 @@ class DudeCore:
 
         lenTemp=1
         while len({crc[0:lenTemp] for crc in AllCrcs})!=allCrcLen:
+            self.Info='CRC min length calculation ... (%s)' % lenTemp
             lenTemp+=1
 
         self.CrcCutLen=lenTemp
