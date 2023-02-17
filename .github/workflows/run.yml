@@ -18,6 +18,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
+        cache: 'pip'
         check-latest: true
 
     - name: STAGE pip upgrade
@@ -25,15 +26,6 @@ jobs:
 
     - name: STAGE requirements
       run: pip install -r requirements.txt
-
-    - name: STAGE install Nuitka
-      run: pip install nuitka==1.4.1
-      
-    - name: STAGE install ordered-set
-      run: pip install ordered-set==4.1.0
-
-    - name: STAGE install zstandard
-      run: pip install zstandard==0.18.0
 
     - name: STAGE run Nuitka
       run: "nuitka.run.bat"
@@ -56,6 +48,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
+        cache: 'pip'
         check-latest: true
 
     - name: STAGE pip upgrade
@@ -64,21 +57,9 @@ jobs:
     - name: STAGE requirements
       run: pip install -r requirements.txt
 
-    - name: STAGE find python
-      run: find $pythonLocation -name libpython3*
-    
-    - name: STAGE strip libs
-      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
-      
-    - name: STAGE install Nuitka
-      run: pip install nuitka==1.4.1
-      
-    - name: STAGE install ordered-set
-      run: pip install ordered-set==4.1.0
-      
-    - name: STAGE install zstandard
-      run: pip install zstandard==0.18.0
-    
+    - name: STAGE strip bins
+      run: find $pythonLocation -type f -exec strip -s -v {} \;
+
     - name: STAGE run Nuitka
       run: bash "nuitka.run.sh"
 
