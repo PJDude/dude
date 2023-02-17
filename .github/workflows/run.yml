@@ -58,7 +58,7 @@ jobs:
       run: pip install -r requirements.txt
 
     - name: STAGE strip bins
-      run: find $pythonLocation -type f -exec strip -s -v {} \;
+      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
 
     - name: STAGE run Nuitka
       run: bash "nuitka.run.sh"
