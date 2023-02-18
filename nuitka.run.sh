@@ -1,1 +1,0 @@
-CCFLAGS='-Ofast -static' python3.10 -m nuitka --follow-imports --follow-stdlib --onefile --linux-icon=./src/icon.ico --show-scons --show-progress --show-modules --include-data-file=./src/icon.png=./icon.png --include-data-file=./LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude --lto=yes --remove-output ./src/dude.py

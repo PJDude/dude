@@ -28,6 +28,7 @@ jobs:
       run: pip install -r requirements.txt
 
     - name: STAGE run Nuitka
+      working-directory: ./scripts
       run: "nuitka.run.bat"
       shell: cmd
 
@@ -61,6 +62,7 @@ jobs:
       run: find $pythonLocation -name *.so* -type f -exec strip {} \;
 
     - name: STAGE run Nuitka
+      working-directory: ./scripts
       run: bash "nuitka.run.sh"
 
     - uses: actions/upload-artifact@v3
