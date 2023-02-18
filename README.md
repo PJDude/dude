@@ -21,7 +21,7 @@ GUI utility for finding duplicated files, delete or link them to save space.
 - **dude** is licensed under **MIT license**
 
 ## Dude GUI (gif not up to date):
-![image info](./dude.gif)
+![image info](./info/dude.gif)
 
 ## Download page:
 

@@ -134,3 +134,7 @@ dude.build/
 dude.dist/
 dude.onefile-build/
 .idea/
+
+dude
+dude.exe
+dudegui.exe
