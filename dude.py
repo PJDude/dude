@@ -120,6 +120,8 @@ DELETE=0
 SOFTLINK=1
 HARDLINK=2
 
+HOMEPAGE='https://github.com/PJDude/dude'
+
 class Config:
     def __init__(self,ConfigDir):
         logging.debug(f'Initializing config: {ConfigDir}')
@@ -852,11 +854,11 @@ class Gui:
             self.GoToCascade.add_command(label = 'Go to dominant folder (by size sum)',command = lambda : self.GoToMaxFolder(1),accelerator="F5",state=ItemActionsState)
             self.GoToCascade.add_command(label = 'Go to dominant folder (by quantity)',command = lambda : self.GoToMaxFolder(0), accelerator="F6",state=ItemActionsState)
             self.GoToCascade.add_separator()
-            self.GoToCascade.add_command(label = 'Go to next marked file'       ,command = lambda : self.GotoNextMarkMenu(1,0),accelerator="Right",state='normal')
-            self.GoToCascade.add_command(label = 'Go to previous marked file'   ,command = lambda : self.GotoNextMarkMenu(-1,0), accelerator="Left",state='normal')
+            self.GoToCascade.add_command(label = 'Go to next marked file'       ,command = lambda : self.GotoNextMarkMenu(1,0),accelerator="Right",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to previous marked file'   ,command = lambda : self.GotoNextMarkMenu(-1,0), accelerator="Left",state=ItemActionsState)
             self.GoToCascade.add_separator()
-            self.GoToCascade.add_command(label = 'Go to next not marked file'       ,command = lambda : self.GotoNextMarkMenu(1,1),accelerator="Shift+Right",state='normal')
-            self.GoToCascade.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.GotoNextMarkMenu(-1,1), accelerator="Shift+Left",state='normal')
+            self.GoToCascade.add_command(label = 'Go to next not marked file'       ,command = lambda : self.GotoNextMarkMenu(1,1),accelerator="Shift+Right",state=ItemActionsState)
+            self.GoToCascade.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.GotoNextMarkMenu(-1,1), accelerator="Shift+Left",state=ItemActionsState)
 
             #self.GoToCascade.add_separator()
             #self.GoToCascade.add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.GoToMaxFolder(1,1),accelerator="Backspace",state=ItemActionsState)
@@ -869,6 +871,11 @@ class Gui:
         self.HelpCascade= Menu(self.menubar,tearoff=0,bg=self.bg)
         self.HelpCascade.add_command(label = 'About',command=self.About,accelerator="F1")
         self.HelpCascade.add_command(label = 'License',command=self.License)
+        self.HelpCascade.add_separator()
+        self.HelpCascade.add_command(label = 'Open current Log',command=self.ShowLog)
+        self.HelpCascade.add_command(label = 'Open logs directory',command=self.ShowLogDir)
+        self.HelpCascade.add_separator()
+        self.HelpCascade.add_command(label = 'Open homepage',command=self.ShowHomepage)
 
         self.menubar.add_cascade(label = 'Help',menu = self.HelpCascade)
 
@@ -2331,8 +2338,7 @@ class Gui:
         info.append(f'                       DUDE (DUplicates DEtector) v{version.VERSION}                 ')
         info.append('                            Author: Piotr Jochymek                            ')
         info.append('                                                                              ')
-        info.append('                        https://github.com/PJDude/dude                        ')
-        info.append('                        https://pjdude.github.io/dude/                        ')
+        info.append('                        ' + HOMEPAGE + '                        ')
         info.append('                                                                              ')
         info.append('                            PJ.soft.dev.x@gmail.com                           ')
         info.append('                                                                              ')
@@ -2736,6 +2742,7 @@ class Gui:
 
     @MainWatchCursor
     def MarkOnAllByCTime(self,orderStr, action):
+        self.Status('Un/Setting marking on all files ...')
         reverse=1 if orderStr=='oldest' else 0
 
         { self.MarkInSpecifiedCRCGroupByCTime(action, crc, reverse) for crc in self.TreeGroups.get_children() }
@@ -2745,6 +2752,7 @@ class Gui:
 
     @MainWatchCursor
     def MarkInCRCGroupByCTime(self,orderStr,action):
+        self.Status('Un/Setting marking in group ...')
         reverse=1 if orderStr=='oldest' else 0
         self.MarkInSpecifiedCRCGroupByCTime(action,self.SelCrc,reverse,True)
         self.TreeFolderUpdateMarks()
@@ -2756,6 +2764,7 @@ class Gui:
 
     @MainWatchCursor
     def MarkInCRCGroup(self,action):
+        self.Status('Un/Setting marking in group ...')
         self.MarkInSpecifiedCRCGroup(action,self.SelCrc)
         self.TreeFolderUpdateMarks()
         self.CalcMarkStatsAll()
@@ -2763,12 +2772,14 @@ class Gui:
 
     @MainWatchCursor
     def MarkOnAll(self,action):
+        self.Status('Un/Setting marking on all files ...')
         { self.MarkInSpecifiedCRCGroup(action,crc) for crc in self.TreeGroups.get_children() }
         self.TreeFolderUpdateMarks()
         self.CalcMarkStatsAll()
         self.CalcMarkStatsPath()
 
     def ActionOnPathPane(self,action,items):
+        self.Status('Un/Setting marking in folder ...')
         { (action(item,self.TreeFolder),action(item,self.TreeGroups)) for item in items if self.TreeFolder.set(item,'kind')==FILE }
 
         self.CalcMarkStatsAll()
@@ -2776,6 +2787,7 @@ class Gui:
 
     @MainWatchCursor
     def MarkLowerPane(self,action):
+        self.Status('Un/Setting marking in folder ...')
         { (action(item,self.TreeFolder),action(item,self.TreeGroups)) for item in self.TreeFolder.get_children() if self.TreeFolder.set(item,'kind')==FILE }
 
         self.CalcMarkStatsAll()
@@ -3554,7 +3566,25 @@ class Gui:
                 os.system("xdg-open "+ '"' + os.sep.join([self.SelFullPath,self.SelFile]).replace("'","\'").replace("`","\`") + '"')
         elif self.SelKind==DIR:
             self.OpenFolder()
-
+    
+    def ShowLog(self):
+        if windows:
+            os.startfile(log)
+        else:
+            os.system("xdg-open "+ '"' + log + '"')
+    
+    def ShowLogDir(self):
+        if windows:
+            os.startfile(LOG_DIR)
+        else:
+            os.system("xdg-open " + '"' + LOG_DIR + '"')
+            
+    def ShowHomepage(self):
+        if windows:
+            os.startfile(HOMEPAGE)
+        else:
+            os.system("xdg-open " + HOMEPAGE)
+    
     def SetCommonVarWin(self):
         self.StatusVarFullPath.set(pathlib.Path(os.sep.join([self.SelFullPath,self.SelFile])))
 
