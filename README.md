@@ -4,14 +4,13 @@ GUI utility for finding duplicated files, delete or link them to save space.
 
 ## Features:
 - Scanning for duplicated files
--Files display on two synchronized panels
+- Two synchronized panels
   - duplicates groups
   - directory of selected file
-- Two stage processing on found duplicated files
+- Two stage processing
   - marking of files with multiple criteria
   - taking action on marked files
-  - Confirmation is required before any file processing
-- Command line parameters for integration with favorite file manager (e.g. Double Commander)
+- Command Line parameters for integration with favorite file manager (e.g. Double Commander)
 
 
 ## Supported platforms:
@@ -29,14 +28,13 @@ GUI utility for finding duplicated files, delete or link them to save space.
 https://pjdude.github.io/dude/
 
 ## General usage:
-- **scan for duplicate files**
-- **mark files for processing**
-- **take action on marked files (delete, softlink, hardlink)**
+- scan for duplicate files
+- mark files for processing
+- take action on marked files (delete, softlink, hardlink)
 
 
 
-## Command line:
-Scan parameters (paths, excluding expressions etc.) can be passed as command line parameters. Examples:
+## Command line examples:
 * Start scanning for duplicates in current directory:
 ```
 dude .
@@ -44,10 +42,6 @@ dude .
 * Start scanning in specified directories:
 ```
 dude c:\order d:\mess
-```
-* Set scan paths but do not start scanning:
-```
-dude c:\19 x:\9\11 j:\f\k n:\wo --norun
 ```
 * check full set of available parameters:
 ```
