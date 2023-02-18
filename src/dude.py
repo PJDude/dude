@@ -790,21 +790,27 @@ class Gui:
         fr.pack(expand=1,fill='both')
 
         row = 0
-        ttk.Checkbutton(fr, text = 'Show full CRC', variable=self.FullCRC                                       ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        ttk.Checkbutton(fr, text = 'Show full scan paths', variable=self.FullPaths                              ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        ttk.Checkbutton(fr, text = 'Create relative symbolic links', variable=self.RelSymlinks                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        lf=tk.LabelFrame(fr, text="Main panels",borderwidth=2,bg=self.bg)
+        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
 
-        ttk.Checkbutton(fr, text = 'Erase Empty directories', variable=self.EraseEmptyDirs                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        ttk.Checkbutton(lf, text = 'Show full CRC', variable=self.FullCRC                                       ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(lf, text = 'Show full scan paths', variable=self.FullPaths                              ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+        
+        lf=tk.LabelFrame(fr, text="Confirmation Dialog",borderwidth=2,bg=self.bg)
+        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        
+        ttk.Checkbutton(lf, text = 'Allow to delete all copies (WARNING!)', variable=self.AllowDeleteAll                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(lf, text = 'Skip groups with invalid selection', variable=self.SkipIncorrectGroups                  ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(lf, text = 'Show soft links targets', variable=self.ConfirmShowLinksTargets                  ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(lf, text = 'Show CRC and size', variable=self.ConfirmShowCrcSize                  ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+                
+        lf=tk.LabelFrame(fr, text="Processing",borderwidth=2,bg=self.bg)
+        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        
+        ttk.Checkbutton(lf, text = 'Create relative symbolic links', variable=self.RelSymlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(lf, text = 'Erase remaining empty directories', variable=self.EraseEmptyDirs                  ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
 
-        ttk.Checkbutton(fr, text = 'Allow to delete all copies (WARNING!)', variable=self.AllowDeleteAll                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        ttk.Checkbutton(fr, text = 'Skip groups with invalid selection', variable=self.SkipIncorrectGroups                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        #ttk.Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.AllowDeleteNonDuplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-
-        tk.Label(fr, text = '',bg=self.bg).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        tk.Label(fr, text = 'Confirmation Dialog Options:',bg=self.bg,anchor='w').grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-
-        ttk.Checkbutton(fr, text = 'Show soft links targets', variable=self.ConfirmShowLinksTargets                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
-        ttk.Checkbutton(fr, text = 'Show CRC and size', variable=self.ConfirmShowCrcSize                  ).grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        #ttk.Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.AllowDeleteNonDuplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2)
 
         bfr=tk.Frame(fr,bg=self.bg)
         fr.grid_rowconfigure(row, weight=1); row+=1
@@ -824,9 +830,12 @@ class Gui:
         try:
             self.license=pathlib.Path(os.path.join(os.path.dirname(__file__),'LICENSE')).read_text()
         except Exception as e:
-            self.Status(str(e))
             logging.error(e)
-            self.exit()
+            try:
+                self.license=pathlib.Path(os.path.join(os.path.dirname(os.path.dirname(__file__)),'LICENSE')).read_text()
+            except Exception as e:
+                logging.error(e)
+                self.exit()
 
         def FileCascadeFill():
             self.FileCascade.delete(0,END)
@@ -3207,11 +3216,11 @@ class Gui:
         ShowFullPath=1
 
         message=[]
-        if not self.cfg.Get(CFG_CONFIRM_SHOW_CRCSIZE,False)=='True':
+        if not self.cfg.GetBool(CFG_CONFIRM_SHOW_CRCSIZE):
             message.append('')
 
         for crc in ProcessedItems:
-            if self.cfg.Get(CFG_CONFIRM_SHOW_CRCSIZE,False)=='True':
+            if self.cfg.GetBool(CFG_CONFIRM_SHOW_CRCSIZE):
                 size=int(self.TreeGroups.set(crc,'size'))
                 message.append('')
                 message.append('CRC:' + crc + ' size:' + core.bytes2str(size) + '|GRAY')
