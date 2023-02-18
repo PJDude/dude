@@ -3,17 +3,23 @@
 GUI utility for finding duplicated files, delete or link them to save space.
 
 ## Features:
-- **Scanning for duplicated files**
-- **Files display on two synchronized panels**
-  - **duplicates groups**
-  - **directory of selected file**
-- **Two stage operation on found duplicated files**
-  - **marking of files with multiple criteria**
-  - **taking action on marked files**
-  - **Confirmation required before any destructive action**
-- **Command line parameters for integration with favorite file manager (e.g. Double Commander)**
-- **Supported platforms: Linux, Windows**
-- **MIT license**
+- Scanning for duplicated files
+-Files display on two synchronized panels
+  - duplicates groups
+  - directory of selected file
+- Two stage processing on found duplicated files
+  - marking of files with multiple criteria
+  - taking action on marked files
+  - Confirmation is required before any file processing
+- Command line parameters for integration with favorite file manager (e.g. Double Commander)
+
+
+## Supported platforms:
+- Linux
+- Windows
+
+## Licensing
+- **dude** is licensed under **MIT license**
 
 ## Dude GUI (gif not up to date):
 ![image info](./dude.gif)
@@ -22,18 +28,16 @@ GUI utility for finding duplicated files, delete or link them to save space.
 
 https://pjdude.github.io/dude/
 
-## How to use:
-- **open Scan dialog** (S)
-- **specify paths to scan** (Add Paths Alt+A)
-- **scan for duplicate files** (Alt+S)
-- **mark files for processing** (Try Tab, space, arrows, A, I etc. )
-- **take action on marked files** (Delete,Insert etc.)
-- **check keyboard shortcuts any time** (F1)
+## General usage:
+- **scan for duplicate files**
+- **mark files for processing**
+- **take action on marked files (delete, softlink, hardlink)**
 
 
-## Command line parameters:
+
+## Command line:
 Scan parameters (paths, excluding expressions etc.) can be passed as command line parameters. Examples:
-* Just start scanning for duplicates in current directory:
+* Start scanning for duplicates in current directory:
 ```
 dude .
 ```
@@ -45,18 +49,19 @@ dude c:\order d:\mess
 ```
 dude c:\19 x:\9\11 j:\f\k n:\wo --norun
 ```
+* check full set of available parameters:
+```
+dude --help
+```
 
-Start dude with '--help' to check full set of available parameters.
 
 ## Technical information
-- dude compare files by calculated SHA1 hash of file content
-- Scanning process analyses selected paths and creates groups files with the same size
-- CRC calculation is done in order from the largest files to the smallest files in separate threads for every identified device (drive). Number of active threads is limited by available CPU cores. Aborting of CRC calculation gives only partial results - not all files may be identified as duplicates, but restarted scanning process will use cached data.
-- Calculated CRC is stored in internal cache which allows re-use it in future operation and speedup searching of duplicates (e.g. with different set of search paths). Key of cache database is pair of inode of file and file modification time stored separately for every device-id so any file modification or displacement will result in recalculation of CRC.
-- just marking files in dude does not cause any filesystem change. Any file deletion or linking needs confirmation and is logged.
-- just before files processing, state of files (ctime) is compared with stored data. In case of inconsistency (state of files was changed somehow during operation between scanning/CRC calculation and files processing) action is aborted and data invalidated.
-- dude is written in python3 with Tkinter and compiled to single binary executable with [Nuitka](https://github.com/Nuitka/Nuitka) (great tool) for better performance. GitHub build for linux platform is done in ubuntu-20.04 container. In case of glibc incompatibility it is always possible to build Your own binary (nuitka.run.sh) or run python script (dude.py)
-- dude for windows is build as two binary executables: dude.exe & dudegui.exe. They should be saved in the same path. Both can start dude but only dude.exe can properly respond on windows console. Both will accept command line parameters.
+- Scanning process analyses selected paths and creates groups files with the same size. **Dude** compares files by calculated **SHA1** hash of file content. CRC calculation is done in order, from the largest files to the smallest files, in separate threads for every identified device (drive). Number of active threads is limited by available CPU cores. Aborting of CRC calculation gives only partial results - not all files may be identified as duplicates. Restarted scanning process will use cached data.
+- Calculated CRC is stored in internal cache which allows re-use it in future operation and speedup searching of duplicates (e.g. with different set of search paths). Key of cache database is pair of inode of file and file modification time stored separately for every device-id, so any file modification or displacement will result in invalidation of obsolete data and recalculation of CRC.
+- Marking files does not cause any filesystem change. Any file deletion or linking needs confirmation and is logged.
+- Just before files processing, state of files (ctime) is compared with stored data. In case of inconsistency (state of files was changed somehow during operation between scanning/CRC calculation and files processing) action is aborted and data invalidated.
+- **Dude** is written in **python3** with **Tkinter** and compiled to single binary executable with **[Nuitka](https://github.com/Nuitka/Nuitka)** (great tool) for better performance. GitHub build for linux platform is done in **ubuntu-20.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**nuitka.run.sh**) or run python script (**dude.py**)
+- **Dude** for windows is build as two binary executables: **dude.exe** & **dudegui.exe**. They should be saved in the same path. Both can start **dude** but only **dude.exe** can properly respond on windows console. Both will accept command line parameters.
 
 ###### Manual build:
 ```
