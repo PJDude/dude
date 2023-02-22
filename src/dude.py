@@ -196,11 +196,11 @@ raw = lambda x : x
 class GenericDialog :
     def __init__(self,parent,icon,title,pre_show=None,post_close=None,min_width=600,min_height=400):
         self.widget = tk.Toplevel(parent)
+        self.widget.withdraw()
+        self.widget.update()
         self.widget.protocol("WM_DELETE_WINDOW", self.hide)
         self.widget.minsize(min_width, min_height)
         self.widget.wm_transient(parent)
-        self.widget.update()
-        self.widget.withdraw()
         self.widget.iconphoto(False, icon)
 
         self.widget.config(bd=0, relief=FLAT)
@@ -669,6 +669,9 @@ class Gui:
         self.main = tk.Tk()
         self.main.title(f'Dude (DUplicates DEtector) v{version.VERSION}')
         self.main.protocol("WM_DELETE_WINDOW", self.exit)
+        self.main.withdraw()
+        self.main.update()
+        
         self.main.minsize(1200, 800)
 
         self.iconphoto = PhotoImage(file = os.path.join(os.path.dirname(__file__),'icon.png'))
@@ -690,7 +693,7 @@ class Gui:
         style.theme_create("dummy", parent='vista' if windows else 'clam' )
 
         self.bg = style.lookup('TFrame', 'background')
-        global bg
+        #global bg
         bg=self.bg
 
         style.theme_use("dummy")
@@ -743,9 +746,6 @@ class Gui:
 
         frame_folder.grid_columnconfigure(0, weight=1)
         frame_folder.grid_rowconfigure(0, weight=1,minsize=200)
-
-        self.paned.update()
-        self.paned.sash_place(0,0,self.cfg.get('sash_coord',400,section='geometry'))
 
         (status_frame_groups := tk.Frame(frame_groups,bg=self.bg)).pack(side='bottom', fill='both')
         self.status_var_groups.set('0')
@@ -916,7 +916,27 @@ class Gui:
         self.tree_folder.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
         self.tree_folder.bind('<Control-ButtonPress-1>',  lambda event :self.tree_on_mouse_button_press(event,True) )
 
-        self.main_show_with_geometry()
+        try:
+            self.main.update()
+            CfgGeometry=self.cfg.get('main','',section='geometry')
+
+            if CfgGeometry:
+                self.main.geometry(CfgGeometry)
+            else:
+                set_geometry_by_screen(self.main)
+        except Exception as e:
+            self.status(str(e))
+            logging.error(e)
+            CfgGeometry = None
+
+        self.main.deiconify()
+        
+        self.paned.update()
+        self.paned.sash_place(0,0,self.cfg.get('sash_coord',400,section='geometry'))
+        
+        #prevent displacement
+        if CfgGeometry :
+            self.main.geometry(CfgGeometry)
 
         self.popup_groups = Menu(self.groups_tree, tearoff=0,bg=self.bg)
         self.popup_groups.bind("<FocusOut>",lambda event : self.popup_groups.unpost() )
@@ -1284,26 +1304,6 @@ class Gui:
         #self.SettingsDialog.destroy()
         self.splitter_store()
         exit()
-
-    def main_show_with_geometry(self):
-        try:
-            self.main.update()
-            CfgGeometry=self.cfg.get('main','',section='geometry')
-
-            if CfgGeometry:
-                self.main.geometry(CfgGeometry)
-            else:
-                set_geometry_by_screen(self.main)
-        except Exception as e:
-            self.status(str(e))
-            logging.error(e)
-            CfgGeometry = None
-
-        self.main.deiconify()
-
-        #prevent displacement
-        if CfgGeometry :
-            self.main.geometry(CfgGeometry)
 
     def main_geometry_store(self):
         self.cfg.set('main',str(self.main.geometry()),section='geometry')
