@@ -214,7 +214,7 @@ class DudeCore:
 
         return self.ScanDirCache[path]
 
-    def Scan(self):
+    def scan(self):
         self.Log.info('')
         self.Log.info('SCANNING')
 
@@ -557,7 +557,6 @@ class DudeCore:
                         NothingStarted=False
                         break
 
-
             for dev in self.devs:
                 if self.AbortAction or (FileNamesQueue[dev].qsize()==0 and OpenedFilesQueue[dev].qsize()==0):
                     if CRCThread[dev].is_alive():
@@ -882,7 +881,7 @@ if __name__ == "__main__":
 
     core.writeLog=True
 
-    ScanThread=Thread(target=core.Scan,daemon=True)
+    ScanThread=Thread(target=core.scan,daemon=True)
     ScanThread.start()
 
     while ScanThread.is_alive():
