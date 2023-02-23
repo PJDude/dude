@@ -34,7 +34,7 @@ from subprocess import Popen
 from subprocess import DEVNULL
 import version
 
-def ParseArgs(ver):
+def parse_args(ver):
     parser = argparse.ArgumentParser(
             formatter_class=argparse.RawTextHelpFormatter,
             prog = 'dude.exe' if (os.name=='nt') else 'dude',
@@ -48,15 +48,21 @@ def ParseArgs(ver):
     parser.add_argument('--norun'           ,action='store_true'    ,help='don\'t run scanning, only show scan dialog')
     parser.add_argument('-l','--log' ,nargs='?'                     ,help='specify log file')
     parser.add_argument('-d','--debug' ,action='store_true'         ,help='set debug logging level')
-
+    
+    
+    help=parser.format_help().split('\n')
+    help_parts=[help[0]] + help[7::]
+    #print('\n'.join(help_parts))
+    
     return parser.parse_args()
+
+GUI_MAIN_WIN_APP_NAME='dudegui.exe'
 
 #windows console problem case
 if __name__ == "__main__":
-    args=ParseArgs(version.VERSION)
-
-    GuiMainApp='dudegui.exe'
-    command =[GuiMainApp]
+    args=parse_args(version.VERSION)
+    
+    command =[GUI_MAIN_WIN_APP_NAME]
 
     if args.norun:
         command.append('--norun')
@@ -79,7 +85,7 @@ if __name__ == "__main__":
     if args.paths:
         command.extend(args.paths)
 
-    if os.path.exists(GuiMainApp):
+    if os.path.exists(GUI_MAIN_WIN_APP_NAME):
         try:
             Popen(command,stdin=DEVNULL,stdout=DEVNULL,stderr=DEVNULL)
             #dont wait with open console for main process
@@ -88,5 +94,5 @@ if __name__ == "__main__":
             print(e)
             exit()
     else:
-        print(f'Cannot find {GuiMainApp}')
+        print(f'Cannot find {GUI_MAIN_WIN_APP_NAME}')
         exit()

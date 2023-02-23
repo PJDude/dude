@@ -43,7 +43,7 @@ import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 #from tkinter import font
-from tkinter import scrolledtext
+
 from tkinter.filedialog import askdirectory
 
 from collections import defaultdict
@@ -54,6 +54,7 @@ from sys import argv
 import version
 import core
 import console
+from dialogs import *
 
 LoggingLevels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 
@@ -177,284 +178,10 @@ class Config:
             self.set_bool(key,res,section=section)
             return res
 
-def set_geometry_by_parent(widget,parent):
-    x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
-    y = int(parent.winfo_rooty()+0.5*(parent.winfo_height()-widget.winfo_height()))
-
-    widget.geometry(f'+{x}+{y}')
-
-def set_geometry_by_screen(widget):
-    x = int(0.5*(widget.winfo_screenwidth()-widget.winfo_width()))
-    y = int(0.5*(widget.winfo_screenheight()-widget.winfo_height()))
-
-    widget.geometry(f'+{x}+{y}')
-
 ###########################################################
 
 raw = lambda x : x
 
-class GenericDialog :
-    def __init__(self,parent,icon,title,pre_show=None,post_close=None,min_width=600,min_height=400):
-        self.widget = tk.Toplevel(parent)
-        self.widget.withdraw()
-        self.widget.update()
-        self.widget.protocol("WM_DELETE_WINDOW", self.hide)
-        self.widget.minsize(min_width, min_height)
-        self.widget.wm_transient(parent)
-        self.widget.iconphoto(False, icon)
-
-        self.widget.config(bd=0, relief=FLAT)
-
-        self.widget.title(title)
-        self.widget.bind('<Escape>', self.hide)
-        
-        self.widget.bind('<KeyPress-Return>', self.return_bind)
-        
-        self.parent=parent
-        
-        self.pre_show=pre_show
-        self.post_close=post_close
-        
-        self.area_main = tk.Frame(self.widget)
-        self.area_main.pack(side='top',expand=1,fill='both')
-        
-        self.area_main.grid_columnconfigure(0, weight=1)
-        
-        self.area_buttons = tk.Frame(self.widget)
-        self.area_buttons.pack(side='bottom',expand=0,fill='x')
-        
-        self.res=tk.StringVar()
-        
-        self.focus_restore=True
-    
-    def return_bind(self,event):
-        widget=event.widget
-        try:
-            widget.invoke()
-        except:
-            pass
-
-    def show(self,focus=None):
-        self.preFocus=self.parent.focus_get()
-
-        if self.pre_show:
-            self.pre_show()
-        
-        self.parent.config(cursor="watch")
-
-        self.widget.update()
-        set_geometry_by_parent(self.widget,self.parent)
-        self.widget.grab_set()
-        
-        self.res.set('')
-        self.widget.deiconify()
-        if focus:
-            focus.focus_set()
-            
-        self.widget.wait_variable(self.res)
-        
-        return self.res.get()
-        
-    def hide(self,event=None,SetRes=True):
-        self.widget.grab_release()
-        self.parent.config(cursor="")
-
-        self.widget.withdraw()
-        
-        if self.focus_restore:
-            if self.preFocus:
-                self.preFocus.focus_set()
-            else:
-                self.parent.focus_set()
-            
-        try:
-            self.widget.update()
-        except Exception as e:
-            pass
-        
-        if self.post_close:
-            self.post_close()
-        
-        if SetRes:
-            self.res.set('')
-
-class LabelDialog(GenericDialog):
-    def __init__(self,parent,icon,pre_show=None,post_close=None,min_width=300,min_height=120):
-        super().__init__(parent,icon,'',pre_show,post_close,min_width=300,min_height=120)
-        
-        self.label = ttk.Label(self.area_main, text='',justify='center')
-        self.label.grid(row=0,column=0,padx=5,pady=5)
-    
-        self.cancel_button=ttk.Button(self.area_buttons, text='OK', width=14, command=super().hide )
-        self.cancel_button.pack(side='bottom', anchor='n',padx=5,pady=5)
-        
-    def info(self,title,message,min_width=300,min_height=120):
-        try:
-            self.widget.title(title)
-            self.label.configure(text=message)
-            self.widget.minsize(min_width, min_height)
-            return super().show(self.cancel_button)
-        except Exception as e:
-            print(e)
-            return ""
-
-class TextDialogQuestion(GenericDialog):
-    def __init__(self,parent,icon,pre_show=None,post_close=None,min_width=300,min_height=120):
-        super().__init__(parent,icon,'',pre_show,post_close,min_width=300,min_height=120)
-        
-        textwidth=80
-        self.Text = scrolledtext.ScrolledText(self.area_main,relief='groove' , bd=2,bg='white',width = textwidth,takefocus=True)
-        self.Text.frame.config(takefocus=False)
-        self.Text.vbar.config(takefocus=False)
-
-        self.Text.tag_configure('RED', foreground='red')
-        self.Text.tag_configure('GRAY', foreground='gray')
-        
-        self.Text.grid(row=0,column=0,padx=5,pady=5)
-    
-        self.cancel_button=ttk.Button(self.area_buttons, text='Cancel', width=14, command=super().hide )
-        self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
-        
-        self.cancel_button=ttk.Button(self.area_buttons, text='OK', width=14, command=self.ok )
-        self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
-    
-    def ok (self,event=None):
-        self.res.set('1')
-        super().hide(SetRes=False)
-        
-    def ask(self,title,message,min_width=800,min_height=400):
-        try:
-            self.widget.title(title)
-
-            self.Text.configure(state=NORMAL)
-            self.Text.delete('1.0', END)
-            for line in message.split('\n'):
-                lineSplitted=line.split('|')
-                tag=lineSplitted[1] if len(lineSplitted)>1 else None
-
-                self.Text.insert(END, lineSplitted[0] + "\n", tag)
-
-            self.Text.configure(state=DISABLED)
-            self.Text.grid(row=0,column=0,sticky='news',padx=5,pady=5)
-            
-            self.widget.minsize(min_width, min_height)
-            res = super().show(self.cancel_button)
-            return True if res else False
-            
-        except Exception as e:
-            print(e)
-            return ""
-            
-class EntryDialogQuestion(LabelDialog):
-    def __init__(self,parent,icon,pre_show=None,post_close=None):
-        super().__init__(parent,icon,pre_show,post_close,min_width=300,min_height=120)
-        
-        self.cancel_button.configure(text='Cancel')
-        
-        self.entry_val=tk.StringVar()
-        
-        self.entry = ttk.Entry(self.area_main, textvariable=self.entry_val,justify='left')
-        self.entry.grid(row=2,column=0,padx=5,pady=5,sticky="wens")
-    
-        self.button_ok = ttk.Button(self.area_buttons, text='OK', width=14, command=self.ok )
-        self.button_ok.pack(side='left', anchor='n',padx=5,pady=5)
-    
-        self.cancel_button.pack(side='right')
-       
-    def return_bind(self,event):
-        widget=event.widget
-        if widget==self.entry:
-            self.button_ok.invoke()
-        else:
-            super().return_bind(event)
-    
-    def ok(self,event=None):
-        self.res.set(str(self.entry_val.get()))
-        super().hide(SetRes=False)
-        
-    def ask(self,title,message,initial,min_width=300,min_height=120):
-        self.entry_val.set(initial)
-        res = super().info(title,message,min_width,min_height)
-        
-        return res
-
-class CheckboxEntryDialogQuestion(EntryDialogQuestion):
-    def __init__(self,parent,icon,pre_show=None,post_close=None):
-        super().__init__(parent,icon,pre_show,post_close)
-        
-        self.check_val=tk.BooleanVar()
-        
-        self.check = ttk.Checkbutton(self.area_main, variable=self.check_val)
-        self.check.grid(row=1,column=0,padx=5,pady=5,sticky="wens")
-    
-    def ask(self,title,message,initial,CheckDescr,CheckInitial,min_width=300,min_height=120):
-
-        self.check_val.set(CheckInitial)
-        self.check.configure(text=CheckDescr)
-
-        res = super().ask(title,message,initial,min_width,min_height)
-        
-        return(self.check_val.get(),res)
-
-class FindEntryDialog(CheckboxEntryDialogQuestion):
-    def __init__(self,parent,icon,mod_cmd,prev_cmd,next_cmd,initial,CheckInitial,pre_show=None,post_close=None):
-        super().__init__(parent,icon,pre_show,post_close)
-        
-        self.widget.title('Find')
-        self.label.configure(text='')
-        self.check.configure(text='Use regular expressions matching')
-        
-        self.entry_val.set(initial)
-        self.check_val.set(CheckInitial)
-
-        self.button_prev = ttk.Button(self.area_buttons, text='prev (Shift+F3)', width=14, command=self.prev )
-        self.button_prev.pack(side='left', anchor='n',padx=5,pady=5)   
-        
-        self.button_next = ttk.Button(self.area_buttons, text='next (F3)', width=14, command=self.next )
-        self.button_next.pack(side='right', anchor='n',padx=5,pady=5)   
-        
-        self.mod_cmd=mod_cmd
-        self.prev_cmd=prev_cmd
-        self.next_cmd=next_cmd
-        
-        self.button_ok.pack_forget()
-        
-        self.check.configure(command=self.mod)
-        
-        self.widget.bind('<KeyRelease>',self.mod)
-        
-        self.widget.bind('<KeyPress-F3>', self.F3_bind)
-        self.focus_restore=False
-        
-    def F3_bind(self,event):
-        if 'Shift' in str(event):
-            self.button_prev.invoke()
-        else:
-            self.button_next.invoke()
-
-    def return_bind(self,event):
-        widget=event.widget
-        if widget==self.entry:
-            self.button_next.invoke()
-        else:
-            super().return_bind(event)
-    
-    def mod(self,event=None):
-        self.mod_cmd(self.entry_val.get(),self.check_val.get())
-        
-    def prev(self,event=None):
-        self.prev_cmd(self.entry_val.get(),self.check_val.get())
-    
-    def next(self,event=None):
-        self.next_cmd(self.entry_val.get(),self.check_val.get())
-
-    def show(self,message,min_width=300,min_height=120):
-        try:
-            self.label.configure(text=message)
-            super().show()
-        except Exception as e:
-            print(e)
-        
 class Gui:
     NUMBERS='①②③④⑤⑥⑦⑧⑨⑩' if windows else '⓵⓶⓷⓸⓹⓺⓻⓼⓽⓾'
 
@@ -465,7 +192,7 @@ class Gui:
     SelItemTree = {}
 
     sel_path_full={}
-    FolderItemsCache={}
+    folder_items_cache={}
 
     do_process_events=True
 
@@ -535,7 +262,7 @@ class Gui:
 
     #######################################################################
     action_abort=False
-    def crc_progress_dialogShow(self,parent,title,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
+    def crc_progress_dialog_show(self,parent,title,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
         self.LADParent=parent
 
         self.psIndex =0
@@ -546,8 +273,8 @@ class Gui:
         self.crc_progress_dialog = tk.Toplevel(parent)
         self.crc_progress_dialog.wm_transient(parent)
 
-        self.crc_progress_dialog.protocol("WM_DELETE_WINDOW", self.crc_progress_dialogAbort)
-        self.crc_progress_dialog.bind('<Escape>', self.crc_progress_dialogAbort)
+        self.crc_progress_dialog.protocol("WM_DELETE_WINDOW", self.crc_progress_dialog_abort)
+        self.crc_progress_dialog.bind('<Escape>', self.crc_progress_dialog_abort)
 
         self.crc_progress_dialog.wm_title(title)
         self.crc_progress_dialog.iconphoto(False, self.iconphoto)
@@ -597,7 +324,7 @@ class Gui:
 
         self.message=tk.StringVar()
         tk.Label(f1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg).pack(side='top',padx=8,pady=8,expand=1,fill='x')
-        ttk.Button(f1, text='Abort', width=10 ,command=self.crc_progress_dialogAbort ).pack(side='bottom',padx=8,pady=8)
+        ttk.Button(f1, text='abort', width=10 ,command=self.crc_progress_dialog_abort ).pack(side='bottom',padx=8,pady=8)
 
         try:
             self.crc_progress_dialog.update()
@@ -611,7 +338,7 @@ class Gui:
 
         self.action_abort=False
 
-    def crc_progress_dialogAbort(self,event=None):
+    def crc_progress_dialog_abort(self,event=None):
         self.action_abort=True
 
     def crc_progress_dialog_end(self):
@@ -660,8 +387,8 @@ class Gui:
         self.cfg = Config(CONFIG_DIR)
         self.cfg.read()
 
-        self.PathsToScanFrames=[]
-        self.ExcludeFrames=[]
+        self.paths_to_scan_frames=[]
+        self.exclude_frames=[]
 
         self.paths_to_scan_from_dialog=[]
 
@@ -693,8 +420,6 @@ class Gui:
         style.theme_create("dummy", parent='vista' if windows else 'clam' )
 
         self.bg = style.lookup('TFrame', 'background')
-        #global bg
-        bg=self.bg
 
         style.theme_use("dummy")
 
@@ -776,7 +501,7 @@ class Gui:
 
         self.main.unbind_class('Treeview', '<KeyPress-Up>')
         self.main.unbind_class('Treeview', '<KeyPress-Down>')
-        self.main.unbind_class('Treeview', '<KeyPress-next>')
+        self.main.unbind_class('Treeview', '<KeyPress-Next>')
         self.main.unbind_class('Treeview', '<KeyPress-Prior>')
         self.main.unbind_class('Treeview', '<KeyPress-space>')
         self.main.unbind_class('Treeview', '<KeyPress-Return>')
@@ -923,7 +648,11 @@ class Gui:
             if CfgGeometry:
                 self.main.geometry(CfgGeometry)
             else:
-                set_geometry_by_screen(self.main)
+                x = int(0.5*(self.main.winfo_screenwidth()-self.main.winfo_width()))
+                y = int(0.5*(self.main.winfo_screenheight()-self.main.winfo_height()))
+
+                self.main.geometry(f'+{x}+{y}')
+                
         except Exception as e:
             self.status(str(e))
             logging.error(e)
@@ -947,51 +676,33 @@ class Gui:
         #######################################################################
         #scan dialog
 
-        def ScanDialogReturnPressed(event=None):
-            focus=self.scan_dialog.focus_get()
-            try:
-                focus.invoke()
-            except:
-                pass
+        def TypicalPreShow():
+            self.menu_disable()
+            self.menubar.config(cursor="watch")
+        
+        def TypicalPostClose():
+            self.menu_enable()
+            self.menubar.config(cursor="")
 
-        self.scan_dialog = tk.Toplevel(self.main)
-        self.scan_dialog.protocol("WM_DELETE_WINDOW", self.scan_dialog_close)
-        self.scan_dialog.minsize(600, 400)
-        self.scan_dialog.wm_transient(self.main)
-        self.scan_dialog.update()
-        self.scan_dialog.withdraw()
-        self.scan_dialog.iconphoto(False, self.iconphoto)
-
-        self.ScanDialogMainFrame = tk.Frame(self.scan_dialog,bg=self.bg)
-        self.ScanDialogMainFrame.pack(expand=1, fill='both')
-
-        self.scan_dialog.config(bd=0, relief=FLAT)
-
-        self.scan_dialog.title('scan')
-
-        self.sizeMinVar=tk.StringVar()
-        self.sizeMaxVar=tk.StringVar()
+        self.scan_dialog=GenericDialog(self.main,self.iconphoto,self.bg,'Scan',pre_show=TypicalPreShow,post_close=TypicalPostClose)
+        
         self.WriteScanToLog=tk.BooleanVar()
-
         self.WriteScanToLog.set(False)
 
-        self.ScanDialogMainFrame.grid_columnconfigure(0, weight=1)
-        self.ScanDialogMainFrame.grid_rowconfigure(0, weight=1)
-        self.ScanDialogMainFrame.grid_rowconfigure(1, weight=1)
+        self.scan_dialog.area_main.grid_columnconfigure(0, weight=1)
+        self.scan_dialog.area_main.grid_rowconfigure(0, weight=1)
+        self.scan_dialog.area_main.grid_rowconfigure(1, weight=1)
 
-        self.scan_dialog.bind('<Escape>', self.scan_dialog_close)
-        self.scan_dialog.bind('<KeyPress-Return>', ScanDialogReturnPressed)
+        self.scan_dialog.widget.bind('<Alt_L><a>',lambda event : self.path_to_scan_add_dialog())
+        self.scan_dialog.widget.bind('<Alt_L><A>',lambda event : self.path_to_scan_add_dialog())
+        self.scan_dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_from_button())
+        self.scan_dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_from_button())
 
-        self.scan_dialog.bind('<Alt_L><a>',lambda event : self.path_to_scan_add_dialog())
-        self.scan_dialog.bind('<Alt_L><A>',lambda event : self.path_to_scan_add_dialog())
-        self.scan_dialog.bind('<Alt_L><s>',lambda event : self.scan())
-        self.scan_dialog.bind('<Alt_L><S>',lambda event : self.scan())
-
-        self.scan_dialog.bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
-        self.scan_dialog.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
+        self.scan_dialog.widget.bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
+        self.scan_dialog.widget.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
 
         ##############
-        self.pathsFrame = tk.LabelFrame(self.ScanDialogMainFrame,text='Paths To scan:',borderwidth=2,bg=self.bg)
+        self.pathsFrame = tk.LabelFrame(self.scan_dialog.area_main,text='Paths To scan:',borderwidth=2,bg=self.bg)
         self.pathsFrame.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
         self.AddPathButton = ttk.Button(self.pathsFrame,width=18,text="Add Path ...",command=self.path_to_scan_add_dialog,underline=0)
@@ -1009,47 +720,34 @@ class Gui:
         ##############
         self.exclude_regexp_scan=tk.BooleanVar()
 
-        self.ExcludeFRame = tk.LabelFrame(self.ScanDialogMainFrame,text='Exclude from scan:',borderwidth=2,bg=self.bg)
-        self.ExcludeFRame.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
+        self.exclude_frame = tk.LabelFrame(self.scan_dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg)
+        self.exclude_frame.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        self.AddExckludeMaskButton = ttk.Button(self.ExcludeFRame,width=18,text="Add Exclude Mask ...",command=self.exclude_mask_add_dialog,underline=4)
+        self.AddExckludeMaskButton = ttk.Button(self.exclude_frame,width=18,text="Add Exclude Mask ...",command=self.exclude_mask_add_dialog,underline=4)
         self.AddExckludeMaskButton.grid(column=0, row=100,pady=4,padx=4)
 
-        self.ClearExcludeListButton=ttk.Button(self.ExcludeFRame,width=10,text="Clear List",command=self.exclude_masks_clear )
+        self.ClearExcludeListButton=ttk.Button(self.exclude_frame,width=10,text="Clear List",command=self.exclude_masks_clear )
         self.ClearExcludeListButton.grid(column=2, row=100,pady=4,padx=4)
 
-        self.ExcludeFRame.grid_columnconfigure(1, weight=1)
-        self.ExcludeFRame.grid_rowconfigure(99, weight=1)
+        self.exclude_frame.grid_columnconfigure(1, weight=1)
+        self.exclude_frame.grid_rowconfigure(99, weight=1)
         ##############
 
-        ttk.Checkbutton(self.ScanDialogMainFrame,text='write scan results to application log',variable=self.WriteScanToLog).grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
+        ttk.Checkbutton(self.scan_dialog.area_main,text='write scan results to application log',variable=self.WriteScanToLog).grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
-        frame2 = tk.Frame(self.ScanDialogMainFrame,bg=self.bg)
-        frame2.grid(row=6,column=0,sticky='news',padx=4,pady=4,columnspan=4)
-
-        self.ScanButton = ttk.Button(frame2,width=12,text="scan",command=self.scan,underline=0)
+        self.ScanButton = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Scan",command=self.scan_from_button,underline=0)
         self.ScanButton.pack(side='right',padx=4,pady=4)
-        ttk.Button(frame2,width=12,text="Cancel",command=self.scan_dialog_close ).pack(side='left',padx=4,pady=4)
         
-        def TypicalPreShow():
-            self.menu_disable()
-            self.menubar.config(cursor="watch")
+        self.scan_cancel_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Cancel",command=self.scan_dialog.hide,underline=0)
+        self.scan_cancel_button.pack(side='left',padx=4,pady=4)
         
-        def TypicalPostClose():
-            self.menu_enable()
-            self.menubar.config(cursor="")
-            
         def SettingsDialogPreShow():
             TypicalPreShow()
             {var.set(self.cfg.get_bool(key)) for var,key in self.settings}
             
-        #def SettingsDialogPostShow():
-            #??
-        #    self.SettingsDialogDefault.focus_set()
-            
         #######################################################################
         #Settings Dialog
-        self.SettingsDialog=GenericDialog(self.main,self.iconphoto,'Settings',pre_show=SettingsDialogPreShow,post_close=TypicalPostClose)
+        self.SettingsDialog=GenericDialog(self.main,self.iconphoto,self.bg,'Settings',pre_show=SettingsDialogPreShow,post_close=TypicalPostClose)
         
         self.FullCRC = tk.BooleanVar()
         self.FullPaths = tk.BooleanVar()
@@ -1075,16 +773,15 @@ class Gui:
             (self.AllowDeleteNonDuplicates,CFG_ALLOW_DELETE_NON_DUPLICATES)
         ]
 
-
         row = 0
         lf=tk.LabelFrame(self.SettingsDialog.area_main, text="Main panels",borderwidth=2,bg=self.bg)
-        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
         ttk.Checkbutton(lf, text = 'show full CRC', variable=self.FullCRC                                       ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
         ttk.Checkbutton(lf, text = 'show full scan paths', variable=self.FullPaths                              ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
         
-        lf=tk.LabelFrame(self.SettingsDialog.area_main, text="Confirmation Dialog",borderwidth=2,bg=self.bg)
-        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        lf=tk.LabelFrame(self.SettingsDialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg)
+        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
         
         ttk.Checkbutton(lf, text = 'Allow to delete all copies (WARNING!)', variable=self.AllowDeleteAll                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
         ttk.Checkbutton(lf, text = 'Skip groups with invalid selection', variable=self.SkipIncorrectGroups                  ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
@@ -1092,7 +789,7 @@ class Gui:
         ttk.Checkbutton(lf, text = 'show CRC and size', variable=self.ConfirmShowCrcSize                  ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
                 
         lf=tk.LabelFrame(self.SettingsDialog.area_main, text="Processing",borderwidth=2,bg=self.bg)
-        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=2) ; row+=1
+        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
         
         ttk.Checkbutton(lf, text = 'Create relative symbolic links', variable=self.RelSymlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
         ttk.Checkbutton(lf, text = 'Erase remaining empty directories', variable=self.EraseEmptyDirs                  ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
@@ -1113,44 +810,47 @@ class Gui:
         self.SettingsDialog.area_main.grid_columnconfigure(0, weight=1)
 
         #######################################################################
-        self.info_dialog_on_main = LabelDialog(self.main,self.iconphoto,pre_show=TypicalPreShow,post_close=TypicalPostClose)
-        self.text_ask_dialog = TextDialogQuestion(self.main,self.iconphoto,pre_show=TypicalPreShow,post_close=TypicalPostClose)
-        self.info_dialog_on_scan = LabelDialog(self.scan_dialog,self.iconphoto,pre_show=TypicalPreShow,post_close=TypicalPostClose)
-        self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog,self.iconphoto,pre_show=TypicalPreShow,post_close=TypicalPostClose)
-        self.mark_dialog_on_main = CheckboxEntryDialogQuestion(self.main,self.iconphoto,pre_show=TypicalPreShow,post_close=TypicalPostClose)
-        self.find_dialog_on_main = FindEntryDialog(self.main,self.iconphoto,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,initial='*',CheckInitial=False,pre_show=TypicalPreShow,post_close=TypicalPostClose)
-        self.info_dialog_on_find = LabelDialog(self.find_dialog_on_main.widget,self.iconphoto,pre_show=TypicalPreShow,post_close=TypicalPostClose)
+        self.info_dialog_on_main = LabelDialog(self.main,self.iconphoto,self.bg,pre_show=TypicalPreShow,post_close=TypicalPostClose)
+        self.text_ask_dialog = TextDialogQuestion(self.main,self.iconphoto,self.bg,pre_show=TypicalPreShow,post_close=TypicalPostClose)
+        self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.iconphoto,self.bg,pre_show=TypicalPreShow,post_close=TypicalPostClose)
+        self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog.widget,self.iconphoto,self.bg,pre_show=TypicalPreShow,post_close=TypicalPostClose)
+        self.mark_dialog_on_main = CheckboxEntryDialogQuestion(self.main,self.iconphoto,self.bg,pre_show=TypicalPreShow,post_close=TypicalPostClose)
+        self.find_dialog_on_main = FindEntryDialog(self.main,self.iconphoto,self.bg,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,initial='*',CheckInitial=False,pre_show=TypicalPreShow,post_close=TypicalPostClose)
+        self.info_dialog_on_find = LabelDialog(self.find_dialog_on_main.widget,self.iconphoto,self.bg,pre_show=TypicalPreShow,post_close=TypicalPostClose)
         
        #######################################################################
         #About Dialog
-        self.AboutDialog=GenericDialog(self.main,self.iconphoto,'About',pre_show=TypicalPreShow,post_close=TypicalPostClose)
-
-        AboutText=tk.Text(self.AboutDialog.area_main,relief='sunken', bd=2,bg='white',width = 79,takefocus=True )
-        AboutText.insert(END,'==============================================================================\n')
-        AboutText.insert(END,'                                                                              \n')
-        AboutText.insert(END,f'                       DUDE (DUplicates DEtector) v{version.VERSION}                 \n')
-        AboutText.insert(END,'                            Author: Piotr Jochymek                            \n')
-        AboutText.insert(END,'                                                                              \n')
-        AboutText.insert(END,'                        ' + HOMEPAGE + '                        \n')
-        AboutText.insert(END,'                                                                              \n')
-        AboutText.insert(END,'                            PJ.soft.dev.x@gmail.com                           \n')
-        AboutText.insert(END,'                                                                              \n')
-        AboutText.insert(END,'==============================================================================\n')
-        AboutText.insert(END,'                                                                              \n')
-        AboutText.insert(END,'LOGS DIRECTORY     :  ' + LOG_DIR + '\n')
-        AboutText.insert(END,'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n')
-        AboutText.insert(END,'CACHE DIRECTORY    :  ' + CACHE_DIR + '\n')
-        AboutText.insert(END,'                                                                              \n')
-        AboutText.insert(END,'LOGGING LEVEL      :  ' + LoggingLevels[LoggingLevel] + '\n')
-        AboutText.insert(END,'                                                                              \n')
-        AboutText.insert(END,'Current log file   :  ' + log + '\n')
-        AboutText.insert(END,'                                                                              \n')
-        AboutText.insert(END,'==============================================================================\n')
-        AboutText.insert(END,'    Run DUDE with "--help" command line parameter to check startup options    \n')
-        AboutText.insert(END,'==============================================================================\n')
-        AboutText.configure(state=DISABLED)
-        AboutText.pack(fill='both',expand=1)
+        self.AboutDialog=GenericDialog(self.main,self.iconphoto,self.bg,'About',pre_show=TypicalPreShow,post_close=TypicalPostClose)
         
+        frame1 = tk.LabelFrame(self.AboutDialog.area_main,text='',bd=2,bg=self.bg,takefocus=False)
+        frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
+        self.AboutDialog.area_main.grid_rowconfigure(1, weight=1)
+        
+        text= f'\n\nDUDE (DUplicates DEtector) v{version.VERSION}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n' 
+
+        tk.Label(frame1,text=text,bg=self.bg,justify='center').pack(expand=1,fill='both')
+        
+        AboutFrame2 = tk.LabelFrame(self.AboutDialog.area_main,text='',bd=2,bg=self.bg,takefocus=False)
+        AboutFrame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
+        lab2_text=  'LOGS DIRECTORY     :  ' + LOG_DIR + '\n' + \
+                    'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n' + \
+                    'CACHE DIRECTORY    :  ' + CACHE_DIR + '\n\n' + \
+                    'LOGGING LEVEL      :  ' + LoggingLevels[LoggingLevel] + '\n\n' + \
+                    'Current log file   :  ' + log 
+
+        lab_courier = tk.Label(AboutFrame2,text=lab2_text,bg=self.bg,justify='left')
+        lab_courier.pack(expand=1,fill='both')
+        
+        try:
+            lab_courier.configure(font=('Courier', 10))
+        except:
+            try:
+                lab_courier.configure(font=('TkFixedFont', 10))
+            except:
+                pass
+        
+        #######################################################################
+        #License Dialog
         try:
             self.license=pathlib.Path(os.path.join(os.path.dirname(__file__),'LICENSE')).read_text()
         except Exception as e:
@@ -1161,14 +861,22 @@ class Gui:
                 logging.error(e)
                 self.exit()
         
-        #######################################################################
-        #License Dialog
+        self.LicenseDialog=GenericDialog(self.main,self.iconphoto,self.bg,'License',pre_show=TypicalPreShow,post_close=TypicalPostClose,min_width=800,min_height=520)
         
-        self.LicenseDialog=GenericDialog(self.main,self.iconphoto,'License',pre_show=TypicalPreShow,post_close=TypicalPostClose)
-        LicenseText=tk.Text(self.LicenseDialog.area_main,relief='sunken', bd=2,bg='white',width = 79,takefocus=True )
-        LicenseText.insert(END, self.license)
-        LicenseText.configure(state=DISABLED)
-        LicenseText.pack(fill='both',expand=1)
+        frame1 = tk.LabelFrame(self.LicenseDialog.area_main,text='',bd=2,bg=self.bg,takefocus=False)
+        frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
+        self.LicenseDialog.area_main.grid_rowconfigure(0, weight=1)
+        
+        lab_courier=tk.Label(frame1,text=self.license,bg=self.bg,justify='center')
+        lab_courier.pack(expand=1,fill='both')
+        
+        try:
+            lab_courier.configure(font=('Courier', 10))
+        except:
+            try:
+                lab_courier.configure(font=('TkFixedFont', 10))
+            except:
+                pass
         
         def FileCascadeFill():
             self.FileCascade.delete(0,END)
@@ -1234,27 +942,28 @@ class Gui:
         self.groups_show()
 
         #######################################################################
-
+        
         if pathsToAdd:
             for path in pathsToAdd:
                 self.path_to_scan_add(os.path.abspath(path))
-
+        
+        run_scan_condition = True if (pathsToAdd and not norun) else False
+        
         if exclude:
             self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude))
             self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,False)
         elif excluderegexp:
             self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(excluderegexp))
             self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,True)
+        else:
+            if run_scan_condition:
+                self.cfg.set(CFG_KEY_EXCLUDE,'')
 
         self.exclude_regexp_scan.set(self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP))
 
         self.main.update()
         
-        self.scan_dialog_show()
-
-        if pathsToAdd:
-            if not norun:
-                self.scan()
+        self.scan_dialog_show(True if run_scan_condition else None)
 
         self.main.mainloop()
         #######################################################################
@@ -1265,6 +974,7 @@ class Gui:
 
     MenuStack=[]
     def menu_enable(self):
+        #traceback.print_stack()
         self.MenuStack.pop(0)
         if not len(self.MenuStack):
             self.menubar.entryconfig("File", state="normal")
@@ -1300,8 +1010,6 @@ class Gui:
 
     def exit(self):
         self.main_geometry_store()
-        #self.scan_dialog.destroy()
-        #self.SettingsDialog.destroy()
         self.splitter_store()
         exit()
 
@@ -1451,7 +1159,7 @@ class Gui:
     DirectionOfKeysym['Up']=-1
     DirectionOfKeysym['Down']=1
     DirectionOfKeysym['Prior']=-1
-    DirectionOfKeysym['next']=1
+    DirectionOfKeysym['Next']=1
 
     reftuple1=('1','2','3','4','5','6','7')
     reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
@@ -1484,7 +1192,7 @@ class Gui:
                         self.groups_tree_sel_change(NextItem)
                     else:
                         self.folder_tree_sel_change(NextItem)
-            elif event.keysym in ("Prior","next"):
+            elif event.keysym in ("Prior","Next"):
                 if self.SelTreeIndex==0:
                     pool=tree.get_children()
                 else:
@@ -2055,7 +1763,7 @@ class Gui:
         self.column_sort_last_params[tree]=(colname,reverse)
 
         if tree == self.tree_folder:
-            self.FolderItemsCache={}
+            self.folder_items_cache={}
 
         self.column_sort (tree)
 
@@ -2104,46 +1812,49 @@ class Gui:
         else:
             logging.error(f'can\'t add:{path}. limit exceeded')
 
+    def scan_from_button(self):
+        if self.scan():
+            self.scan_dialog.hide()
+        
     @restore_status_line
     def scan(self):
         self.status('Scanning...')
         self.cfg.write()
 
-        self.D.INIT()
+        self.D.reset()
         self.status_var_full_path.set('')
         self.groups_show()
 
         PathsToScanFromEntry = [var.get() for var in self.PathsToScanEntryVar.values()]
         ExcludeVarsFromEntry = [var.get() for var in self.ExcludeEntryVar.values()]
 
-        if res:=self.D.SetExcludeMasks(self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP),ExcludeVarsFromEntry):
+        if res:=self.D.set_exclude_masks(self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP),ExcludeVarsFromEntry):
             self.info_dialog_on_scan.info('Error. Fix Exclude masks.',res)
-            return
+            return False
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(ExcludeVarsFromEntry))
 
         if not PathsToScanFromEntry:
             self.info_dialog_on_scan.info('Error. No paths to scan.','Add paths to scan.',min_width=400)
-            return
+            return False
 
-        if res:=self.D.SetPathsToScan(PathsToScanFromEntry):
+        if res:=self.D.set_paths_to_scan(PathsToScanFromEntry):
             self.info_dialog_on_scan.info('Error. Fix paths selection.',res)
-            return
+            return False
 
         self.main.update()
 
         #############################
 
-        self.crc_progress_dialogShow(self.ScanDialogMainFrame,'Scanning')
+        self.crc_progress_dialog_show(self.scan_dialog.area_main,'Scanning')
 
         scan_thread=Thread(target=self.D.scan,daemon=True)
         scan_thread.start()
 
         while scan_thread.is_alive():
-            self.crc_progress_dialog_update(self.NUMBERS[self.D.InfoPathNr] + '\n' + self.D.InfoPathToScan + '\n\n' + str(self.D.InfoCounter) + '\n' + core.bytes2str(self.D.InfoSizeSum))
+            self.crc_progress_dialog_update(self.NUMBERS[self.D.info_path_nr] + '\n' + self.D.InfoPathToScan + '\n\n' + str(self.D.InfoCounter) + '\n' + core.bytes_to_str(self.D.InfoSizeSum))
 
             if self.action_abort:
-                self.D.Abort()
-                self.D.INIT()
+                self.D.abort()
                 break
             else:
                 time.sleep(0.04)
@@ -2152,46 +1863,46 @@ class Gui:
         self.crc_progress_dialog_end()
 
         if self.action_abort:
-            return
+            return False
 
         #############################
-        if self.D.sumSize==0:
+        if self.D.sim_size==0:
             self.info_dialog_on_scan.info('Cannot Proceed.','No Duplicates.')
-            return
+            return False
         #############################
         self.status('Calculating CRC ...')
-        self.crc_progress_dialogShow(self.ScanDialogMainFrame,'CRC calculation','determinate','determinate',Progress1LeftText='Total space:',Progress2LeftText='Files number:')
+        self.crc_progress_dialog_show(self.scan_dialog.area_main,'CRC calculation','determinate','determinate',Progress1LeftText='Total space:',Progress2LeftText='Files number:')
 
         self.D.writeLog=self.WriteScanToLog.get()
 
-        crc_thread=Thread(target=self.D.CrcCalc,daemon=True)
+        crc_thread=Thread(target=self.D.crc_calc,daemon=True)
         crc_thread.start()
 
-        self.scan_dialog.config(cursor="watch")
+        self.scan_dialog.widget.config(cursor="watch")
 
         while crc_thread.is_alive():
             info = ""
 
             if self.debug_mode:
                 info =  'Active Threads: ' + self.D.InfoThreads \
-                    + '\nAvarage speed: ' + core.bytes2str(self.D.infoSpeed,1) + '/s\n\n'
+                    + '\nAvarage speed: ' + core.bytes_to_str(self.D.infoSpeed,1) + '/s\n\n'
 
             info = info + 'Results:' \
                 + '\nCRC groups: ' + str(self.D.InfoFoundGroups) \
                 + '\nfolders: ' + str(self.D.InfoFoundFolders) \
-                + '\nspace: ' + core.bytes2str(self.D.InfoDuplicatesSpace)
+                + '\nspace: ' + core.bytes_to_str(self.D.InfoDuplicatesSpace)
 
-            InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sumSize)
+            InfoProgSize=float(100)*float(self.D.InfoSizeDone)/float(self.D.sim_size)
             InfoProgQuant=float(100)*float(self.D.InfoFileDone)/float(self.D.InfoTotal)
 
-            progress1Right=core.bytes2str(self.D.InfoSizeDone) + '/' + core.bytes2str(self.D.sumSize)
+            progress1Right=core.bytes_to_str(self.D.InfoSizeDone) + '/' + core.bytes_to_str(self.D.sim_size)
             progress2Right=str(self.D.InfoFileDone) + '/' + str(self.D.InfoTotal)
 
             self.crc_progress_dialog_update(info,InfoProgSize,InfoProgQuant,progress1Right,progress2Right,self.D.InfoLine)
 
-            if self.D.CanAbort:
+            if self.D.can_abort:
                 if self.action_abort:
-                    self.D.Abort()
+                    self.D.abort()
             else:
                 self.status(self.D.info)
 
@@ -2202,61 +1913,38 @@ class Gui:
         #############################
 
         self.crc_progress_dialog_end()
-        self.scan_dialog.config(cursor="")
+        self.scan_dialog.widget.config(cursor="")
 
-        self.scan_dialog_close(RestoreCursorAndMenus=False)
         self.groups_show()
-
+        
+        self.scan_dialog.unlock('scan complete')
+        
         if self.action_abort:
-            self.info_dialog_on_main.info('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.',min_width=400)
+            self.info_dialog_on_scan.info('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.',min_width=400)
+                
+        return True
 
-        self.main.config(cursor="")
-        self.menubar.config(cursor="")
-        self.menu_enable()
-
-    def scan_dialog_show(self):
-        self.menu_disable()
+    def scan_dialog_show(self,do_scan=False):
+        
+        self.exclude_mask_update()
+        self.paths_to_scan_update()
+        
+        self.scan_dialog.show(focus=self.scan_cancel_button,do_command=self.scan if do_scan else None)
+        
         if self.D.ScannedPaths:
             self.paths_to_scan_from_dialog=self.D.ScannedPaths.copy()
 
-        self.exclude_mask_update()
-        self.paths_to_scan_update()
-
-        self.scan_dialog.grab_set()
-        self.main.config(cursor="watch")
-        self.menubar.config(cursor="watch")
-        
-        self.scan_dialog.update()
-        
-        self.scan_dialog.geometry(set_geometry_by_parent(self.scan_dialog,self.main))
-        self.scan_dialog.deiconify()
-        self.ScanButton.focus_set()
-
-    def scan_dialog_close(self,event=None,RestoreCursorAndMenus=True):
-        self.scan_dialog.grab_release()
-
-        if RestoreCursorAndMenus:
-            self.menu_enable()
-            self.main.config(cursor="")
-            self.menubar.config(cursor="")
-
-        self.scan_dialog.withdraw()
-        try:
-            self.scan_dialog.update()
-        except Exception as e:
-            pass
-
     def paths_to_scan_update(self) :
-        for subframe in self.PathsToScanFrames:
+        for subframe in self.paths_to_scan_frames:
             subframe.destroy()
 
-        self.PathsToScanFrames=[]
+        self.paths_to_scan_frames=[]
         self.PathsToScanEntryVar={}
 
         row=0
         for path in self.paths_to_scan_from_dialog:
             (fr:=tk.Frame(self.pathsFrame,bg=self.bg)).grid(row=row,column=0,sticky='news',columnspan=3)
-            self.PathsToScanFrames.append(fr)
+            self.paths_to_scan_frames.append(fr)
 
             tk.Label(fr,text=' ' + self.NUMBERS[row] + ' ' , relief='groove',bg=self.bg).pack(side='left',padx=2,pady=1,fill='y')
 
@@ -2279,20 +1967,20 @@ class Gui:
         self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,self.exclude_regexp_scan.get())
 
     def exclude_mask_update(self) :
-        for subframe in self.ExcludeFrames:
+        for subframe in self.exclude_frames:
             subframe.destroy()
 
-        self.ExcludeFrames=[]
+        self.exclude_frames=[]
         self.ExcludeEntryVar={}
 
-        ttk.Checkbutton(self.ExcludeFRame,text='Use regular expressions matching',variable=self.exclude_regexp_scan,command=lambda : self.exclude_regexp_set()).grid(row=0,column=0,sticky='news',columnspan=3,padx=5)
+        ttk.Checkbutton(self.exclude_frame,text='Use regular expressions matching',variable=self.exclude_regexp_scan,command=lambda : self.exclude_regexp_set()).grid(row=0,column=0,sticky='news',columnspan=3,padx=5)
 
         row=1
 
         for entry in self.cfg.get(CFG_KEY_EXCLUDE,'').split('|'):
             if entry:
-                (fr:=tk.Frame(self.ExcludeFRame,bg=self.bg)).grid(row=row,column=0,sticky='news',columnspan=3)
-                self.ExcludeFrames.append(fr)
+                (fr:=tk.Frame(self.exclude_frame,bg=self.bg)).grid(row=row,column=0,sticky='news',columnspan=3)
+                self.exclude_frames.append(fr)
 
                 self.ExcludeEntryVar[row]=tk.StringVar(value=entry)
                 ttk.Entry(fr,textvariable=self.ExcludeEntryVar[row]).pack(side='left',expand=1,fill='both',pady=1)
@@ -2315,7 +2003,7 @@ class Gui:
     #        pass
 
     def path_to_scan_add_dialog(self):
-        if res:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.ScanDialogMainFrame):
+        if res:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.scan_dialog.area_main):
             self.path_to_scan_add(res)
 
     def exclude_mask_add_dialog(self):
@@ -2362,7 +2050,7 @@ class Gui:
             self.cfg.set_bool(CFG_KEY_FULL_CRC,self.FullCRC.get())
             update1=True
             update2=True
-            self.FolderItemsCache={}
+            self.folder_items_cache={}
 
         if self.cfg.get_bool(CFG_KEY_FULL_PATHS)!=self.FullPaths.get():
             self.cfg.set_bool(CFG_KEY_FULL_PATHS,self.FullPaths.get())
@@ -2410,16 +2098,16 @@ class Gui:
         size=int(self.groups_tree.set(crc,'size'))
 
         CrcRemoved=False
-        if not size in self.D.filesOfSizeOfCRC:
+        if not size in self.D.files_of_size_of_crc:
             self.groups_tree.delete(crc)
             logging.debug('crc_node_update-1 ' + crc)
             CrcRemoved=True
-        elif crc not in self.D.filesOfSizeOfCRC[size]:
+        elif crc not in self.D.files_of_size_of_crc[size]:
             self.groups_tree.delete(crc)
             logging.debug('crc_node_update-2 ' + crc)
             CrcRemoved=True
         else:
-            crcDict=self.D.filesOfSizeOfCRC[size][crc]
+            crcDict=self.D.files_of_size_of_crc[size][crc]
             for item in list(self.groups_tree.get_children(crc)):
                 IndexTuple=self.get_index_tuple_groups_tree(item)
 
@@ -2435,7 +2123,7 @@ class Gui:
     def data_precalc(self):
         self.status('Precalculating data...')
 
-        self.ByIdCtimeCache = { (self.idfunc(inode,dev),ctime):(crc,self.D.crccut[crc],len(self.D.filesOfSizeOfCRC[size][crc]) ) for size,sizeDict in self.D.filesOfSizeOfCRC.items() for crc,crcDict in sizeDict.items() for pathnr,path,file,ctime,dev,inode in crcDict }
+        self.ByIdCtimeCache = { (self.idfunc(inode,dev),ctime):(crc,self.D.crccut[crc],len(self.D.files_of_size_of_crc[size][crc]) ) for size,sizeDict in self.D.files_of_size_of_crc.items() for crc,crcDict in sizeDict.items() for pathnr,path,file,ctime,dev,inode in crcDict }
         self.status_var_groups.set(len(self.groups_tree.get_children()))
 
         PathStatSize={}
@@ -2444,7 +2132,7 @@ class Gui:
         self.BiggestFileOfPath={}
         self.BiggestFileOfPathId={}
 
-        for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
+        for size,sizeDict in self.D.files_of_size_of_crc.items() :
             for crc,crcDict in sizeDict.items():
                 for pathnr,path,file,ctime,dev,inode in crcDict:
                     pathindex=(pathnr,path)
@@ -2489,8 +2177,8 @@ class Gui:
         self.groups_tree.delete(*self.groups_tree.get_children())
 
         SizesCounter=0
-        for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
-            SizeBytes = core.bytes2str(size)
+        for size,sizeDict in self.D.files_of_size_of_crc.items() :
+            SizeBytes = core.bytes_to_str(size)
             if not SizesCounter%64:
                 self.status('Rendering data... (%s)' % SizeBytes)
 
@@ -2523,7 +2211,7 @@ class Gui:
         FullCRC=self.cfg.get_bool(CFG_KEY_FULL_CRC)
         FullPaths=self.cfg.get_bool(CFG_KEY_FULL_PATHS)
 
-        for size,sizeDict in self.D.filesOfSizeOfCRC.items() :
+        for size,sizeDict in self.D.files_of_size_of_crc.items() :
             for crc,crcDict in sizeDict.items():
                 self.groups_tree.item(crc,text=crc if FullCRC else self.D.crccut[crc])
                 for pathnr,path,file,ctime,dev,inode in crcDict:
@@ -2567,14 +2255,14 @@ class Gui:
         if not CurrentPath:
             return False
 
-        (DirCtime,ScanDirRes)=self.D.StatScanDir(CurrentPath)
+        (DirCtime,ScanDirRes)=self.D.set_scan_dir(CurrentPath)
 
         if not ScanDirRes:
             return False
 
         Refresh=True
-        if CurrentPath in self.FolderItemsCache:
-            if DirCtime==self.FolderItemsCache[CurrentPath][0]:
+        if CurrentPath in self.folder_items_cache:
+            if DirCtime==self.folder_items_cache[CurrentPath][0]:
                 Refresh=False
 
         if Refresh :
@@ -2607,15 +2295,15 @@ class Gui:
                                                     FILEID,\
                                                     FILE,\
                                                     FILEID,\
-                                                    core.bytes2str(size),\
+                                                    core.bytes_to_str(size),\
                                                     time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) \
                                             )  )
                     else:
                         if nlink!=1:
                             #hardlinks
-                            FolderItems.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLEHARDLINKED,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
+                            FolderItems.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLEHARDLINKED,'%sO' % i,core.bytes_to_str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
                         else:
-                            FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,'%sO' % i,core.bytes2str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
+                            FolderItems.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,'%sO' % i,core.bytes_to_str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
                 else:
                     logging.error(f'what is it: {file},{islink},{isdir},{isfile} ?')
 
@@ -2632,7 +2320,7 @@ class Gui:
             FolderItemsSorted=sorted(FolderItems,key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sortIndex])) if IsNumeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sortIndex]),reverse=reverse)
 
             #text,values,FILEID,kind,iid,defaulttag
-            self.FolderItemsCache[CurrentPath]=(DirCtime,tuple([ (text,(file,str(size),sizeH,str(ctime),str(dev),str(inode),crc,str(instances),str(instancesnum),ctimeH,kind),FILEID,kind,iid,SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR) else LINK if kind==LINK else "") for text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,kind,iid,sizeH,ctimeH in FolderItemsSorted] ) )
+            self.folder_items_cache[CurrentPath]=(DirCtime,tuple([ (text,(file,str(size),sizeH,str(ctime),str(dev),str(inode),crc,str(instances),str(instancesnum),ctimeH,kind),FILEID,kind,iid,SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR) else LINK if kind==LINK else "") for text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,kind,iid,sizeH,ctimeH in FolderItemsSorted] ) )
 
         if ArbitraryPath:
             #TODO - workaround
@@ -2646,7 +2334,7 @@ class Gui:
         if self.two_dots_condition():
             self.tree_folder.insert(parent="", index=END, iid='0UP' , text='', values=('..','0','','0','0','0','..','','0','',UPDIR),tags=DIR)
 
-        for (text,values,FILEID,kind,iid,defaulttag) in self.FolderItemsCache[CurrentPath][1]:
+        for (text,values,FILEID,kind,iid,defaulttag) in self.folder_items_cache[CurrentPath][1]:
             self.tree_folder.insert(parent="", index=END, iid=iid , text=text, values=values,tags=self.groups_tree.item(FILEID)['tags'] if kind==FILE else defaulttag)
 
         self.TreeFolderFlatItemsList=self.tree_folder.get_children()
@@ -2675,7 +2363,7 @@ class Gui:
     def calc_mark_stats_core(self,tree,varSize,varQuant):
         marked=tree.tag_has(MARK)
         varQuant.set(len(marked))
-        varSize.set(core.bytes2str(sum(int(tree.set(item,'size')) for item in marked)))
+        varSize.set(core.bytes_to_str(sum(int(tree.set(item,'size')) for item in marked)))
 
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
         item=sorted([ (item,self.groups_tree.set(item,'ctime') ) for item in self.groups_tree.get_children(crc)],key=lambda x : float(x[1]),reverse=reverse)[0][0]
@@ -2946,7 +2634,7 @@ class Gui:
                 self.crc_select_and_focus(biggestcrc,True)
 
                 self.DominantIndexGroups[sizeFlag] = int(temp)
-                info = core.bytes2str(biggestcrcSizeSum) if sizeFlag else str(biggestcrcSizeSum)
+                info = core.bytes_to_str(biggestcrcSizeSum) if sizeFlag else str(biggestcrcSizeSum)
                 self.status(f'Dominant (index:{WorkingIndex}) group ({self.byWhat[sizeFlag]}: {info})')
 
     @busy_cursor
@@ -2986,14 +2674,14 @@ class Gui:
             self.groups_tree_update(item)
 
             self.DominantIndexFolders[sizeFlag] = int(temp)
-            info = core.bytes2str(num) if sizeFlag else str(num)
+            info = core.bytes_to_str(num) if sizeFlag else str(num)
             self.status(f'Dominant (index:{WorkingIndex}) folder ({self.byWhat[sizeFlag]}: {info})')
 
     def item_full_path(self,item):
         pathnr=int(self.groups_tree.set(item,'pathnr'))
         path=self.groups_tree.set(item,'path')
         file=self.groups_tree.set(item,'file')
-        return os.path.abspath(self.D.ScannedPathFull(pathnr,path,file))
+        return os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
 
     def file_check_state(self,item):
         fullpath = self.item_full_path(item)
@@ -3052,7 +2740,7 @@ class Gui:
     def process_files_check_correctness(self,action,ProcessedItems,RemainingItems):
         for crc in ProcessedItems:
             size = self.D.Crc2Size[crc]
-            (checkres,TuplesToRemove)=self.D.CheckGroupFilesState(size,crc)
+            (checkres,TuplesToRemove)=self.D.check_group_files_state(size,crc)
 
             if checkres:
                 self.info_dialog_on_main.info('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
@@ -3162,7 +2850,7 @@ class Gui:
             if self.cfg.get_bool(CFG_CONFIRM_SHOW_CRCSIZE):
                 size=int(self.groups_tree.set(crc,'size'))
                 message.append('')
-                message.append('CRC:' + crc + ' size:' + core.bytes2str(size) + '|GRAY')
+                message.append('CRC:' + crc + ' size:' + core.bytes_to_str(size) + '|GRAY')
 
             for item in ProcessedItems[crc]:
                 message.append((self.item_full_path(item) if ShowFullPath else tree.set(item,'file')) + '|RED' )
@@ -3232,9 +2920,9 @@ class Gui:
                 for item in ProcessedItems[crc]:
                     IndexTuple=self.get_index_tuple_groups_tree(item)
                     TuplesToDelete.add(IndexTuple)
-                    DirectoriesToCheck.add(self.D.GetPath(IndexTuple))
+                    DirectoriesToCheck.add(self.D.get_path(IndexTuple))
 
-                if resmsg:=self.D.DeleteFileWrapper(size,crc,TuplesToDelete):
+                if resmsg:=self.D.delete_file_wrapper(size,crc,TuplesToDelete):
                     logging.error(resmsg)
                     self.info_dialog_on_main.info('Error',resmsg)
 
@@ -3258,7 +2946,7 @@ class Gui:
                 IndexTupleRef=self.get_index_tuple_groups_tree(toKeepItem)
                 size=int(self.groups_tree.set(toKeepItem,'size'))
 
-                if resmsg:=self.D.LinkWrapper(True, RelSymlink, size,crc, IndexTupleRef, [self.get_index_tuple_groups_tree(item) for item in ProcessedItems[crc] ] ):
+                if resmsg:=self.D.link_wrapper(True, RelSymlink, size,crc, IndexTupleRef, [self.get_index_tuple_groups_tree(item) for item in ProcessedItems[crc] ] ):
                     logging.error(resmsg)
                     self.info_dialog_on_main.info('Error',resmsg)
                 self.crc_node_update(crc)
@@ -3269,7 +2957,7 @@ class Gui:
                 IndexTupleRef=self.get_index_tuple_groups_tree(refItem)
                 size=int(self.groups_tree.set(refItem,'size'))
 
-                if resmsg:=self.D.LinkWrapper(False, False, size,crc, IndexTupleRef, [self.get_index_tuple_groups_tree(item) for item in ProcessedItems[crc][1:] ] ):
+                if resmsg:=self.D.link_wrapper(False, False, size,crc, IndexTupleRef, [self.get_index_tuple_groups_tree(item) for item in ProcessedItems[crc][1:] ] ):
                     logging.error(resmsg)
                     self.info_dialog_on_main.info('Error',resmsg)
                 self.crc_node_update(crc)
@@ -3376,7 +3064,7 @@ class Gui:
 
         self.calc_mark_stats_groups()
 
-        self.FolderItemsCache={}
+        self.folder_items_cache={}
 
         self.FindResult=()
 
@@ -3542,9 +3230,9 @@ class Gui:
 
 if __name__ == "__main__":
     try:
-        args = console.ParseArgs(version.VERSION)
+        args = console.parse_args(version.VERSION)
 
-        log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.log'
+        log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.txt'
         LoggingLevel = logging.DEBUG if args.debug else logging.INFO
 
         pathlib.Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
