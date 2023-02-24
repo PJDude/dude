@@ -50,7 +50,6 @@ from threading import Thread
 from sys import exit
 from sys import argv
 
-import version
 import core
 import console
 from dialogs import *
@@ -388,7 +387,7 @@ class Gui:
 
         ####################################################################
         self.main = tk.Tk()
-        self.main.title(f'Dude (DUplicates DEtector) v{version.VERSION}')
+        self.main.title(f'Dude (DUplicates DEtector) {VER_TIMESTAMP}')
         self.main.protocol("WM_DELETE_WINDOW", self.exit)
         self.main.withdraw()
         self.main.update()
@@ -813,13 +812,13 @@ class Gui:
         
        #######################################################################
         #About Dialog
-        self.AboutDialog=GenericDialog(self.main,self.iconphoto,self.bg,'About',pre_show=pre_show,post_close=post_close)
+        self.AboutDialog=GenericDialog(self.main,self.iconphoto,self.bg,'',pre_show=pre_show,post_close=post_close)
         
         frame1 = tk.LabelFrame(self.AboutDialog.area_main,text='',bd=2,bg=self.bg,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
         self.AboutDialog.area_main.grid_rowconfigure(1, weight=1)
         
-        text= f'\n\nDUDE (DUplicates DEtector) v{version.VERSION}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n' 
+        text= f'\n\nDUDE (DUplicates DEtector) {VER_TIMESTAMP}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n' 
 
         tk.Label(frame1,text=text,bg=self.bg,justify='center').pack(expand=1,fill='both')
         
@@ -854,7 +853,7 @@ class Gui:
                 logging.error(e)
                 self.exit()
         
-        self.LicenseDialog=GenericDialog(self.main,self.iconphoto,self.bg,'License',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
+        self.LicenseDialog=GenericDialog(self.main,self.iconphoto,self.bg,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
         
         frame1 = tk.LabelFrame(self.LicenseDialog.area_main,text='',bd=2,bg=self.bg,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
@@ -3323,7 +3322,12 @@ class Gui:
 
 if __name__ == "__main__":
     try:
-        args = console.parse_args(version.VERSION)
+        #######################################################################
+        #timestamp
+        
+        VER_TIMESTAMP = console.get_ver_timestamp()
+
+        args = console.parse_args(VER_TIMESTAMP)
 
         log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.txt'
         log_level = logging.DEBUG if args.debug else logging.INFO

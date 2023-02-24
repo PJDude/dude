@@ -32,8 +32,18 @@ import signal
 from sys import exit
 from subprocess import Popen
 from subprocess import DEVNULL
-import version
+import pathlib
 
+VERSION_FILE='ver_time.txt'
+
+def get_ver_timestamp():
+    try:
+        timestamp=pathlib.Path(os.path.join(os.path.dirname(__file__),VERSION_FILE)).read_text().strip()
+    except Exception as e:
+        print(e)
+        timestamp=''
+    return timestamp
+           
 def parse_args(ver):
     parser = argparse.ArgumentParser(
             formatter_class=argparse.RawTextHelpFormatter,
@@ -60,7 +70,9 @@ GUI_MAIN_WIN_APP_NAME='dudegui.exe'
 
 #windows console problem case
 if __name__ == "__main__":
-    args=parse_args(version.VERSION)
+    VER_TIMESTAMP = get_ver_timestamp()
+    
+    args=parse_args(VER_TIMESTAMP)
     
     command =[GUI_MAIN_WIN_APP_NAME]
 
