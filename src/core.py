@@ -141,9 +141,9 @@ class DudeCore:
         self.abort_action=True
 
     info_path_nr=0
-    InfoPathToScan=''
-    InfoCounter=0
-    InfoSizeSum=0
+    info_path_to_scan=''
+    info_counter=0
+    info_size_sum=0
 
     ScanDirCache={}
     def set_scan_dir(self,path,PathCTime=None):
@@ -188,7 +188,7 @@ class DudeCore:
                                 nlink=stat.st_nlink
 
                             except Exception as e:
-                                self.Log.error('scandir(stat): problem %s islink:%s is_dir:%s' % (str(e),str(islink),str(is_dir) ) )
+                                self.Log.error('scandir(stat): %s islink:%s is_dir:%s' % (str(e),str(islink),str(is_dir) ) )
 
                         reslist.append( (name,islink,is_dir,is_file,mtime,ctime,dev,inode,size,nlink) )
 
@@ -208,13 +208,13 @@ class DudeCore:
             self.Log.info('ExcludeList:' + ' '.join(self.ExcludeList))
 
         self.info_path_nr=0
-        self.InfoPathToScan=''
+        self.info_path_to_scan=''
 
         self.abort_action=False
 
         pathNr=0
-        self.InfoCounter=0
-        self.InfoSizeSum=0
+        self.info_counter=0
+        self.info_size_sum=0
 
         self.scan_results_by_size.clear()
 
@@ -245,15 +245,15 @@ class DudeCore:
                                         self.Log.debug(f'scan skipp - hardlinks {nlink} - {pathNr},{path},{file}')
                                     else:
                                         if size>0:
-                                            self.InfoSizeSum+=size
+                                            self.info_size_sum+=size
 
                                             subpath=path.replace(PathToScan,'')
                                             self.scan_results_by_size[size].add( (pathNr,subpath,file,mtime,ctime,dev,inode) )
 
-                                self.InfoCounter+=1
+                                self.info_counter+=1
 
                                 self.info_path_nr=pathNr
-                                self.InfoPathToScan=PathToScan
+                                self.info_path_to_scan=PathToScan
 
                                 if self.abort_action:
                                     break
@@ -872,7 +872,7 @@ if __name__ == "__main__":
     ScanThread.start()
 
     while ScanThread.is_alive():
-        print('Scanning ...', core.InfoCounter,end='\r')
+        print('Scanning ...', core.info_counter,end='\r')
         time.sleep(0.04)
 
     ScanThread.join()

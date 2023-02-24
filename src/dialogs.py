@@ -99,12 +99,6 @@ class GenericDialog :
 
         self.widget.withdraw()
         
-        if self.focus_restore:
-            if self.preFocus:
-                self.preFocus.focus_set()
-            else:
-                self.parent.focus_set()
-            
         try:
             self.widget.update()
         except Exception as e:
@@ -112,6 +106,12 @@ class GenericDialog :
         
         if self.post_close:
             self.post_close()
+        
+        if self.focus_restore:
+            if self.preFocus:
+                self.preFocus.focus_set()
+            else:
+                self.parent.focus_set()
         
         if SetRes:
             self.res.set('')
@@ -126,12 +126,15 @@ class LabelDialog(GenericDialog):
         self.cancel_button=ttk.Button(self.area_buttons, text='OK', width=14, command=super().hide )
         self.cancel_button.pack(side='bottom', anchor='n',padx=5,pady=5)
         
-    def info(self,title,message,min_width=300,min_height=120):
+    def show(self,title,message,focus=None,min_width=300,min_height=120):
         try:
+            if not focus:
+                focus=self.cancel_button
+            
             self.widget.title(title)
             self.label.configure(text=message)
             self.widget.minsize(min_width, min_height)
-            return super().show(self.cancel_button)
+            return super().show(focus)
         except Exception as e:
             print(e)
             return ""
@@ -153,17 +156,20 @@ class TextDialogQuestion(GenericDialog):
         self.cancel_button=ttk.Button(self.area_buttons, text='Cancel', width=14, command=super().hide )
         self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
         
-        self.cancel_button=ttk.Button(self.area_buttons, text='OK', width=14, command=self.ok )
-        self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
+        self.ok_button=ttk.Button(self.area_buttons, text='OK', width=14, command=self.ok )
+        self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
     
     def ok (self,event=None):
         self.res.set('1')
         super().hide(SetRes=False)
         
-    def ask(self,title,message,min_width=800,min_height=400):
+    def show(self,title,message,focus=None,min_width=800,min_height=400):
         try:
             self.widget.title(title)
-
+            
+            if not focus:
+                focus=self.cancel_button
+                
             self.Text.configure(state=NORMAL)
             self.Text.delete('1.0', END)
             for line in message.split('\n'):
@@ -176,7 +182,7 @@ class TextDialogQuestion(GenericDialog):
             self.Text.grid(row=0,column=0,sticky='news',padx=5,pady=5)
             
             self.widget.minsize(min_width, min_height)
-            res = super().show(self.cancel_button)
+            res = super().show(focus)
             return True if res else False
             
         except Exception as e:
@@ -210,9 +216,10 @@ class EntryDialogQuestion(LabelDialog):
         self.res.set(str(self.entry_val.get()))
         super().hide(SetRes=False)
         
-    def ask(self,title,message,initial,min_width=300,min_height=120):
+    def show(self,title,message,initial,min_width=300,min_height=120):
         self.entry_val.set(initial)
-        res = super().info(title,message,min_width,min_height)
+        
+        res = super().show(title,message,focus=self.entry,min_width=min_width,min_height=min_height)
         
         return res
 
@@ -225,26 +232,18 @@ class CheckboxEntryDialogQuestion(EntryDialogQuestion):
         self.check = ttk.Checkbutton(self.area_main, variable=self.check_val)
         self.check.grid(row=1,column=0,padx=5,pady=5,sticky="wens")
     
-    def ask(self,title,message,initial,CheckDescr,CheckInitial,min_width=300,min_height=120):
+    def show(self,title,message,initial,CheckDescr,CheckInitial,min_width=300,min_height=120):
 
         self.check_val.set(CheckInitial)
         self.check.configure(text=CheckDescr)
 
-        res = super().ask(title,message,initial,min_width,min_height)
+        res = super().show(title,message,initial,min_width=min_width,min_height=min_height)
         
         return(self.check_val.get(),res)
 
 class FindEntryDialog(CheckboxEntryDialogQuestion):
-    def __init__(self,parent,icon,bg,mod_cmd,prev_cmd,next_cmd,initial,CheckInitial,pre_show=None,post_close=None):
+    def __init__(self,parent,icon,bg,mod_cmd,prev_cmd,next_cmd,pre_show=None,post_close=None):
         super().__init__(parent,icon,bg,pre_show,post_close)
-        
-        
-        self.widget.title('Find')
-        self.label.configure(text='')
-        self.check.configure(text='Use regular expressions matching')
-        
-        self.entry_val.set(initial)
-        self.check_val.set(CheckInitial)
 
         self.button_prev = ttk.Button(self.area_buttons, text='prev (Shift+F3)', width=14, command=self.prev )
         self.button_prev.pack(side='left', anchor='n',padx=5,pady=5)   
@@ -287,10 +286,9 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
     def next(self,event=None):
         self.next_cmd(self.entry_val.get(),self.check_val.get())
 
-    def show(self,message,min_width=300,min_height=120):
+    def show(self,message,initial,CheckInitial=False,min_width=300,min_height=120):
         try:
-            self.label.configure(text=message)
-            super().show()
+            super().show(title='Find',message=message,initial=initial,CheckDescr='Use regular expressions matching',CheckInitial=CheckInitial)
         except Exception as e:
             print(e)
         
