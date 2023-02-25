@@ -394,7 +394,7 @@ class Gui:
         
         self.main.minsize(1200, 800)
 
-        self.iconphoto = PhotoImage(file = os.path.join(os.path.dirname(__file__),'icon.png'))
+        self.iconphoto = PhotoImage(file = os.path.join(os.path.dirname(DUDE_FILE),'icon.png'))
         self.main.iconphoto(False, self.iconphoto)
 
         self.main.bind('<KeyPress-F2>', lambda event : self.SettingsDialog.show(focus=self.cancel_button))
@@ -672,6 +672,8 @@ class Gui:
         def pre_show():
             self.menu_disable()
             self.menubar.config(cursor="watch")
+            self.hide_tooltip()
+            self.menubar_unpost()
         
         def post_close():
             self.menu_enable()
@@ -843,12 +845,14 @@ class Gui:
         
         #######################################################################
         #License Dialog
+        logging.debug('DUDE_FILE:%s' % DUDE_FILE )
+        
         try:
-            self.license=pathlib.Path(os.path.join(os.path.dirname(__file__),'LICENSE')).read_text()
+            self.license=pathlib.Path(os.path.join(os.path.dirname(DUDE_FILE),'LICENSE')).read_text()
         except Exception as e:
             logging.error(e)
             try:
-                self.license=pathlib.Path(os.path.join(os.path.dirname(os.path.dirname(__file__)),'LICENSE')).read_text()
+                self.license=pathlib.Path(os.path.join(os.path.dirname(os.path.dirname(DUDE_FILE)),'LICENSE')).read_text()
             except Exception as e:
                 logging.error(e)
                 self.exit()
@@ -942,8 +946,8 @@ class Gui:
         
         self.tooltip.withdraw()
         
-        #self.groups_tree.bind("<Motion>", self.motion_on_groups_tree)
-        #self.folder_tree.bind("<Motion>", self.motion_on_folder_tree)
+        self.groups_tree.bind("<Motion>", self.motion_on_groups_tree)
+        self.folder_tree.bind("<Motion>", self.motion_on_folder_tree)
         
         self.groups_tree.bind("<Leave>", self.tree_leave)
         self.folder_tree.bind("<Leave>", self.tree_leave)
@@ -985,10 +989,10 @@ class Gui:
         self.hide_tooltip()
         
     def motion_on_groups_tree(self,event):
-        self.tooltip_show_after_groups = event.widget.after(10, self.show_tooltip_groups(event))
+        self.tooltip_show_after_groups = event.widget.after(1, self.show_tooltip_groups(event))
 
     def motion_on_folder_tree(self,event):
-        self.tooltip_show_after_folder = event.widget.after(10, self.show_tooltip_folder(event))
+        self.tooltip_show_after_folder = event.widget.after(1, self.show_tooltip_folder(event))
     
     def show_tooltip_groups(self,event):
         self.unschedule_tooltip_groups()
@@ -997,46 +1001,68 @@ class Gui:
         if item := event.widget.identify('item', event.x, event.y):
             pathnrstr=event.widget.set(item,'pathnr')
             
-            if pathnrstr:
-                col=event.widget.identify_column(event.x)
-                colname=event.widget.column(col,'id')
+            col=event.widget.identify_column(event.x)
+            if col=="#0" :
+                if pathnrstr:
+                    pathnr=int(pathnrstr)
+                    if event.widget.set(item,'kind')==FILE:
+                        self.tooltip_lab.configure(text='%s - %s' % (self.NUMBERS[pathnr],self.D.ScannedPaths[pathnr]) )
+                        self.tooltip.deiconify()
+                        self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+                else:
+                    crc=item
+                    self.tooltip_lab.configure(text='CRC: %s' % crc )
+                    self.tooltip.deiconify()
+                    self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+            elif col:
+                #colname=event.widget.column(col,'id')
+                coldata=event.widget.set(item,col)
                 
-                pathnr=int(pathnrstr)
-                path=event.widget.set(item,'path')
-                file=event.widget.set(item,'file')
-                file_path = os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
-                
-                self.tooltip_lab.configure(text=file_path)
-                self.tooltip.deiconify()
-                self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
-                
-                #if col=="#0" :
-                #else:
+                #if pathnrstr:
+                #    pathnr=int(pathnrstr)
+                #    path=event.widget.set(item,'path')
+                #    file=event.widget.set(item,'file')
+                #    file_path = os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
+                if coldata:
+                    self.tooltip_lab.configure(text=coldata)
+                    self.tooltip.deiconify()
+                    self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+                else:
+                    self.hide_tooltip()            
                     
     def show_tooltip_folder(self,event):
         self.unschedule_tooltip_folder()
         self.menubar_unpost()
         
         if item := event.widget.identify('item', event.x, event.y):
-            #file_path = self.item_full_path(item)
+            #pathnrstr=event.widget.set(item,'pathnr')
             
             col=event.widget.identify_column(event.x)
-            colname=event.widget.column(col,'id')
-
-            #print(col,colname)
-            #values = event.widget.item(item)['values']
-            #print(values)
-            #if event.widget.identify("region", event.x, event.y) == 'heading':
             
-            self.tooltip_lab.configure(text='TODO')
-            self.tooltip.deiconify()
-            self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+            #colname=event.widget.column(col,'id')
+            if col=="#0" :
+                coldata=''
+            else:
+                coldata=event.widget.set(item,col)
+            
+            #if pathnrstr:
+            #    pathnr=int(pathnrstr)
+            #    path=event.widget.set(item,'path')
+            #    file=event.widget.set(item,'file')
+            #    file_path = os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
+            if coldata:
+                self.tooltip_lab.configure(text=coldata)
+                self.tooltip.deiconify()
+                self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+            else:
+                self.hide_tooltip()        
         
     def unschedule_tooltip_groups(self):
-        id = self.tooltip_show_after_groups
-        self.tooltip_show_after_groups = None
-        if id:
-            self.widget.after_cancel(id)
+        #id = self.tooltip_show_after_groups
+        if self.tooltip_show_after_groups:
+            self.widget.after_cancel(self.tooltip_show_after_groups)
+            self.tooltip_show_after_groups = None
+            
     def unschedule_tooltip_folder(self):
         id = self.tooltip_show_after_folder
         self.tooltip_show_after_folder = None
@@ -1247,6 +1273,8 @@ class Gui:
             return
 
         self.main.unbind_class('Treeview','<KeyPress>')
+        self.hide_tooltip()
+        self.menubar_unpost()
 
         try:
             tree=event.widget
@@ -3326,7 +3354,9 @@ if __name__ == "__main__":
         #timestamp
         
         VER_TIMESTAMP = console.get_ver_timestamp()
-
+        
+        DUDE_FILE = os.path.normpath(__file__)
+        
         args = console.parse_args(VER_TIMESTAMP)
 
         log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.txt'

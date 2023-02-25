@@ -10,6 +10,17 @@ def set_geometry_by_parent(widget,parent):
     widget.geometry(f'+{x}+{y}')
 
 class GenericDialog :
+    def focus_out(self,event):
+        pass
+        #dont work,breaks ask dir dialog ...
+        
+        #if self.focus:
+            #self.widget.after_idle(self.focus.focus_set)
+            #self.focus.focus_force()
+        #else:
+            #self.widget.after_idle(self.widget.focus_set)
+            #self.widget.focus_force()
+
     def __init__(self,parent,icon,bg,title,pre_show=None,post_close=None,min_width=600,min_height=400):
         self.bg=bg
   
@@ -27,7 +38,7 @@ class GenericDialog :
         self.widget.bind('<Escape>', self.hide)
         
         self.widget.bind('<KeyPress-Return>', self.return_bind)
-        
+                
         self.parent=parent
         
         self.pre_show=pre_show
@@ -60,6 +71,9 @@ class GenericDialog :
         self.widget.wm_transient(self.parent)
         
         self.preFocus=self.parent.focus_get()
+        
+        self.parent.unbind("<FocusOut>")
+        self.widget.bind("<FocusOut>", self.focus_out)
 
         if self.pre_show:
             self.pre_show()
@@ -70,15 +84,19 @@ class GenericDialog :
         
         self.widget.update()
         set_geometry_by_parent(self.widget,self.parent)
+        
         self.widget.grab_set()
-        
         self.res.set('')
-        self.widget.deiconify()
         
+        self.widget.deiconify()
+        self.widget.update()
+        
+        
+        self.focus=focus
         if focus:
             focus.focus_set()
+            #focus.focus_force()
         
-        self.widget.update()
         set_geometry_by_parent(self.widget,self.parent)
         self.widget.lift()
         
@@ -97,8 +115,11 @@ class GenericDialog :
         self.widget.grab_release()
         self.parent.config(cursor="")
 
-        self.widget.withdraw()
+        self.widget.unbind("<FocusOut>")
+        self.parent.bind("<FocusOut>", self.focus_out)
         
+        self.widget.withdraw()
+
         try:
             self.widget.update()
         except Exception as e:
