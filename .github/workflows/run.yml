@@ -11,9 +11,10 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v3
+    - name: checkout
+      uses: actions/checkout@v3
 
-    - name: Set up Python
+    - name: python setup
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
@@ -24,7 +25,8 @@ jobs:
       working-directory: ./scripts
       run: bash "version.gen.sh"
 
-    - uses: actions/upload-artifact@v3
+    - name: version upload
+      uses: actions/upload-artifact@v3
       with:
         name: version
         path: ./src/version.txt
@@ -34,9 +36,10 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v3
+    - name: checkout
+      uses: actions/checkout@v3
 
-    - name: Set up Python
+    - name: python setup
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
@@ -49,7 +52,7 @@ jobs:
     - name: install requirements
       run: pip install -r requirements.txt
 
-    - name: Download version artifact
+    - name: version download
       uses: actions/download-artifact@v3
       with:
         name: version
@@ -58,7 +61,7 @@ jobs:
     - name: strip python binaries
       run: find $pythonLocation -name *.so* -type f -exec strip {} \;
     
-    - name: run Nuitka
+    - name: run nuitka
       working-directory: ./scripts
       run: bash "nuitka.run.sh"
     
@@ -73,9 +76,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: checkout
+      uses: actions/checkout@v3
 
-    - name: Set up Python
+    - name: python setup
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
@@ -88,14 +92,14 @@ jobs:
     - name: install requirements
       run: pip install -r requirements.txt
     
-    - name: Download version artifact
+    - name: version download
       id: version
       uses: actions/download-artifact@v3
       with:
         name: version
         path: ./src
     
-    - name: run Nuitka
+    - name: run nuitka
       working-directory: ./scripts
       run: "nuitka.run.bat"
       shell: cmd
@@ -114,33 +118,35 @@ jobs:
     needs: [build-lin, build-win]
     
     steps:
-    - name: Download version
+    - name: version download
       uses: actions/download-artifact@v3
       with:
         name: version
         path: ./
     
-    - name: Read version
+    - name: version read
       id: version
       run: echo "version=$(cat ./version.txt)" >> $GITHUB_OUTPUT
 
-    - name: Download linux build
+    - name: download linux build
       uses: actions/download-artifact@v3
       with:
         name: dude-lin
         path: ./
 
-    - name: chmod
+    - name: pack linux
       run: |
         chmod 777 ./dude
         tar -czvf dude.lin.${{ steps.version.outputs.version }}.tgz dude
-        zip dude.win.${{ steps.version.outputs.version }}.zip dude.exe dudegui.exe
-        
-    - name: Download windows build
+      
+    - name: download windows build
       uses: actions/download-artifact@v3
       with:
         name: dude-win
         path: ./
+    
+    - name: pack windows
+        zip dude.win.${{ steps.version.outputs.version }}.zip dude.exe dudegui.exe
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
