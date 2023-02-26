@@ -229,30 +229,6 @@ class Gui:
             return res
         return restore_status_line_wrapp
 
-    def keep_semi_focus(f):
-        def keep_semi_focus_wrapp(self,*args,**kwargs):
-            tree=self.main.focus_get()
-
-            try:
-                tree.configure(style='semi_focus.Treeview')
-            except:
-                pass
-
-            try:
-                res=f(self,*args,**kwargs)
-            except Exception as e:
-                self.status(str(e))
-                res=None
-                logging.error(e)
-
-            try:
-                tree.configure(style='default.Treeview')
-            except:
-                pass
-
-            return res
-        return keep_semi_focus_wrapp
-
     #######################################################################
     action_abort=False
     def crc_progress_dialog_show(self,parent,title,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
@@ -371,6 +347,8 @@ class Gui:
 
         self.message.set('%s\n%s'%(prefix,message))
         self.crc_progress_dialog.update()
+    
+    other_tree={}
     
     def __init__(self,cwd,pathsToAdd=None,exclude=None,excluderegexp=None,norun=None,debug_mode=False):
         self.D = core.DudeCore(CACHE_DIR,logging)
@@ -633,7 +611,10 @@ class Gui:
         #bind_class breaks columns resizing
         self.folder_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
         self.folder_tree.bind('<Control-ButtonPress-1>',  lambda event :self.tree_on_mouse_button_press(event,True) )
-
+        
+        self.other_tree[self.folder_tree]=self.groups_tree
+        self.other_tree[self.groups_tree]=self.folder_tree
+        
         try:
             self.main.update()
             CfgGeometry=self.cfg.get('main','',section='geometry')
@@ -663,8 +644,8 @@ class Gui:
         self.popup_groups = Menu(self.groups_tree, tearoff=0,bg=self.bg)
         self.popup_groups.bind("<FocusOut>",lambda event : self.popup_groups.unpost() )
 
-        self.PopupFolder = Menu(self.folder_tree, tearoff=0,bg=self.bg)
-        self.PopupFolder.bind("<FocusOut>",lambda event : self.PopupFolder.unpost() )
+        self.popup_folder = Menu(self.folder_tree, tearoff=0,bg=self.bg)
+        self.popup_folder.bind("<FocusOut>",lambda event : self.popup_folder.unpost() )
 
         #######################################################################
         #scan dialog
@@ -987,6 +968,10 @@ class Gui:
     def tree_leave(self,event):
         self.menubar_unpost()
         self.hide_tooltip()
+        #if event.widget==self.groups_tree:
+        #    self.popup_groups.unpost()
+        #else:
+        #    self.popup_folder.unpost()
         
     def motion_on_groups_tree(self,event):
         self.tooltip_show_after_groups = event.widget.after(1, self.show_tooltip_groups(event))
@@ -1127,7 +1112,6 @@ class Gui:
     def finder_wrapper_show(self):
         tree=self.groups_tree if self.SelTreeIndex==0 else self.folder_tree
 
-        tree.configure(style='semi_focus.Treeview')
         self.find_dialog_shown=True
         
         ScopeInfo = 'Scope: All groups.' if self.SelTreeIndex==0 else 'Scope: Selected directory.'
@@ -1135,7 +1119,6 @@ class Gui:
         self.find_dialog_on_main.show(ScopeInfo,initial='*',CheckInitial=False)
         
         self.find_dialog_shown=False
-        tree.configure(style='default.Treeview')
 
         selList=tree.selection()
 
@@ -1279,7 +1262,7 @@ class Gui:
         try:
             tree=event.widget
             item=tree.focus()
-
+            
             if sel:=tree.selection() : tree.selection_remove(sel)
 
             if event.keysym in ("Up",'Down') :
@@ -1523,7 +1506,10 @@ class Gui:
     from_tab_switch=False
     def tree_on_focus_in(self,event):
         tree=event.widget
-
+        
+        tree.configure(style='semi_focus.Treeview')
+        self.other_tree[tree].configure(style='default.Treeview')
+            
         item=None
 
         if sel:=tree.selection():
@@ -1652,9 +1638,8 @@ class Gui:
         try:
             self.menubar.unpost()
         except Exception as e:
-            print(e)
+            logging.error(e)
 
-    @keep_semi_focus
     def context_menu_show(self,event):
         if not self.do_process_events:
             return
@@ -1662,17 +1647,18 @@ class Gui:
         self.tree_on_mouse_button_press(event)
 
         tree=event.widget
-
+        tree.focus_set()
+        
         ItemActionsState=('disabled','normal')[self.sel_item!=None]
 
-        pop=self.popup_groups if tree==self.groups_tree else self.PopupFolder
+        pop=self.popup_groups if tree==self.groups_tree else self.popup_folder
 
         pop.delete(0,END)
 
         FileActionsState=('disabled',ItemActionsState)[self.SelKind==FILE]
         
         parent_dir_state = ('disabled','normal')[self.two_dots_condition() and self.SelKind!=CRC]
-                    
+        
         if tree==self.groups_tree:
             cLocal = Menu(pop,tearoff=0,bg=self.bg)
             cLocal.add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space")
@@ -1853,15 +1839,11 @@ class Gui:
 
         pop.add_command(label = "Exit",  command = self.exit)
         
-        tree.configure(style='semi_focus.Treeview')
-        
         try:
             pop.tk_popup(event.x_root, event.y_root)
         except Exception as e:
             print(e)
         
-        tree.configure(style='default.Treeview')
-
         pop.grab_release()
 
     def empty_folder_remove_ask(self):
@@ -2583,7 +2565,6 @@ class Gui:
 
     TreeExpr={}
 
-    @keep_semi_focus
     def mark_expression(self,action,prompt,AllGroups=True):
         tree=self.main.focus_get()
 
@@ -3097,7 +3078,6 @@ class Gui:
         else:
             return self.get_this_or_existing_parent(pathlib.Path(path).parent.absolute())
 
-    @keep_semi_focus
     def process_files(self,action,ProcessedItems,ScopeTitle):
         tree=(self.groups_tree,self.folder_tree)[self.SelTreeIndex]
 
