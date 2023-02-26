@@ -66,9 +66,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./*
-        asset_name: dude-lin-${{ steps.version.outputs.version }}.zip
-        asset_content_type: application/zip
+        asset_path: ./dude
+        asset_name: dude-lin-${{ steps.version.outputs.version }}.gzip
+        asset_content_type: application/gzip
         
   build-win:
     needs: [build-lin]
