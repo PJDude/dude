@@ -8,7 +8,60 @@ permissions:
   contents: read
 
 jobs:
+  build-lin:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+        check-latest: true
+
+    - name: STAGE pip upgrade
+      run: python -m pip install --upgrade pip
+
+    - name: STAGE requirements
+      run: pip install -r requirements.txt
+
+    - name: STAGE strip bins
+      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
+
+    - name: STAGE gen version
+      working-directory: ./scripts
+      run: bash "version.gen.sh"
+    
+    - name: STAGE run Nuitka
+      working-directory: ./scripts
+      run: bash "nuitka.run.sh"
+    
+    - name: Set version
+      id: version
+      run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
+
+    - name: Create release tag
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        release_name: Release ${{ steps.version.outputs.version }}
+        body: |
+          This is the release of version ${{ steps.version.outputs.version }}.
+        draft: false
+        prerelease: true
+    
+    - uses: actions/upload-artifact@v3
+      with:
+        name: dude-lin
+        path: dude
+  
   build-win:
+    needs: [build-lin]
     runs-on: windows-latest
 
     steps:
@@ -38,34 +91,3 @@ jobs:
         path: |
           dude.exe
           dudegui.exe
-
-  build-lin:
-    runs-on: ubuntu-20.04
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
-        cache: 'pip'
-        check-latest: true
-
-    - name: STAGE pip upgrade
-      run: python -m pip install --upgrade pip
-
-    - name: STAGE requirements
-      run: pip install -r requirements.txt
-
-    - name: STAGE strip bins
-      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
-
-    - name: STAGE run Nuitka
-      working-directory: ./scripts
-      run: bash "nuitka.run.sh"
-
-    - uses: actions/upload-artifact@v3
-      with:
-        name: dude-lin
-        path: dude

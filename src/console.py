@@ -34,7 +34,7 @@ from subprocess import Popen
 from subprocess import DEVNULL
 import pathlib
 
-VERSION_FILE='ver_time.txt'
+VERSION_FILE='version.txt'
 
 def get_ver_timestamp():
     try:
