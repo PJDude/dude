@@ -23,7 +23,7 @@ mins_rest=time_diff_mins-time_diff_days*DAYS_MINS
 time_diff_days_str=str(time_diff_days).zfill(4)
 mins_rest_by2_str=str(round(mins_rest/2)).zfill(3)
 
-version='%s.%s.%s' % (MAIN_VERSION,time_diff_days_str,mins_rest_by2_str)
+version='v%s.%s.%s' % (MAIN_VERSION,time_diff_days_str,mins_rest_by2_str)
 with open(VERSION_FILE,'w' ) as f:
     f.write(version)
 
