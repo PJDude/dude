@@ -68,7 +68,7 @@ jobs:
         path: dude
         
   build-win:
-    needs: [build-lin]
+    needs: [set-version]
     runs-on: windows-latest
 
     steps:
@@ -113,7 +113,6 @@ jobs:
     
     steps:
     - name: Download version artifact
-      id: version
       uses: actions/download-artifact@v3
       with:
         name: version
@@ -126,7 +125,6 @@ jobs:
         path: ./
 
     - name: chmod
-      id: version
       run: chmod 777 ./dude
 
     - name: Download windows build
