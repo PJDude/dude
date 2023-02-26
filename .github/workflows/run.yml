@@ -29,7 +29,7 @@ jobs:
         name: version
         path: ./src/version.txt
   
-    release:
+  release:
     permissions: write-all
     runs-on: ubuntu-20.04
     needs: [set-version]
