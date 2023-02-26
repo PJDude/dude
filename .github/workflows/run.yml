@@ -7,8 +7,30 @@ on:
 permissions: read-all
 
 jobs:
+  set-version:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+        check-latest: true
+  
+    - name: STAGE gen version
+      working-directory: ./scripts
+      run: bash "version.gen.sh"
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: version
+        path: ./src/version.txt
+  
   build-lin:
-    permissions: write-all  
+    needs: [set-version]
     runs-on: ubuntu-20.04
 
     steps:
@@ -27,29 +49,14 @@ jobs:
     - name: STAGE requirements
       run: pip install -r requirements.txt
 
+    - name: Download version artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: version
+        path: ./src
+        
     - name: STAGE strip bins
       run: find $pythonLocation -name *.so* -type f -exec strip {} \;
-
-    - name: STAGE gen version
-      working-directory: ./scripts
-      run: bash "version.gen.sh"
-    
-    - name: Set version
-      id: version
-      run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
-
-    - name: Create release tag
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.version.outputs.version }}
-        release_name: Release ${{ steps.version.outputs.version }}
-        body: |
-          This is the release of version ${{ steps.version.outputs.version }}
-        draft: false
-        prerelease: true
     
     - name: STAGE run Nuitka
       working-directory: ./scripts
@@ -59,21 +66,6 @@ jobs:
       with:
         name: dude-lin
         path: dude
-        
-    - uses: actions/upload-artifact@v3
-      with:
-        name: version
-        path: ./src/version.txt
-  
-    - name: Upload release files
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dude
-        asset_name: dude-lin-${{ steps.version.outputs.version }}.zip
-        asset_content_type: application/zip
         
   build-win:
     needs: [build-lin]
@@ -95,15 +87,13 @@ jobs:
     - name: STAGE requirements
       run: pip install -r requirements.txt
     
-    - uses: actions/download-artifact@v3
-      id: download
+    - name: Download version artifact
+      id: version
+      uses: actions/download-artifact@v3
       with:
         name: version
         path: ./src
     
-    - name: 'Echo download path'
-      run: echo ${{steps.download.outputs.download-path}}
-      
     - name: STAGE run Nuitka
       working-directory: ./scripts
       run: "nuitka.run.bat"
@@ -116,15 +106,70 @@ jobs:
           dude.exe
           dudegui.exe
 
-    - name: Upload release files
+  release:
+    permissions: write-all
+    runs-on: ubuntu-20.04
+    needs: [build-lin, build-win]
+    
+    steps:
+    - name: Download version artifact
+      id: version
+      uses: actions/download-artifact@v3
+      with:
+        name: version
+        path: ./src
+
+    - name: Download linux build
+      uses: actions/download-artifact@v3
+      with:
+        name: dude-lin
+        path: ./
+
+    - name: chmod
+      id: version
+      run: chmod 777 ./dude
+
+    - name: Download windows build
+      uses: actions/download-artifact@v3
+      with:
+        name: dude-win
+        path: ./
+    
+    - name: Read version
+      id: version
+      run: echo "version=$(cat ./src/version.txt)" 
+
+    - name: Create release tag
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        release_name: Release ${{ steps.version.outputs.version }}
+        body: |
+          This is the release of version ${{ steps.version.outputs.version }}
+        draft: false
+        prerelease: true
+
+    - name: Upload release lin
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dude
+        asset_name: dude-${{ steps.version.outputs.version }}
+        asset_content_type: application/octet-stream
+        
+    - name: Upload release win
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: |
-            dude.exe
-            dudegui.exe
-        asset_name: dude-win-${{ steps.version.outputs.version }}.zip
+          dude.exe
+          dudegui.exe
+        asset_name: dude-${{ steps.version.outputs.version }}.zip
         asset_content_type: application/zip
-        
