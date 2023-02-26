@@ -8,6 +8,7 @@ permissions: read-all
 
 jobs:
   build-lin:
+    permissions: write-all  
     runs-on: ubuntu-20.04
 
     steps:
