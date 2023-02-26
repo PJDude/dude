@@ -116,7 +116,7 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: version
-        path: ./src
+        path: ./
 
     - name: Download linux build
       uses: actions/download-artifact@v3
@@ -135,7 +135,7 @@ jobs:
     
     - name: Read version
       id: version
-      run: echo "version=$(cat ./src/version.txt)" 
+      run: echo "version=$(cat ./version.txt)" >> $GITHUB_OUTPUT
 
     - name: Create release tag
       id: create_release
