@@ -59,6 +59,11 @@ jobs:
       with:
         name: dude-lin
         path: dude
+        
+    - uses: actions/upload-artifact@v3
+      with:
+        name: version
+        path: ./src/version.txt
   
     - name: Upload release files
       uses: actions/upload-release-asset@v1
@@ -67,8 +72,8 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./dude
-        asset_name: dude-lin-${{ steps.version.outputs.version }}.gzip
-        asset_content_type: application/gzip
+        asset_name: dude-lin-${{ steps.version.outputs.version }}.zip
+        asset_content_type: application/zip
         
   build-win:
     needs: [build-lin]
@@ -89,7 +94,12 @@ jobs:
 
     - name: STAGE requirements
       run: pip install -r requirements.txt
-
+    
+    - uses: actions/download-artifact@v3
+      with:
+        name: version
+        path: ./src/version.txt
+        
     - name: STAGE run Nuitka
       working-directory: ./scripts
       run: "nuitka.run.bat"
@@ -101,3 +111,16 @@ jobs:
         path: |
           dude.exe
           dudegui.exe
+
+    - name: Upload release files
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: |
+            dude.exe
+            dudegui.exe
+        asset_name: dude-win-${{ steps.version.outputs.version }}.zip
+        asset_content_type: application/zip
+        
