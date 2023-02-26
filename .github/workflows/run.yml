@@ -146,7 +146,7 @@ jobs:
         path: ./
     
     - name: pack windows
-        zip dude.win.${{ steps.version.outputs.version }}.zip dude.exe dudegui.exe
+      run: zip dude.win.${{ steps.version.outputs.version }}.zip dude.exe dudegui.exe
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
