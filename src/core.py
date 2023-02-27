@@ -74,7 +74,7 @@ class DudeCore:
         self.devs.clear()
         self.CrcCutLen=40
         self.crccut={}
-        self.ScannedPaths=[]
+        self.scanned_paths=[]
 
         self.ExcludeList=[]
 
@@ -89,7 +89,7 @@ class DudeCore:
         return os.path.join(self.Paths2Scan[pathnr]+path,file)
 
     def get_full_path_scanned(self,pathnr,path,file):
-        return os.path.join(self.ScannedPaths[pathnr]+path,file)
+        return os.path.join(self.scanned_paths[pathnr]+path,file)
 
     def set_paths_to_scan(self,paths):
         pathsLen=len(paths)
@@ -336,16 +336,16 @@ class DudeCore:
 
     writeLog=False
 
-    InfoSizeDone=0
-    InfoFileDone=0
+    info_size_done=0
+    info_files_done=0
 
-    InfoTotal=1
-    InfoFoundGroups=0
-    InfoFoundFolders=0
-    InfoDuplicatesSpace=0
-    infoSpeed=0
+    info_total=1
+    info_found_groups=0
+    info_found_folders=0
+    info_found_dupe_space=0
+    info_speed=0
 
-    InfoThreads='?'
+    info_threads='?'
 
     Status=''
 
@@ -364,12 +364,12 @@ class DudeCore:
             SrcQ.task_done()
 
             if Task:
-                File,IndexTuple,size,mtime = Task
+                File,index_tuple,size,mtime = Task
                 h = hashlib.sha1()
 
                 self.CrcThreadProgressInfo[dev]=0
 
-                self.CrcThreadFileInfo[dev]=(size,IndexTuple)
+                self.CrcThreadFileInfo[dev]=(size,index_tuple)
                 while rsize := File.readinto(buf):
                     h.update(view[:rsize])
                     self.CrcThreadProgressInfo[dev]+=rsize
@@ -378,7 +378,7 @@ class DudeCore:
                         break
 
                 if not self.abort_action:
-                    ResQ.put((File,IndexTuple,size,mtime,h.hexdigest()))
+                    ResQ.put((File,index_tuple,size,mtime,h.hexdigest()))
                     SizeDone+=size
                     FilesDone+=1
                     self.CrcThreadTotalInfo[dev]=(FilesDone,SizeDone)
@@ -397,20 +397,20 @@ class DudeCore:
     def crc_calc(self):
         self.crc_cache_read()
 
-        self.ScannedPaths=self.Paths2Scan.copy()
+        self.scanned_paths=self.Paths2Scan.copy()
 
-        self.InfoSizeDone=0
-        self.InfoFileDone=0
+        self.info_size_done=0
+        self.info_files_done=0
 
         self.abort_action=False
         self.can_abort=True
 
-        self.InfoFoundGroups=0
-        self.InfoFoundFolders=0
-        self.InfoDuplicatesSpace=0
-        self.infoSpeed=0
+        self.info_found_groups=0
+        self.info_found_folders=0
+        self.info_found_dupe_space=0
+        self.info_speed=0
 
-        self.InfoTotal = len([ 1 for size in self.scan_results_by_size for pathnr,path,file,mtime,ctime,dev,inode in self.scan_results_by_size[size] ])
+        self.info_total = len([ 1 for size in self.scan_results_by_size for pathnr,path,file,mtime,ctime,dev,inode in self.scan_results_by_size[size] ])
 
         start = time.time()
 
@@ -457,18 +457,18 @@ class DudeCore:
                 CacheKey=(inode,mtime)
                 if CacheKey in self.CRCCache[dev]:
                     if crc:=self.CRCCache[dev][CacheKey]:
-                        self.InfoSizeDone+=size
-                        self.InfoFileDone+=1
+                        self.info_size_done+=size
+                        self.info_files_done+=1
 
-                        IndexTuple=(pathnr,path,file,ctime,dev,inode)
-                        self.files_of_size_of_crc[size][crc].add( IndexTuple )
+                        index_tuple=(pathnr,path,file,ctime,dev,inode)
+                        self.files_of_size_of_crc[size][crc].add( index_tuple )
                         continue
 
                 FileNamesQueue[dev].put((size,pathnr,path,file,mtime,ctime,inode))
         #########################################################################################################
 
-        InfoSizeNotCalculated=self.InfoSizeDone
-        InfoFilesNotCalculated=self.InfoFileDone
+        InfoSizeNotCalculated=self.info_size_done
+        InfoFilesNotCalculated=self.info_files_done
 
         OpenedFilesPerDevLimit=32
 
@@ -507,8 +507,8 @@ class DudeCore:
                         InfoSizeNotCalculated+=size
                         InfoFilesNotCalculated+=1
                     else:
-                        IndexTuple=(pathnr,path,file,ctime,dev,inode)
-                        OpenedFilesQueue[dev].put((File,IndexTuple,size,mtime))
+                        index_tuple=(pathnr,path,file,ctime,dev,inode)
+                        OpenedFilesQueue[dev].put((File,index_tuple,size,mtime))
                         AnythingOpened=True
 
             ########################################################################
@@ -519,13 +519,13 @@ class DudeCore:
                     Task = FilesCrcQueue[dev].get()
                     FilesCrcQueue[dev].task_done()
 
-                    File,IndexTuple,size,mtime,crc = Task
+                    File,index_tuple,size,mtime,crc = Task
 
-                    self.files_of_size_of_crc[size][crc].add( IndexTuple )
+                    self.files_of_size_of_crc[size][crc].add( index_tuple )
                     AnythingProcessed=True
 
-                    dev=IndexTuple[4]
-                    inode=IndexTuple[5]
+                    dev=index_tuple[4]
+                    inode=index_tuple[5]
                     CacheKey=(inode,mtime)
                     self.CRCCache[dev][CacheKey]=crc
 
@@ -552,7 +552,7 @@ class DudeCore:
             if NothingStarted and AliveThreads==0 and AllCrcProcessed:
                 break
             elif not AnythingOpened and not AnythingProcessed and NothingStarted:
-                self.InfoThreads=str(AliveThreads)
+                self.info_threads=str(AliveThreads)
                 time.sleep(0.01)
 
             ########################################################################
@@ -573,8 +573,8 @@ class DudeCore:
                     InfoSizeDoneTemp+=self.CrcThreadProgressInfo[dev]
                     InfoFilesDoneTemp+=FilesDone
 
-                self.InfoSizeDone=InfoSizeDoneTemp
-                self.InfoFileDone=InfoFilesDoneTemp
+                self.info_size_done=InfoSizeDoneTemp
+                self.info_files_done=InfoFilesDoneTemp
                 #######################################################
                 #speed
                 MeasuresPool=[(PoolTime,FSize,FQuant) for (PoolTime,FSize,FQuant) in MeasuresPool if (now-PoolTime)<3]
@@ -584,28 +584,28 @@ class DudeCore:
 
                 if LastPeriodTimeDiff := now - first[0]:
                     LastPeriodSizeSum  = InfoSizeDoneTemp - first[1]
-                    self.infoSpeed=int(LastPeriodSizeSum/LastPeriodTimeDiff)
+                    self.info_speed=int(LastPeriodSizeSum/LastPeriodTimeDiff)
 
                 #######################################################
                 #found
                 if now-LastTimeResultsCheck>2 and not self.abort_action:
                     LastTimeResultsCheck=now
 
-                    TempInfoFoundGroups=0
-                    TempInfoFoundFolders=set()
-                    TempInfoDuplicatesSpace=0
+                    temp_info_groups=0
+                    temp_info_folders=set()
+                    temp_info_dupe_space=0
 
                     for size,sizeDict in self.files_of_size_of_crc.items():
                         for crcDict in sizeDict.values():
                             if len(crcDict)>1:
-                                TempInfoFoundGroups+=1
+                                temp_info_groups+=1
                                 for pathnr,path,file,ctime,dev,inode in crcDict:
-                                    TempInfoDuplicatesSpace+=size
-                                    TempInfoFoundFolders.add((pathnr,path))
+                                    temp_info_dupe_space+=size
+                                    temp_info_folders.add((pathnr,path))
 
-                    self.InfoFoundGroups=TempInfoFoundGroups
-                    self.InfoFoundFolders=len(TempInfoFoundFolders)
-                    self.InfoDuplicatesSpace=TempInfoDuplicatesSpace
+                    self.info_found_groups=temp_info_groups
+                    self.info_found_folders=len(temp_info_folders)
+                    self.info_found_dupe_space=temp_info_dupe_space
 
                 #######################################################
                 #status line info
@@ -673,8 +673,8 @@ class DudeCore:
                             resProblems.append(f'file changed:{size},{ctime},{dev},{inode} vs {stat.st_size},{round(stat.st_ctime)},{stat.st_dev},{stat.st_ino}')
                             problem=True
                 if problem:
-                    IndexTuple=(pathnr,path,file,ctime,dev,inode)
-                    toRemove.append(IndexTuple)
+                    index_tuple=(pathnr,path,file,ctime,dev,inode)
+                    toRemove.append(index_tuple)
         else :
             resProblems.append('no data')
 
@@ -693,8 +693,8 @@ class DudeCore:
             self.Log.info(f'size:{size}')
             for crc in self.files_of_size_of_crc[size]:
                 self.Log.info(f'  crc:{crc}')
-                for IndexTuple in self.files_of_size_of_crc[size][crc]:
-                    self.Log.info('    ' + ' '.join( [str(elem) for elem in list(IndexTuple) ]))
+                for index_tuple in self.files_of_size_of_crc[size][crc]:
+                    self.Log.info('    ' + ' '.join( [str(elem) for elem in list(index_tuple) ]))
         self.Log.info('#######################################################')
 
     def check_crc_pool_and_prune(self,size):
@@ -763,80 +763,80 @@ class DudeCore:
         if size not in self.files_of_size_of_crc or crc not in self.files_of_size_of_crc[size]:
             del self.crccut[crc]
 
-    def remove_from_data_pool(self,size,crc,IndexTuplesList):
-        for IndexTuple in IndexTuplesList:
-            self.Log.debug(f'remove_from_data_pool:{size},{crc},{IndexTuple}')
-            self.files_of_size_of_crc[size][crc].remove(IndexTuple)
+    def remove_from_data_pool(self,size,crc,index_tuple_list):
+        for index_tuple in index_tuple_list:
+            self.Log.debug(f'remove_from_data_pool:{size},{crc},{index_tuple}')
+            self.files_of_size_of_crc[size][crc].remove(index_tuple)
 
         self.check_crc_pool_and_prune(size)
         self.reduce_crc_cut(size,crc)
 
-    def get_path(self,IndexTuple):
-        (pathnr,path,file,ctime,dev,inode)=IndexTuple
-        return self.ScannedPaths[pathnr]+path
+    def get_path(self,index_tuple):
+        (pathnr,path,file,ctime,dev,inode)=index_tuple
+        return self.scanned_paths[pathnr]+path
 
-    def delete_file_wrapper(self,size,crc,IndexTuplesList):
+    def delete_file_wrapper(self,size,crc,index_tuple_list):
         Messages=[]
-        IndexTuplesListDone=[]
-        for IndexTuple in IndexTuplesList:
-            self.Log.debug(f"delete_file_wrapper:{size},{crc},{IndexTuple}")
+        index_tuples_list_done=[]
+        for index_tuple in index_tuple_list:
+            self.Log.debug(f"delete_file_wrapper:{size},{crc},{index_tuple}")
 
-            (pathnr,path,file,ctime,dev,inode)=IndexTuple
-            FullFilePath=self.get_full_path_scanned(pathnr,path,file)
+            (pathnr,path,file,ctime,dev,inode)=index_tuple
+            full_file_path=self.get_full_path_scanned(pathnr,path,file)
 
-            if IndexTuple in self.files_of_size_of_crc[size][crc]:
-                if message:=self.delete_file(FullFilePath):
+            if index_tuple in self.files_of_size_of_crc[size][crc]:
+                if message:=self.delete_file(full_file_path):
                     #self.Info('Error',message,self.main)
                     Messages.append(message)
                 else:
-                    IndexTuplesListDone.append(IndexTuple)
+                    index_tuples_list_done.append(index_tuple)
             else:
-                Messages.append('delete_file_wrapper - Internal Data Inconsistency:' + FullFilePath + ' / ' + str(IndexTuple))
+                Messages.append('delete_file_wrapper - Internal Data Inconsistency:' + full_file_path + ' / ' + str(index_tuple))
 
-        self.remove_from_data_pool(size,crc,IndexTuplesListDone)
+        self.remove_from_data_pool(size,crc,index_tuples_list_done)
 
         return Messages
 
     def link_wrapper(self,\
             soft,relative,size,crc,\
-            IndexTupleRef,IndexTuplesList):
+            index_tuple_ref,index_tuple_list):
 
-        self.Log.debug(f'link_wrapper:{soft},{relative},{size},{crc}:{IndexTupleRef}:{IndexTuplesList}')
+        self.Log.debug(f'link_wrapper:{soft},{relative},{size},{crc}:{index_tuple_ref}:{index_tuple_list}')
 
-        (pathnrKeep,pathKeep,fileKeep,ctimeKeep,devKeep,inodeKeep)=IndexTupleRef
+        (path_nr_keep,path_keep,file_keep,ctime_keep,dev_keep,inode_keep)=index_tuple_ref
 
-        FullFilePathKeep=self.get_full_path_scanned(pathnrKeep,pathKeep,fileKeep)
+        full_file_path_keep=self.get_full_path_scanned(path_nr_keep,path_keep,file_keep)
 
-        if IndexTupleRef not in self.files_of_size_of_crc[size][crc]:
-            return 'link_wrapper - Internal Data Inconsistency:' + FullFilePathKeep + ' / ' + str(IndexTupleRef)
+        if index_tuple_ref not in self.files_of_size_of_crc[size][crc]:
+            return 'link_wrapper - Internal Data Inconsistency:' + full_file_path_keep + ' / ' + str(index_tuple_ref)
         else :
-            for IndexTuple in IndexTuplesList:
-                (pathnr,path,file,ctime,dev,inode)=IndexTuple
-                FullFilePath=self.get_full_path_scanned(pathnr,path,file)
+            for index_tuple in index_tuple_list:
+                (pathnr,path,file,ctime,dev,inode)=index_tuple
+                full_file_path=self.get_full_path_scanned(pathnr,path,file)
 
-                if IndexTuple not in self.files_of_size_of_crc[size][crc]:
-                    return 'link_wrapper - Internal Data Inconsistency:' + FullFilePath + ' / ' + str(IndexTuple)
+                if index_tuple not in self.files_of_size_of_crc[size][crc]:
+                    return 'link_wrapper - Internal Data Inconsistency:' + full_file_path + ' / ' + str(index_tuple)
                 else:
-                    tempFile=FullFilePath+'.temp'
+                    tempFile=full_file_path+'.temp'
 
-                    if not self.RenameFile(FullFilePath,tempFile):
+                    if not self.RenameFile(full_file_path,tempFile):
                         if soft:
-                            AnyProblem=self.do_soft_link(FullFilePathKeep,FullFilePath,relative)
+                            AnyProblem=self.do_soft_link(full_file_path_keep,full_file_path,relative)
                         else:
-                            AnyProblem=self.do_hard_link(FullFilePathKeep,FullFilePath)
+                            AnyProblem=self.do_hard_link(full_file_path_keep,full_file_path)
 
                         if AnyProblem:
-                            self.RenameFile(tempFile,FullFilePath)
+                            self.RenameFile(tempFile,full_file_path)
                             return AnyProblem
                         else:
                             if message:=self.delete_file(tempFile):
                                 self.Log.error(message)
                                 #self.Info('Error',message,self.main)
-                            #self.remove_from_data_pool(size,crc,IndexTuple)
-                            self.files_of_size_of_crc[size][crc].remove(IndexTuple)
+                            #self.remove_from_data_pool(size,crc,index_tuple)
+                            self.files_of_size_of_crc[size][crc].remove(index_tuple)
             if not soft:
-                #self.remove_from_data_pool(size,crc,IndexTupleRef)
-                self.files_of_size_of_crc[size][crc].remove(IndexTupleRef)
+                #self.remove_from_data_pool(size,crc,index_tuple_ref)
+                self.files_of_size_of_crc[size][crc].remove(index_tuple_ref)
 
             self.check_crc_pool_and_prune(size)
             self.reduce_crc_cut(size,crc)
@@ -881,7 +881,7 @@ if __name__ == "__main__":
     ScanThread.start()
 
     while ScanThread.is_alive():
-        print(f'crc_calc...{core.InfoFileDone}/{core.InfoTotal}                 ',end='\r')
+        print(f'crc_calc...{core.info_files_done}/{core.info_total}                 ',end='\r')
         time.sleep(0.04)
 
     ScanThread.join()

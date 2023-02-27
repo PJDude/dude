@@ -253,10 +253,10 @@ class CheckboxEntryDialogQuestion(EntryDialogQuestion):
         self.check = ttk.Checkbutton(self.area_main, variable=self.check_val)
         self.check.grid(row=1,column=0,padx=5,pady=5,sticky="wens")
     
-    def show(self,title,message,initial,CheckDescr,CheckInitial,min_width=300,min_height=120):
+    def show(self,title,message,initial,checkbutton_text,checkbutton_initial,min_width=300,min_height=120):
 
-        self.check_val.set(CheckInitial)
-        self.check.configure(text=CheckDescr)
+        self.check_val.set(checkbutton_initial)
+        self.check.configure(text=checkbutton_text)
 
         res = super().show(title,message,initial,min_width=min_width,min_height=min_height)
         
@@ -307,9 +307,9 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
     def next(self,event=None):
         self.next_cmd(self.entry_val.get(),self.check_val.get())
 
-    def show(self,message,initial,CheckInitial=False,min_width=300,min_height=120):
+    def show(self,message,initial,checkbutton_initial=False,min_width=300,min_height=120):
         try:
-            super().show(title='Find',message=message,initial=initial,CheckDescr='Use regular expressions matching',CheckInitial=CheckInitial)
+            super().show(title='Find',message=message,initial=initial,checkbutton_text='Use regular expressions matching',checkbutton_initial=checkbutton_initial)
         except Exception as e:
             print(e)
         
