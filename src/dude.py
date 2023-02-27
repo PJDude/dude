@@ -201,9 +201,9 @@ class Gui:
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
-                self.status(str(e))
+                self.status(str(f) + ':' + str(e))
                 res=None
-                logging.error(e)
+                logging.error(str(f) + ':' + str(e))
 
             self.main.after_cancel(a)
 
@@ -221,9 +221,9 @@ class Gui:
             try:
                 res=f(self,*args,**kwargs)
             except Exception as e:
-                self.status(str(e))
+                self.status(str(f) + ':' + str(e))
                 res=None
-                logging.error(e)
+                logging.error(str(f) + ':' + str(e))
 
             self.status(prev)
             return res
@@ -456,6 +456,8 @@ class Gui:
         #tk.Label(status_frame_groups,width=8,text='Full path: ',relief='groove',borderwidth=2,bg=self.bg,anchor='e').pack(fill='x',expand=0,side='left')
         self.status_var_full_path_label = tk.Label(status_frame_groups,textvariable=self.status_var_path,relief='flat',borderwidth=1,bg=self.bg,anchor='w')
         self.status_var_full_path_label.pack(fill='x',expand=1,side='left')
+        self.status_var_full_path_label.bind("<Motion>", lambda event : self.motion_on_widget(event,'The full path of a directory shown in the bottom panel.'))
+        self.status_var_full_path_label.bind("<Leave>", self.widget_leave)
 
         (status_frame_folder := tk.Frame(frame_folder,bg=self.bg)).pack(side='bottom',fill='both')
 
@@ -764,16 +766,16 @@ class Gui:
         lf=tk.LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg)
         lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
         
-        (o3:=ttk.Checkbutton(lf, text = 'Allow to delete all copies (WARNING!)', variable=self.allow_delete_all)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-        o3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
+        (o3:=ttk.Checkbutton(lf, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+        o3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
         o3.bind("<Leave>", self.widget_leave)
         
-        (o4:=ttk.Checkbutton(lf, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-        o4.bind("<Motion>", lambda event : self.motion_on_widget(event,''))
+        (o4:=ttk.Checkbutton(lf, text = 'Allow deletion of all copies (WARNING!)', variable=self.allow_delete_all)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+        o4.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
         o4.bind("<Leave>", self.widget_leave)
-        
-        ttk.Checkbutton(lf, text = 'Show soft links targets', variable=self.confirm_show_links_targets                  ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-        ttk.Checkbutton(lf, text = 'Show CRC and size', variable=self.confirm_show_crc_and_size                  ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+
+        ttk.Checkbutton(lf, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(lf, text = 'Show CRC and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
                 
         lf=tk.LabelFrame(self.settings_dialog.area_main, text="Processing",borderwidth=2,bg=self.bg)
         lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
@@ -1004,67 +1006,84 @@ class Gui:
     def show_tooltip_groups(self,event):
         self.unschedule_tooltip_groups()
         self.menubar_unpost()
-    
-        if item := event.widget.identify('item', event.x, event.y):
-            pathnrstr=event.widget.set(item,'pathnr')
-            
-            col=event.widget.identify_column(event.x)
+        
+        self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+        
+        tree = event.widget
+        col=tree.identify_column(event.x)
+        colname=tree.column(col,'id')
+        if tree.identify("region", event.x, event.y) == 'heading':
+            if colname in ('path','sizeH','file','instances',',ctimeH'):
+                self.tooltip_lab.configure(text='Sort')
+                self.tooltip.deiconify()
+            else:
+                self.hide_tooltip()
+                
+        elif item := tree.identify('item', event.x, event.y):
+            pathnrstr=tree.set(item,'pathnr')
             if col=="#0" :
                 if pathnrstr:
                     pathnr=int(pathnrstr)
-                    if event.widget.set(item,'kind')==FILE:
+                    if tree.set(item,'kind')==FILE:
                         self.tooltip_lab.configure(text='%s - %s' % (self.NUMBERS[pathnr],self.D.scanned_paths[pathnr]) )
                         self.tooltip.deiconify()
-                        self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+                        
                 else:
                     crc=item
                     self.tooltip_lab.configure(text='CRC: %s' % crc )
                     self.tooltip.deiconify()
-                    self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+                    
             elif col:
-                #colname=event.widget.column(col,'id')
-                coldata=event.widget.set(item,col)
+                
+                coldata=tree.set(item,col)
                 
                 #if pathnrstr:
                 #    pathnr=int(pathnrstr)
-                #    path=event.widget.set(item,'path')
-                #    file=event.widget.set(item,'file')
+                #    path=tree.set(item,'path')
+                #    file=tree.set(item,'file')
                 #    file_path = os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
                 if coldata:
                     self.tooltip_lab.configure(text=coldata)
                     self.tooltip.deiconify()
-                    self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+                    
                 else:
-                    self.hide_tooltip()            
+                    self.hide_tooltip()
                     
     def show_tooltip_folder(self,event):
         self.unschedule_tooltip_folder()
         self.menubar_unpost()
         
-        if item := event.widget.identify('item', event.x, event.y):
-            #pathnrstr=event.widget.set(item,'pathnr')
-            
-            col=event.widget.identify_column(event.x)
+        self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+        
+        tree = event.widget
+        col=tree.identify_column(event.x)
+        colname=tree.column(col,'id')
+        if tree.identify("region", event.x, event.y) == 'heading':
+            if colname in ('sizeH','file','instances',',ctimeH'):
+                self.tooltip_lab.configure(text='Sort')
+                self.tooltip.deiconify()
+            else:
+                self.hide_tooltip()
+        elif item := tree.identify('item', event.x, event.y):
+            #pathnrstr=tree.set(item,'pathnr')
             
             coldata=''
-            
-            #colname=event.widget.column(col,'id')
+
             if col=="#0" :
                 coldata=''
             elif col:
-                coldata=event.widget.set(item,col)
+                coldata=tree.set(item,col)
             
             #if pathnrstr:
             #    pathnr=int(pathnrstr)
-            #    path=event.widget.set(item,'path')
-            #    file=event.widget.set(item,'file')
+            #    path=tree.set(item,'path')
+            #    file=tree.set(item,'file')
             #    file_path = os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
             if coldata:
                 self.tooltip_lab.configure(text=coldata)
                 self.tooltip.deiconify()
-                self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
             else:
-                self.hide_tooltip()        
+                self.hide_tooltip()
         
     def unschedule_tooltip_widget(self):
         if self.tooltip_show_after_widget:
@@ -1515,16 +1534,16 @@ class Gui:
             if (colname:=tree.column(tree.identify_column(event.x),'id') ) in self.REAL_SORT_COLUMN:
                 self.column_sort_click(tree,colname)
 
-                if self.sel_kind==FILE:
-                    tree.focus_set()
+                #if self.sel_kind==FILE:
+                #    tree.focus_set()
 
-                    tree.focus(self.sel_item)
-                    tree.see(self.sel_item)
+                #    tree.focus(self.sel_item)
+                #    tree.see(self.sel_item)
 
-                    if tree==self.groups_tree:
-                        self.groups_tree_sel_change(self.sel_item)
-                    else:
-                        self.folder_tree_sel_change(self.sel_item)
+                #    if tree==self.groups_tree:
+                #        self.groups_tree_sel_change(self.sel_item)
+                #    else:
+                #        self.folder_tree_sel_change(self.sel_item)
 
         elif item:=tree.identify('item',event.x,event.y):
             tree.selection_remove(tree.selection())
@@ -1635,7 +1654,6 @@ class Gui:
 
         self.sel_kind = self.groups_tree.set(item,'kind')
         if self.sel_kind==FILE:
-            #self.set_status_var()
             self.tree_folder_update()
         else:
             self.tree_folder_update_none()
@@ -1651,8 +1669,6 @@ class Gui:
         #self.SelItemIsMarked = self.folder_tree.tag_has(MARK,item)
 
         self.set_full_path_to_file()
-
-        #self.set_status_var()
 
         kind=self.folder_tree.set(item,'kind')
         if kind==FILE:
@@ -1683,6 +1699,10 @@ class Gui:
             return
         
         tree=event.widget
+        
+        if tree.identify("region", event.x, event.y) == 'heading':
+            return
+            
         tree.focus_set()
         self.tree_on_mouse_button_press(event)
         tree.update()
@@ -1912,29 +1932,30 @@ class Gui:
     def column_sort(self, tree):
         self.status('Sorting...')
         colname,reverse = self.column_sort_last_params[tree]
-
+    
         real_column_to_sort=self.REAL_SORT_COLUMN[colname]
-
+    
         UPDIRCode,DIRCode,NONDIRCode = (2,1,0) if reverse else (0,1,2)
+        
+        if tree.get_children():
+            l = [((UPDIRCode if tree.set(item,'kind')==UPDIR else DIRCode if tree.set(item,'kind')==DIR else NONDIRCode,tree.set(item,real_column_to_sort)), item) for item in tree.get_children()]
+            l.sort(reverse=reverse,key=lambda x: ( (x[0][0],float(x[0][1])) if x[0][1].isdigit() else (x[0][0],0) ) if self.COLUMN_IS_NUMERIC[colname] else x[0])
 
-        l = [((UPDIRCode if tree.set(item,'kind')==UPDIR else DIRCode if tree.set(item,'kind')==DIR else NONDIRCode,tree.set(item,real_column_to_sort)), item) for item in tree.get_children('')]
-        l.sort(reverse=reverse,key=lambda x: ( (x[0][0],float(x[0][1])) if x[0][1].isdigit() else (x[0][0],0) ) if self.COLUMN_IS_NUMERIC[colname] else x[0])
+            {tree.move(item, '', index) for index, (val,item) in enumerate(l)}
 
-        {tree.move(item, '', index) for index, (val,item) in enumerate(l)}
+            if self.SORT_COLUMN_LEVEL2[colname]:
+                for topItem in tree.get_children():
+                    l = [(tree.set(item,real_column_to_sort), item) for item in tree.get_children(topItem)]
+                    l.sort(reverse=reverse,key=lambda x: (float(x[0]) if x[0].isdigit() else 0) if self.COLUMN_IS_NUMERIC[colname] else x[0])
 
-        if self.SORT_COLUMN_LEVEL2[colname]:
-            for topItem in tree.get_children():
-                l = [(tree.set(item,real_column_to_sort), item) for item in tree.get_children(topItem)]
-                l.sort(reverse=reverse,key=lambda x: (float(x[0]) if x[0].isdigit() else 0) if self.COLUMN_IS_NUMERIC[colname] else x[0])
+                    {tree.move(item, topItem, index) for index, (val,item) in enumerate(l)}
 
-                {tree.move(item, topItem, index) for index, (val,item) in enumerate(l)}
+            if item:=tree.focus():
+                tree.see(item)
+            elif item:=tree.selection():
+                tree.see(item)
 
-        if item:=tree.focus():
-            tree.see(item)
-        elif item:=tree.selection():
-            tree.see(item)
-
-        tree.update()
+            tree.update()
 
         self.column_sort_set_arrow(tree)
 
@@ -3345,10 +3366,6 @@ class Gui:
         else:
             os.system("xdg-open " + HOMEPAGE)
     
-    #def set_status_var(self):
-        #self.status_var_path.set(self.sel_full_path_to_file)
-        #self.status_var_path.set(self.sel_path_full)
-
 if __name__ == "__main__":
     try:
         #######################################################################
