@@ -239,7 +239,7 @@ class Gui:
         self.ProgressMode1=ProgressMode1
         self.ProgressMode2=ProgressMode2
 
-        self.crc_progress_dialog = tk.Toplevel(parent)
+        self.crc_progress_dialog = tk.Toplevel(parent,bg=self.bg)
         self.crc_progress_dialog.wm_transient(parent)
 
         self.crc_progress_dialog.protocol("WM_DELETE_WINDOW", self.crc_progress_dialog_abort)
@@ -347,9 +347,9 @@ class Gui:
 
         self.message.set('%s\n%s'%(prefix,message))
         self.crc_progress_dialog.update()
-    
+
     other_tree={}
-    
+
     def __init__(self,cwd,pathsToAdd=None,exclude=None,excluderegexp=None,norun=None,debug_mode=False):
         self.D = core.DudeCore(CACHE_DIR,logging)
         self.cwd=cwd
@@ -369,7 +369,7 @@ class Gui:
         self.main.protocol("WM_DELETE_WINDOW", self.exit)
         self.main.withdraw()
         self.main.update()
-        
+
         self.main.minsize(1200, 800)
 
         self.iconphoto = PhotoImage(file = os.path.join(os.path.dirname(DUDE_FILE),'icon.png'))
@@ -497,10 +497,10 @@ class Gui:
         self.org_label['path']='Subpath'
         self.org_label['file']='File'
         self.org_label['sizeH']='Size'
-        self.org_label['instances']='Copies'
+        self.org_label['instancesH']='Copies'
         self.org_label['ctimeH']='Change Time'
 
-        self.groups_tree["columns"]=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','ctimeH','kind')
+        self.groups_tree["columns"]=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','instancesH','ctimeH','kind')
 
         #pathnr,path,file,ctime,dev,inode
         #self.IndexTupleIndexesWithFnCommon=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
@@ -509,17 +509,17 @@ class Gui:
         #pathnr,path,file,ctime,dev,inode
         self.IndexTupleIndexesWithFnGroups=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
 
-        #'file','size','sizeH','ctime','dev','inode','crc','instances','instancesnum','ctimeH','kind' ->
+        #'file','size','sizeH','ctime','dev','inode','crc','instances','instances','ctimeH','kind' ->
         #file,ctime,dev,inode
         #self.IndexTupleIndexesWithFnFolder=((raw,0),(int,3),(int,4),(int,5))
 
-        self.groups_tree["displaycolumns"]=('path','file','sizeH','instances','ctimeH')
+        self.groups_tree["displaycolumns"]=('path','file','sizeH','instancesH','ctimeH')
 
         self.groups_tree.column('#0', width=120, minwidth=100, stretch=tk.NO)
         self.groups_tree.column('path', width=100, minwidth=10, stretch=tk.YES )
         self.groups_tree.column('file', width=100, minwidth=10, stretch=tk.YES )
         self.groups_tree.column('sizeH', width=80, minwidth=80, stretch=tk.NO)
-        self.groups_tree.column('instances', width=80, minwidth=80, stretch=tk.NO)
+        self.groups_tree.column('instancesH', width=80, minwidth=80, stretch=tk.NO)
         self.groups_tree.column('ctimeH', width=150, minwidth=100, stretch=tk.NO)
 
         self.groups_tree.heading('#0',text='CRC / Scan Path',anchor=tk.W)
@@ -527,7 +527,7 @@ class Gui:
         self.groups_tree.heading('file',anchor=tk.W )
         self.groups_tree.heading('sizeH',anchor=tk.W)
         self.groups_tree.heading('ctimeH',anchor=tk.W)
-        self.groups_tree.heading('instances',anchor=tk.W)
+        self.groups_tree.heading('instancesH',anchor=tk.W)
 
         self.groups_tree.heading('sizeH', text='Size \u25BC')
 
@@ -535,27 +535,6 @@ class Gui:
         self.groups_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
         self.groups_tree.bind('<Control-ButtonPress-1>',  lambda event :self.tree_on_mouse_button_press(event,True) )
         self.main.unbind_class('Treeview', '<<TreeviewClose>>')
-
-        self.REAL_SORT_COLUMN={}
-        self.REAL_SORT_COLUMN['path'] = 'path'
-        self.REAL_SORT_COLUMN['file'] = 'file'
-        self.REAL_SORT_COLUMN['sizeH'] = 'size'
-        self.REAL_SORT_COLUMN['ctimeH'] = 'ctime'
-        self.REAL_SORT_COLUMN['instances'] = 'instances'
-
-        self.COLUMN_IS_NUMERIC={}
-        self.COLUMN_IS_NUMERIC['path'] = False
-        self.COLUMN_IS_NUMERIC['file'] = False
-        self.COLUMN_IS_NUMERIC['sizeH'] = True
-        self.COLUMN_IS_NUMERIC['ctimeH'] = True
-        self.COLUMN_IS_NUMERIC['instances'] = True
-
-        self.SORT_COLUMN_LEVEL2={}
-        self.SORT_COLUMN_LEVEL2['path'] = True
-        self.SORT_COLUMN_LEVEL2['file'] = True
-        self.SORT_COLUMN_LEVEL2['sizeH'] = True
-        self.SORT_COLUMN_LEVEL2['ctimeH'] = True
-        self.SORT_COLUMN_LEVEL2['instances'] = False
 
         vsb1 = tk.Scrollbar(frame_groups, orient='vertical', command=self.groups_tree.yview,takefocus=False,bg=self.bg)
         self.groups_tree.configure(yscrollcommand=vsb1.set)
@@ -567,22 +546,22 @@ class Gui:
 
         self.folder_tree=ttk.Treeview(frame_folder,takefocus=True,selectmode='none')
 
-        self.folder_tree['columns']=('file','size','sizeH','ctime','dev','inode','crc','instances','instancesnum','ctimeH','kind')
+        self.folder_tree['columns']=('file','dev','inode','kind','crc','size','sizeH','ctime','ctimeH','instances','instancesH')
 
-        self.folder_tree['displaycolumns']=('file','sizeH','instances','ctimeH')
+        self.folder_tree['displaycolumns']=('file','sizeH','instancesH','ctimeH')
 
         self.folder_tree.column('#0', width=120, minwidth=100, stretch=tk.NO)
 
         self.folder_tree.column('file', width=200, minwidth=100, stretch=tk.YES)
         self.folder_tree.column('sizeH', width=80, minwidth=80, stretch=tk.NO)
-        self.folder_tree.column('instances', width=80, minwidth=80, stretch=tk.NO)
+        self.folder_tree.column('instancesH', width=80, minwidth=80, stretch=tk.NO)
         self.folder_tree.column('ctimeH', width=150, minwidth=100, stretch=tk.NO)
 
         self.folder_tree.heading('#0',text='CRC',anchor=tk.W)
         self.folder_tree.heading('file',anchor=tk.W)
         self.folder_tree.heading('sizeH',anchor=tk.W)
+        self.folder_tree.heading('instancesH',anchor=tk.W)
         self.folder_tree.heading('ctimeH',anchor=tk.W)
-        self.folder_tree.heading('instances',anchor=tk.W)
 
         for tree in [self.groups_tree,self.folder_tree]:
             for col in tree["displaycolumns"]:
@@ -613,10 +592,10 @@ class Gui:
         #bind_class breaks columns resizing
         self.folder_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
         self.folder_tree.bind('<Control-ButtonPress-1>',  lambda event :self.tree_on_mouse_button_press(event,True) )
-        
+
         self.other_tree[self.folder_tree]=self.groups_tree
         self.other_tree[self.groups_tree]=self.folder_tree
-        
+
         try:
             self.main.update()
             CfgGeometry=self.cfg.get('main','',section='geometry')
@@ -628,17 +607,17 @@ class Gui:
                 y = int(0.5*(self.main.winfo_screenheight()-self.main.winfo_height()))
 
                 self.main.geometry(f'+{x}+{y}')
-                
+
         except Exception as e:
             self.status(str(e))
             logging.error(e)
             CfgGeometry = None
 
         self.main.deiconify()
-        
+
         self.paned.update()
         self.paned.sash_place(0,0,self.cfg.get('sash_coord',400,section='geometry'))
-        
+
         #prevent displacement
         if CfgGeometry :
             self.main.geometry(CfgGeometry)
@@ -657,13 +636,13 @@ class Gui:
             self.menubar.config(cursor="watch")
             self.hide_tooltip()
             self.menubar_unpost()
-        
+
         def post_close():
             self.menu_enable()
             self.menubar.config(cursor="")
 
         self.scan_dialog=GenericDialog(self.main,self.iconphoto,self.bg,'Scan',pre_show=pre_show,post_close=post_close)
-        
+
         self.WriteScanToLog=tk.BooleanVar()
         self.WriteScanToLog.set(False)
 
@@ -715,18 +694,18 @@ class Gui:
 
         self.ScanButton = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Scan",command=self.scan_from_button,underline=0)
         self.ScanButton.pack(side='right',padx=4,pady=4)
-        
+
         self.scan_cancel_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Cancel",command=self.scan_dialog.hide,underline=0)
         self.scan_cancel_button.pack(side='left',padx=4,pady=4)
-        
+
         def pre_show_settings():
             pre_show()
             {var.set(self.cfg.get_bool(key)) for var,key in self.settings}
-            
+
         #######################################################################
         #Settings Dialog
         self.settings_dialog=GenericDialog(self.main,self.iconphoto,self.bg,'Settings',pre_show=pre_show_settings,post_close=post_close)
-        
+
         self.show_full_crc = tk.BooleanVar()
         self.show_full_paths = tk.BooleanVar()
         self.create_relative_symlinks = tk.BooleanVar()
@@ -758,28 +737,28 @@ class Gui:
         (o1:=ttk.Checkbutton(lf, text = 'Show full CRC', variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
         o1.bind("<Motion>", lambda event : self.motion_on_widget(event,'If disabled, shortest necessary prefix of full CRC wil be shown'))
         o1.bind("<Leave>", self.widget_leave)
-                
+
         (o2:=ttk.Checkbutton(lf, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
         o2.bind("<Motion>", lambda event : self.motion_on_widget(event,f'If disabled, scan path numbers will be shown (e.g. {self.NUMBERS[0]},{self.NUMBERS[1]}... ) instead of full paths'))
         o2.bind("<Leave>", self.widget_leave)
-        
+
         lf=tk.LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg)
         lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
-        
+
         (o3:=ttk.Checkbutton(lf, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
         o3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
         o3.bind("<Leave>", self.widget_leave)
-        
+
         (o4:=ttk.Checkbutton(lf, text = 'Allow deletion of all copies (WARNING!)', variable=self.allow_delete_all)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
         o4.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
         o4.bind("<Leave>", self.widget_leave)
 
         ttk.Checkbutton(lf, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
         ttk.Checkbutton(lf, text = 'Show CRC and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
-                
+
         lf=tk.LabelFrame(self.settings_dialog.area_main, text="Processing",borderwidth=2,bg=self.bg)
         lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
-        
+
         ttk.Checkbutton(lf, text = 'Create relative symbolic links', variable=self.create_relative_symlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
         ttk.Checkbutton(lf, text = 'Erase remaining empty directories', variable=self.erase_empty_directories                  ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
 
@@ -805,30 +784,30 @@ class Gui:
         self.mark_dialog_on_main = CheckboxEntryDialogQuestion(self.main,self.iconphoto,self.bg,pre_show=pre_show,post_close=post_close)
         self.find_dialog_on_main = FindEntryDialog(self.main,self.iconphoto,self.bg,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
         self.info_dialog_on_find = LabelDialog(self.find_dialog_on_main.widget,self.iconphoto,self.bg,pre_show=pre_show,post_close=post_close)
-        
+
        #######################################################################
         #About Dialog
         self.aboout_dialog=GenericDialog(self.main,self.iconphoto,self.bg,'',pre_show=pre_show,post_close=post_close)
-        
+
         frame1 = tk.LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
         self.aboout_dialog.area_main.grid_rowconfigure(1, weight=1)
-        
-        text= f'\n\nDUDE (DUplicates DEtector) {VER_TIMESTAMP}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n' 
+
+        text= f'\n\nDUDE (DUplicates DEtector) {VER_TIMESTAMP}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n'
 
         tk.Label(frame1,text=text,bg=self.bg,justify='center').pack(expand=1,fill='both')
-        
+
         frame2 = tk.LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg,takefocus=False)
         frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
         lab2_text=  'LOGS DIRECTORY     :  ' + LOG_DIR + '\n' + \
                     'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n' + \
                     'CACHE DIRECTORY    :  ' + CACHE_DIR + '\n\n' + \
                     'LOGGING LEVEL      :  ' + log_levels[log_level] + '\n\n' + \
-                    'Current log file   :  ' + log 
+                    'Current log file   :  ' + log
 
         lab_courier = tk.Label(frame2,text=lab2_text,bg=self.bg,justify='left')
         lab_courier.pack(expand=1,fill='both')
-        
+
         try:
             lab_courier.configure(font=('Courier', 10))
         except:
@@ -836,11 +815,11 @@ class Gui:
                 lab_courier.configure(font=('TkFixedFont', 10))
             except:
                 pass
-        
+
         #######################################################################
         #License Dialog
         logging.debug('DUDE_FILE:%s' % DUDE_FILE )
-        
+
         try:
             self.license=pathlib.Path(os.path.join(os.path.dirname(DUDE_FILE),'LICENSE')).read_text()
         except Exception as e:
@@ -850,16 +829,16 @@ class Gui:
             except Exception as e:
                 logging.error(e)
                 self.exit()
-        
+
         self.license_dialog=GenericDialog(self.main,self.iconphoto,self.bg,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
-        
+
         frame1 = tk.LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
         self.license_dialog.area_main.grid_rowconfigure(0, weight=1)
-        
+
         lab_courier=tk.Label(frame1,text=self.license,bg=self.bg,justify='center')
         lab_courier.pack(expand=1,fill='both')
-        
+
         try:
             lab_courier.configure(font=('Courier', 10))
         except:
@@ -867,7 +846,7 @@ class Gui:
                 lab_courier.configure(font=('TkFixedFont', 10))
             except:
                 pass
-        
+
         def file_cascade_post():
             self.file_cascade.delete(0,END)
             item_actions_state=('disabled','normal')[self.sel_item!=None]
@@ -922,38 +901,70 @@ class Gui:
         #######################################################################
         self.reset_sels()
 
+        self.REAL_SORT_COLUMN={}
+        self.REAL_SORT_COLUMN['path'] = 'path'
+        self.REAL_SORT_COLUMN['file'] = 'file'
+        self.REAL_SORT_COLUMN['sizeH'] = 'size'
+        self.REAL_SORT_COLUMN['ctimeH'] = 'ctime'
+        self.REAL_SORT_COLUMN['instancesH'] = 'instances'
+        
+        #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','sizeH','ctime','ctimeH','instances','instancesH')
+        self.REAL_SORT_COLUMN_INDEX={}
+        self.REAL_SORT_COLUMN_INDEX['path'] = 0
+        self.REAL_SORT_COLUMN_INDEX['file'] = 1
+        self.REAL_SORT_COLUMN_INDEX['sizeH'] = 6
+        self.REAL_SORT_COLUMN_INDEX['ctimeH'] = 8
+        self.REAL_SORT_COLUMN_INDEX['instancesH'] = 10
+        
+        self.REAL_SORT_COLUMN_IS_NUMERIC={}
+        self.REAL_SORT_COLUMN_IS_NUMERIC['path'] = False
+        self.REAL_SORT_COLUMN_IS_NUMERIC['file'] = False
+        self.REAL_SORT_COLUMN_IS_NUMERIC['sizeH'] = True
+        self.REAL_SORT_COLUMN_IS_NUMERIC['ctimeH'] = True
+        self.REAL_SORT_COLUMN_IS_NUMERIC['instancesH'] = True
+        
+        self.SORT_COLUMN_LEVEL2={}
+        self.SORT_COLUMN_LEVEL2['path'] = True
+        self.SORT_COLUMN_LEVEL2['file'] = True
+        self.SORT_COLUMN_LEVEL2['sizeH'] = True
+        self.SORT_COLUMN_LEVEL2['ctimeH'] = True
+        self.SORT_COLUMN_LEVEL2['instancesH'] = False
+
+
         self.column_sort_last_params={}
-        self.column_sort_last_params[self.groups_tree]=self.column_sort_last_params_default=('sizeH',1)
-        self.column_sort_last_params[self.folder_tree]=('file',0)
+        #colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code
+
+        self.column_sort_last_params[self.groups_tree]=self.column_groups_sort_params_default=('sizeH',self.REAL_SORT_COLUMN_INDEX['sizeH'],self.REAL_SORT_COLUMN_IS_NUMERIC['sizeH'],1,2,1,0)
+        self.column_sort_last_params[self.folder_tree]=('file',self.REAL_SORT_COLUMN_INDEX['file'],self.REAL_SORT_COLUMN_IS_NUMERIC['file'],0,0,1,2)
 
         self.sel_item_of_tree[self.groups_tree]=None
         self.sel_item_of_tree[self.folder_tree]=None
-        
+
         self.groups_show()
-        
+
         #######################################################################
-        
+
         self.tooltip = tk.Toplevel(self.main)
         self.tooltip.wm_overrideredirect(True)
         self.tooltip_lab=tk.Label(self.tooltip, justify='left', background="#ffffe0", relief='solid', borderwidth=0, wraplength = 1200)
         self.tooltip_lab.pack(ipadx=1)
-        
+
         self.tooltip.withdraw()
-        
+
         self.groups_tree.bind("<Motion>", self.motion_on_groups_tree)
         self.folder_tree.bind("<Motion>", self.motion_on_folder_tree)
-        
+
         self.groups_tree.bind("<Leave>", self.widget_leave)
         self.folder_tree.bind("<Leave>", self.widget_leave)
-        
+
         #######################################################################
-        
+
         if pathsToAdd:
             for path in pathsToAdd:
                 self.path_to_scan_add(os.path.abspath(path))
-        
+
         run_scan_condition = True if (pathsToAdd and not norun) else False
-        
+
         if exclude:
             self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude))
             self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,False)
@@ -967,48 +978,48 @@ class Gui:
         self.exclude_regexp_scan.set(self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP))
 
         self.main.update()
-        
+
         self.scan_dialog_show(True if run_scan_condition else None)
-        
+
         self.groups_tree.focus_set()
 
         self.main.mainloop()
         #######################################################################
-    
+
     tooltip_show_after_groups=''
     tooltip_show_after_folder=''
     tooltip_show_after_widget=''
-    
+
     def widget_leave(self,event):
         self.menubar_unpost()
         self.hide_tooltip()
-        
+
     def motion_on_widget(self,event,message):
         self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widet(event,message))
-        
+
     def motion_on_groups_tree(self,event):
         self.tooltip_show_after_groups = event.widget.after(1, self.show_tooltip_groups(event))
 
     def motion_on_folder_tree(self,event):
         self.tooltip_show_after_folder = event.widget.after(1, self.show_tooltip_folder(event))
-    
+
     def show_tooltip_widet(self,event,message):
         self.unschedule_tooltip_widget()
         self.menubar_unpost()
-        
+
         self.tooltip_lab.configure(text=message)
-            
+
         self.tooltip.deiconify()
         self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
 
-        #self.hide_tooltip()            
-            
+        #self.hide_tooltip()
+
     def show_tooltip_groups(self,event):
         self.unschedule_tooltip_groups()
         self.menubar_unpost()
-        
+
         self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
-        
+
         tree = event.widget
         col=tree.identify_column(event.x)
         colname=tree.column(col,'id')
@@ -1018,7 +1029,7 @@ class Gui:
                 self.tooltip.deiconify()
             else:
                 self.hide_tooltip()
-                
+
         elif item := tree.identify('item', event.x, event.y):
             pathnrstr=tree.set(item,'pathnr')
             if col=="#0" :
@@ -1027,16 +1038,16 @@ class Gui:
                     if tree.set(item,'kind')==FILE:
                         self.tooltip_lab.configure(text='%s - %s' % (self.NUMBERS[pathnr],self.D.scanned_paths[pathnr]) )
                         self.tooltip.deiconify()
-                        
+
                 else:
                     crc=item
                     self.tooltip_lab.configure(text='CRC: %s' % crc )
                     self.tooltip.deiconify()
-                    
+
             elif col:
-                
+
                 coldata=tree.set(item,col)
-                
+
                 #if pathnrstr:
                 #    pathnr=int(pathnrstr)
                 #    path=tree.set(item,'path')
@@ -1045,16 +1056,16 @@ class Gui:
                 if coldata:
                     self.tooltip_lab.configure(text=coldata)
                     self.tooltip.deiconify()
-                    
+
                 else:
                     self.hide_tooltip()
-                    
+
     def show_tooltip_folder(self,event):
         self.unschedule_tooltip_folder()
         self.menubar_unpost()
-        
+
         self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
-        
+
         tree = event.widget
         col=tree.identify_column(event.x)
         colname=tree.column(col,'id')
@@ -1066,14 +1077,14 @@ class Gui:
                 self.hide_tooltip()
         elif item := tree.identify('item', event.x, event.y):
             #pathnrstr=tree.set(item,'pathnr')
-            
+
             coldata=''
 
             if col=="#0" :
                 coldata=''
             elif col:
                 coldata=tree.set(item,col)
-            
+
             #if pathnrstr:
             #    pathnr=int(pathnrstr)
             #    path=tree.set(item,'path')
@@ -1084,27 +1095,27 @@ class Gui:
                 self.tooltip.deiconify()
             else:
                 self.hide_tooltip()
-        
+
     def unschedule_tooltip_widget(self):
         if self.tooltip_show_after_widget:
             self.widget.after_cancel(self.tooltip_show_after_widget)
             self.tooltip_show_after_widget = None
-    
+
     def unschedule_tooltip_groups(self):
         #id = self.tooltip_show_after_groups
         if self.tooltip_show_after_groups:
             self.widget.after_cancel(self.tooltip_show_after_groups)
             self.tooltip_show_after_groups = None
-            
+
     def unschedule_tooltip_folder(self):
         id = self.tooltip_show_after_folder
         self.tooltip_show_after_folder = None
         if id:
             self.widget.after_cancel(id)
-            
+
     def hide_tooltip(self):
         self.tooltip.withdraw()
-        
+
     def status(self,text):
         self.status_line.set(text)
         self.StatusLineLabel.update()
@@ -1136,7 +1147,7 @@ class Gui:
 
         self.sel_item_of_tree[self.groups_tree]=None
         self.sel_item_of_tree[self.folder_tree]=None
-        
+
         self.sel_tree_index = 0
         self.sel_kind = None
 
@@ -1155,25 +1166,25 @@ class Gui:
     find_result=()
     find_params_changed=True
     find_tree_index=-1
-    
+
     find_by_tree={}
-    
+
     def finder_wrapper_show(self):
         tree=self.groups_tree if self.sel_tree_index==0 else self.folder_tree
 
         self.find_dialog_shown=True
-        
+
         scope_info = 'Scope: All groups.' if self.sel_tree_index==0 else 'Scope: Selected directory.'
-        
+
         if tree in self.find_by_tree:
             initialvalue=self.find_by_tree[tree]
         else:
             initialvalue='*'
 
         self.find_dialog_on_main.show(scope_info,initial=initialvalue,checkbutton_initial=False)
-        
+
         self.find_by_tree[tree]=self.find_dialog_on_main.entry.get()
-        
+
         self.find_dialog_shown=False
 
         selList=tree.selection()
@@ -1184,7 +1195,7 @@ class Gui:
     def find_prev_from_dialog(self,expression,use_reg_expr,event=None):
         self.find_items(expression,use_reg_expr)
         self.select_find_result(-1)
-    
+
     def find_prev(self):
         if not self.find_result or self.find_tree_index!=self.sel_tree_index:
             self.find_params_changed=True
@@ -1195,7 +1206,7 @@ class Gui:
     def find_next_from_dialog(self,expression,use_reg_expr,event=None):
         self.find_items(expression,use_reg_expr)
         self.select_find_result(1)
-        
+
     def find_next(self):
         if not self.find_result or self.find_tree_index!=self.sel_tree_index:
             self.find_params_changed=True
@@ -1277,12 +1288,12 @@ class Gui:
                 self.groups_tree_sel_change(next_item)
             else:
                 self.folder_tree_sel_change(next_item)
-            
+
             if mod>0:
                 self.status('Find next %s' % self.find_expression_prev)
             else:
                 self.status('Find Previous %s' % self.find_expression_prev)
-    
+
     def tag_toggle_selected(self,tree, *items):
         for item in items:
             if tree.set(item,'kind')==FILE:
@@ -1318,7 +1329,7 @@ class Gui:
         try:
             tree=event.widget
             item=tree.focus()
-            
+
             if sel:=tree.selection() : tree.selection_remove(sel)
 
             if event.keysym in ("Up",'Down') :
@@ -1507,7 +1518,7 @@ class Gui:
                 self.folder_tree.focus_set()
                 head,tail=os.path.split(self.sel_path_full)
                 self.enter_dir(os.path.normpath(str(pathlib.Path(self.sel_path_full).parent.absolute())),tail)
-                
+
 #################################################
     def crc_select_and_focus(self,crc,TryToShowAll=False):
         self.groups_tree.focus_set()
@@ -1562,19 +1573,19 @@ class Gui:
     from_tab_switch=False
     def tree_on_focus_in(self,event):
         tree=event.widget
-        
+
         tree.configure(style='semi_focus.Treeview')
         self.other_tree[tree].configure(style='default.Treeview')
-            
+
         item=None
 
         if sel:=tree.selection():
             tree.selection_remove(sel)
             item=sel[0]
-        
+
         if self.from_tab_switch:
             self.from_tab_switch=False
-            
+
             if not item:
                 item=tree.focus()
 
@@ -1636,10 +1647,10 @@ class Gui:
 
         if path!=self.sel_path or pathnr!=self.sel_path_nr or force:
             self.sel_path_nr = pathnr
-            
+
             if self.find_tree_index==1:
                 self.find_result=()
-            
+
             if pathnr: #non crc node
                 self.SelPathnrInt= int(pathnr)
                 self.SelSearchPath = self.D.scanned_paths[self.SelPathnrInt]
@@ -1697,12 +1708,12 @@ class Gui:
     def context_menu_show(self,event):
         if not self.do_process_events:
             return
-        
+
         tree=event.widget
-        
+
         if tree.identify("region", event.x, event.y) == 'heading':
             return
-            
+
         tree.focus_set()
         self.tree_on_mouse_button_press(event)
         tree.update()
@@ -1714,9 +1725,9 @@ class Gui:
         pop.delete(0,END)
 
         FileActionsState=('disabled',item_actions_state)[self.sel_kind==FILE]
-        
+
         parent_dir_state = ('disabled','normal')[self.two_dots_condition() and self.sel_kind!=CRC]
-        
+
         if tree==self.groups_tree:
             cLocal = Menu(pop,tearoff=0,bg=self.bg)
             cLocal.add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space")
@@ -1871,7 +1882,7 @@ class Gui:
             cNav.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark(self.folder_tree,-1,1), accelerator="Shift+Left",state='normal')
             cNav.add_separator()
             cNav.add_command(label = 'Go to parent directory'       ,command = lambda : self.go_to_parent_dir(), accelerator="Backspace",state=parent_dir_state)
-            
+
             #cNav.add_separator()
             #cNav.add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.goto_max_folder(1,1),accelerator="Backspace")
             #cNav.add_command(label = 'Go to dominant folder (by duplicates/other files quantity ratio)',command = lambda : self.goto_max_folder(0,1) ,accelerator="Ctrl+Backspace")
@@ -1896,12 +1907,12 @@ class Gui:
         pop.add_separator()
 
         pop.add_command(label = "Exit",  command = self.exit)
-        
+
         try:
             pop.tk_popup(event.x_root, event.y_root)
         except Exception as e:
             print(e)
-        
+
         pop.grab_release()
 
     def empty_folder_remove_ask(self):
@@ -1916,11 +1927,15 @@ class Gui:
         self.action_on_path(self.sel_full_path_to_file,action,True)
 
     def column_sort_click(self, tree, colname):
-        prev_colname,prev_reverse=self.column_sort_last_params[tree]
+        prev_colname,prev_sort_index,prev_is_numeric,prev_reverse,prev_updir_code,prev_dir_code,prev_non_dir_code=self.column_sort_last_params[tree]
         reverse = not prev_reverse if colname == prev_colname else prev_reverse
         tree.heading(prev_colname, text=self.org_label[prev_colname])
 
-        self.column_sort_last_params[tree]=(colname,reverse)
+        updir_code,dir_code,non_dir_code = (2,1,0) if reverse else (0,1,2)
+
+        sort_index=self.REAL_SORT_COLUMN_INDEX[colname]
+        is_numeric=self.REAL_SORT_COLUMN_IS_NUMERIC[colname]
+        self.column_sort_last_params[tree]=(colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code)
 
         if tree == self.folder_tree:
             self.folder_items_cache={}
@@ -1931,22 +1946,22 @@ class Gui:
     @restore_status_line
     def column_sort(self, tree):
         self.status('Sorting...')
-        colname,reverse = self.column_sort_last_params[tree]
-    
+        colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
+
         real_column_to_sort=self.REAL_SORT_COLUMN[colname]
-    
-        UPDIRCode,DIRCode,NONDIRCode = (2,1,0) if reverse else (0,1,2)
-        
+
+        #updir_code,dir_code,non_dir_code = (2,1,0) if reverse else (0,1,2)
+
         if tree.get_children():
-            l = [((UPDIRCode if tree.set(item,'kind')==UPDIR else DIRCode if tree.set(item,'kind')==DIR else NONDIRCode,tree.set(item,real_column_to_sort)), item) for item in tree.get_children()]
-            l.sort(reverse=reverse,key=lambda x: ( (x[0][0],float(x[0][1])) if x[0][1].isdigit() else (x[0][0],0) ) if self.COLUMN_IS_NUMERIC[colname] else x[0])
+            l = [((updir_code if tree.set(item,'kind')==UPDIR else dir_code if tree.set(item,'kind')==DIR else non_dir_code,tree.set(item,real_column_to_sort)), item) for item in tree.get_children()]
+            l.sort(reverse=reverse,key=lambda x: ( (x[0][0],float(x[0][1])) if x[0][1].isdigit() else (x[0][0],0) ) if self.REAL_SORT_COLUMN_IS_NUMERIC[colname] else x[0])
 
             {tree.move(item, '', index) for index, (val,item) in enumerate(l)}
 
             if self.SORT_COLUMN_LEVEL2[colname]:
                 for topItem in tree.get_children():
                     l = [(tree.set(item,real_column_to_sort), item) for item in tree.get_children(topItem)]
-                    l.sort(reverse=reverse,key=lambda x: (float(x[0]) if x[0].isdigit() else 0) if self.COLUMN_IS_NUMERIC[colname] else x[0])
+                    l.sort(reverse=reverse,key=lambda x: (float(x[0]) if x[0].isdigit() else 0) if self.REAL_SORT_COLUMN_IS_NUMERIC[colname] else x[0])
 
                     {tree.move(item, topItem, index) for index, (val,item) in enumerate(l)}
 
@@ -1963,7 +1978,7 @@ class Gui:
             self.tree_groups_flat_items_update()
 
     def column_sort_set_arrow(self, tree):
-        colname,reverse = self.column_sort_last_params[tree]
+        colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
         tree.heading(colname, text=self.org_label[colname] + ' ' + str(u'\u25BC' if reverse else u'\u25B2') )
 
     def path_to_scan_add(self,path):
@@ -1976,7 +1991,7 @@ class Gui:
     def scan_from_button(self):
         if self.scan():
             self.scan_dialog.hide()
-        
+
     @restore_status_line
     def scan(self):
         self.status('Scanning...')
@@ -2077,21 +2092,21 @@ class Gui:
         self.scan_dialog.widget.config(cursor="")
 
         self.groups_show()
-        
+
         self.scan_dialog.unlock('scan complete')
-        
+
         if self.action_abort:
             self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.',min_width=400)
 
         return True
 
     def scan_dialog_show(self,do_scan=False):
-        
+
         self.exclude_mask_update()
         self.paths_to_scan_update()
-        
+
         self.scan_dialog.show(focus=self.scan_cancel_button,do_command=self.scan if do_scan else None)
-        
+
         if self.D.scanned_paths:
             self.paths_to_scan_from_dialog=self.D.scanned_paths.copy()
 
@@ -2342,18 +2357,20 @@ class Gui:
 
             sizes_counter+=1
             for crc,crc_dict in size_dict.items():
-                crcitem=self.groups_tree.insert(parent='', index=END,iid=crc, values=('','','',str(size),size_str,'','','',crc,len(crc_dict),'',CRC),tags=CRC,open=True)
+                #self.groups_tree["columns"]=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','instancesH','ctimeH','kind')
+                instances=len(crc_dict)
+                crcitem=self.groups_tree.insert(parent='', index=END,iid=crc, values=('','','',str(size),size_str,'','','',crc,instances,str(instances),'',CRC),tags=CRC,open=True)
 
                 for pathnr,path,file,ctime,dev,inode in crc_dict:
                     self.groups_tree.insert(parent=crcitem, index=END,iid=self.idfunc(inode,dev), values=(\
                             pathnr,path,file,str(size),\
                             '',\
                             str(ctime),str(dev),str(inode),crc,\
-                            '',\
+                            '','',\
                             time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) ,FILE),tags=())
         self.data_precalc()
 
-        if self.column_sort_last_params[self.groups_tree]!=self.column_sort_last_params_default:
+        if self.column_sort_last_params[self.groups_tree]!=self.column_groups_sort_params_default:
             #defaultowo po size juz jest, nie trzeba tracic czasu
             self.column_sort(self.groups_tree)
         else:
@@ -2395,8 +2412,8 @@ class Gui:
         self.status_var_path.set('')
         #self.status_var_full_path_label.config(fg = 'black')
 
-    SORT_INDEX={'file':1,'sizeH':2,'ctimeH':3,'instances':8}
-    kindIndex=10
+    #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','sizeH','ctime','ctimeH','instances','instancesH')
+    kindIndex=3
 
     def two_dots_condition_win(self):
         return True if self.sel_path_full.split(os.sep)[1]!='' else False
@@ -2431,9 +2448,29 @@ class Gui:
             i=0
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size,nlink in scan_dir_res:
                 if islink :
-                    folder_items.append( ( '\t📁 ⇦',file,0,0,0,0,'','',1,0,DIR,'%sDL' % i,'','' ) if isdir else ( '\t  🠔',file,0,ctime,dev,inode,'','',1,0,LINK,'%sFL' % i,'','' ) )
+                    text = '\t📁 ⇦' if isdir else '\t📁'
+                    iid='%sDL' % i if isdir else '%sFL' % i
+                    kind= DIR if isdir else LINK
+                    crc=''
+                    size=0
+                    sizeH=''
+                    ctime=0
+                    ctimeH=''
+                    instances=1
+                    instancesH=''
+                    #defaulttag=DIR if isdir else LINK
                 elif isdir:
-                    folder_items.append( ('\t📁',file,0,0,0,0,'','',1,0,DIR,'%sD' % i,'','' ) )
+                    text = '\t📁'
+                    iid='%sD' % i
+                    kind= DIR
+                    crc=''
+                    size=0
+                    sizeH=''
+                    ctime=0
+                    ctimeH=''
+                    instances=1
+                    instancesH=''
+
                 elif isfile:
 
                     FILEID=self.idfunc(inode,dev)
@@ -2441,44 +2478,59 @@ class Gui:
                     if (FILEID,ctime) in self.cache_by_id_ctime:
                         crc,crccut,instances = self.cache_by_id_ctime[(FILEID,ctime)]
 
-                        folder_items.append( (crc if show_full_crc else crccut, \
-                                                    file,\
-                                                    size,\
-                                                    ctime,\
-                                                    dev,\
-                                                    inode,\
-                                                    crc,\
-                                                    instances,\
-                                                    instances,\
-                                                    FILEID,\
-                                                    FILE,\
-                                                    FILEID,\
-                                                    core.bytes_to_str(size),\
-                                                    time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) \
-                                            )  )
+                        text = crc if show_full_crc else crccut
+                        iid=FILEID
+                        kind=FILE
+                        crc=''
+                        sizeH=core.bytes_to_str(size)
+                        ctimeH=time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) )
+                        instancesH=instances
                     else:
-                        if nlink!=1:
-                            #hardlinks
-                            folder_items.append( ( '\t ✹',file,size,ctime,dev,inode,'','',1,FILEID,SINGLEHARDLINKED,'%sO' % i,core.bytes_to_str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
-                        else:
-                            folder_items.append( ( '',file,size,ctime,dev,inode,'','',1,FILEID,SINGLE,'%sO' % i,core.bytes_to_str(size),time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) ) ) )
+                        text = '\t ✹' if nlink!=1 else ''
+                        iid='%sO' % i
+                        crc=''
+                        kind = SINGLEHARDLINKED if nlink!=1 else SINGLE
+                        sizeH=core.bytes_to_str(size)
+                        ctimeH=time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) )
+                        instances=1
+                        instancesH=''
                 else:
                     logging.error(f'what is it: {file},{islink},{isdir},{isfile} ?')
+
+                    text='????'
+                    iid='%sx' % i
+                    kind = '?'
+                    crc = ''
+                    size=0,
+                    sizeH='',
+                    ctime=0
+                    ctimeH=''
+                    instances=0
+                    instancesH=''
+
+                folder_items.append( (text,iid,(file,dev,inode,kind,crc,size,sizeH,ctime,ctimeH,instances,instancesH)) )
 
                 i+=1
 
             ############################################################
-            col_sort,reverse = self.column_sort_last_params[self.folder_tree]
-            sort_index=self.SORT_INDEX[col_sort]
-            is_numeric=self.COLUMN_IS_NUMERIC[col_sort]
+            col_sort,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[self.folder_tree]
 
-            UPDIRCode,DIRCode,NONDIRCode = (2,1,0) if reverse else (0,1,2)
-            ############################################################
+            sort_index_local=sort_index-1
+            try:
+                FolderItemsSorted=sorted(folder_items,key=lambda x : \
+                        (updir_code if x[2][self.kindIndex]==UPDIR else dir_code if x[2][self.kindIndex]==DIR else non_dir_code, float(x[2][sort_index_local])) if is_numeric \
+                   else (updir_code if x[2][self.kindIndex]==UPDIR else dir_code if x[2][self.kindIndex]==DIR else non_dir_code, x[2][sort_index_local]),reverse=reverse)
+            except Exception as e:
+                print(e)
+                for item in folder_items:
+                    print('\t'.join([str(x) for x in item]))
 
-            FolderItemsSorted=sorted(folder_items,key=lambda x : (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,float(x[sort_index])) if is_numeric else (UPDIRCode if x[self.kindIndex]==UPDIR else DIRCode if x[self.kindIndex]==DIR else NONDIRCode,x[sort_index]),reverse=reverse)
-
-            #text,values,FILEID,kind,iid,defaulttag
-            self.folder_items_cache[current_path]=(dir_ctime,tuple([ (text,(file,str(size),sizeH,str(ctime),str(dev),str(inode),crc,str(instances),str(instancesnum),ctimeH,kind),FILEID,kind,iid,SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR) else LINK if kind==LINK else "") for text,file,size,ctime,dev,inode,crc,instances,instancesnum,FILEID,kind,iid,sizeH,ctimeH in FolderItemsSorted] ) )
+            else:
+                #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','sizeH','ctime','ctimeH','instances','instancesH')
+                #text,iid,values,kind
+                self.folder_items_cache[current_path]=(dir_ctime,tuple([ \
+                (text,iid,(file,str(dev),str(inode),kind,crc,str(size),sizeH,str(ctime),ctimeH,str(instances),str(instancesH)),kind, SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR) else LINK if kind==LINK else "") \
+                   for text,iid,(file,dev,inode,kind,crc,size,sizeH,ctime,ctimeH,instances,instancesH) in FolderItemsSorted] ) )
 
         if arbitrary_path:
             #TODO - workaround
@@ -2490,10 +2542,16 @@ class Gui:
         self.folder_tree.delete(*self.folder_tree.get_children())
 
         if self.two_dots_condition():
-            self.folder_tree.insert(parent="", index=END, iid='0UP' , text='', values=('..','0','','0','0','0','..','','0','',UPDIR),tags=DIR)
+            #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','sizeH','ctime','ctimeH','instances','instancesH')
+            self.folder_tree.insert(parent="", index=END, iid='0UP' , text='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
 
-        for (text,values,FILEID,kind,iid,defaulttag) in self.folder_items_cache[current_path][1]:
-            self.folder_tree.insert(parent="", index=END, iid=iid , text=text, values=values,tags=self.groups_tree.item(FILEID)['tags'] if kind==FILE else defaulttag)
+        for (text,iid,values,kind,defaulttag) in self.folder_items_cache[current_path][1]:
+            try:
+                kind=values[self.kindIndex]
+                self.folder_tree.insert(parent="", index=END, iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if kind==FILE else defaulttag)
+            except Exception as e:
+                print(f'{iid=}')
+                print(e)
 
         self.TreeFolderFlatItemsList=self.folder_tree.get_children()
 
@@ -2602,7 +2660,7 @@ class Gui:
                 if fullpath.startswith(path_param + os.sep):
                     action(item,self.groups_tree)
                     selCount+=1
-        
+
         if not selCount :
             self.info_dialog_on_main.show('No files found for specified path',path_param,min_width=400)
         else:
@@ -2877,7 +2935,7 @@ class Gui:
         else:
             ScopeTitle='Selected Directory.'
             #self.sel_path_full
-            
+
             for item in self.folder_tree.get_children():
                 if self.folder_tree.tag_has(MARK,item):
                     crc=self.folder_tree.set(item,'crc')
@@ -2948,7 +3006,7 @@ class Gui:
                             ShowAllDeleteWarning=True
                         else:
                             self.info_dialog_on_main.show(f'Error (Delete) - All files marked',"Keep at least one file unmarked.",min_width=400)
-                            
+
                             self.crc_select_and_focus(crc,True)
                             return True
 
@@ -3296,7 +3354,7 @@ class Gui:
     def enter_dir(self,fullpath,sel):
         if self.find_tree_index==1:
             self.find_result=()
-            
+
         if self.tree_folder_update(fullpath):
             children=self.folder_tree.get_children()
             resList=[nodeid for nodeid in children if self.folder_tree.set(nodeid,'file')==sel]
@@ -3326,7 +3384,7 @@ class Gui:
             self.enter_dir(self.sel_path_full+self.folder_tree.set(item,'file') if self.sel_path_full=='/' else os.sep.join([self.sel_path_full,self.folder_tree.set(item,'file')]),'..' )
         elif tree.set(item,'kind')!=CRC:
             self.open_file()
-    
+
     @busy_cursor
     def open_folder(self):
         if self.sel_path_full:
@@ -3347,34 +3405,34 @@ class Gui:
                 os.system("xdg-open "+ '"' + os.sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
         elif self.sel_kind==DIR:
             self.open_folder()
-    
+
     def show_log(self):
         if windows:
             os.startfile(log)
         else:
             os.system("xdg-open "+ '"' + log + '"')
-    
+
     def show_logs_dir(self):
         if windows:
             os.startfile(LOG_DIR)
         else:
             os.system("xdg-open " + '"' + LOG_DIR + '"')
-            
+
     def show_homepage(self):
         if windows:
             os.startfile(HOMEPAGE)
         else:
             os.system("xdg-open " + HOMEPAGE)
-    
+
 if __name__ == "__main__":
     try:
         #######################################################################
         #timestamp
-        
+
         VER_TIMESTAMP = console.get_ver_timestamp()
-        
+
         DUDE_FILE = os.path.normpath(__file__)
-        
+
         args = console.parse_args(VER_TIMESTAMP)
 
         log=os.path.abspath(args.log) if args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.txt'
