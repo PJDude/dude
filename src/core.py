@@ -212,7 +212,7 @@ class DudeCore:
 
         self.abort_action=False
 
-        pathNr=0
+        path_nr=0
         self.info_counter=0
         self.info_size_sum=0
 
@@ -242,17 +242,17 @@ class DudeCore:
 
                                 if mtime: #stat succeeded
                                     if nlink!=1:
-                                        self.Log.debug(f'scan skipp - hardlinks {nlink} - {pathNr},{path},{file}')
+                                        self.Log.debug(f'scan skipp - hardlinks {nlink} - {path_nr},{path},{file}')
                                     else:
                                         if size>0:
                                             self.info_size_sum+=size
 
                                             subpath=path.replace(path_to_scan,'')
-                                            self.scan_results_by_size[size].add( (pathNr,subpath,file,mtime,ctime,dev,inode) )
+                                            self.scan_results_by_size[size].add( (path_nr,subpath,file,mtime,ctime,dev,inode) )
 
                                 self.info_counter+=1
 
-                                self.info_path_nr=pathNr
+                                self.info_path_nr=path_nr
                                 self.info_path_to_scan=path_to_scan
 
                                 if self.abort_action:
@@ -266,7 +266,7 @@ class DudeCore:
                 if self.abort_action:
                     break
 
-            pathNr+=1
+            path_nr+=1
             if self.abort_action:
                 break
 
@@ -352,7 +352,7 @@ class DudeCore:
     CRC_BUFFER_SIZE=1024*1024
 
     #############################################################
-    def threaded_crc_calc_on_opened_files(self,dev,SrcQ,ResQ):
+    def threaded_crc_calc_on_opened_files(self,dev,src_queue,res_queue):
         buf = bytearray(self.CRC_BUFFER_SIZE)
         view = memoryview(buf)
 
@@ -360,17 +360,17 @@ class DudeCore:
         files_done=0
 
         while True:
-            Task = SrcQ.get()
-            SrcQ.task_done()
+            Task = src_queue.get()
+            src_queue.task_done()
 
             if Task:
-                File,index_tuple,size,mtime = Task
+                file,index_tuple,size,mtime = Task
                 h = hashlib.sha1()
 
                 self.crc_thread_progress_info[dev]=0
 
                 self.crc_thread_file_info[dev]=(size,index_tuple)
-                while rsize := File.readinto(buf):
+                while rsize := file.readinto(buf):
                     h.update(view[:rsize])
                     self.crc_thread_progress_info[dev]+=rsize
 
@@ -378,7 +378,7 @@ class DudeCore:
                         break
 
                 if not self.abort_action:
-                    ResQ.put((File,index_tuple,size,mtime,h.hexdigest()))
+                    res_queue.put((file,index_tuple,size,mtime,h.hexdigest()))
                     size_done+=size
                     files_done+=1
                     self.crc_thread_total_info[dev]=(files_done,size_done)
@@ -386,7 +386,7 @@ class DudeCore:
                 self.crc_thread_progress_info[dev]=0
                 self.crc_thread_file_info[dev]=None
 
-                File.close()
+                file.close()
             else:
                 break
 
@@ -495,20 +495,20 @@ class DudeCore:
             anything_opened=False
             for dev in self.devs:
                 while not self.abort_action and file_names_queue[dev].qsize()>0 and opened_files_queue[dev].qsize()<OPENED_FILES_PER_DEV_LIMIT:
-                    NameCombo = file_names_queue[dev].get()
+                    name_combo = file_names_queue[dev].get()
                     file_names_queue[dev].task_done()
 
-                    size,pathnr,path,file,mtime,ctime,inode = NameCombo
+                    size,pathnr,path,file,mtime,ctime,inode = name_combo
 
                     try:
-                        File=open(self.get_full_path_to_scan(pathnr,path,file),'rb')
+                        file=open(self.get_full_path_to_scan(pathnr,path,file),'rb')
                     except Exception as e:
                         self.Log.error(e)
                         info_size_not_calculated+=size
                         info_files_not_calculated+=1
                     else:
                         index_tuple=(pathnr,path,file,ctime,dev,inode)
-                        opened_files_queue[dev].put((File,index_tuple,size,mtime))
+                        opened_files_queue[dev].put((file,index_tuple,size,mtime))
                         anything_opened=True
 
             ########################################################################
@@ -519,7 +519,7 @@ class DudeCore:
                     Task = files_crc_queue[dev].get()
                     files_crc_queue[dev].task_done()
 
-                    File,index_tuple,size,mtime,crc = Task
+                    file,index_tuple,size,mtime,crc = Task
 
                     self.files_of_size_of_crc[size][crc].add( index_tuple )
                     anything_processed=True
@@ -657,16 +657,16 @@ class DudeCore:
 
         if self.files_of_size_of_crc[size][crc]:
             for pathnr,path,file,ctime,dev,inode in self.files_of_size_of_crc[size][crc]:
-                FullPath=self.get_full_path_to_scan(pathnr,path,file)
+                full_path=self.get_full_path_to_scan(pathnr,path,file)
                 problem=False
                 try:
-                    stat = os.stat(FullPath)
+                    stat = os.stat(full_path)
                 except Exception as e:
                     res_problems.append(f'{e}|RED')
                     problem=True
                 else:
                     if stat.st_nlink!=1:
-                        res_problems.append(f'file became hardlink:{stat.st_nlink} - {pathNr},{path},{file}')
+                        res_problems.append(f'file became hardlink:{stat.st_nlink} - {path_nr},{path},{file}')
                         problem=True
                     else:
                         if (size,ctime,dev,inode) != (stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino):
@@ -868,23 +868,23 @@ if __name__ == "__main__":
 
     core.write_log=True
 
-    ScanThread=Thread(target=core.scan,daemon=True)
-    ScanThread.start()
+    scan_thread=Thread(target=core.scan,daemon=True)
+    scan_thread.start()
 
-    while ScanThread.is_alive():
+    while scan_thread.is_alive():
         print('Scanning ...', core.info_counter,end='\r')
         time.sleep(0.04)
 
-    ScanThread.join()
+    scan_thread.join()
 
-    ScanThread=Thread(target=core.crc_calc,daemon=True)
-    ScanThread.start()
+    scan_thread=Thread(target=core.crc_calc,daemon=True)
+    scan_thread.start()
 
-    while ScanThread.is_alive():
+    while scan_thread.is_alive():
         print(f'crc_calc...{core.info_files_done}/{core.info_total}                 ',end='\r')
         time.sleep(0.04)
 
-    ScanThread.join()
+    scan_thread.join()
 
     print('')
     print('Done')
