@@ -231,13 +231,13 @@ class Gui:
 
     #######################################################################
     action_abort=False
-    def crc_progress_dialog_show(self,parent,title,ProgressMode1=None,ProgressMode2=None,Progress1LeftText=None,Progress2LeftText=None):
+    def crc_progress_dialog_show(self,parent,title,progress_mode1=None,progress_mode2=None,progress1_left_text=None,progress2_left_text=None):
         self.LADParent=parent
 
         self.psIndex =0
 
-        self.ProgressMode1=ProgressMode1
-        self.ProgressMode2=ProgressMode2
+        self.progress_mode1=progress_mode1
+        self.progress_mode2=progress_mode2
 
         self.crc_progress_dialog = tk.Toplevel(parent,bg=self.bg)
         self.crc_progress_dialog.wm_transient(parent)
@@ -252,38 +252,38 @@ class Gui:
         (f1:=tk.Frame(self.crc_progress_dialog,bg=self.bg)).pack(expand=1,fill='both',side='top')
 
         self.progr1var = DoubleVar()
-        self.progr1=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=ProgressMode1,variable=self.progr1var)
+        self.progr1=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=progress_mode1,variable=self.progr1var)
 
-        if ProgressMode1:
+        if progress_mode1:
             self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')
 
         self.progr1LabLeft=tk.Label(f0,width=17,bg=self.bg)
-        if Progress1LeftText:
+        if progress1_left_text:
             self.progr1LabLeft.grid(row=0,column=0,padx=1,pady=4)
-            self.progr1LabLeft.config(text=Progress1LeftText)
+            self.progr1LabLeft.config(text=progress1_left_text)
 
         self.progr1LabRight=tk.Label(f0,width=17,bg=self.bg)
 
-        if self.ProgressMode1=='determinate':
+        if self.progress_mode1=='determinate':
             self.progr1LabRight.grid(row=0,column=2,padx=1,pady=4)
             self.Progress1Func=(lambda progress1 : self.progr1var.set(progress1) )
-        elif self.ProgressMode1=='indeterminate':
+        elif self.progress_mode1=='indeterminate':
             self.Progress1Func=(lambda progress1 : self.progr1.start())
         else :
             self.Progress1Func=lambda args : None
 
         self.progr2var = DoubleVar()
-        self.progr2=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=ProgressMode2,variable=self.progr2var)
+        self.progr2=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=progress_mode2,variable=self.progr2var)
         self.progr2LabRight=tk.Label(f0,width=17,bg=self.bg)
 
-        if ProgressMode2:
+        if progress_mode2:
             self.crc_progress_dialog.minsize(550, 60)
             self.progr2.grid(row=1,column=1,padx=1,pady=4,sticky='news')
 
-            if Progress2LeftText:
+            if progress2_left_text:
                 self.progr2LabLeft=tk.Label(f0,width=17,bg=self.bg)
                 self.progr2LabLeft.grid(row=1,column=0,padx=1,pady=4)
-                self.progr2LabLeft.config(text=Progress2LeftText)
+                self.progr2LabLeft.config(text=progress2_left_text)
 
             self.progr2LabRight.grid(row=1,column=2,padx=1,pady=4)
         else:
@@ -502,16 +502,9 @@ class Gui:
 
         self.groups_tree["columns"]=('pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','instancesH','ctimeH','kind')
 
-        #pathnr,path,file,ctime,dev,inode
-        #self.IndexTupleIndexesWithFnCommon=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
-
         #'pathnr','path','file','size','sizeH','ctime','dev','inode','crc','instances','ctimeH','kind' ->
         #pathnr,path,file,ctime,dev,inode
         self.IndexTupleIndexesWithFnGroups=((int,0),(raw,1),(raw,2),(int,5),(int,6),(int,7))
-
-        #'file','size','sizeH','ctime','dev','inode','crc','instances','instances','ctimeH','kind' ->
-        #file,ctime,dev,inode
-        #self.IndexTupleIndexesWithFnFolder=((raw,0),(int,3),(int,4),(int,5))
 
         self.groups_tree["displaycolumns"]=('path','file','sizeH','instancesH','ctimeH')
 
@@ -1327,7 +1320,7 @@ class Gui:
             if sel:=tree.selection() : tree.selection_remove(sel)
 
             if event.keysym in ("Up",'Down') :
-                (pool,poolLen) = (self.tree_groups_flat_items,len(self.tree_groups_flat_items) ) if self.sel_tree_index==0 else (self.TreeFolderFlatItemsList,len(self.TreeFolderFlatItemsList))
+                (pool,poolLen) = (self.tree_groups_flat_items,len(self.tree_groups_flat_items) ) if self.sel_tree_index==0 else (self.folder_tree_flat_items_list,len(self.folder_tree_flat_items_list))
 
                 if poolLen:
                     index = pool.index(self.sel_item) if self.sel_item in pool else pool.index(self.sel_item_of_tree[tree]) if self.sel_item_of_tree[tree] in pool else pool.index(item) if item in  pool else 0
@@ -1616,8 +1609,8 @@ class Gui:
             self.dominant_groups_folder[0] = -1
             self.dominant_groups_folder[1] = -1
 
-    def groups_tree_sel_change(self,item,force=False,ChangeStatusLine=True):
-        if ChangeStatusLine : self.status('')
+    def groups_tree_sel_change(self,item,force=False,change_status_line=True):
+        if change_status_line : self.status('')
 
         pathnr=self.groups_tree.set(item,'pathnr')
         path=self.groups_tree.set(item,'path')
@@ -1663,7 +1656,7 @@ class Gui:
         else:
             self.tree_folder_update_none()
 
-    def folder_tree_sel_change(self,item,ChangeStatusLine=True):
+    def folder_tree_sel_change(self,item,change_status_line=True):
         self.sel_file = self.folder_tree.set(item,'file')
         self.sel_crc = self.folder_tree.set(item,'crc')
         self.sel_kind = self.folder_tree.set(item,'kind')
@@ -1677,19 +1670,19 @@ class Gui:
 
         kind=self.folder_tree.set(item,'kind')
         if kind==FILE:
-            if ChangeStatusLine: self.status('')
+            if change_status_line: self.status('')
             self.groups_tree_update(item)
         else:
             if kind==LINK:
-                if ChangeStatusLine: self.status('  🠖  ' + os.readlink(self.sel_full_path_to_file))
+                if change_status_line: self.status('  🠖  ' + os.readlink(self.sel_full_path_to_file))
             elif kind==SINGLEHARDLINKED:
-                if ChangeStatusLine: self.status('File with hardlinks')
+                if change_status_line: self.status('File with hardlinks')
             elif kind==SINGLE:
-                if ChangeStatusLine: self.status('')
+                if change_status_line: self.status('')
             elif kind==DIR:
-                if ChangeStatusLine: self.status('Subdirectory')
+                if change_status_line: self.status('Subdirectory')
             elif kind==UPDIR:
-                if ChangeStatusLine: self.status('Parent directory')
+                if change_status_line: self.status('Parent directory')
 
             self.groups_tree_update_none()
 
@@ -1913,7 +1906,7 @@ class Gui:
         if res:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.main):
             final_info = self.empty_dirs_removal(res,True)
 
-            self.info_dialog_on_main.show('Removed empty directories','\n'.join(final_info),min_width=800)
+            self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info),min_width=800)
 
             self.tree_folder_update(self.sel_path_full)
 
@@ -2052,7 +2045,7 @@ class Gui:
             return False
         #############################
         self.status('Calculating CRC ...')
-        self.crc_progress_dialog_show(self.scan_dialog.area_main,'CRC calculation','determinate','determinate',Progress1LeftText='Total space:',Progress2LeftText='Files number:')
+        self.crc_progress_dialog_show(self.scan_dialog.area_main,'CRC calculation','determinate','determinate',progress1_left_text='Total space:',progress2_left_text='Files number:')
 
         self.D.writeLog=self.WriteScanToLog.get()
 
@@ -2290,9 +2283,9 @@ class Gui:
         else:
             crc_dict=self.D.files_of_size_of_crc[size][crc]
             for item in list(self.groups_tree.get_children(crc)):
-                IndexTuple=self.get_index_tuple_groups_tree(item)
+                index_tuple=self.get_index_tuple_groups_tree(item)
 
-                if IndexTuple not in crc_dict:
+                if index_tuple not in crc_dict:
                     self.groups_tree.delete(item)
                     logging.debug('crc_node_update-3 ' + item)
 
@@ -2304,13 +2297,13 @@ class Gui:
     def data_precalc(self):
         self.status('Precalculating data...')
 
-        self.cache_by_id_ctime = { (self.idfunc(inode,dev),ctime):(crc,self.D.crccut[crc],len(self.D.files_of_size_of_crc[size][crc]) ) for size,size_dict in self.D.files_of_size_of_crc.items() for crc,crc_dict in size_dict.items() for pathnr,path,file,ctime,dev,inode in crc_dict }
+        self.cache_by_id_ctime = { (self.idfunc(inode,dev),ctime):(crc,self.D.crc_cut[crc],len(self.D.files_of_size_of_crc[size][crc]) ) for size,size_dict in self.D.files_of_size_of_crc.items() for crc,crc_dict in size_dict.items() for pathnr,path,file,ctime,dev,inode in crc_dict }
         self.status_var_groups.set(len(self.groups_tree.get_children()))
 
         path_stat_size={}
         path_stat_quant={}
 
-        self.BiggestFileOfPath={}
+        self.biggest_file_of_path={}
         self.biggest_file_of_path_id={}
 
         for size,size_dict in self.D.files_of_size_of_crc.items() :
@@ -2320,8 +2313,8 @@ class Gui:
                     path_stat_size[path_index] = path_stat_size.get(path_index,0) + size
                     path_stat_quant[path_index] = path_stat_quant.get(path_index,0) + 1
 
-                    if size>self.BiggestFileOfPath.get(path_index,0):
-                        self.BiggestFileOfPath[path_index]=size
+                    if size>self.biggest_file_of_path.get(path_index,0):
+                        self.biggest_file_of_path[path_index]=size
                         self.biggest_file_of_path_id[path_index]=self.idfunc(inode,dev)
 
         self.path_stat_list_size=tuple(sorted([(pathnr,path,number) for (pathnr,path),number in path_stat_size.items()],key=lambda x : x[2],reverse=True))
@@ -2393,7 +2386,7 @@ class Gui:
 
         for size,size_dict in self.D.files_of_size_of_crc.items() :
             for crc,crc_dict in size_dict.items():
-                self.groups_tree.item(crc,text=crc if show_full_crc else self.D.crccut[crc])
+                self.groups_tree.item(crc,text=crc if show_full_crc else self.D.crc_cut[crc])
                 for pathnr,path,file,ctime,dev,inode in crc_dict:
                     self.groups_tree.item(self.idfunc(inode,dev),text=self.D.scanned_paths[pathnr] if show_full_paths else self.NUMBERS[pathnr])
 
@@ -2418,7 +2411,7 @@ class Gui:
         #self.status_var_full_path_label.config(fg = 'black')
 
     #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','sizeH','ctime','ctimeH','instances','instancesH')
-    kindIndex=3
+    kind_index=3
 
     def two_dots_condition_win(self):
         return True if self.sel_path_full.split(os.sep)[1]!='' else False
@@ -2463,7 +2456,7 @@ class Gui:
                     ctimeH=''
                     instances=1
                     instancesH=''
-                    #defaulttag=DIR if isdir else LINK
+
                 elif isdir:
                     text = '\t📁'
                     iid='%sD' % i
@@ -2481,9 +2474,9 @@ class Gui:
                     FILEID=self.idfunc(inode,dev)
 
                     if (FILEID,ctime) in self.cache_by_id_ctime:
-                        crc,crccut,instances = self.cache_by_id_ctime[(FILEID,ctime)]
+                        crc,crc_cut,instances = self.cache_by_id_ctime[(FILEID,ctime)]
 
-                        text = crc if show_full_crc else crccut
+                        text = crc if show_full_crc else crc_cut
                         iid=FILEID
                         kind=FILE
                         crc=''
@@ -2523,8 +2516,8 @@ class Gui:
             sort_index_local=sort_index-1
             try:
                 FolderItemsSorted=sorted(folder_items,key=lambda x : \
-                        (updir_code if x[2][self.kindIndex]==UPDIR else dir_code if x[2][self.kindIndex]==DIR else non_dir_code, float(x[2][sort_index_local])) if is_numeric \
-                   else (updir_code if x[2][self.kindIndex]==UPDIR else dir_code if x[2][self.kindIndex]==DIR else non_dir_code, x[2][sort_index_local]),reverse=reverse)
+                        (updir_code if x[2][self.kind_index]==UPDIR else dir_code if x[2][self.kind_index]==DIR else non_dir_code, float(x[2][sort_index_local])) if is_numeric \
+                   else (updir_code if x[2][self.kind_index]==UPDIR else dir_code if x[2][self.kind_index]==DIR else non_dir_code, x[2][sort_index_local]),reverse=reverse)
             except Exception as e:
                 print(e)
                 for item in folder_items:
@@ -2552,13 +2545,13 @@ class Gui:
 
         for (text,iid,values,kind,defaulttag) in self.folder_items_cache[current_path][1]:
             try:
-                kind=values[self.kindIndex]
+                kind=values[self.kind_index]
                 self.folder_tree.insert(parent="", index=END, iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if kind==FILE else defaulttag)
             except Exception as e:
                 print(f'{iid=}')
                 print(e)
 
-        self.TreeFolderFlatItemsList=self.folder_tree.get_children()
+        self.folder_tree_flat_items_list=self.folder_tree.get_children()
 
         if not arbitrary_path:
             if self.sel_item and self.sel_item in self.folder_tree.get_children():
@@ -2614,13 +2607,13 @@ class Gui:
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
 
-    def MarkInSpecifiedCRCGroup(self,action,crc):
+    def mark_in_specified_crc_group(self,action,crc):
         { action(item,self.groups_tree) for item in self.groups_tree.get_children(crc) }
 
     @busy_cursor
     def mark_in_group(self,action):
         self.status('Un/Setting marking in group ...')
-        self.MarkInSpecifiedCRCGroup(action,self.sel_crc)
+        self.mark_in_specified_crc_group(action,self.sel_crc)
         self.update_marks_folder()
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -2628,7 +2621,7 @@ class Gui:
     @busy_cursor
     def mark_on_all(self,action):
         self.status('Un/Setting marking on all files ...')
-        { self.MarkInSpecifiedCRCGroup(action,crc) for crc in self.groups_tree.get_children() }
+        { self.mark_in_specified_crc_group(action,crc) for crc in self.groups_tree.get_children() }
         self.update_marks_folder()
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -2840,13 +2833,13 @@ class Gui:
             temp=str(working_index)
             working_dict = self.groups_combos_size if size_flag else self.groups_combos_quant
 
-            biggestcrc,biggestcrcSizeSum = working_dict[working_index]
+            biggest_crc,biggest_crc_size_sum = working_dict[working_index]
 
-            if biggestcrc:
-                self.crc_select_and_focus(biggestcrc,True)
+            if biggest_crc:
+                self.crc_select_and_focus(biggest_crc,True)
 
                 self.dominant_groups_index[size_flag] = int(temp)
-                info = core.bytes_to_str(biggestcrcSizeSum) if size_flag else str(biggestcrcSizeSum)
+                info = core.bytes_to_str(biggest_crc_size_sum) if size_flag else str(biggest_crc_size_sum)
                 self.status(f'Dominant (index:{working_index}) group ({self.BY_WHAT[size_flag]}: {info})')
 
     @busy_cursor
@@ -2863,7 +2856,7 @@ class Gui:
             item=self.biggest_file_of_path_id[(pathnr,path)]
 
             self.groups_tree.focus(item)
-            self.groups_tree_sel_change(item,ChangeStatusLine=False)
+            self.groups_tree_sel_change(item,change_status_line=False)
 
             LastCrcChild=self.groups_tree.get_children(self.sel_crc)[-1]
             try:
@@ -2878,7 +2871,7 @@ class Gui:
             try:
                 self.folder_tree.focus_set()
                 self.folder_tree.focus(item)
-                self.folder_tree_sel_change(item,ChangeStatusLine=False)
+                self.folder_tree_sel_change(item,change_status_line=False)
                 self.folder_tree.see(item)
             except Exception :
                 pass
@@ -2900,23 +2893,23 @@ class Gui:
         logging.info(f'checking file:{fullpath}')
         try:
             stat = os.stat(fullpath)
-            ctimeCheck=str(round(stat.st_ctime))
+            ctime_check=str(round(stat.st_ctime))
         except Exception as e:
             self.status(str(e))
             mesage = f'can\'t check file: {fullpath}\n\n{e}'
             logging.error(mesage)
             return mesage
 
-        if ctimeCheck != (ctime:=self.groups_tree.set(item,'ctime')) :
-            message = {f'ctime inconsistency {ctimeCheck} vs {ctime}'}
+        if ctime_check != (ctime:=self.groups_tree.set(item,'ctime')) :
+            message = {f'ctime inconsistency {ctime_check} vs {ctime}'}
             return message
 
     def process_files_in_groups_wrapper(self,action,all_groups):
         processed_items=defaultdict(list)
         if all_groups:
-            ScopeTitle='All marked files.'
+            scope_title='All marked files.'
         else:
-            ScopeTitle='Single CRC group.'
+            scope_title='Single CRC group.'
 
         for crc in self.groups_tree.get_children():
             if all_groups or crc==self.sel_crc:
@@ -2924,12 +2917,12 @@ class Gui:
                     if self.groups_tree.tag_has(MARK,item):
                         processed_items[crc].append(item)
 
-        return self.process_files(action,processed_items,ScopeTitle)
+        return self.process_files(action,processed_items,scope_title)
 
-    def process_files_in_folder_wrapper(self,action,OnDirAction=False):
+    def process_files_in_folder_wrapper(self,action,on_dir_action=False):
         processed_items=defaultdict(list)
-        if OnDirAction:
-            ScopeTitle='All marked files on selected directory sub-tree.'
+        if on_dir_action:
+            scope_title='All marked files on selected directory sub-tree.'
 
             sel_path_with_sep=self.sel_full_path_to_file + os.sep
             for crc in self.groups_tree.get_children():
@@ -2938,7 +2931,7 @@ class Gui:
                         if self.groups_tree.tag_has(MARK,item):
                             processed_items[crc].append(item)
         else:
-            ScopeTitle='Selected Directory.'
+            scope_title='Selected Directory.'
             #self.sel_path_full
 
             for item in self.folder_tree.get_children():
@@ -2946,19 +2939,19 @@ class Gui:
                     crc=self.folder_tree.set(item,'crc')
                     processed_items[crc].append(item)
 
-        return self.process_files(action,processed_items,ScopeTitle)
+        return self.process_files(action,processed_items,scope_title)
 
     @restore_status_line
     def process_files_check_correctness(self,action,processed_items,remaining_items):
         for crc in processed_items:
             size = self.D.Crc2Size[crc]
-            (checkres,TuplesToRemove)=self.D.check_group_files_state(size,crc)
+            (checkres,tuples_to_remove)=self.D.check_group_files_state(size,crc)
 
             if checkres:
                 self.info_dialog_on_main.show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
                 orglist=self.groups_tree.get_children()
 
-                self.D.RemoveFromDataPool(size,crc,TuplesToRemove)
+                self.D.remove_from_data_pool(size,crc,tuples_to_remove)
 
                 self.crc_node_update(crc)
 
@@ -2967,13 +2960,13 @@ class Gui:
                 self.data_precalc()
 
                 newlist=self.groups_tree.get_children()
-                ItemToSel = self.get_closest_in_crc(orglist,crc,newlist)
+                item_to_sel = self.get_closest_in_crc(orglist,crc,newlist)
 
                 self.reset_sels()
 
-                if ItemToSel:
+                if item_to_sel:
                     #crc node moze zniknac - trzeba zupdejtowac SelXxx
-                    self.crc_select_and_focus(ItemToSel,True)
+                    self.crc_select_and_focus(item_to_sel,True)
                 else:
                     self.initial_focus()
 
@@ -2990,32 +2983,32 @@ class Gui:
 
         elif action==DELETE:
             if self.cfg.get_bool(CFG_SKIP_INCORRECT_GROUPS):
-                IncorrectGroups=[]
+                incorrect_groups=[]
                 for crc in processed_items:
                     if len(remaining_items[crc])==0:
-                        IncorrectGroups.append(crc)
-                if IncorrectGroups:
-                    IncorrectGroupsStr='\n'.join(IncorrectGroups)
-                    self.info_dialog_on_main.show(f'Warning (Delete) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFolowing CRC groups will not be processed and remain with markings:\n\n{IncorrectGroupsStr}")
+                        incorrect_groups.append(crc)
+                if incorrect_groups:
+                    incorrect_group_str='\n'.join(incorrect_groups)
+                    self.info_dialog_on_main.show(f'Warning (Delete) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFolowing CRC groups will not be processed and remain with markings:\n\n{incorrect_group_str}")
 
-                    self.crc_select_and_focus(IncorrectGroups[0],True)
+                    self.crc_select_and_focus(incorrect_groups[0],True)
 
-                for crc in IncorrectGroups:
+                for crc in incorrect_groups:
                     del processed_items[crc]
                     del remaining_items[crc]
             else:
-                ShowAllDeleteWarning=False
+                show_all_delete_warning=False
                 for crc in processed_items:
                     if len(remaining_items[crc])==0:
                         if self.cfg.get_bool(CFG_ALLOW_DELETE_ALL):
-                            ShowAllDeleteWarning=True
+                            show_all_delete_warning=True
                         else:
                             self.info_dialog_on_main.show(f'Error (Delete) - All files marked',"Keep at least one file unmarked.",min_width=400)
 
                             self.crc_select_and_focus(crc,True)
                             return True
 
-                if ShowAllDeleteWarning:
+                if show_all_delete_warning:
                     if not self.text_ask_dialog.show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies in one or more groups are selected.|RED\n\nProceed ?|RED'):
                         return True
 
@@ -3050,9 +3043,9 @@ class Gui:
         logging.info('remaining files checking complete.')
 
     @restore_status_line
-    def process_files_confirm(self,action,processed_items,remaining_items,ScopeTitle):
+    def process_files_confirm(self,action,processed_items,remaining_items,scope_title):
         self.status('confirmation required...')
-        ShowFullPath=1
+        show_full_path=1
 
         message=[]
         if not self.cfg.get_bool(CFG_CONFIRM_SHOW_CRCSIZE):
@@ -3065,22 +3058,22 @@ class Gui:
                 message.append('CRC:' + crc + ' size:' + core.bytes_to_str(size) + '|GRAY')
 
             for item in processed_items[crc]:
-                message.append((self.item_full_path(item) if ShowFullPath else tree.set(item,'file')) + '|RED' )
+                message.append((self.item_full_path(item) if show_full_path else tree.set(item,'file')) + '|RED' )
 
             if action==SOFTLINK:
                 if remaining_items[crc]:
                     item = remaining_items[crc][0]
                     if self.cfg.get_bool(CFG_CONFIRM_SHOW_LINKSTARGETS):
-                        message.append('🠖 ' + (self.item_full_path(item) if ShowFullPath else self.groups_tree.set(item,'file')) )
+                        message.append('🠖 ' + (self.item_full_path(item) if show_full_path else self.groups_tree.set(item,'file')) )
 
         if action==DELETE:
-            if not self.text_ask_dialog.show('Delete marked files ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message)):
+            if not self.text_ask_dialog.show('Delete marked files ?','Scope - ' + scope_title +'\n'+'\n'.join(message)):
                 return True
         elif action==SOFTLINK:
-            if not self.text_ask_dialog.show('Soft-Link marked files to first unmarked file in group ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message)):
+            if not self.text_ask_dialog.show('Soft-Link marked files to first unmarked file in group ?','Scope - ' + scope_title +'\n'+'\n'.join(message)):
                 return True
         elif action==HARDLINK:
-            if not self.text_ask_dialog.show('Hard-Link marked files together in groups ?','Scope - ' + ScopeTitle +'\n'+'\n'.join(message)):
+            if not self.text_ask_dialog.show('Hard-Link marked files together in groups ?','Scope - ' + scope_title +'\n'+'\n'.join(message)):
                 return True
 
         {logging.warning(line) for line in message}
@@ -3088,13 +3081,13 @@ class Gui:
         logging.warning('Confirmed.')
 
     @busy_cursor
-    def empty_dirs_removal(self,startpath,ReportEmpty=False):
+    def empty_dirs_removal(self,startpath,report_empty=False):
         string=f'Removing empty directories in:\'{startpath}\''
         self.status(string)
         self.main.update()
         logging.info(string)
 
-        Removed=[]
+        removed=[]
         index=0
         for (path, dirs, files) in os.walk(startpath, topdown=False, followlinks=False):
             string2=f'{string} {self.PROGRESS_SIGNS[index]}'
@@ -3105,17 +3098,17 @@ class Gui:
                 try:
                     self.main.update()
                     os.rmdir(path)
-                    logging.info(f'Empty Removed:{path}')
-                    Removed.append(path)
+                    logging.info(f'Empty removed:{path}')
+                    removed.append(path)
                 except Exception as e:
                     logging.error(f'empty_dirs_removal:{e}')
 
         self.status('')
 
-        if ReportEmpty and not Removed:
-            Removed.append(f'No empty subdirectories in:\'{startpath}\'')
+        if report_empty and not removed:
+            removed.append(f'No empty subdirectories in:\'{startpath}\'')
 
-        return Removed
+        return removed
 
     def process_files_core(self,action,processed_items,remaining_items):
         self.main.config(cursor="watch")
@@ -3125,51 +3118,51 @@ class Gui:
 
         final_info=[]
         if action==DELETE:
-            DirectoriesToCheck=set()
+            directories_to_check=set()
             for crc in processed_items:
-                TuplesToDelete=set()
+                tuples_to_delete=set()
                 size=int(self.groups_tree.set(processed_items[crc][0],'size'))
                 for item in processed_items[crc]:
-                    IndexTuple=self.get_index_tuple_groups_tree(item)
-                    TuplesToDelete.add(IndexTuple)
-                    DirectoriesToCheck.add(self.D.get_path(IndexTuple))
+                    index_tuple=self.get_index_tuple_groups_tree(item)
+                    tuples_to_delete.add(index_tuple)
+                    directories_to_check.add(self.D.get_path(index_tuple))
 
-                if resmsg:=self.D.delete_file_wrapper(size,crc,TuplesToDelete):
+                if resmsg:=self.D.delete_file_wrapper(size,crc,tuples_to_delete):
                     logging.error(resmsg)
                     self.info_dialog_on_main.show('Error',resmsg)
 
                 self.crc_node_update(crc)
 
             if self.cfg.get_bool(ERASE_EMPTY_DIRS):
-                DirectoriesToCheckList=list(DirectoriesToCheck)
-                DirectoriesToCheckList.sort(key=lambda d : (len(str(d).split(os.sep)),d),reverse=True )
+                directories_to_check_list=list(directories_to_check)
+                directories_to_check_list.sort(key=lambda d : (len(str(d).split(os.sep)),d),reverse=True )
 
-                Removed=[]
-                for directory in DirectoriesToCheckList:
-                    Removed.extend(self.empty_dirs_removal(directory))
+                removed=[]
+                for directory in directories_to_check_list:
+                    removed.extend(self.empty_dirs_removal(directory))
 
-                final_info.extend(Removed)
+                final_info.extend(removed)
 
         elif action==SOFTLINK:
-            RelSymlink = self.cfg.get_bool(CFG_KEY_REL_SYMLINKS)
+            do_rel_symlink = self.cfg.get_bool(CFG_KEY_REL_SYMLINKS)
             for crc in processed_items:
-                toKeepItem=list(remaining_items[crc])[0]
+                to_keep_item=list(remaining_items[crc])[0]
                 #self.groups_tree.focus()
-                IndexTupleRef=self.get_index_tuple_groups_tree(toKeepItem)
-                size=int(self.groups_tree.set(toKeepItem,'size'))
+                index_tuple_ref=self.get_index_tuple_groups_tree(to_keep_item)
+                size=int(self.groups_tree.set(to_keep_item,'size'))
 
-                if resmsg:=self.D.link_wrapper(True, RelSymlink, size,crc, IndexTupleRef, [self.get_index_tuple_groups_tree(item) for item in processed_items[crc] ] ):
+                if resmsg:=self.D.link_wrapper(True, do_rel_symlink, size,crc, index_tuple_ref, [self.get_index_tuple_groups_tree(item) for item in processed_items[crc] ] ):
                     logging.error(resmsg)
                     self.info_dialog_on_main.show('Error',resmsg)
                 self.crc_node_update(crc)
 
         elif action==HARDLINK:
             for crc in processed_items:
-                refItem=processed_items[crc][0]
-                IndexTupleRef=self.get_index_tuple_groups_tree(refItem)
-                size=int(self.groups_tree.set(refItem,'size'))
+                ref_item=processed_items[crc][0]
+                index_tuple_ref=self.get_index_tuple_groups_tree(ref_item)
+                size=int(self.groups_tree.set(ref_item,'size'))
 
-                if resmsg:=self.D.link_wrapper(False, False, size,crc, IndexTupleRef, [self.get_index_tuple_groups_tree(item) for item in processed_items[crc][1:] ] ):
+                if resmsg:=self.D.link_wrapper(False, False, size,crc, index_tuple_ref, [self.get_index_tuple_groups_tree(item) for item in processed_items[crc][1:] ] ):
                     logging.error(resmsg)
                     self.info_dialog_on_main.show('Error',resmsg)
                 self.crc_node_update(crc)
@@ -3181,7 +3174,7 @@ class Gui:
         self.tree_groups_flat_items_update()
 
         if final_info:
-            self.info_dialog_on_main.show('Removed empty directories','\n'.join(final_info),min_width=400)
+            self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info),min_width=400)
 
     def get_this_or_existing_parent(self,path):
         if os.path.exists(path):
@@ -3189,15 +3182,15 @@ class Gui:
         else:
             return self.get_this_or_existing_parent(pathlib.Path(path).parent.absolute())
 
-    def process_files(self,action,processed_items,ScopeTitle):
+    def process_files(self,action,processed_items,scope_title):
         tree=(self.groups_tree,self.folder_tree)[self.sel_tree_index]
 
         if not processed_items:
-            self.info_dialog_on_main.show('No Files Marked For Processing !','Scope: ' + ScopeTitle + '\n\nMark files first.')
+            self.info_dialog_on_main.show('No Files Marked For Processing !','Scope: ' + scope_title + '\n\nMark files first.')
             return
 
         logging.info(f'process_files:{action}')
-        logging.info('Scope ' + ScopeTitle)
+        logging.info('Scope ' + scope_title)
 
         #############################################
         #check remainings
@@ -3205,11 +3198,11 @@ class Gui:
         #remaining_items dla wszystkich (moze byc akcja z folderu)
         #istotna kolejnosc
 
-        AffectedCRCs=processed_items.keys()
+        affected_crcs=processed_items.keys()
 
         self.status('checking remaining items...')
         remaining_items={}
-        for crc in AffectedCRCs:
+        for crc in affected_crcs:
             remaining_items[crc]=[item for item in self.groups_tree.get_children(crc) if not self.groups_tree.tag_has(MARK,item)]
 
         if self.process_files_check_correctness(action,processed_items,remaining_items):
@@ -3223,7 +3216,7 @@ class Gui:
         logging.warning(f'action:{action}')
 
         self.status('')
-        if self.process_files_confirm(action,processed_items,remaining_items,ScopeTitle):
+        if self.process_files_confirm(action,processed_items,remaining_items,scope_title):
             return
 
         #after confirmation
@@ -3251,12 +3244,12 @@ class Gui:
             #newlist=self.groups_tree.get_children()
 
             sel_item = self.sel_item if self.sel_item else self.sel_crc
-            ItemToSel = self.get_closest_in_crc(orglist,sel_item,self.tree_groups_flat_items)
+            item_to_sel = self.get_closest_in_crc(orglist,sel_item,self.tree_groups_flat_items)
 
-            if ItemToSel:
-                self.groups_tree.see(ItemToSel)
-                self.groups_tree.focus(ItemToSel)
-                self.groups_tree_sel_change(ItemToSel)
+            if item_to_sel:
+                self.groups_tree.see(item_to_sel)
+                self.groups_tree.focus(item_to_sel)
+                self.groups_tree_sel_change(item_to_sel)
             else:
                 self.initial_focus()
         else:
@@ -3265,12 +3258,12 @@ class Gui:
             if self.tree_folder_update(parent):
                 newlist=self.folder_tree.get_children()
 
-                ItemToSel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_item_name,newlist)
+                item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_item_name,newlist)
 
-                if ItemToSel:
-                    self.folder_tree.focus(ItemToSel)
-                    self.folder_tree_sel_change(ItemToSel)
-                    self.folder_tree.see(ItemToSel)
+                if item_to_sel:
+                    self.folder_tree.focus(item_to_sel)
+                    self.folder_tree_sel_change(item_to_sel)
+                    self.folder_tree.see(item_to_sel)
                     self.folder_tree.update()
 
         self.calc_mark_stats_groups()

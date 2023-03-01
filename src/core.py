@@ -72,27 +72,27 @@ class DudeCore:
         self.scan_results_by_size=defaultdict(set)
         self.files_of_size_of_crc=defaultdict(lambda : defaultdict(set))
         self.devs.clear()
-        self.CrcCutLen=40
-        self.crccut={}
+        self.crc_cut_len=40
+        self.crc_cut={}
         self.scanned_paths=[]
 
-        self.ExcludeList=[]
+        self.exclude_list=[]
 
-    def __init__(self,CacheDir,Log):
-        self.CacheDir=CacheDir
+    def __init__(self,cache_dir,Log):
+        self.cache_dir=cache_dir
         self.Log=Log
         self.windows = (os.name=='nt')
 
         self.reset()
 
     def get_full_path_to_scan(self,pathnr,path,file):
-        return os.path.join(self.Paths2Scan[pathnr]+path,file)
+        return os.path.join(self.paths_to_scan[pathnr]+path,file)
 
     def get_full_path_scanned(self,pathnr,path,file):
         return os.path.join(self.scanned_paths[pathnr]+path,file)
 
     def set_paths_to_scan(self,paths):
-        pathsLen=len(paths)
+        paths_len=len(paths)
 
         if self.windows:
             paths=[path + ('\\' if path[-1]==':' else '') for path in paths ]
@@ -106,8 +106,8 @@ class DudeCore:
 
         apaths=list(zip(abspaths,paths))
 
-        for i1 in range(pathsLen):
-            for i2 in range(pathsLen):
+        for i1 in range(paths_len):
+            for i2 in range(paths_len):
                 if i1!=i2:
                     path1,orgpath1=apaths[i1]
                     path2,orgpath2=apaths[i2]
@@ -116,14 +116,14 @@ class DudeCore:
                     elif path2.startswith(path1 + os.sep):
                         return  orgpath2 + '\n\nis a subpath of:\n\n' +  orgpath1 + '\n'
 
-        self.Paths2Scan=abspaths
+        self.paths_to_scan=abspaths
         return False
 
-    def set_exclude_masks(self,RegExp,MasksList):
+    def set_exclude_masks(self,RegExp,masks_list):
         self.ExclFn = (lambda expr,string : re.search(expr,string)) if RegExp else (lambda expr,string : fnmatch.fnmatch(string,expr))
 
         teststring='abc'
-        for exclmask in MasksList:
+        for exclmask in masks_list:
             if '|' in exclmask:
                 return f"mask:'{exclmask}' - character:'|' not allowed."
             try:
@@ -131,7 +131,7 @@ class DudeCore:
             except Exception as e:
                 return "Expression: '" + exclmask + "' ERROR:" + str(e)
 
-        self.ExcludeList=MasksList
+        self.exclude_list=masks_list
         return False
 
     abort_action=False
@@ -145,7 +145,7 @@ class DudeCore:
     info_counter=0
     info_size_sum=0
 
-    ScanDirCache={}
+    scan_dir_cache={}
     def set_scan_dir(self,path,PathCTime=None):
 
         if not PathCTime:
@@ -155,7 +155,7 @@ class DudeCore:
                 self.Log.error(f'ERROR:{e}')
                 return (0,tuple([]))
 
-        if path not in self.ScanDirCache or self.ScanDirCache[path][0]!=PathCTime:
+        if path not in self.scan_dir_cache or self.scan_dir_cache[path][0]!=PathCTime:
             try:
                 with os.scandir(path) as res:
                     reslist=[]
@@ -192,20 +192,20 @@ class DudeCore:
 
                         reslist.append( (name,islink,is_dir,is_file,mtime,ctime,dev,inode,size,nlink) )
 
-                    self.ScanDirCache[path] = ( PathCTime,tuple(reslist) )
+                    self.scan_dir_cache[path] = ( PathCTime,tuple(reslist) )
 
             except Exception as e:
                 self.Log.error('scandir: %s' % str(e))
-                self.ScanDirCache[path] = (0,tuple([]))
+                self.scan_dir_cache[path] = (0,tuple([]))
 
-        return self.ScanDirCache[path]
+        return self.scan_dir_cache[path]
 
     def scan(self):
         self.Log.info('')
         self.Log.info('SCANNING')
 
-        if self.ExcludeList:
-            self.Log.info('ExcludeList:' + ' '.join(self.ExcludeList))
+        if self.exclude_list:
+            self.Log.info('exclude_list:' + ' '.join(self.exclude_list))
 
         self.info_path_nr=0
         self.info_path_to_scan=''
@@ -218,10 +218,10 @@ class DudeCore:
 
         self.scan_results_by_size.clear()
 
-        #self.ScanDirCache={}
+        #self.scan_dir_cache={}
 
-        for PathToScan in self.Paths2Scan:
-            loopList=[(PathToScan,None)]
+        for path_to_scan in self.paths_to_scan:
+            loopList=[(path_to_scan,None)]
 
             while loopList:
                 try:
@@ -229,8 +229,8 @@ class DudeCore:
                     for file,islink,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self.set_scan_dir(path,PathCTime)[1]:
 
                         fullpath=os.path.join(path,file)
-                        if self.ExcludeList:
-                            if any({self.ExclFn(expr,fullpath) for expr in self.ExcludeList}):
+                        if self.exclude_list:
+                            if any({self.ExclFn(expr,fullpath) for expr in self.exclude_list}):
                                 self.Log.info(f'skipping by Exclude Mask:{fullpath}')
                                 continue
                         try:
@@ -247,13 +247,13 @@ class DudeCore:
                                         if size>0:
                                             self.info_size_sum+=size
 
-                                            subpath=path.replace(PathToScan,'')
+                                            subpath=path.replace(path_to_scan,'')
                                             self.scan_results_by_size[size].add( (pathNr,subpath,file,mtime,ctime,dev,inode) )
 
                                 self.info_counter+=1
 
                                 self.info_path_nr=pathNr
-                                self.info_path_to_scan=PathToScan
+                                self.info_path_to_scan=path_to_scan
 
                                 if self.abort_action:
                                     break
@@ -261,7 +261,7 @@ class DudeCore:
                         except Exception as e:
                             self.Log.error(e)
                 except Exception as e:
-                    self.Log.error(f"scanning:'{PathToScan}' - '{e}'")
+                    self.Log.error(f"scanning:'{path_to_scan}' - '{e}'")
 
                 if self.abort_action:
                     break
@@ -278,18 +278,18 @@ class DudeCore:
 
         ######################################################################
         #inodes collision detection
-        knownDevInodes=defaultdict(int)
+        known_dev_inodes=defaultdict(int)
         for size,data in self.scan_results_by_size.items():
             for pathnr,path,file,mtime,ctime,dev,inode in data:
                 index=(dev,inode)
-                knownDevInodes[index]+=1
+                known_dev_inodes[index]+=1
 
-        self.blacklistedInodes = {index for index in knownDevInodes if knownDevInodes[index]>1}
+        self.blacklisted_inodes = {index for index in known_dev_inodes if known_dev_inodes[index]>1}
 
         for size in list(self.scan_results_by_size):
             for pathnr,path,file,mtime,ctime,dev,inode in list(self.scan_results_by_size[size]):
                 index=(dev,inode)
-                if index in self.blacklistedInodes:
+                if index in self.blacklisted_inodes:
                     thisIndex=(pathnr,path,file,mtime,ctime,dev,inode)
                     self.Log.warning('ignoring conflicting inode entry:' + str(thisIndex))
                     self.scan_results_by_size[size].remove(thisIndex)
@@ -307,34 +307,34 @@ class DudeCore:
 
     def crc_cache_read(self):
         self.Info='Reading cache ...'
-        self.CRCCache={}
+        self.crc_cache={}
         for dev in self.devs:
-            self.CRCCache[dev]=dict()
+            self.crc_cache[dev]=dict()
             try:
-                self.Log.debug(f'reading cache:{self.CacheDir}:device:{dev}')
-                with open(os.sep.join([self.CacheDir,str(dev)]),'r' ) as cfile:
+                self.Log.debug(f'reading cache:{self.cache_dir}:device:{dev}')
+                with open(os.sep.join([self.cache_dir,str(dev)]),'r' ) as cfile:
                     while line:=cfile.readline() :
                         inode,mtime,crc = line.rstrip('\n').split(' ')
                         if crc==None or crc=='None' or crc=='':
-                            self.Log.warning(f"CRCCache read error:{inode},{mtime},{crc}")
+                            self.Log.warning(f"crc_cache read error:{inode},{mtime},{crc}")
                         else:
-                            self.CRCCache[dev][(int(inode),int(mtime))]=crc
+                            self.crc_cache[dev][(int(inode),int(mtime))]=crc
 
             except Exception as e:
                 self.Log.warning(e)
-                self.CRCCache[dev]=dict()
+                self.crc_cache[dev]=dict()
 
     def crc_cache_write(self):
         self.Info='Writing cache ...'
-        pathlib.Path(self.CacheDir).mkdir(parents=True,exist_ok=True)
-        for dev in self.CRCCache:
-            self.Log.debug(f'writing cache:{self.CacheDir}:device:{dev}')
-            with open(os.sep.join([self.CacheDir,str(dev)]),'w' ) as cfile:
-                for (inode,mtime),crc in self.CRCCache[dev].items():
+        pathlib.Path(self.cache_dir).mkdir(parents=True,exist_ok=True)
+        for dev in self.crc_cache:
+            self.Log.debug(f'writing cache:{self.cache_dir}:device:{dev}')
+            with open(os.sep.join([self.cache_dir,str(dev)]),'w' ) as cfile:
+                for (inode,mtime),crc in self.crc_cache[dev].items():
                     cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
-        del self.CRCCache
+        del self.crc_cache
 
-    writeLog=False
+    write_log=False
 
     info_size_done=0
     info_files_done=0
@@ -349,15 +349,15 @@ class DudeCore:
 
     Status=''
 
-    CRCBUfferSize=1024*1024
+    CRC_BUFFER_SIZE=1024*1024
 
     #############################################################
     def threaded_crc_calc_on_opened_files(self,dev,SrcQ,ResQ):
-        buf = bytearray(self.CRCBUfferSize)
+        buf = bytearray(self.CRC_BUFFER_SIZE)
         view = memoryview(buf)
 
-        SizeDone=0
-        FilesDone=0
+        size_done=0
+        files_done=0
 
         while True:
             Task = SrcQ.get()
@@ -367,24 +367,24 @@ class DudeCore:
                 File,index_tuple,size,mtime = Task
                 h = hashlib.sha1()
 
-                self.CrcThreadProgressInfo[dev]=0
+                self.crc_thread_progress_info[dev]=0
 
-                self.CrcThreadFileInfo[dev]=(size,index_tuple)
+                self.crc_thread_file_info[dev]=(size,index_tuple)
                 while rsize := File.readinto(buf):
                     h.update(view[:rsize])
-                    self.CrcThreadProgressInfo[dev]+=rsize
+                    self.crc_thread_progress_info[dev]+=rsize
 
                     if self.abort_action:
                         break
 
                 if not self.abort_action:
                     ResQ.put((File,index_tuple,size,mtime,h.hexdigest()))
-                    SizeDone+=size
-                    FilesDone+=1
-                    self.CrcThreadTotalInfo[dev]=(FilesDone,SizeDone)
+                    size_done+=size
+                    files_done+=1
+                    self.crc_thread_total_info[dev]=(files_done,size_done)
 
-                self.CrcThreadProgressInfo[dev]=0
-                self.CrcThreadFileInfo[dev]=None
+                self.crc_thread_progress_info[dev]=0
+                self.crc_thread_file_info[dev]=None
 
                 File.close()
             else:
@@ -397,7 +397,7 @@ class DudeCore:
     def crc_calc(self):
         self.crc_cache_read()
 
-        self.scanned_paths=self.Paths2Scan.copy()
+        self.scanned_paths=self.paths_to_scan.copy()
 
         self.info_size_done=0
         self.info_files_done=0
@@ -414,39 +414,39 @@ class DudeCore:
 
         start = time.time()
 
-        MaxThreads = os.cpu_count()
+        MAX_THREADS = os.cpu_count()
 
-        FileNamesQueue={}
-        OpenedFilesQueue={}
-        FilesCrcQueue={}
+        file_names_queue={}
+        opened_files_queue={}
+        files_crc_queue={}
 
-        self.CrcThreadTotalInfo={}
-        self.CrcThreadFileInfo={}
-        self.CrcThreadProgressInfo={}
+        self.crc_thread_total_info={}
+        self.crc_thread_file_info={}
+        self.crc_thread_progress_info={}
 
-        CRCThread={}
-        ThreadStarted={}
+        crc_thread={}
+        threads_started={}
 
         for dev in self.devs:
-            FileNamesQueue[dev]=Queue()
-            OpenedFilesQueue[dev]=Queue()
-            FilesCrcQueue[dev]=Queue()
+            file_names_queue[dev]=Queue()
+            opened_files_queue[dev]=Queue()
+            files_crc_queue[dev]=Queue()
 
-            self.CrcThreadTotalInfo[dev]=(0,0)
-            self.CrcThreadFileInfo[dev]=None
-            self.CrcThreadProgressInfo[dev]=0
+            self.crc_thread_total_info[dev]=(0,0)
+            self.crc_thread_file_info[dev]=None
+            self.crc_thread_progress_info[dev]=0
 
-            ThreadStarted[dev]=False
+            threads_started[dev]=False
 
-            CRCThread[dev] = Thread(target=self.threaded_crc_calc_on_opened_files,args=(dev,OpenedFilesQueue[dev],FilesCrcQueue[dev],),daemon=True)
+            crc_thread[dev] = Thread(target=self.threaded_crc_calc_on_opened_files,args=(dev,opened_files_queue[dev],files_crc_queue[dev],),daemon=True)
 
-        ScanResultsSizes = list(self.scan_results_by_size)
-        ScanResultsSizes.sort(reverse=True)
+        scan_results_sizes = list(self.scan_results_by_size)
+        scan_results_sizes.sort(reverse=True)
 
         #########################################################################################################
         self.InfoLine="Using cached CRC data ..."
 
-        for size in ScanResultsSizes:
+        for size in scan_results_sizes:
             if self.abort_action:
                 break
 
@@ -454,9 +454,9 @@ class DudeCore:
                 if self.abort_action:
                     break
 
-                CacheKey=(inode,mtime)
-                if CacheKey in self.CRCCache[dev]:
-                    if crc:=self.CRCCache[dev][CacheKey]:
+                cache_key=(inode,mtime)
+                if cache_key in self.crc_cache[dev]:
+                    if crc:=self.crc_cache[dev][cache_key]:
                         self.info_size_done+=size
                         self.info_files_done+=1
 
@@ -464,39 +464,39 @@ class DudeCore:
                         self.files_of_size_of_crc[size][crc].add( index_tuple )
                         continue
 
-                FileNamesQueue[dev].put((size,pathnr,path,file,mtime,ctime,inode))
+                file_names_queue[dev].put((size,pathnr,path,file,mtime,ctime,inode))
         #########################################################################################################
 
-        InfoSizeNotCalculated=self.info_size_done
-        InfoFilesNotCalculated=self.info_files_done
+        info_size_not_calculated=self.info_size_done
+        info_files_not_calculated=self.info_files_done
 
-        OpenedFilesPerDevLimit=32
+        OPENED_FILES_PER_DEV_LIMIT=32
 
-        MeasuresPool=[]
+        measures_pool=[]
 
-        LastTimeInfoUpdate=0
-        LastTimeResultsCheck = 0
-        LastTimeLineInfoUpdate = 0
+        last_time_info_update=0
+        last_time_results_check = 0
+        last_time_line_info_update = 0
 
         Info=''
 
-        prevLineInfo={}
-        prevLineShowSameMax={}
+        prev_line_info={}
+        prev_line_show_same_max={}
 
         for dev in self.devs:
-            prevLineInfo[dev]=''
-            prevLineShowSameMax[dev]=0
+            prev_line_info[dev]=''
+            prev_line_show_same_max[dev]=0
 
         self.InfoLine="CRC calculation ..."
 
         while True:
             ########################################################################
             # files opening
-            AnythingOpened=False
+            anything_opened=False
             for dev in self.devs:
-                while not self.abort_action and FileNamesQueue[dev].qsize()>0 and OpenedFilesQueue[dev].qsize()<OpenedFilesPerDevLimit:
-                    NameCombo = FileNamesQueue[dev].get()
-                    FileNamesQueue[dev].task_done()
+                while not self.abort_action and file_names_queue[dev].qsize()>0 and opened_files_queue[dev].qsize()<OPENED_FILES_PER_DEV_LIMIT:
+                    NameCombo = file_names_queue[dev].get()
+                    file_names_queue[dev].task_done()
 
                     size,pathnr,path,file,mtime,ctime,inode = NameCombo
 
@@ -504,102 +504,102 @@ class DudeCore:
                         File=open(self.get_full_path_to_scan(pathnr,path,file),'rb')
                     except Exception as e:
                         self.Log.error(e)
-                        InfoSizeNotCalculated+=size
-                        InfoFilesNotCalculated+=1
+                        info_size_not_calculated+=size
+                        info_files_not_calculated+=1
                     else:
                         index_tuple=(pathnr,path,file,ctime,dev,inode)
-                        OpenedFilesQueue[dev].put((File,index_tuple,size,mtime))
-                        AnythingOpened=True
+                        opened_files_queue[dev].put((File,index_tuple,size,mtime))
+                        anything_opened=True
 
             ########################################################################
             # CRC data processing
-            AnythingProcessed=False
+            anything_processed=False
             for dev in self.devs:
-                while FilesCrcQueue[dev].qsize()>0:
-                    Task = FilesCrcQueue[dev].get()
-                    FilesCrcQueue[dev].task_done()
+                while files_crc_queue[dev].qsize()>0:
+                    Task = files_crc_queue[dev].get()
+                    files_crc_queue[dev].task_done()
 
                     File,index_tuple,size,mtime,crc = Task
 
                     self.files_of_size_of_crc[size][crc].add( index_tuple )
-                    AnythingProcessed=True
+                    anything_processed=True
 
                     dev=index_tuple[4]
                     inode=index_tuple[5]
-                    CacheKey=(inode,mtime)
-                    self.CRCCache[dev][CacheKey]=crc
+                    cache_key=(inode,mtime)
+                    self.crc_cache[dev][cache_key]=crc
 
             ########################################################################
             # threads starting/finishing
 
-            AliveThreads=sum([1 if CRCThread[dev].is_alive() else 0 for dev in self.devs])
-            AllCrcProcessed=all(FilesCrcQueue[dev].qsize()==0 for dev in self.devs)
+            alive_threads=sum([1 if crc_thread[dev].is_alive() else 0 for dev in self.devs])
+            all_crc_processed=all(files_crc_queue[dev].qsize()==0 for dev in self.devs)
 
-            NothingStarted=True
-            if AliveThreads<MaxThreads:
+            nothing_started=True
+            if alive_threads<MAX_THREADS:
                 for dev in self.devs:
-                    if not ThreadStarted[dev] and not CRCThread[dev].is_alive():
-                        CRCThread[dev].start()
-                        ThreadStarted[dev]=True
-                        NothingStarted=False
+                    if not threads_started[dev] and not crc_thread[dev].is_alive():
+                        crc_thread[dev].start()
+                        threads_started[dev]=True
+                        nothing_started=False
                         break
 
             for dev in self.devs:
-                if self.abort_action or (FileNamesQueue[dev].qsize()==0 and OpenedFilesQueue[dev].qsize()==0):
-                    if CRCThread[dev].is_alive():
-                        OpenedFilesQueue[dev].put(None)
+                if self.abort_action or (file_names_queue[dev].qsize()==0 and opened_files_queue[dev].qsize()==0):
+                    if crc_thread[dev].is_alive():
+                        opened_files_queue[dev].put(None)
 
-            if NothingStarted and AliveThreads==0 and AllCrcProcessed:
+            if nothing_started and alive_threads==0 and all_crc_processed:
                 break
-            elif not AnythingOpened and not AnythingProcessed and NothingStarted:
-                self.info_threads=str(AliveThreads)
+            elif not anything_opened and not anything_processed and nothing_started:
+                self.info_threads=str(alive_threads)
                 time.sleep(0.01)
 
             ########################################################################
             # info
             now=time.time()
 
-            if now-LastTimeInfoUpdate>0.02 and not self.abort_action:
-                LastTimeInfoUpdate=now
+            if now-last_time_info_update>0.02 and not self.abort_action:
+                last_time_info_update=now
 
                 #######################################################
                 #sums info
-                InfoSizeDoneTemp=InfoSizeNotCalculated
-                InfoFilesDoneTemp=InfoFilesNotCalculated
+                info_size_done_temp=info_size_not_calculated
+                info_files_done_temp=info_files_not_calculated
 
                 for dev in self.devs:
-                    FilesDone,SizeDone= self.CrcThreadTotalInfo[dev]
-                    InfoSizeDoneTemp+=SizeDone
-                    InfoSizeDoneTemp+=self.CrcThreadProgressInfo[dev]
-                    InfoFilesDoneTemp+=FilesDone
+                    files_done,size_done= self.crc_thread_total_info[dev]
+                    info_size_done_temp+=size_done
+                    info_size_done_temp+=self.crc_thread_progress_info[dev]
+                    info_files_done_temp+=files_done
 
-                self.info_size_done=InfoSizeDoneTemp
-                self.info_files_done=InfoFilesDoneTemp
+                self.info_size_done=info_size_done_temp
+                self.info_files_done=info_files_done_temp
                 #######################################################
                 #speed
-                MeasuresPool=[(PoolTime,FSize,FQuant) for (PoolTime,FSize,FQuant) in MeasuresPool if (now-PoolTime)<3]
-                MeasuresPool.append((now,InfoSizeDoneTemp,InfoFilesDoneTemp))
+                measures_pool=[(pool_time,FSize,FQuant) for (pool_time,FSize,FQuant) in measures_pool if (now-pool_time)<3]
+                measures_pool.append((now,info_size_done_temp,info_files_done_temp))
 
-                first=MeasuresPool[0]
+                first=measures_pool[0]
 
-                if LastPeriodTimeDiff := now - first[0]:
-                    LastPeriodSizeSum  = InfoSizeDoneTemp - first[1]
-                    self.info_speed=int(LastPeriodSizeSum/LastPeriodTimeDiff)
+                if last_period_time_diff := now - first[0]:
+                    last_period_size_sum  = info_size_done_temp - first[1]
+                    self.info_speed=int(last_period_size_sum/last_period_time_diff)
 
                 #######################################################
                 #found
-                if now-LastTimeResultsCheck>2 and not self.abort_action:
-                    LastTimeResultsCheck=now
+                if now-last_time_results_check>2 and not self.abort_action:
+                    last_time_results_check=now
 
                     temp_info_groups=0
                     temp_info_folders=set()
                     temp_info_dupe_space=0
 
-                    for size,sizeDict in self.files_of_size_of_crc.items():
-                        for crcDict in sizeDict.values():
-                            if len(crcDict)>1:
+                    for size,size_dict in self.files_of_size_of_crc.items():
+                        for crc_dict in size_dict.values():
+                            if len(crc_dict)>1:
                                 temp_info_groups+=1
-                                for pathnr,path,file,ctime,dev,inode in crcDict:
+                                for pathnr,path,file,ctime,dev,inode in crc_dict:
                                     temp_info_dupe_space+=size
                                     temp_info_folders.add((pathnr,path))
 
@@ -609,51 +609,51 @@ class DudeCore:
 
                 #######################################################
                 #status line info
-                if now-LastTimeLineInfoUpdate>0.25 and not self.abort_action:
-                    LastTimeLineInfoUpdate=now
+                if now-last_time_line_info_update>0.25 and not self.abort_action:
+                    last_time_line_info_update=now
 
-                    LineInfoList=[]
+                    line_info_list=[]
                     for dev in self.devs:
                         #size,pathnr,path,file
-                        if self.CrcThreadProgressInfo[dev] and self.CrcThreadFileInfo[dev]:
-                            currLineInfoFileSize=self.CrcThreadFileInfo[dev][0]
-                            currLineInfoFileName=self.CrcThreadFileInfo[dev][1][2]
+                        if self.crc_thread_progress_info[dev] and self.crc_thread_file_info[dev]:
+                            curr_line_info_file_size=self.crc_thread_file_info[dev][0]
+                            curr_line_info_file_name=self.crc_thread_file_info[dev][1][2]
 
-                            if currLineInfoFileSize==prevLineInfo[dev]:
-                                if now-prevLineShowSameMax[dev]>1:
-                                    LineInfoList.append( (currLineInfoFileSize,str(currLineInfoFileName) + ' [' + bytes_to_str(self.CrcThreadProgressInfo[dev]) + '/' + bytes_to_str(currLineInfoFileSize) + ']') )
+                            if curr_line_info_file_size==prev_line_info[dev]:
+                                if now-prev_line_show_same_max[dev]>1:
+                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str(self.crc_thread_progress_info[dev]) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
                             else:
-                                prevLineShowSameMax[dev]=now
-                                prevLineInfo[dev]=currLineInfoFileSize
+                                prev_line_show_same_max[dev]=now
+                                prev_line_info[dev]=curr_line_info_file_size
 
-                    self.InfoLine = '    '.join([elem[1] for elem in sorted(LineInfoList,key=lambda x : x[0],reverse=True)])
+                    self.InfoLine = '    '.join([elem[1] for elem in sorted(line_info_list,key=lambda x : x[0],reverse=True)])
 
             ########################################################################
 
         self.can_abort=False
 
         for dev in self.devs:
-            CRCThread[dev].join()
+            crc_thread[dev].join()
 
         self.Info='Pruning data ...'
-        for size in ScanResultsSizes:
+        for size in scan_results_sizes:
             self.check_crc_pool_and_prune(size)
 
         self.crc_cache_write()
-        self.Crc2Size = {crc:size for size,sizeDict in self.files_of_size_of_crc.items() for crc in sizeDict}
+        self.crc_to_size = {crc:size for size,size_dict in self.files_of_size_of_crc.items() for crc in size_dict}
 
         end=time.time()
         self.Log.debug(f'total time = {end-start}s')
 
-        self.CalcCrcMinLen()
+        self.calc_crc_min_len()
 
-        if self.writeLog:
+        if self.write_log:
             self.Info='Writing log ...'
             self.log_scan_results()
 
     def check_group_files_state(self,size,crc):
-        resProblems=[]
-        toRemove=[]
+        res_problems=[]
+        to_remove=[]
 
         if self.files_of_size_of_crc[size][crc]:
             for pathnr,path,file,ctime,dev,inode in self.files_of_size_of_crc[size][crc]:
@@ -662,30 +662,30 @@ class DudeCore:
                 try:
                     stat = os.stat(FullPath)
                 except Exception as e:
-                    resProblems.append(f'{e}|RED')
+                    res_problems.append(f'{e}|RED')
                     problem=True
                 else:
                     if stat.st_nlink!=1:
-                        resProblems.append(f'file became hardlink:{stat.st_nlink} - {pathNr},{path},{file}')
+                        res_problems.append(f'file became hardlink:{stat.st_nlink} - {pathNr},{path},{file}')
                         problem=True
                     else:
                         if (size,ctime,dev,inode) != (stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino):
-                            resProblems.append(f'file changed:{size},{ctime},{dev},{inode} vs {stat.st_size},{round(stat.st_ctime)},{stat.st_dev},{stat.st_ino}')
+                            res_problems.append(f'file changed:{size},{ctime},{dev},{inode} vs {stat.st_size},{round(stat.st_ctime)},{stat.st_dev},{stat.st_ino}')
                             problem=True
                 if problem:
                     index_tuple=(pathnr,path,file,ctime,dev,inode)
-                    toRemove.append(index_tuple)
+                    to_remove.append(index_tuple)
         else :
-            resProblems.append('no data')
+            res_problems.append('no data')
 
-        return (resProblems,toRemove)
+        return (res_problems,to_remove)
 
     def log_scan_results(self):
         self.Log.info('#######################################################')
         self.Log.info('scan and crc calculation complete')
         self.Log.info('')
         self.Log.info('scanned paths:')
-        for (nr,path) in enumerate(self.Paths2Scan):
+        for (nr,path) in enumerate(self.paths_to_scan):
             self.Log.info(f'  {nr}  <->  {path}',)
 
         for size in self.files_of_size_of_crc:
@@ -705,20 +705,20 @@ class DudeCore:
         if len(self.files_of_size_of_crc[size])==0 :
             del self.files_of_size_of_crc[size]
 
-    def CalcCrcMinLen(self):
+    def calc_crc_min_len(self):
         self.Info='CRC min length calculation ...'
-        allCrcLen=len(AllCrcs:={crc for size,sizeDict in self.files_of_size_of_crc.items() for crc in sizeDict})
+        all_crcs_len=len(all_crcs:={crc for size,size_dict in self.files_of_size_of_crc.items() for crc in size_dict})
 
         lenTemp=1
-        while len({crc[0:lenTemp] for crc in AllCrcs})!=allCrcLen:
+        while len({crc[0:lenTemp] for crc in all_crcs})!=all_crcs_len:
             self.Info='CRC min length calculation ... (%s)' % lenTemp
             lenTemp+=1
 
-        self.CrcCutLen=lenTemp
-        self.crccut={crc:crc[0:self.CrcCutLen] for crc in AllCrcs }
+        self.crc_cut_len=lenTemp
+        self.crc_cut={crc:crc[0:self.crc_cut_len] for crc in all_crcs }
         self.Info=''
 
-    def RenameFile(self,src,dest):
+    def rename_file(self,src,dest):
         self.Log.info(f'renaming file:{src}->{dest}')
         try:
             os.rename(src,dest)
@@ -740,9 +740,9 @@ class DudeCore:
         self.Log.info(f'soft-linking {src}<-{dest} (relative:{relative})')
         try:
             if relative:
-                destDir = os.path.dirname(dest)
-                srcRel = os.path.relpath(src, destDir)
-                os.symlink(srcRel,dest)
+                dest_dir = os.path.dirname(dest)
+                src_rel = os.path.relpath(src, dest_dir)
+                os.symlink(src_rel,dest)
             else:
                 os.symlink(src,dest)
             return False
@@ -761,7 +761,7 @@ class DudeCore:
 
     def reduce_crc_cut(self,size,crc):
         if size not in self.files_of_size_of_crc or crc not in self.files_of_size_of_crc[size]:
-            del self.crccut[crc]
+            del self.crc_cut[crc]
 
     def remove_from_data_pool(self,size,crc,index_tuple_list):
         for index_tuple in index_tuple_list:
@@ -776,7 +776,7 @@ class DudeCore:
         return self.scanned_paths[pathnr]+path
 
     def delete_file_wrapper(self,size,crc,index_tuple_list):
-        Messages=[]
+        messages=[]
         index_tuples_list_done=[]
         for index_tuple in index_tuple_list:
             self.Log.debug(f"delete_file_wrapper:{size},{crc},{index_tuple}")
@@ -787,15 +787,15 @@ class DudeCore:
             if index_tuple in self.files_of_size_of_crc[size][crc]:
                 if message:=self.delete_file(full_file_path):
                     #self.Info('Error',message,self.main)
-                    Messages.append(message)
+                    messages.append(message)
                 else:
                     index_tuples_list_done.append(index_tuple)
             else:
-                Messages.append('delete_file_wrapper - Internal Data Inconsistency:' + full_file_path + ' / ' + str(index_tuple))
+                messages.append('delete_file_wrapper - Internal Data Inconsistency:' + full_file_path + ' / ' + str(index_tuple))
 
         self.remove_from_data_pool(size,crc,index_tuples_list_done)
 
-        return Messages
+        return messages
 
     def link_wrapper(self,\
             soft,relative,size,crc,\
@@ -819,15 +819,15 @@ class DudeCore:
                 else:
                     tempFile=full_file_path+'.temp'
 
-                    if not self.RenameFile(full_file_path,tempFile):
+                    if not self.rename_file(full_file_path,tempFile):
                         if soft:
-                            AnyProblem=self.do_soft_link(full_file_path_keep,full_file_path,relative)
+                            any_problem=self.do_soft_link(full_file_path_keep,full_file_path,relative)
                         else:
-                            AnyProblem=self.do_hard_link(full_file_path_keep,full_file_path)
+                            any_problem=self.do_hard_link(full_file_path_keep,full_file_path)
 
-                        if AnyProblem:
-                            self.RenameFile(tempFile,full_file_path)
-                            return AnyProblem
+                        if any_problem:
+                            self.rename_file(tempFile,full_file_path)
+                            return any_problem
                         else:
                             if message:=self.delete_file(tempFile):
                                 self.Log.error(message)
@@ -859,14 +859,14 @@ if __name__ == "__main__":
     print('dude core test ...')
     core=DudeCore('./test/cache',logging)
 
-    TestDir='test/files'
-    if not os.path.exists(TestDir):
-        test.generate(TestDir)
+    test_dir='test/files'
+    if not os.path.exists(test_dir):
+        test.generate(test_dir)
 
-    core.set_paths_to_scan([TestDir])
+    core.set_paths_to_scan([test_dir])
     core.set_exclude_masks(False,[])
 
-    core.writeLog=True
+    core.write_log=True
 
     ScanThread=Thread(target=core.scan,daemon=True)
     ScanThread.start()
