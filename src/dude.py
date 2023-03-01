@@ -923,14 +923,6 @@ class Gui:
         self.REAL_SORT_COLUMN_IS_NUMERIC['ctimeH'] = True
         self.REAL_SORT_COLUMN_IS_NUMERIC['instancesH'] = True
         
-        self.SORT_COLUMN_LEVEL2={}
-        self.SORT_COLUMN_LEVEL2['path'] = True
-        self.SORT_COLUMN_LEVEL2['file'] = True
-        self.SORT_COLUMN_LEVEL2['sizeH'] = True
-        self.SORT_COLUMN_LEVEL2['ctimeH'] = True
-        self.SORT_COLUMN_LEVEL2['instancesH'] = False
-
-
         self.column_sort_last_params={}
         #colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code
 
@@ -1022,43 +1014,44 @@ class Gui:
 
         tree = event.widget
         col=tree.identify_column(event.x)
-        colname=tree.column(col,'id')
-        if tree.identify("region", event.x, event.y) == 'heading':
-            if colname in ('path','sizeH','file','instances',',ctimeH'):
-                self.tooltip_lab.configure(text='Sort')
-                self.tooltip.deiconify()
-            else:
-                self.hide_tooltip()
-
-        elif item := tree.identify('item', event.x, event.y):
-            pathnrstr=tree.set(item,'pathnr')
-            if col=="#0" :
-                if pathnrstr:
-                    pathnr=int(pathnrstr)
-                    if tree.set(item,'kind')==FILE:
-                        self.tooltip_lab.configure(text='%s - %s' % (self.NUMBERS[pathnr],self.D.scanned_paths[pathnr]) )
-                        self.tooltip.deiconify()
-
-                else:
-                    crc=item
-                    self.tooltip_lab.configure(text='CRC: %s' % crc )
+        if col:
+            colname=tree.column(col,'id')
+            if tree.identify("region", event.x, event.y) == 'heading':
+                if colname in ('path','sizeH','file','instancesH','ctimeH'):
+                    self.tooltip_lab.configure(text='Sort by %s' % self.org_label[colname])
                     self.tooltip.deiconify()
-
-            elif col:
-
-                coldata=tree.set(item,col)
-
-                #if pathnrstr:
-                #    pathnr=int(pathnrstr)
-                #    path=tree.set(item,'path')
-                #    file=tree.set(item,'file')
-                #    file_path = os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
-                if coldata:
-                    self.tooltip_lab.configure(text=coldata)
-                    self.tooltip.deiconify()
-
                 else:
                     self.hide_tooltip()
+
+            elif item := tree.identify('item', event.x, event.y):
+                pathnrstr=tree.set(item,'pathnr')
+                if col=="#0" :
+                    if pathnrstr:
+                        pathnr=int(pathnrstr)
+                        if tree.set(item,'kind')==FILE:
+                            self.tooltip_lab.configure(text='%s - %s' % (self.NUMBERS[pathnr],self.D.scanned_paths[pathnr]) )
+                            self.tooltip.deiconify()
+
+                    else:
+                        crc=item
+                        self.tooltip_lab.configure(text='CRC: %s' % crc )
+                        self.tooltip.deiconify()
+
+                elif col:
+
+                    coldata=tree.set(item,col)
+
+                    #if pathnrstr:
+                    #    pathnr=int(pathnrstr)
+                    #    path=tree.set(item,'path')
+                    #    file=tree.set(item,'file')
+                    #    file_path = os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
+                    if coldata:
+                        self.tooltip_lab.configure(text=coldata)
+                        self.tooltip.deiconify()
+
+                    else:
+                        self.hide_tooltip()
 
     def show_tooltip_folder(self,event):
         self.unschedule_tooltip_folder()
@@ -1068,33 +1061,34 @@ class Gui:
 
         tree = event.widget
         col=tree.identify_column(event.x)
-        colname=tree.column(col,'id')
-        if tree.identify("region", event.x, event.y) == 'heading':
-            if colname in ('sizeH','file','instances',',ctimeH'):
-                self.tooltip_lab.configure(text='Sort')
-                self.tooltip.deiconify()
-            else:
-                self.hide_tooltip()
-        elif item := tree.identify('item', event.x, event.y):
-            #pathnrstr=tree.set(item,'pathnr')
+        if col:
+            colname=tree.column(col,'id')
+            if tree.identify("region", event.x, event.y) == 'heading':
+                if colname in ('sizeH','file','instancesH','ctimeH'):
+                    self.tooltip_lab.configure(text='Sort by %s' % self.org_label[colname])
+                    self.tooltip.deiconify()
+                else:
+                    self.hide_tooltip()
+            elif item := tree.identify('item', event.x, event.y):
+                #pathnrstr=tree.set(item,'pathnr')
 
-            coldata=''
-
-            if col=="#0" :
                 coldata=''
-            elif col:
-                coldata=tree.set(item,col)
 
-            #if pathnrstr:
-            #    pathnr=int(pathnrstr)
-            #    path=tree.set(item,'path')
-            #    file=tree.set(item,'file')
-            #    file_path = os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
-            if coldata:
-                self.tooltip_lab.configure(text=coldata)
-                self.tooltip.deiconify()
-            else:
-                self.hide_tooltip()
+                if col=="#0" :
+                    coldata=''
+                elif col:
+                    coldata=tree.set(item,col)
+
+                #if pathnrstr:
+                #    pathnr=int(pathnrstr)
+                #    path=tree.set(item,'path')
+                #    file=tree.set(item,'file')
+                #    file_path = os.path.abspath(self.D.get_full_path_scanned(pathnr,path,file))
+                if coldata:
+                    self.tooltip_lab.configure(text=coldata)
+                    self.tooltip.deiconify()
+                else:
+                    self.hide_tooltip()
 
     def unschedule_tooltip_widget(self):
         if self.tooltip_show_after_widget:
@@ -1940,43 +1934,54 @@ class Gui:
         if tree == self.folder_tree:
             self.folder_items_cache={}
 
-        self.column_sort (tree)
+        self.column_sort(tree)
 
+    def tree_sort_item(self,tree,parent_item,TreeWithDirs):
+        colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
+        
+        real_column_to_sort=self.REAL_SORT_COLUMN[colname]
+        
+        tlist=[]
+        for item in (tree.get_children(parent_item) if parent_item else tree.get_children(parent_item)):
+            sortval_org=tree.set(item,real_column_to_sort)
+            sortval=(float(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
+            
+            if TreeWithDirs:
+                kind = tree.set(item,'kind')
+                code=updir_code if kind==UPDIR else dir_code if kind==DIR else non_dir_code
+                tlist.append( ( (code,sortval),item) )
+            else:
+                tlist.append( (sortval,item) )
+
+
+        tlist.sort(reverse=reverse,key=lambda x: x[0])
+        #tlist.sort(reverse=reverse,key=lambda x: ( (x[0][0],float(x[0][1])) if x[0][1].isdigit() else (x[0][0],0) ) if self.REAL_SORT_COLUMN_IS_NUMERIC[colname] else x[0])
+        if parent_item:
+            {tree.move(item, parent_item, index) for index,(val_tuple,item) in enumerate(tlist)}
+        else :
+            {tree.move(item,'', index) for index,(val_tuple,item) in enumerate(tlist)}
+        
     @busy_cursor
     @restore_status_line
     def column_sort(self, tree):
         self.status('Sorting...')
         colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
 
-        real_column_to_sort=self.REAL_SORT_COLUMN[colname]
-
-        #updir_code,dir_code,non_dir_code = (2,1,0) if reverse else (0,1,2)
-
-        if tree.get_children():
-            l = [((updir_code if tree.set(item,'kind')==UPDIR else dir_code if tree.set(item,'kind')==DIR else non_dir_code,tree.set(item,real_column_to_sort)), item) for item in tree.get_children()]
-            l.sort(reverse=reverse,key=lambda x: ( (x[0][0],float(x[0][1])) if x[0][1].isdigit() else (x[0][0],0) ) if self.REAL_SORT_COLUMN_IS_NUMERIC[colname] else x[0])
-
-            {tree.move(item, '', index) for index, (val,item) in enumerate(l)}
-
-            if self.SORT_COLUMN_LEVEL2[colname]:
-                for topItem in tree.get_children():
-                    l = [(tree.set(item,real_column_to_sort), item) for item in tree.get_children(topItem)]
-                    l.sort(reverse=reverse,key=lambda x: (float(x[0]) if x[0].isdigit() else 0) if self.REAL_SORT_COLUMN_IS_NUMERIC[colname] else x[0])
-
-                    {tree.move(item, topItem, index) for index, (val,item) in enumerate(l)}
-
-            if item:=tree.focus():
-                tree.see(item)
-            elif item:=tree.selection():
-                tree.see(item)
-
-            tree.update()
-
         self.column_sort_set_arrow(tree)
 
         if tree==self.groups_tree:
+            if colname in ('path','file'):
+                for crc in tree.get_children():
+                    self.tree_sort_item(tree,crc,False)
+            else:
+                self.tree_sort_item(tree,None,False)
+            
             self.tree_groups_flat_items_update()
-
+        else:
+            self.tree_sort_item(tree,0,True)
+        
+        tree.update()
+        
     def column_sort_set_arrow(self, tree):
         colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
         tree.heading(colname, text=self.org_label[colname] + ' ' + str(u'\u25BC' if reverse else u'\u25B2') )
