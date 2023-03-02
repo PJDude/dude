@@ -1,0 +1,4 @@
+[pycodestyle]
+max-line-length=512
+disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,attribute-defined-outside-init,too-many-lines,too-many-statements,broad-except,too-many-branches,unused-variable,too-many-locals,too-many-nested-blocks,too-many-public-methods,too-many-arguments,too-many-instance-attributes,multiple-statements
+good-names=e,kb
