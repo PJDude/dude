@@ -47,6 +47,8 @@ T=G*1024
 
 MAX_THREADS = os.cpu_count()
 
+OPENED_FILES_PER_DEV_LIMIT=32
+
 def bytes_to_str(num,digits=2):
     kb=num/k
 
@@ -470,8 +472,6 @@ class DudeCore:
 
         info_size_not_calculated=self.info_size_done
         info_files_not_calculated=self.info_files_done
-
-        OPENED_FILES_PER_DEV_LIMIT=32
 
         measures_pool=[]
 
