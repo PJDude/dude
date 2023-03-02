@@ -29,21 +29,22 @@
 import argparse
 import os
 import signal
-from sys import exit
+#from sys import exit
 from subprocess import Popen
 from subprocess import DEVNULL
 import pathlib
+import sys
 
 VERSION_FILE='version.txt'
 
 def get_ver_timestamp():
     try:
-        timestamp=pathlib.Path(os.path.join(os.path.dirname(__file__),VERSION_FILE)).read_text().strip()
-    except Exception as e:
-        print(e)
+        timestamp=pathlib.Path(os.path.join(os.path.dirname(__file__),VERSION_FILE)).read_text(encoding='ASCII').strip()
+    except Exception as e_ver:
+        print(e_ver)
         timestamp=''
     return timestamp
-           
+
 def parse_args(ver):
     parser = argparse.ArgumentParser(
             formatter_class=argparse.RawTextHelpFormatter,
@@ -54,16 +55,15 @@ def parse_args(ver):
     parser.add_argument('paths'                 ,nargs='*'          ,help='path to scan')
 
     parser.add_argument('-e','--exclude'        ,nargs='*'          ,help='exclude expressions')
-    parser.add_argument('-er','--excluderegexp' ,nargs='*'          ,help='exclude regular expressions')
+    parser.add_argument('-er','--exclude-regexp' ,nargs='*'          ,help='exclude regular expressions')
     parser.add_argument('--norun'           ,action='store_true'    ,help='don\'t run scanning, only show scan dialog')
     parser.add_argument('-l','--log' ,nargs='?'                     ,help='specify log file')
     parser.add_argument('-d','--debug' ,action='store_true'         ,help='set debug logging level')
-    
-    
-    help=parser.format_help().split('\n')
-    help_parts=[help[0]] + help[7::]
-    #print('\n'.join(help_parts))
-    
+
+
+    parser_help=parser.format_help().split('\n')
+    help_parts=[parser_help[0]] + parser_help[7::]
+
     return parser.parse_args()
 
 GUI_MAIN_WIN_APP_NAME='dudegui.exe'
@@ -71,9 +71,9 @@ GUI_MAIN_WIN_APP_NAME='dudegui.exe'
 #windows console problem case
 if __name__ == "__main__":
     VER_TIMESTAMP = get_ver_timestamp()
-    
+
     args=parse_args(VER_TIMESTAMP)
-    
+
     command =[GUI_MAIN_WIN_APP_NAME]
 
     if args.norun:
@@ -83,9 +83,9 @@ if __name__ == "__main__":
         command.append('--exclude')
         command.extend(args.exclude)
 
-    if args.excluderegexp:
-        command.append('--excluderegexp')
-        command.extend(args.excluderegexp)
+    if args.exclude_regexp:
+        command.append('--exclude-regexp')
+        command.extend(args.exclude_regexp)
 
     if args.log:
         command.append('--log')
@@ -102,9 +102,9 @@ if __name__ == "__main__":
             Popen(command,stdin=DEVNULL,stdout=DEVNULL,stderr=DEVNULL)
             #dont wait with open console for main process
             os.kill(os.getppid(),signal.SIGTERM)
-        except Exception as e:
-            print(e)
-            exit()
+        except Exception as e_gui:
+            print(e_gui)
+            sys.exit()
     else:
         print(f'Cannot find {GUI_MAIN_WIN_APP_NAME}')
-        exit()
+        sys.exit()

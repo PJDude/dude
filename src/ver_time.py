@@ -15,7 +15,7 @@ except Exception as e:
     exit(1)
 
 try:
-    version=str(pathlib.Path(VERSION_FILE).read_text()).strip()
+    version=str(pathlib.Path(VERSION_FILE).read_text(encoding='ASCII')).strip()
 except Exception as e:
     print(e)
     exit(1)
