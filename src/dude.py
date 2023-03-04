@@ -38,21 +38,22 @@ import configparser
 import logging
 
 import tkinter as tk
-from tkinter import *
+#from tkinter import *
+from tkinter import PhotoImage
+from tkinter import Menu
+from tkinter import PanedWindow
+
 from tkinter import ttk
-#from tkinter import font
 
 from tkinter.filedialog import askdirectory
 
 from collections import defaultdict
 from threading import Thread
-#from sys import exit
-from sys import argv
 import sys
 
 import core
 import console
-from dialogs import *
+import dialogs
 
 log_levels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 
@@ -194,7 +195,12 @@ class Gui:
 
             prev_cursor=self.menubar.cget('cursor')
 
-            after = self.main.after(1000,lambda : self.menubar.config(cursor='watch') or self.main.config(cursor='watch') or self.main.update())
+            #after = self.main.after(1000,lambda : self.menubar.config(cursor='watch') or self.main.config(cursor='watch') or self.main.update())
+            after = self.main.after(1000,lambda : self.main.update())
+
+            self.menubar.config(cursor='watch')
+            self.main.config(cursor='watch')
+            #self.main.update()
 
             try:
                 res=func(self,*args,**kwargs)
@@ -240,46 +246,44 @@ class Gui:
         self.crc_progress_dialog = tk.Toplevel(parent,bg=self.bg_color)
         self.crc_progress_dialog.wm_transient(parent)
 
-        self.crc_progress_dialog.protocol("WM_DELETE_WINDOW", self.crc_progress_dialog_abort)
-        self.crc_progress_dialog.bind('<Escape>', self.crc_progress_dialog_abort)
+        self.crc_progress_dialog.protocol("WM_DELETE_WINDOW", lambda event : self.crc_progress_dialog_abort())
+        self.crc_progress_dialog.bind('<Escape>', lambda event : self.crc_progress_dialog_abort())
 
         self.crc_progress_dialog.wm_title(title)
         self.crc_progress_dialog.iconphoto(False, self.iconphoto)
 
-        (f0:=tk.Frame(self.crc_progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
-        (f1:=tk.Frame(self.crc_progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
+        (frame_0:=tk.Frame(self.crc_progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
+        (frame_1:=tk.Frame(self.crc_progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
 
-        self.progr1var = DoubleVar()
-        self.progr1=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=progress_mode1,variable=self.progr1var)
+        self.progr1var = tk.DoubleVar()
+        self.progr1=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode=progress_mode1,variable=self.progr1var)
 
         if progress_mode1:
             self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')
 
-        self.progr1_lab_left=tk.Label(f0,width=17,bg=self.bg_color)
+        self.progr1_lab_left=tk.Label(frame_0,width=17,bg=self.bg_color)
         if progress1_left_text:
             self.progr1_lab_left.grid(row=0,column=0,padx=1,pady=4)
             self.progr1_lab_left.config(text=progress1_left_text)
 
-        self.progr1_lab_right=tk.Label(f0,width=17,bg=self.bg_color)
+        self.progr1_lab_right=tk.Label(frame_0,width=17,bg=self.bg_color)
 
         if self.progress_mode1=='determinate':
             self.progr1_lab_right.grid(row=0,column=2,padx=1,pady=4)
             self.progress1_func = lambda progress1 : self.progr1var.set(progress1)
-        elif self.progress_mode1=='indeterminate':
-            self.progress1_func = lambda progress1 : self.progr1.start()
         else :
             self.progress1_func = lambda args : None
 
-        self.progr2_var = DoubleVar()
-        self.progr2=ttk.Progressbar(f0,orient=HORIZONTAL,length=100, mode=progress_mode2,variable=self.progr2_var)
-        self.progr2_lab_right=tk.Label(f0,width=17,bg=self.bg_color)
+        self.progr2_var = tk.DoubleVar()
+        self.progr2=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode=progress_mode2,variable=self.progr2_var)
+        self.progr2_lab_right=tk.Label(frame_0,width=17,bg=self.bg_color)
 
         if progress_mode2:
             self.crc_progress_dialog.minsize(550, 60)
             self.progr2.grid(row=1,column=1,padx=1,pady=4,sticky='news')
 
             if progress2_left_text:
-                self.progr1_lab_left=tk.Label(f0,width=17,bg=self.bg_color)
+                self.progr1_lab_left=tk.Label(frame_0,width=17,bg=self.bg_color)
                 self.progr1_lab_left.grid(row=1,column=0,padx=1,pady=4)
                 self.progr1_lab_left.config(text=progress2_left_text)
 
@@ -287,16 +291,16 @@ class Gui:
         else:
             self.crc_progress_dialog.minsize(300, 60)
 
-        f0.grid_columnconfigure(1, weight=1)
+        frame_0.grid_columnconfigure(1, weight=1)
 
         self.message=tk.StringVar()
-        tk.Label(f1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg_color).pack(side='top',padx=8,pady=8,expand=1,fill='x')
-        ttk.Button(f1, text='abort', width=10 ,command=self.crc_progress_dialog_abort ).pack(side='bottom',padx=8,pady=8)
+        tk.Label(frame_1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg_color).pack(side='top',padx=8,pady=8,expand=1,fill='x')
+        ttk.Button(frame_1, text='abort', width=10 ,command=self.crc_progress_dialog_abort ).pack(side='bottom',padx=8,pady=8)
 
         try:
             self.crc_progress_dialog.update()
             self.crc_progress_dialog.grab_set()
-            set_geometry_by_parent(self.crc_progress_dialog,parent)
+            dialogs.set_geometry_by_parent(self.crc_progress_dialog,parent)
         except Exception :
             pass
 
@@ -305,7 +309,7 @@ class Gui:
 
         self.action_abort=False
 
-    def crc_progress_dialog_abort(self,event=None):
+    def crc_progress_dialog_abort(self):
         self.action_abort=True
 
     def crc_progress_dialog_end(self):
@@ -372,7 +376,8 @@ class Gui:
         self.iconphoto = PhotoImage(file = os.path.join(os.path.dirname(DUDE_FILE),'icon.png'))
         self.main.iconphoto(False, self.iconphoto)
 
-        self.main.bind('<KeyPress-F2>', lambda event : self.settings_dialog.show(focus=self.cancel_button))
+        self.main.bind('<KeyPress-F2>', lambda event : self.settings_dialog.show())
+        #focus=self.cancel_button
         self.main.bind('<KeyPress-F1>', lambda event : self.aboout_dialog.show())
         self.main.bind('<KeyPress-s>', lambda event : self.scan_dialog_show())
         self.main.bind('<KeyPress-S>', lambda event : self.scan_dialog_show())
@@ -460,7 +465,7 @@ class Gui:
         self.status_var_full_path_label = tk.Label(status_frame_groups,textvariable=self.status_var_path,relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_var_full_path_label.pack(fill='x',expand=1,side='left')
         self.status_var_full_path_label.bind("<Motion>", lambda event : self.motion_on_widget(event,'The full path of a directory shown in the bottom panel.'))
-        self.status_var_full_path_label.bind("<Leave>", self.widget_leave)
+        self.status_var_full_path_label.bind("<Leave>", lambda event : self.widget_leave())
 
         (status_frame_folder := tk.Frame(frame_folder,bg=self.bg_color)).pack(side='bottom',fill='both')
 
@@ -595,10 +600,10 @@ class Gui:
             if cfg_geometry:
                 self.main.geometry(cfg_geometry)
             else:
-                x = int(0.5*(self.main.winfo_screenwidth()-self.main.winfo_width()))
-                y = int(0.5*(self.main.winfo_screenheight()-self.main.winfo_height()))
+                x_offset = int(0.5*(self.main.winfo_screenwidth()-self.main.winfo_width()))
+                y_offset = int(0.5*(self.main.winfo_screenheight()-self.main.winfo_height()))
 
-                self.main.geometry(f'+{x}+{y}')
+                self.main.geometry(f'+{x_offset}+{y_offset}')
 
         except Exception as e:
             self.status(str(e))
@@ -633,7 +638,7 @@ class Gui:
             self.menu_enable()
             self.menubar.config(cursor="")
 
-        self.scan_dialog=GenericDialog(self.main,self.iconphoto,self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
+        self.scan_dialog=dialogs.GenericDialog(self.main,self.iconphoto,self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
 
         self.write_scan_log=tk.BooleanVar()
         self.write_scan_log.set(False)
@@ -690,13 +695,15 @@ class Gui:
         self.scan_cancel_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Cancel",command=self.scan_dialog.hide,underline=0)
         self.scan_cancel_button.pack(side='left',padx=4,pady=4)
 
+        self.scan_dialog.focus=self.scan_cancel_button
+
         def pre_show_settings():
             pre_show()
-            {var.set(self.cfg.get_bool(key)) for var,key in self.settings}
+            _ = {var.set(self.cfg.get_bool(key)) for var,key in self.settings}
 
         #######################################################################
         #Settings Dialog
-        self.settings_dialog=GenericDialog(self.main,self.iconphoto,self.bg_color,'Settings',pre_show=pre_show_settings,post_close=post_close)
+        self.settings_dialog=dialogs.GenericDialog(self.main,self.iconphoto,self.bg_color,'Settings',pre_show=pre_show_settings,post_close=post_close)
 
         self.show_full_crc = tk.BooleanVar()
         self.show_full_paths = tk.BooleanVar()
@@ -723,36 +730,36 @@ class Gui:
         ]
 
         row = 0
-        lf=tk.LabelFrame(self.settings_dialog.area_main, text="Main panels",borderwidth=2,bg=self.bg_color)
-        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
+        label_frame=tk.LabelFrame(self.settings_dialog.area_main, text="Main panels",borderwidth=2,bg=self.bg_color)
+        label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-        (o1:=ttk.Checkbutton(lf, text = 'Show full CRC', variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-        o1.bind("<Motion>", lambda event : self.motion_on_widget(event,'If disabled, shortest necessary prefix of full CRC wil be shown'))
-        o1.bind("<Leave>", self.widget_leave)
+        (cb_1:=ttk.Checkbutton(label_frame, text = 'Show full CRC', variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+        cb_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'If disabled, shortest necessary prefix of full CRC wil be shown'))
+        cb_1.bind("<Leave>", lambda event : self.widget_leave())
 
-        (o2:=ttk.Checkbutton(lf, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-        o2.bind("<Motion>", lambda event : self.motion_on_widget(event,f'If disabled, scan path numbers will be shown (e.g. {self.NUMBERS[0]},{self.NUMBERS[1]}... ) instead of full paths'))
-        o2.bind("<Leave>", self.widget_leave)
+        (cb_2:=ttk.Checkbutton(label_frame, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+        cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,f'If disabled, scan path numbers will be shown (e.g. {self.NUMBERS[0]},{self.NUMBERS[1]}... ) instead of full paths'))
+        cb_2.bind("<Leave>", lambda event : self.widget_leave())
 
-        lf=tk.LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
-        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
+        label_frame=tk.LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
+        label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-        (o3:=ttk.Checkbutton(lf, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-        o3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
-        o3.bind("<Leave>", self.widget_leave)
+        (cb_3:=ttk.Checkbutton(label_frame, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+        cb_3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
+        cb_3.bind("<Leave>", lambda event : self.widget_leave())
 
-        (o4:=ttk.Checkbutton(lf, text = 'Allow deletion of all copies (WARNING!)', variable=self.allow_delete_all)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-        o4.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
-        o4.bind("<Leave>", self.widget_leave)
+        (cb_4:=ttk.Checkbutton(label_frame, text = 'Allow deletion of all copies (WARNING!)', variable=self.allow_delete_all)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+        cb_4.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
+        cb_4.bind("<Leave>", lambda event : self.widget_leave())
 
-        ttk.Checkbutton(lf, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-        ttk.Checkbutton(lf, text = 'Show CRC and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(label_frame, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(label_frame, text = 'Show CRC and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
-        lf=tk.LabelFrame(self.settings_dialog.area_main, text="Processing",borderwidth=2,bg=self.bg_color)
-        lf.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
+        label_frame=tk.LabelFrame(self.settings_dialog.area_main, text="Processing",borderwidth=2,bg=self.bg_color)
+        label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-        ttk.Checkbutton(lf, text = 'Create relative symbolic links', variable=self.create_relative_symlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-        ttk.Checkbutton(lf, text = 'Erase remaining empty directories', variable=self.erase_empty_directories                  ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(label_frame, text = 'Create relative symbolic links', variable=self.create_relative_symlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories                  ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
 
         #ttk.Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.allow_delete_non_duplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2)
 
@@ -769,17 +776,17 @@ class Gui:
         self.settings_dialog.area_main.grid_columnconfigure(0, weight=1)
 
         #######################################################################
-        self.info_dialog_on_main = LabelDialog(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_ask_dialog = TextDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.mark_dialog_on_main = CheckboxEntryDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.find_dialog_on_main = FindEntryDialog(self.main,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
-        self.info_dialog_on_find = LabelDialog(self.find_dialog_on_main.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_main = dialogs.LabelDialog(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.text_ask_dialog = dialogs.TextDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.mark_dialog_on_main = dialogs.CheckboxEntryDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.find_dialog_on_main = dialogs.FindEntryDialog(self.main,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog_on_main.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
 
        #######################################################################
         #About Dialog
-        self.aboout_dialog=GenericDialog(self.main,self.iconphoto,self.bg_color,'',pre_show=pre_show,post_close=post_close)
+        self.aboout_dialog=dialogs.GenericDialog(self.main,self.iconphoto,self.bg_color,'',pre_show=pre_show,post_close=post_close)
 
         frame1 = tk.LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
@@ -814,15 +821,15 @@ class Gui:
 
         try:
             self.license=pathlib.Path(os.path.join(os.path.dirname(DUDE_FILE),'LICENSE')).read_text(encoding='ASCII')
-        except Exception as e:
-            logging.error(e)
+        except Exception as exception_1:
+            logging.error(exception_1)
             try:
                 self.license=pathlib.Path(os.path.join(os.path.dirname(os.path.dirname(DUDE_FILE)),'LICENSE')).read_text(encoding='ASCII')
-            except Exception as e:
-                logging.error(e)
+            except Exception as exception_2:
+                logging.error(exception_2)
                 self.exit()
 
-        self.license_dialog=GenericDialog(self.main,self.iconphoto,self.bg_color,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
+        self.license_dialog=dialogs.GenericDialog(self.main,self.iconphoto,self.bg_color,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
 
         frame1 = tk.LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
@@ -840,14 +847,14 @@ class Gui:
                 pass
 
         def file_cascade_post():
-            self.file_cascade.delete(0,END)
+            self.file_cascade.delete(0,'end')
             item_actions_state=('disabled','normal')[self.sel_item is not None]
 
             self.file_cascade.add_command(label = 'Scan ...',command = self.scan_dialog_show, accelerator="S")
             self.file_cascade.add_separator()
-            self.file_cascade.add_command(label = 'Settings ...',command= lambda : self.settings_dialog.show(focus=self.cancel_button), accelerator="F2")
+            self.file_cascade.add_command(label = 'Settings ...',command=self.settings_dialog.show, accelerator="F2")
             self.file_cascade.add_separator()
-            self.file_cascade.add_command(label = 'Remove empty folders in specified directory ...',command=lambda : self.empty_folder_remove_ask())
+            self.file_cascade.add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask)
             self.file_cascade.add_separator()
             self.file_cascade.add_command(label = 'Erase CRC Cache',command = self.cache_clean)
             self.file_cascade.add_separator()
@@ -857,7 +864,7 @@ class Gui:
         self.menubar.add_cascade(label = 'File',menu = self.file_cascade,accelerator="Alt+F")
 
         def navi_cascade_post():
-            self.navi_cascade.delete(0,END)
+            self.navi_cascade.delete(0,'end')
             item_actions_state=('disabled','normal')[self.sel_item is not None]
             self.navi_cascade.add_command(label = 'Go to dominant group (by size sum)',command = lambda : self.goto_max_group(1), accelerator="F7",state=item_actions_state)
             self.navi_cascade.add_command(label = 'Go to dominant group (by quantity)',command = lambda : self.goto_max_group(0), accelerator="F8",state=item_actions_state)
@@ -931,8 +938,8 @@ class Gui:
         self.groups_tree.bind("<Motion>", self.motion_on_groups_tree)
         self.folder_tree.bind("<Motion>", self.motion_on_folder_tree)
 
-        self.groups_tree.bind("<Leave>", self.widget_leave)
-        self.folder_tree.bind("<Leave>", self.widget_leave)
+        self.groups_tree.bind("<Leave>", lambda event : self.widget_leave())
+        self.folder_tree.bind("<Leave>", lambda event : self.widget_leave())
 
         #######################################################################
 
@@ -967,7 +974,7 @@ class Gui:
     tooltip_show_after_folder=''
     tooltip_show_after_widget=''
 
-    def widget_leave(self,event):
+    def widget_leave(self):
         self.menubar_unpost()
         self.hide_tooltip()
 
@@ -1099,11 +1106,14 @@ class Gui:
 
     menu_state_stack=[]
     def menu_enable(self):
-        self.menu_state_stack.pop(0)
-        if not self.menu_state_stack:
-            self.menubar.entryconfig("File", state="normal")
-            self.menubar.entryconfig("Navigation", state="normal")
-            self.menubar.entryconfig("Help", state="normal")
+        try:
+            self.menu_state_stack.pop(0)
+            if not self.menu_state_stack:
+                self.menubar.entryconfig("File", state="normal")
+                self.menubar.entryconfig("Navigation", state="normal")
+                self.menubar.entryconfig("Help", state="normal")
+        except Exception as e:
+            logging.error(e)
 
     def menu_disable(self):
         self.menubar.entryconfig("File", state="disabled")
@@ -1166,12 +1176,10 @@ class Gui:
 
         self.find_dialog_shown=False
 
-        selList=tree.selection()
-
         self.from_tab_switch=True
         tree.focus_set()
 
-    def find_prev_from_dialog(self,expression,use_reg_expr,event=None):
+    def find_prev_from_dialog(self,expression,use_reg_expr):
         self.find_items(expression,use_reg_expr)
         self.select_find_result(-1)
 
@@ -1182,7 +1190,7 @@ class Gui:
         else:
             self.select_find_result(-1)
 
-    def find_next_from_dialog(self,expression,use_reg_expr,event=None):
+    def find_next_from_dialog(self,expression,use_reg_expr):
         self.find_items(expression,use_reg_expr)
         self.select_find_result(1)
 
@@ -1200,14 +1208,17 @@ class Gui:
     find_expression_prev=''
 
     ##################################################
-    def find_mod(self,expression,use_reg_expr,event=None):
+    def find_mod(self,expression,use_reg_expr):
         if self.use_reg_expr_prev!=use_reg_expr or self.find_expression_prev!=expression:
             self.use_reg_expr_prev=use_reg_expr
             self.find_expression_prev=expression
             self.find_params_changed=True
             self.find_result_index=0
 
-    def find_items(self,expression,use_reg_expr,event=None):
+    @busy_cursor
+    @restore_status_line
+    def find_items(self,expression,use_reg_expr):
+        self.status('finding ...')
         if self.find_params_changed:
             self.find_tree_index=self.sel_tree_index
 
@@ -1225,7 +1236,8 @@ class Gui:
                                 if (use_reg_expr and re.search(expression,fullpath)) or (not use_reg_expr and fnmatch.fnmatch(fullpath,expression) ):
                                     items.append(item)
                     except Exception as e:
-                        self.info_dialog_on_find.show('Error',str(e),min_width=400)
+                        self.info_dialog_on_find.show('Error',str(e))
+                        #,min_width=400
                         return
                 else:
                     self.find_tree=self.folder_tree
@@ -1236,7 +1248,8 @@ class Gui:
                             if (use_reg_expr and re.search(expression,file)) or (not use_reg_expr and fnmatch.fnmatch(file,expression) ):
                                 items.append(item)
                     except Exception as e:
-                        self.info_dialog_on_find.show('Error',str(e),min_width=400)
+                        self.info_dialog_on_find.show('Error',str(e))
+                        #,min_width=400
                         return
 
             if items:
@@ -1244,7 +1257,8 @@ class Gui:
                 self.find_params_changed=False
             else:
                 scope_info = 'Scope: All groups.' if self.find_tree_index==0 else 'Scope: Selected directory.'
-                self.info_dialog_on_find.show(scope_info,'No files found.',min_width=400)
+                self.info_dialog_on_find.show(scope_info,'No files found.')
+                #,min_width=400
 
     @busy_cursor
     def select_find_result(self,mod):
@@ -1269,9 +1283,9 @@ class Gui:
                 self.folder_tree_sel_change(next_item)
 
             if mod>0:
-                self.status('Find next %s',self.find_expression_prev)
+                self.status('Find next %s' % self.find_expression_prev)
             else:
-                self.status('Find Previous %s',self.find_expression_prev)
+                self.status('Find Previous %s' % self.find_expression_prev)
 
     def tag_toggle_selected(self,tree, *items):
         for item in items:
@@ -1282,7 +1296,7 @@ class Gui:
                 except Exception :
                     pass
             elif tree.set(item,'kind')==CRC:
-                return self.tag_toggle_selected(tree, *tree.get_children(item) )
+                self.tag_toggle_selected(tree, *tree.get_children(item) )
 
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -1691,7 +1705,7 @@ class Gui:
 
         pop=self.popup_groups if tree==self.groups_tree else self.popup_folder
 
-        pop.delete(0,END)
+        pop.delete(0,'end')
 
         file_actions_state=('disabled',item_actions_state)[self.sel_kind==FILE]
 
@@ -1795,7 +1809,7 @@ class Gui:
             c_nav.add_command(label = 'Go to next not marked file'       ,command = lambda : self.goto_next_mark(self.groups_tree,1,1),accelerator="Shift+Right",state='normal')
             c_nav.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark(self.groups_tree,-1,1), accelerator="Shift+Left",state='normal')
             c_nav.add_separator()
-            c_nav.add_command(label = 'Go to parent directory'   ,command = lambda : self.go_to_parent_dir(), accelerator="Backspace",state=parent_dir_state)
+            c_nav.add_command(label = 'Go to parent directory'   ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state)
 
         else:
             dir_actions_state=('disabled','normal')[self.sel_kind==DIR]
@@ -1850,7 +1864,7 @@ class Gui:
             c_nav.add_command(label = 'Go to next not marked file'       ,command = lambda : self.goto_next_mark(self.folder_tree,1,1),accelerator="Shift+Right",state='normal')
             c_nav.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark(self.folder_tree,-1,1), accelerator="Shift+Left",state='normal')
             c_nav.add_separator()
-            c_nav.add_command(label = 'Go to parent directory'       ,command = lambda : self.go_to_parent_dir(), accelerator="Backspace",state=parent_dir_state)
+            c_nav.add_command(label = 'Go to parent directory'       ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state)
 
             #c_nav.add_separator()
             #c_nav.add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.goto_max_folder(1,1),accelerator="Backspace")
@@ -1865,14 +1879,14 @@ class Gui:
 
         pop.add_separator()
         pop.add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S')
-        pop.add_command(label = 'Settings ...',  command = lambda : self.settings_dialog.show(focus=self.cancel_button),accelerator='F2')
+        pop.add_command(label = 'Settings ...',  command = self.settings_dialog.show,accelerator='F2')
         pop.add_separator()
         pop.add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=CRC) else 'disabled')
         #pop.add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
         pop.add_separator()
-        pop.add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="F",state = 'normal' if self.sel_item!=None else 'disabled')
-        pop.add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item!=None else 'disabled')
-        pop.add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item!=None else 'disabled')
+        pop.add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="F",state = 'normal' if self.sel_item is not None else 'disabled')
+        pop.add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled')
+        pop.add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled')
         pop.add_separator()
 
         pop.add_command(label = "Exit",  command = self.exit)
@@ -1885,10 +1899,11 @@ class Gui:
         pop.grab_release()
 
     def empty_folder_remove_ask(self):
-        if res:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.main):
+        if res:=askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.main):
             final_info = self.empty_dirs_removal(res,True)
 
-            self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info),min_width=800)
+            self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info))
+            #,min_width=800
 
             self.tree_folder_update(self.sel_path_full)
 
@@ -1911,7 +1926,7 @@ class Gui:
 
         self.column_sort(tree)
 
-    def tree_sort_item(self,tree,parent_item,TreeWithDirs):
+    def tree_sort_item(self,tree,parent_item,lower_tree):
         colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
 
         real_column_to_sort=self.REAL_SORT_COLUMN[colname]
@@ -1921,7 +1936,7 @@ class Gui:
             sortval_org=tree.set(item,real_column_to_sort)
             sortval=(float(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
 
-            if TreeWithDirs:
+            if lower_tree:
                 kind = tree.set(item,'kind')
                 code=updir_code if kind==UPDIR else dir_code if kind==DIR else non_dir_code
                 tlist.append( ( (code,sortval),item) )
@@ -1934,7 +1949,7 @@ class Gui:
         if not parent_item:
             parent_item=''
 
-        {tree.move(item, parent_item, index) for index,(val_tuple,item) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
+        _ = {tree.move(item, parent_item, index) for index,(val_tuple,item) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
 
     @busy_cursor
     @restore_status_line
@@ -1959,7 +1974,7 @@ class Gui:
 
     def column_sort_set_arrow(self, tree):
         colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
-        tree.heading(colname, text=self.org_label[colname] + ' ' + str(u'\u25BC' if reverse else u'\u25B2') )
+        tree.heading(colname, text=self.org_label[colname] + ' ' + str('\u25BC' if reverse else '\u25B2') )
 
     def path_to_scan_add(self,path):
         if len(self.paths_to_scan_from_dialog)<10:
@@ -1990,7 +2005,8 @@ class Gui:
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude_from_entry))
 
         if not paths_to_scan_from_entry:
-            self.info_dialog_on_scan.show('Error. No paths to scan.','Add paths to scan.',min_width=400)
+            self.info_dialog_on_scan.show('Error. No paths to scan.','Add paths to scan.')
+            #,min_width=400
             return False
 
         if res:=self.core.set_paths_to_scan(paths_to_scan_from_entry):
@@ -2012,7 +2028,7 @@ class Gui:
             if self.action_abort:
                 self.core.abort()
                 break
-            
+
             time.sleep(0.04)
 
         scan_thread.join()
@@ -2073,10 +2089,11 @@ class Gui:
 
         self.groups_show()
 
-        self.scan_dialog.unlock('scan complete')
+        self.scan_dialog.unlock()
 
         if self.action_abort:
-            self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.',min_width=400)
+            self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
+            #,min_width=400
 
         return True
 
@@ -2085,7 +2102,10 @@ class Gui:
         self.exclude_mask_update()
         self.paths_to_scan_update()
 
-        self.scan_dialog.show(focus=self.scan_cancel_button,do_command=self.scan if do_scan else None)
+        self.scan_dialog.define_command(do_command=self.scan if do_scan else None)
+
+        self.scan_dialog.show()
+        #focus=self.scan_cancel_button,
 
         if self.core.scanned_paths:
             self.paths_to_scan_from_dialog=self.core.scanned_paths.copy()
@@ -2099,25 +2119,25 @@ class Gui:
 
         row=0
         for path in self.paths_to_scan_from_dialog:
-            (fr:=tk.Frame(self.paths_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
-            self.paths_to_scan_frames.append(fr)
+            (frame:=tk.Frame(self.paths_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
+            self.paths_to_scan_frames.append(frame)
 
-            tk.Label(fr,text=' ' + self.NUMBERS[row] + ' ' , relief='groove',bg=self.bg_color).pack(side='left',padx=2,pady=1,fill='y')
+            tk.Label(frame,text=' ' + self.NUMBERS[row] + ' ' , relief='groove',bg=self.bg_color).pack(side='left',padx=2,pady=1,fill='y')
 
             self.paths_to_scan_entry_var[row]=tk.StringVar(value=path)
-            ttk.Entry(fr,textvariable=self.paths_to_scan_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
+            ttk.Entry(frame,textvariable=self.paths_to_scan_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
 
-            ttk.Button(fr,text='❌',command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3).pack(side='right',padx=2,pady=1,fill='y')
+            ttk.Button(frame,text='❌',command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3).pack(side='right',padx=2,pady=1,fill='y')
 
             row+=1
 
         if len(self.paths_to_scan_from_dialog)==self.MAX_PATHS:
-            self.add_path_button.configure(state=DISABLED,text='')
-            #self.AddDrivesButton.configure(state=DISABLED,text='')
+            self.add_path_button.configure(state='disabled',text='')
+            #self.AddDrivesButton.configure(state='disabled',text='')
             self.clear_paths_list_button.focus_set()
         else:
-            self.add_path_button.configure(state=NORMAL,text='Add path ...')
-            #self.AddDrivesButton.configure(state=NORMAL,text='Add drives ...')
+            self.add_path_button.configure(state='normal',text='Add path ...')
+            #self.AddDrivesButton.configure(state='normal',text='Add drives ...')
 
     def exclude_regexp_set(self):
         self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,self.exclude_regexp_scan.get())
@@ -2129,19 +2149,19 @@ class Gui:
         self.exclude_frames=[]
         self.exclude_entry_var={}
 
-        ttk.Checkbutton(self.exclude_frame,text='Use regular expressions matching',variable=self.exclude_regexp_scan,command=lambda : self.exclude_regexp_set()).grid(row=0,column=0,sticky='news',columnspan=3,padx=5)
+        ttk.Checkbutton(self.exclude_frame,text='Use regular expressions matching',variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).grid(row=0,column=0,sticky='news',columnspan=3,padx=5)
 
         row=1
 
         for entry in self.cfg.get(CFG_KEY_EXCLUDE,'').split('|'):
             if entry:
-                (fr:=tk.Frame(self.exclude_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
-                self.exclude_frames.append(fr)
+                (frame:=tk.Frame(self.exclude_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
+                self.exclude_frames.append(frame)
 
                 self.exclude_entry_var[row]=tk.StringVar(value=entry)
-                ttk.Entry(fr,textvariable=self.exclude_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
+                ttk.Entry(frame,textvariable=self.exclude_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
 
-                ttk.Button(fr,text='❌',command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3).pack(side='right',padx=2,pady=1,fill='y')
+                ttk.Button(frame,text='❌',command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3).pack(side='right',padx=2,pady=1,fill='y')
 
                 row+=1
 
@@ -2159,11 +2179,12 @@ class Gui:
     #        pass
 
     def path_to_scan_add_dialog(self):
-        if res:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.scan_dialog.area_main):
+        if res:=askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.scan_dialog.area_main):
             self.path_to_scan_add(res)
 
     def exclude_mask_add_dialog(self):
-        mask = self.exclude_dialog_on_scan.show('Specify Exclude expression','expression:','')
+        self.exclude_dialog_on_scan.show('Specify Exclude expression','expression:','')
+        mask=self.exclude_dialog_on_scan.res_bool
         if mask:
             orglist=self.cfg.get(CFG_KEY_EXCLUDE,'').split('|')
             orglist.append(mask)
@@ -2248,7 +2269,7 @@ class Gui:
         self.settings_dialog.hide()
 
     def settings_reset(self):
-        {var.set(cfg_defaults[key]) for var,key in self.settings}
+        _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
 
     def crc_node_update(self,crc):
         size=int(self.groups_tree.set(crc,'size'))
@@ -2269,11 +2290,11 @@ class Gui:
 
                 if index_tuple not in crc_dict:
                     self.groups_tree.delete(item)
-                    logging.debug('crc_node_update-3 ' + item)
+                    logging.debug('crc_node_update-3:%s',item)
 
             if not self.groups_tree.get_children(crc):
                 self.groups_tree.delete(crc)
-                logging.debug('crc_node_update-4 ' + crc)
+                logging.debug('crc_node_update-4:%s',crc)
                 crc_removed=True
 
     def data_precalc(self):
@@ -2339,10 +2360,10 @@ class Gui:
             for crc,crc_dict in size_dict.items():
                 #self.groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
                 instances=len(crc_dict)
-                crcitem=self.groups_tree.insert(parent='', index=END,iid=crc, values=('','','',str(size),size_str,'','','',crc,instances,str(instances),'',CRC),tags=CRC,open=True)
+                crcitem=self.groups_tree.insert(parent='', index='end',iid=crc, values=('','','',str(size),size_str,'','','',crc,instances,str(instances),'',CRC),tags=CRC,open=True)
 
                 for pathnr,path,file,ctime,dev,inode in crc_dict:
-                    self.groups_tree.insert(parent=crcitem, index=END,iid=self.idfunc(inode,dev), values=(\
+                    self.groups_tree.insert(parent=crcitem, index='end',iid=self.idfunc(inode,dev), values=(\
                             pathnr,path,file,str(size),\
                             '',\
                             str(ctime),str(dev),str(inode),crc,\
@@ -2485,7 +2506,7 @@ class Gui:
                         instances_h=''
                         i+=1
                 else:
-                    logging.error('what is it: %s,%s,%s,%s ?' % file,islink,isdir,isfile)
+                    logging.error('what is it: %s,%s,%s,%s ?',file,islink,isdir,isfile)
 
                     presort_id = non_dir_code
                     text='????'
@@ -2505,17 +2526,16 @@ class Gui:
 
             ############################################################
 
-            else:
-                self.folder_items_cache[current_path]=(dir_ctime,\
-                        tuple([ \
-                            (\
-                                text,\
-                                iid,\
-                                (file,str(dev),str(inode),kind,crc,str(size),size_h,str(ctime),ctime_h,str(instances),instances_h),\
-                                kind,\
-                                SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR) else LINK if kind==LINK else ""\
-                            ) \
-                   for presort_id,text,iid,(file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h) in sorted(folder_items,key=lambda x : (x[0],sort_val_func(x[3][sort_index_local]) ),reverse=reverse)] ) )
+            self.folder_items_cache[current_path]=(dir_ctime,\
+                    tuple([ \
+                        (\
+                            text,\
+                            iid,\
+                            (file,str(dev),str(inode),kind,crc,str(size),size_h,str(ctime),ctime_h,str(instances),instances_h),\
+                            kind,\
+                            SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR) else LINK if kind==LINK else ""\
+                        ) \
+               for presort_id,text,iid,(file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h) in sorted(folder_items,key=lambda x : (x[0],sort_val_func(x[3][sort_index_local]) ),reverse=reverse)] ) )
 
         if arbitrary_path:
             #TODO - workaround
@@ -2528,12 +2548,12 @@ class Gui:
 
         if self.two_dots_condition():
             #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
-            self.folder_tree.insert(parent="", index=END, iid='0UP' , text='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
+            self.folder_tree.insert(parent="", index='end', iid='0UP' , text='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
 
         for (text,iid,values,kind,defaulttag) in self.folder_items_cache[current_path][1]:
             try:
                 kind=values[self.kind_index]
-                self.folder_tree.insert(parent="", index=END, iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if kind==FILE else defaulttag)
+                self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if kind==FILE else defaulttag)
             except Exception as e:
                 print(f'{iid=}')
                 print(e)
@@ -2580,7 +2600,7 @@ class Gui:
         self.status('Un/Setting marking on all files ...')
         reverse=1 if order_str=='oldest' else 0
 
-        { self.mark_in_specified_group_by_ctime(action, crc, reverse) for crc in self.groups_tree.get_children() }
+        _ = { self.mark_in_specified_group_by_ctime(action, crc, reverse) for crc in self.groups_tree.get_children() }
         self.update_marks_folder()
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -2595,7 +2615,7 @@ class Gui:
         self.calc_mark_stats_folder()
 
     def mark_in_specified_crc_group(self,action,crc):
-        { action(item,self.groups_tree) for item in self.groups_tree.get_children(crc) }
+        _ = { action(item,self.groups_tree) for item in self.groups_tree.get_children(crc) }
 
     @busy_cursor
     def mark_in_group(self,action):
@@ -2608,7 +2628,7 @@ class Gui:
     @busy_cursor
     def mark_on_all(self,action):
         self.status('Un/Setting marking on all files ...')
-        { self.mark_in_specified_crc_group(action,crc) for crc in self.groups_tree.get_children() }
+        _ = { self.mark_in_specified_crc_group(action,crc) for crc in self.groups_tree.get_children() }
         self.update_marks_folder()
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -2616,7 +2636,7 @@ class Gui:
     @busy_cursor
     def mark_in_folder(self,action):
         self.status('Un/Setting marking in folder ...')
-        { (action(item,self.folder_tree),action(item,self.groups_tree)) for item in self.folder_tree.get_children() if self.folder_tree.set(item,'kind')==FILE }
+        _ = { (action(item,self.folder_tree),action(item,self.groups_tree)) for item in self.folder_tree.get_children() if self.folder_tree.set(item,'kind')==FILE }
 
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -2647,7 +2667,8 @@ class Gui:
                     sel_count+=1
 
         if not sel_count :
-            self.info_dialog_on_main.show('No files found for specified path',path_param,min_width=400)
+            self.info_dialog_on_main.show('No files found for specified path',path_param)
+            #,min_width=400
         else:
             self.status(f'Subdirectory action. {sel_count} File(s) Found')
             self.update_marks_folder()
@@ -2659,19 +2680,23 @@ class Gui:
     def mark_expression(self,action,prompt,all_groups=True):
         tree=self.main.focus_get()
 
-        if tree in self.expr_by_tree.keys():
+        if tree in self.expr_by_tree:
             initialvalue=self.expr_by_tree[tree]
         else:
             initialvalue='*'
 
         if tree==self.groups_tree:
             range_str = " (all groups)" if all_groups else " (selected group)"
-            title=f'Specify expression for full file path.'
+            title='Specify expression for full file path.'
         else:
             range_str = ''
             title='Specify expression for file names in selected directory.'
 
-        (use_reg_expr,expression) = self.mark_dialog_on_main.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR),min_width=400)
+        self.mark_dialog_on_main.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
+        use_reg_expr = self.mark_dialog_on_main.res_check
+        expression = self.mark_dialog_on_main.res_str
+        #use_reg_expr,expression) =
+        #,min_width=400
 
         items=[]
         use_reg_expr_info = '(regular expression)' if use_reg_expr else ''
@@ -2690,7 +2715,8 @@ class Gui:
                             if (use_reg_expr and re.search(expression,fullpath)) or (not use_reg_expr and fnmatch.fnmatch(fullpath,expression) ):
                                 items.append(item)
                         except Exception as e:
-                            self.info_dialog_on_main.show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}',min_width=400)
+                            self.info_dialog_on_main.show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}')
+                            #,min_width=400
                             tree.focus_set()
                             return
             else:
@@ -2701,7 +2727,8 @@ class Gui:
                             if (use_reg_expr and re.search(expression,file)) or (not use_reg_expr and fnmatch.fnmatch(file,expression) ):
                                 items.append(item)
                         except Exception as e:
-                            self.info_dialog_on_main.show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}',min_width=400)
+                            self.info_dialog_on_main.show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}')
+                            #,min_width=400
                             tree.focus_set()
                             return
 
@@ -2736,12 +2763,13 @@ class Gui:
                 self.main.update()
 
             else:
-                self.info_dialog_on_main.show('No files found.',f'expression:"{expression}"  {use_reg_expr_info}\n',min_width=400)
+                self.info_dialog_on_main.show('No files found.',f'expression:"{expression}"  {use_reg_expr_info}\n')
+                #,min_width=400
 
         tree.focus_set()
 
     def mark_subpath(self,action,all_groups=True):
-        if path:=tk.filedialog.askdirectory(title='Select Directory',initialdir=self.cwd):
+        if path:=askdirectory(title='Select Directory',initialdir=self.cwd):
             self.action_on_path(path,action,all_groups)
 
     def goto_next_mark_menu(self,direction,go_to_no_mark=False):
@@ -2890,6 +2918,8 @@ class Gui:
             message = {f'ctime inconsistency {ctime_check} vs {ctime}'}
             return message
 
+        return None
+
     def process_files_in_groups_wrapper(self,action,all_groups):
         processed_items=defaultdict(list)
         if all_groups:
@@ -2962,7 +2992,8 @@ class Gui:
         if action==HARDLINK:
             for crc in processed_items:
                 if len(processed_items[crc])==1:
-                    self.info_dialog_on_main.show('Error - Can\'t hardlink single file.',"Mark more files.",min_width=400)
+                    self.info_dialog_on_main.show('Error - Can\'t hardlink single file.',"Mark more files.")
+                    #,min_width=400
 
                     self.crc_select_and_focus(crc,True)
                     return True
@@ -2989,22 +3020,26 @@ class Gui:
                         if self.cfg.get_bool(CFG_ALLOW_DELETE_ALL):
                             show_all_delete_warning=True
                         else:
-                            self.info_dialog_on_main.show('Error (Delete) - All files marked',"Keep at least one file unmarked.",min_width=400)
+                            self.info_dialog_on_main.show('Error (Delete) - All files marked',"Keep at least one file unmarked.")
+                            #,min_width=400
 
                             self.crc_select_and_focus(crc,True)
                             return True
 
                 if show_all_delete_warning:
-                    if not self.text_ask_dialog.show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies in one or more groups are selected.|RED\n\nProceed ?|RED'):
+                    self.text_ask_dialog.show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies in one or more groups are selected.|RED\n\nProceed ?|RED')
+                    if not self.text_ask_dialog.res_bool:
                         return True
 
         elif action==SOFTLINK:
             for crc in processed_items:
                 if len(remaining_items[crc])==0:
-                    self.info_dialog_on_main.show('Error (Softlink) - All files marked',"Keep at least one file unmarked.",min_width=400)
+                    self.info_dialog_on_main.show('Error (Softlink) - All files marked',"Keep at least one file unmarked.")
+                    #,min_width=400
 
                     self.crc_select_and_focus(crc,True)
                     return True
+        return False
 
     @restore_status_line
     def process_files_check_correctness_last(self,action,processed_items,remaining_items):
@@ -3017,7 +3052,8 @@ class Gui:
                     message=f"Files on multiple devices selected. Crc:{crc}"
                     logging.error(title)
                     logging.error(message)
-                    self.info_dialog_on_main.show(title,message,min_width=400)
+                    self.info_dialog_on_main.show(title,message)
+                    #,min_width=400
                     return True
 
         for crc in processed_items:
@@ -3027,6 +3063,7 @@ class Gui:
                     logging.error('aborting.')
                     return True
         logging.info('remaining files checking complete.')
+        return False
 
     @restore_status_line
     def process_files_confirm(self,action,processed_items,remaining_items,scope_title):
@@ -3053,18 +3090,22 @@ class Gui:
                         message.append('🠖 ' + (self.item_full_path(item) if show_full_path else self.groups_tree.set(item,'file')) )
 
         if action==DELETE:
-            if not self.text_ask_dialog.show('Delete marked files ?','Scope - ' + scope_title +'\n'+'\n'.join(message)):
+            self.text_ask_dialog.show('Delete marked files ?','Scope - ' + scope_title +'\n'+'\n'.join(message))
+            if not self.text_ask_dialog.res_bool:
                 return True
         elif action==SOFTLINK:
-            if not self.text_ask_dialog.show('Soft-Link marked files to first unmarked file in group ?','Scope - ' + scope_title +'\n'+'\n'.join(message)):
+            self.text_ask_dialog.show('Soft-Link marked files to first unmarked file in group ?','Scope - ' + scope_title +'\n'+'\n'.join(message))
+            if not self.text_ask_dialog.res_bool:
                 return True
         elif action==HARDLINK:
-            if not self.text_ask_dialog.show('Hard-Link marked files together in groups ?','Scope - ' + scope_title +'\n'+'\n'.join(message)):
+            self.text_ask_dialog.show('Hard-Link marked files together in groups ?','Scope - ' + scope_title +'\n'+'\n'.join(message))
+            if not self.text_ask_dialog.res_bool:
                 return True
 
-        {logging.warning(line) for line in message}
+        _ = {logging.warning(line) for line in message}
         logging.warning('###########################################################################################')
         logging.warning('Confirmed.')
+        return False
 
     @busy_cursor
     def empty_dirs_removal(self,startpath,report_empty=False):
@@ -3084,10 +3125,10 @@ class Gui:
                 try:
                     self.main.update()
                     os.rmdir(path)
-                    logging.info('Empty removed:%s' % path)
+                    logging.info('Empty removed:%s',path)
                     removed.append(path)
                 except Exception as e:
-                    logging.error('empty_dirs_removal:%s' % e)
+                    logging.error('empty_dirs_removal:%s',e)
 
         self.status('')
 
@@ -3160,7 +3201,8 @@ class Gui:
         self.tree_groups_flat_items_update()
 
         if final_info:
-            self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info),min_width=400)
+            self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info))
+            #,min_width=400
 
     def get_this_or_existing_parent(self,path):
         if os.path.exists(path):
@@ -3175,8 +3217,8 @@ class Gui:
             self.info_dialog_on_main.show('No Files Marked For Processing !','Scope: ' + scope_title + '\n\nMark files first.')
             return
 
-        logging.info('process_files: %s' % action)
-        logging.info('Scope ' + scope_title)
+        logging.info('process_files: %s',action)
+        logging.info('Scope %s',scope_title)
 
         #############################################
         #check remainings
@@ -3195,11 +3237,12 @@ class Gui:
             return
 
         if not processed_items:
-            self.info_dialog_on_main.show('info','No files left for processing. Fix files selection.',min_width=400)
+            self.info_dialog_on_main.show('info','No files left for processing. Fix files selection.')
+            #,min_width=400
             return
 
         logging.warning('###########################################################################################')
-        logging.warning(f'action:{action}')
+        logging.warning('action:%s',action)
 
         self.status('')
         if self.process_files_confirm(action,processed_items,remaining_items,scope_title):
@@ -3285,6 +3328,8 @@ class Gui:
             else:
                 return None
 
+        return None
+
     def get_closest_in_crc(self,prev_list,item,new_list):
         if item in new_list:
             return item
@@ -3306,6 +3351,7 @@ class Gui:
                     return nearest
             else:
                 return None
+        return None
 
     def cache_clean(self):
         try:
@@ -3383,7 +3429,7 @@ class Gui:
     #@restore_status_line
     @busy_cursor
     def open_file(self):
-        if self.sel_kind==FILE or self.sel_kind==LINK or self.sel_kind==SINGLE or self.sel_kind==SINGLEHARDLINKED:
+        if self.sel_kind in (FILE,LINK,SINGLE,SINGLEHARDLINKED):
             self.status(f'Opening {self.sel_file}')
             if windows:
                 os.startfile(os.sep.join([self.sel_path_full,self.sel_file]))
@@ -3431,7 +3477,7 @@ if __name__ == "__main__":
         logging.basicConfig(level=LOG_LEVEL,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
 
         DEBUG_MODE = bool(p_args.debug)
-        
+
         logging.debug('DEBUG LEVEL')
 
         Gui(os.getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun)

@@ -1,13 +1,40 @@
+#!/usr/bin/python3
+
+####################################################################################
+#
+#  Copyright (c) 2022 Piotr Jochymek
+#
+#  MIT License
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a copy
+#  of this software and associated documentation files (the "Software"), to deal
+#  in the Software without restriction, including without limitation the rights
+#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#  copies of the Software, and to permit persons to whom the Software is
+#  furnished to do so, subject to the following conditions:
+#
+#  The above copyright notice and this permission notice shall be included in all
+#  copies or substantial portions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#  SOFTWARE.
+#
+####################################################################################
+
 import tkinter as tk
-from tkinter import *
 from tkinter import ttk
 from tkinter import scrolledtext
 
 def set_geometry_by_parent(widget,parent):
-    x = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
-    y = int(parent.winfo_rooty()+0.5*(parent.winfo_height()-widget.winfo_height()))
+    x_offset = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
+    y_offset = int(parent.winfo_rooty()+0.5*(parent.winfo_height()-widget.winfo_height()))
 
-    widget.geometry(f'+{x}+{y}')
+    widget.geometry(f'+{x_offset}+{y_offset}')
 
 class GenericDialog :
     def focus_out(self,event):
@@ -21,19 +48,22 @@ class GenericDialog :
             #self.widget.after_idle(self.widget.focus_set)
             #self.widget.focus_force()
 
-    def __init__(self,parent,icon,bg,title,pre_show=None,post_close=None,min_width=600,min_height=400):
-        self.bg=bg
+    def __init__(self,parent,icon,bg_color,title,pre_show=None,post_close=None,min_width=600,min_height=400):
+        self.bg_color=bg_color
 
-        self.widget = tk.Toplevel(parent,bg=self.bg,bd=0, relief='flat')
+        self.widget = tk.Toplevel(parent,bg=self.bg_color,bd=0, relief='flat')
         self.widget.withdraw()
         self.widget.update()
         self.widget.protocol("WM_DELETE_WINDOW", self.hide)
-        self.widget.minsize(min_width, min_height)
+
+        self.set_mins(min_width,min_height)
+
+        self.focus=None
 
         self.widget.iconphoto(False, icon)
 
         self.widget.title(title)
-        self.widget.bind('<Escape>', self.hide)
+        self.widget.bind('<Escape>', lambda event : self.hide())
 
         self.widget.bind('<KeyPress-Return>', self.return_bind)
 
@@ -42,18 +72,22 @@ class GenericDialog :
         self.pre_show=pre_show
         self.post_close=post_close
 
-        self.area_main = tk.Frame(self.widget,bg=self.bg)
+        self.area_main = tk.Frame(self.widget,bg=self.bg_color)
         self.area_main.pack(side='top',expand=1,fill='both')
 
         #only grid here
         self.area_main.grid_columnconfigure(0, weight=1)
 
-        self.area_buttons = tk.Frame(self.widget,bg=self.bg)
+        self.area_buttons = tk.Frame(self.widget,bg=self.bg_color)
         self.area_buttons.pack(side='bottom',expand=0,fill='x')
 
-        self.res=tk.StringVar()
+        self.wait_var=tk.BooleanVar()
+        self.wait_var.set(False)
 
-        self.focus_restore=True
+        self.do_command=None
+
+    def set_mins(self,min_width,min_height):
+        self.widget.minsize(min_width, min_height)
 
     def return_bind(self,event):
         widget=event.widget
@@ -62,13 +96,17 @@ class GenericDialog :
         except:
             pass
 
-    def unlock(self,val='unlock'):
-        self.res.set(val)
+    def unlock(self):
+        self.wait_var.set(True)
 
-    def show(self,focus=None,do_command=None):
+    def define_command(self,do_command=None):
+        self.do_command=do_command
+
+    def show(self):
         self.widget.wm_transient(self.parent)
 
-        self.preFocus=self.parent.focus_get()
+        self.focus_restore=True
+        self.pre_focus=self.parent.focus_get()
 
         self.parent.unbind("<FocusOut>")
         self.widget.bind("<FocusOut>", self.focus_out)
@@ -84,32 +122,30 @@ class GenericDialog :
         set_geometry_by_parent(self.widget,self.parent)
 
         self.widget.grab_set()
-        self.res.set('')
+
+        self.wait_var.set(False)
+        self.res_bool=False
 
         self.widget.deiconify()
         self.widget.update()
 
-
-        self.focus=focus
-        if focus:
-            focus.focus_set()
+        if self.focus:
+            self.focus.focus_set()
             #focus.focus_force()
 
         set_geometry_by_parent(self.widget,self.parent)
         self.widget.lift()
 
-        if do_command:
-            commnad_res = do_command()
+        if self.do_command:
+            commnad_res = self.do_command()
 
             if commnad_res:
                 self.hide()
                 return
 
-        self.widget.wait_variable(self.res)
+        self.widget.wait_variable(self.wait_var)
 
-        return self.res.get()
-
-    def hide(self,event=None,SetRes=True):
+    def hide(self):
         self.widget.grab_release()
         self.parent.config(cursor="")
 
@@ -127,50 +163,46 @@ class GenericDialog :
             self.post_close()
 
         if self.focus_restore:
-            if self.preFocus:
-                self.preFocus.focus_set()
+            if self.pre_focus:
+                self.pre_focus.focus_set()
             else:
                 self.parent.focus_set()
 
-        if SetRes:
-            self.res.set('')
+        self.wait_var.set(True)
 
 class LabelDialog(GenericDialog):
-    def __init__(self,parent,icon,bg,pre_show=None,post_close=None,min_width=300,min_height=120):
-        super().__init__(parent,icon,bg,'',pre_show,post_close,min_width=300,min_height=120)
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=120):
+        super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
-        self.label = tk.Label(self.area_main, text='',justify='center',bg=self.bg)
+        self.label = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
         self.label.grid(row=0,column=0,padx=5,pady=5)
 
         self.cancel_button=ttk.Button(self.area_buttons, text='OK', width=14, command=super().hide )
         self.cancel_button.pack(side='bottom', anchor='n',padx=5,pady=5)
 
-    def show(self,title,message,focus=None,min_width=300,min_height=120):
-        try:
-            if not focus:
-                focus=self.cancel_button
+        self.focus=self.cancel_button
 
-            self.widget.title(title)
-            self.label.configure(text=message)
-            self.widget.minsize(min_width, min_height)
-            return super().show(focus)
-        except Exception as e:
-            print(e)
-            return ""
+    def show(self,title='',message=''):
+        self.widget.title(title)
+        self.label.configure(text=message)
+
+        super().show()
 
 class TextDialogQuestion(GenericDialog):
-    def __init__(self,parent,icon,bg,pre_show=None,post_close=None,min_width=300,min_height=120):
-        super().__init__(parent,icon,bg,'',pre_show,post_close,min_width=300,min_height=120)
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=1000,min_height=600):
+        super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
         textwidth=80
-        self.Text = scrolledtext.ScrolledText(self.area_main,relief='groove' , bd=2,bg='white',width = textwidth,takefocus=True)
-        self.Text.frame.config(takefocus=False)
-        self.Text.vbar.config(takefocus=False)
+        self.text = scrolledtext.ScrolledText(self.area_main,relief='groove' , bd=2,bg='white',width = textwidth,takefocus=True)
+        self.text.frame.config(takefocus=False)
+        self.text.vbar.config(takefocus=False)
 
-        self.Text.tag_configure('RED', foreground='red')
-        self.Text.tag_configure('GRAY', foreground='gray')
+        self.text.tag_configure('RED', foreground='red')
+        self.text.tag_configure('GRAY', foreground='gray')
 
-        self.Text.grid(row=0,column=0,padx=5,pady=5)
+        self.text.grid(row=0,column=0,padx=5,pady=5)
+
+        self.area_main.grid_rowconfigure(0, weight=1)
 
         self.cancel_button=ttk.Button(self.area_buttons, text='Cancel', width=14, command=super().hide )
         self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
@@ -178,39 +210,32 @@ class TextDialogQuestion(GenericDialog):
         self.ok_button=ttk.Button(self.area_buttons, text='OK', width=14, command=self.ok )
         self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
 
-    def ok (self,event=None):
-        self.res.set('1')
-        super().hide(SetRes=False)
+        self.focus=self.cancel_button
 
-    def show(self,title,message,focus=None,min_width=800,min_height=400):
-        try:
-            self.widget.title(title)
+    def ok (self):
+        self.res_bool=True
+        self.wait_var.set(True)
+        super().hide()
 
-            if not focus:
-                focus=self.cancel_button
+    def show(self,title='',message=''):
+        self.widget.title(title)
 
-            self.Text.configure(state=NORMAL)
-            self.Text.delete('1.0', END)
-            for line in message.split('\n'):
-                lineSplitted=line.split('|')
-                tag=lineSplitted[1] if len(lineSplitted)>1 else None
+        self.text.configure(state='normal')
+        self.text.delete('1.0', 'end')
+        for line in message.split('\n'):
+            line_splitted=line.split('|')
+            tag=line_splitted[1] if len(line_splitted)>1 else None
 
-                self.Text.insert(END, lineSplitted[0] + "\n", tag)
+            self.text.insert('end', line_splitted[0] + "\n", tag)
 
-            self.Text.configure(state=DISABLED)
-            self.Text.grid(row=0,column=0,sticky='news',padx=5,pady=5)
+        self.text.configure(state='disabled')
+        self.text.grid(row=0,column=0,sticky='news',padx=5,pady=5)
 
-            self.widget.minsize(min_width, min_height)
-            res = super().show(focus)
-            return True if res else False
-
-        except Exception as e:
-            print(e)
-            return ""
+        super().show()
 
 class EntryDialogQuestion(LabelDialog):
-    def __init__(self,parent,icon,bg,pre_show=None,post_close=None):
-        super().__init__(parent,icon,bg,pre_show,post_close,min_width=300,min_height=120)
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=400,min_height=120):
+        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
 
         self.cancel_button.configure(text='Cancel')
 
@@ -224,6 +249,8 @@ class EntryDialogQuestion(LabelDialog):
 
         self.cancel_button.pack(side='right')
 
+        self.focus=self.entry
+
     def return_bind(self,event):
         widget=event.widget
         if widget==self.entry:
@@ -231,38 +258,41 @@ class EntryDialogQuestion(LabelDialog):
         else:
             super().return_bind(event)
 
-    def ok(self,event=None):
-        self.res.set(str(self.entry_val.get()))
-        super().hide(SetRes=False)
+    def ok(self):
+        self.res_bool= True
+        self.res_str = self.entry_val.get()
+        super().hide()
 
-    def show(self,title,message,initial,min_width=300,min_height=120):
+    def show(self,title='',message='',initial=''):
         self.entry_val.set(initial)
 
-        res = super().show(title,message,focus=self.entry,min_width=min_width,min_height=min_height)
-
-        return res
+        self.res_str=''
+        super().show(title,message)
 
 class CheckboxEntryDialogQuestion(EntryDialogQuestion):
-    def __init__(self,parent,icon,bg,pre_show=None,post_close=None):
-        super().__init__(parent,icon,bg,pre_show,post_close)
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=400,min_height=120):
+        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
 
         self.check_val=tk.BooleanVar()
 
         self.check = ttk.Checkbutton(self.area_main, variable=self.check_val)
         self.check.grid(row=1,column=0,padx=5,pady=5,sticky="wens")
+        self.result2=None
 
-    def show(self,title,message,initial,checkbutton_text,checkbutton_initial,min_width=300,min_height=120):
+        self.focus=self.entry
 
+    def show(self,title='',message='',initial='',checkbutton_text='',checkbutton_initial=False):
         self.check_val.set(checkbutton_initial)
         self.check.configure(text=checkbutton_text)
 
-        res = super().show(title,message,initial,min_width=min_width,min_height=min_height)
+        self.res_check=checkbutton_initial
+        super().show(title,message,initial)
+        self.res_check = self.check_val.get()
 
-        return(self.check_val.get(),res)
 
 class FindEntryDialog(CheckboxEntryDialogQuestion):
-    def __init__(self,parent,icon,bg,mod_cmd,prev_cmd,next_cmd,pre_show=None,post_close=None):
-        super().__init__(parent,icon,bg,pre_show,post_close)
+    def __init__(self,parent,icon,bg_color,mod_cmd,prev_cmd,next_cmd,pre_show=None,post_close=None,min_width=400,min_height=120):
+        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
 
         self.button_prev = ttk.Button(self.area_buttons, text='prev (Shift+F3)', width=14, command=self.prev )
         self.button_prev.pack(side='left', anchor='n',padx=5,pady=5)
@@ -278,12 +308,13 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
 
         self.check.configure(command=self.mod)
 
-        self.widget.bind('<KeyRelease>',self.mod)
+        self.widget.bind('<KeyRelease>',lambda event : self.mod())
 
-        self.widget.bind('<KeyPress-F3>', self.F3_bind)
-        self.focus_restore=False
+        self.widget.bind('<KeyPress-F3>', self.f3_bind)
 
-    def F3_bind(self,event):
+        self.focus=self.entry
+
+    def f3_bind(self,event):
         if 'Shift' in str(event):
             self.button_prev.invoke()
         else:
@@ -296,16 +327,17 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
         else:
             super().return_bind(event)
 
-    def mod(self,event=None):
+    def mod(self):
         self.mod_cmd(self.entry_val.get(),self.check_val.get())
 
-    def prev(self,event=None):
+    def prev(self):
         self.prev_cmd(self.entry_val.get(),self.check_val.get())
 
-    def next(self,event=None):
+    def next(self):
         self.next_cmd(self.entry_val.get(),self.check_val.get())
 
-    def show(self,message,initial,checkbutton_initial=False,min_width=300,min_height=120):
+    def show(self,title='',message='',initial='',checkbutton_text='',checkbutton_initial=False):
+        self.focus_restore=False
         try:
             super().show(title='Find',message=message,initial=initial,checkbutton_text='Use regular expressions matching',checkbutton_initial=checkbutton_initial)
         except Exception as e:

@@ -620,7 +620,7 @@ class DudeCore:
                         if self.crc_thread_progress_info[dev] and self.crc_thread_file_info[dev]:
                             curr_line_info_file_size=self.crc_thread_file_info[dev][0]
                             curr_line_info_file_name=self.crc_thread_file_info[dev][1][2]
-                            
+
                             if curr_line_info_file_size==prev_line_info[dev]:
                                 if now-prev_line_show_same_max[dev]>1:
                                     line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str(self.crc_thread_progress_info[dev]) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
@@ -713,7 +713,7 @@ class DudeCore:
 
         len_temp=1
         while len({crc[0:len_temp] for crc in all_crcs})!=all_crcs_len:
-            self.info=f'CRC min length calculation ... ({len_temp})' 
+            self.info=f'CRC min length calculation ... ({len_temp})'
             len_temp+=1
 
         self.crc_cut_len=len_temp
