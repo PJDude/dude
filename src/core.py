@@ -159,7 +159,7 @@ class DudeCore:
                 path_ctime=round(os.stat(path).st_ctime)
             except Exception as e:
                 self.log.error(f'ERROR:{e}')
-                return (0,tuple([]))
+                return (0,tuple([]),str(e))
 
         if path not in self.scan_dir_cache or self.scan_dir_cache[path][0]!=path_ctime:
             try:
@@ -202,7 +202,7 @@ class DudeCore:
 
             except Exception as e:
                 self.log.error(f'scandir: {e}')
-                self.scan_dir_cache[path] = (0,tuple([]))
+                self.scan_dir_cache[path] = (0,tuple([]),str(e))
 
         return self.scan_dir_cache[path]
 
@@ -223,8 +223,6 @@ class DudeCore:
         self.info_size_sum=0
 
         self.scan_results_by_size.clear()
-
-        #self.scan_dir_cache={}
 
         for path_to_scan in self.paths_to_scan:
             loop_list=[(path_to_scan,None)]

@@ -103,6 +103,10 @@ class GenericDialog :
         self.do_command=do_command
 
     def show(self):
+        if self.pre_show:
+            if self.pre_show():
+                return
+
         self.widget.wm_transient(self.parent)
 
         self.focus_restore=True
@@ -110,9 +114,6 @@ class GenericDialog :
 
         self.parent.unbind("<FocusOut>")
         self.widget.bind("<FocusOut>", self.focus_out)
-
-        if self.pre_show:
-            self.pre_show()
 
         self.parent.config(cursor="watch")
 
@@ -339,6 +340,6 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
     def show(self,title='',message='',initial='',checkbutton_text='',checkbutton_initial=False):
         self.focus_restore=False
         try:
-            super().show(title='Find',message=message,initial=initial,checkbutton_text='Use regular expressions matching',checkbutton_initial=checkbutton_initial)
+            super().show(title=title,message=message,initial=initial,checkbutton_text=checkbutton_text,checkbutton_initial=checkbutton_initial)
         except Exception as e:
             print(e)

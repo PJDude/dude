@@ -144,7 +144,7 @@ class Config:
             logging.warning('no config file: %s',self.file)
 
     def set(self,key,val,section='main'):
-        self.config.set(section,key,val)
+        self.config.set(section,key,str(val))
 
     def set_bool(self,key,val,section='main'):
         self.config.set(section,key,('0','1')[val])
@@ -186,17 +186,20 @@ class Gui:
     sel_path_full=''
     folder_items_cache={}
 
-    do_process_events=True
+    do_process_events=False
 
     def busy_cursor(func):
         def busy_cursor_wrapp(self,*args,**kwargs):
             prev_process_events=self.do_process_events
             self.do_process_events=False
-
+            #logging.debug('busy_cursor_wrapp: do_process_events -> False')
             prev_cursor=self.menubar.cget('cursor')
 
+            self.menu_disable()
+
             #after = self.main.after(1000,lambda : self.menubar.config(cursor='watch') or self.main.config(cursor='watch') or self.main.update())
-            after = self.main.after(1000,lambda : self.main.update())
+            #after = self.main.after(1000,lambda : self.main.update())
+            self.main.update()
 
             self.menubar.config(cursor='watch')
             self.main.config(cursor='watch')
@@ -209,12 +212,14 @@ class Gui:
                 res=None
                 logging.error('%s:%s',func,e)
 
-            self.main.after_cancel(after)
+            #self.main.after_cancel(after)
 
+            self.menu_enable()
             self.main.config(cursor=prev_cursor)
             self.menubar.config(cursor=prev_cursor)
 
             self.do_process_events=prev_process_events
+            #logging.debug('busy_cursor_wrapp: do_process_events restored to %s', self.do_process_events)
 
             return res
         return busy_cursor_wrapp
@@ -628,11 +633,17 @@ class Gui:
         #######################################################################
         #scan dialog
 
-        def pre_show():
-            self.menu_disable()
-            self.menubar.config(cursor="watch")
-            self.hide_tooltip()
-            self.menubar_unpost()
+        def pre_show(first_level_dialog=True):
+            if first_level_dialog:
+                if not self.do_process_events:
+                    return True
+
+                self.menu_disable()
+                self.menubar.config(cursor="watch")
+                self.hide_tooltip()
+                self.menubar_unpost()
+
+            return False
 
         def post_close():
             self.menu_enable()
@@ -698,8 +709,8 @@ class Gui:
         self.scan_dialog.focus=self.scan_cancel_button
 
         def pre_show_settings():
-            pre_show()
             _ = {var.set(self.cfg.get_bool(key)) for var,key in self.settings}
+            return pre_show()
 
         #######################################################################
         #Settings Dialog
@@ -781,8 +792,18 @@ class Gui:
         self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.mark_dialog_on_main = dialogs.CheckboxEntryDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.find_dialog_on_main = dialogs.FindEntryDialog(self.main,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
-        self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog_on_main.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+
+        #self.find_dialog_on_main = dialogs.FindEntryDialog(self.main,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+
+        self.find_dialog_on_groups = dialogs.FindEntryDialog(self.groups_tree,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        self.find_dialog_on_folder = dialogs.FindEntryDialog(self.folder_tree,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+
+        #self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog_on_main.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=post_close)
+
+        self.info_dialog_on_find={}
+
+        self.info_dialog_on_find[0] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=post_close)
+        self.info_dialog_on_find[1] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=post_close)
 
        #######################################################################
         #About Dialog
@@ -963,6 +984,7 @@ class Gui:
 
         self.main.update()
 
+        self.do_process_events=True
         self.scan_dialog_show(run_scan_condition)
 
         self.groups_tree.focus_set()
@@ -1134,7 +1156,7 @@ class Gui:
         self.sel_item_of_tree[self.groups_tree]=None
         self.sel_item_of_tree[self.folder_tree]=None
 
-        self.sel_tree_index = 0
+        self.sel_tree_index=0
         self.sel_kind = None
 
     def get_index_tuple_groups_tree(self,item):
@@ -1158,6 +1180,7 @@ class Gui:
 
     find_by_tree={}
 
+    #@busy_cursor
     def finder_wrapper_show(self):
         tree=self.groups_tree if self.sel_tree_index==0 else self.folder_tree
 
@@ -1170,9 +1193,16 @@ class Gui:
         else:
             initialvalue='*'
 
-        self.find_dialog_on_main.show(scope_info,initial=initialvalue,checkbutton_initial=False)
+        #self.find_dialog_on_main.show('Find',scope_info,initial=initialvalue,checkbutton_text='Use regular expressions matching',checkbutton_initial=False)
+        #self.find_by_tree[tree]=self.find_dialog_on_main.entry.get()
 
-        self.find_by_tree[tree]=self.find_dialog_on_main.entry.get()
+        if self.sel_tree_index==0:
+            self.find_dialog_on_groups.show('Find',scope_info,initial=initialvalue,checkbutton_text='Use regular expressions matching',checkbutton_initial=False)
+            self.find_by_tree[tree]=self.find_dialog_on_groups.entry.get()
+        else:
+            self.find_dialog_on_folder.show('Find',scope_info,initial=initialvalue,checkbutton_text='Use regular expressions matching',checkbutton_initial=False)
+            self.find_by_tree[tree]=self.find_dialog_on_folder.entry.get()
+
 
         self.find_dialog_shown=False
 
@@ -1180,6 +1210,7 @@ class Gui:
         tree.focus_set()
 
     def find_prev_from_dialog(self,expression,use_reg_expr):
+        #logging.debug('find_prev_from_dialog %s,%s',expression,use_reg_expr)
         self.find_items(expression,use_reg_expr)
         self.select_find_result(-1)
 
@@ -1191,6 +1222,7 @@ class Gui:
             self.select_find_result(-1)
 
     def find_next_from_dialog(self,expression,use_reg_expr):
+        #logging.debug('find_next_from_dialog %s,%s',expression,use_reg_expr)
         self.find_items(expression,use_reg_expr)
         self.select_find_result(1)
 
@@ -1207,19 +1239,20 @@ class Gui:
     use_reg_expr_prev=''
     find_expression_prev=''
 
-    ##################################################
     def find_mod(self,expression,use_reg_expr):
         if self.use_reg_expr_prev!=use_reg_expr or self.find_expression_prev!=expression:
             self.use_reg_expr_prev=use_reg_expr
             self.find_expression_prev=expression
             self.find_params_changed=True
+            self.cfg.set_bool(CFG_KEY_USE_REG_EXPR,use_reg_expr)
             self.find_result_index=0
 
     @busy_cursor
     @restore_status_line
     def find_items(self,expression,use_reg_expr):
         self.status('finding ...')
-        if self.find_params_changed:
+
+        if self.find_params_changed or self.find_tree_index != self.sel_tree_index:
             self.find_tree_index=self.sel_tree_index
 
             items=[]
@@ -1236,8 +1269,10 @@ class Gui:
                                 if (use_reg_expr and re.search(expression,fullpath)) or (not use_reg_expr and fnmatch.fnmatch(fullpath,expression) ):
                                     items.append(item)
                     except Exception as e:
-                        self.info_dialog_on_find.show('Error',str(e))
-                        #,min_width=400
+                        try:
+                            self.info_dialog_on_find[self.find_tree_index].show('Error',str(e))
+                        except Exception as e2:
+                            print(e2)
                         return
                 else:
                     self.find_tree=self.folder_tree
@@ -1248,17 +1283,14 @@ class Gui:
                             if (use_reg_expr and re.search(expression,file)) or (not use_reg_expr and fnmatch.fnmatch(file,expression) ):
                                 items.append(item)
                     except Exception as e:
-                        self.info_dialog_on_find.show('Error',str(e))
-                        #,min_width=400
+                        self.info_dialog_on_find[self.find_tree_index].show('Error',str(e))
                         return
-
             if items:
                 self.find_result=tuple(items)
                 self.find_params_changed=False
             else:
                 scope_info = 'Scope: All groups.' if self.find_tree_index==0 else 'Scope: Selected directory.'
-                self.info_dialog_on_find.show(scope_info,'No files found.')
-                #,min_width=400
+                self.info_dialog_on_find[self.find_tree_index].show(scope_info,'No files found.')
 
     @busy_cursor
     def select_find_result(self,mod):
@@ -1306,9 +1338,38 @@ class Gui:
     KEY_DIRECTION['Down']=1
     KEY_DIRECTION['Prior']=-1
     KEY_DIRECTION['Next']=1
+    KEY_DIRECTION['Home']=0
+    KEY_DIRECTION['End']=-1
 
     reftuple1=('1','2','3','4','5','6','7')
     reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
+
+    def goto_next_prev_crc(self,direction):
+        pool=self.groups_tree.get_children()
+        item=self.groups_tree.focus()
+
+        if pool_len:=len(pool):
+            next_item=pool[(pool.index(self.groups_tree.set(item,'crc'))+direction) % pool_len]
+            self.crc_select_and_focus(next_item)
+
+    def goto_next_prev_duplicate(self,direction):
+        pool=[item for item in self.folder_tree.get_children() if self.folder_tree.set(item,'kind')==FILE]
+        item=self.folder_tree.focus()
+
+        if pool_len:=len(pool):
+            self.goto_next_dupe_file(self.folder_tree,direction)
+            self.folder_tree.update()
+
+    def goto_first_last_crc(self,index):
+        if next_item:=self.groups_tree.get_children()[index]:
+            self.crc_select_and_focus(next_item,True)
+
+    def goto_first_last_dir_entry(self,index):
+        if next_item:=self.folder_tree.get_children()[index]:
+            self.folder_tree.see(next_item)
+            self.folder_tree.focus(next_item)
+            self.folder_tree_sel_change(next_item)
+            self.folder_tree.update()
 
     #@busy_cursor
     def key_press(self,event):
@@ -1342,28 +1403,14 @@ class Gui:
                         self.folder_tree_sel_change(next_item)
             elif event.keysym in ("Prior","Next"):
                 if self.sel_tree_index==0:
-                    pool=tree.get_children()
+                    self.goto_next_prev_crc(self.KEY_DIRECTION[event.keysym])
                 else:
-                    pool=[item for item in tree.get_children() if tree.set(item,'kind')==FILE]
-
-                pool_len=len(pool)
-                if pool_len:
-                    if self.sel_tree_index==0:
-                        next_item=pool[(pool.index(tree.set(item,'crc'))+self.KEY_DIRECTION[event.keysym]) % pool_len]
-                        self.crc_select_and_focus(next_item)
-                    else:
-                        self.goto_next_dupe_file(tree,self.KEY_DIRECTION[event.keysym])
-                        tree.update()
+                    self.goto_next_prev_duplicate(self.KEY_DIRECTION[event.keysym])
             elif event.keysym in ("Home","End"):
                 if self.sel_tree_index==0:
-                    if next_item:=tree.get_children()[0 if event.keysym=="Home" else -1]:
-                        self.crc_select_and_focus(next_item,True)
+                    self.goto_first_last_crc(self.KEY_DIRECTION[event.keysym])
                 else:
-                    if next_item:=tree.get_children()[0 if event.keysym=='Home' else -1]:
-                        tree.see(next_item)
-                        tree.focus(next_item)
-                        self.folder_tree_sel_change(next_item)
-                        tree.update()
+                    self.goto_first_last_dir_entry(self.KEY_DIRECTION[event.keysym])
             elif event.keysym == "space":
                 if self.sel_tree_index==0:
                     if tree.set(item,'kind')==CRC:
@@ -1567,6 +1614,7 @@ class Gui:
         tree.configure(style='semi_focus.Treeview')
         self.other_tree[tree].configure(style='default.Treeview')
 
+
         item=None
 
         if sel:=tree.selection():
@@ -1582,8 +1630,10 @@ class Gui:
             if item:
                 tree.focus(item)
                 if tree==self.groups_tree:
+                    self.sel_tree_index=0
                     self.groups_tree_sel_change(item,True)
                 else:
+                    self.sel_tree_index=1
                     self.folder_tree_sel_change(item)
 
                 tree.see(item)
@@ -1630,7 +1680,7 @@ class Gui:
 
         self.sel_item = item
         self.sel_item_of_tree[self.groups_tree]=item
-        self.sel_tree_index=0
+        #self.sel_tree_index=0
 
         size = int(self.groups_tree.set(item,'size'))
 
@@ -1660,7 +1710,7 @@ class Gui:
         self.sel_kind = self.folder_tree.set(item,'kind')
         self.sel_item = item
         self.sel_item_of_tree[self.folder_tree] = item
-        self.sel_tree_index=1
+        #self.sel_tree_index=1
 
         self.set_full_path_to_file()
 
@@ -1810,6 +1860,12 @@ class Gui:
             c_nav.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark(self.groups_tree,-1,1), accelerator="Shift+Left",state='normal')
             c_nav.add_separator()
             c_nav.add_command(label = 'Go to parent directory'   ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state)
+            c_nav.add_separator()
+            c_nav.add_command(label = 'Go to next crc group'       ,command = lambda : self.goto_next_prev_crc(1),accelerator="Pg Down",state='normal')
+            c_nav.add_command(label = 'Go to previous crc group'   ,command = lambda : self.goto_next_prev_crc(-1), accelerator="Pg Up",state='normal')
+            c_nav.add_separator()
+            c_nav.add_command(label = 'Go to first crc group'       ,command = lambda : self.goto_first_last_crc(0),accelerator="Home",state='normal')
+            c_nav.add_command(label = 'Go to last crc group'   ,command = lambda : self.goto_first_last_crc(-1), accelerator="End",state='normal')
 
         else:
             dir_actions_state=('disabled','normal')[self.sel_kind==DIR]
@@ -1865,6 +1921,12 @@ class Gui:
             c_nav.add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark(self.folder_tree,-1,1), accelerator="Shift+Left",state='normal')
             c_nav.add_separator()
             c_nav.add_command(label = 'Go to parent directory'       ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state)
+            c_nav.add_separator()
+            c_nav.add_command(label = 'Go to next duplicate'       ,command = lambda : self.goto_next_prev_duplicate(1),accelerator="Pg Down",state='normal')
+            c_nav.add_command(label = 'Go to previous duplicate'   ,command = lambda : self.goto_next_prev_duplicate(-1), accelerator="Pg Up",state='normal')
+            c_nav.add_separator()
+            c_nav.add_command(label = 'Go to first entry'       ,command = lambda : self.goto_first_last_dir_entry(0),accelerator="Home",state='normal')
+            c_nav.add_command(label = 'Go to last entry'   ,command = lambda : self.goto_first_last_dir_entry(-1), accelerator="End",state='normal')
 
             #c_nav.add_separator()
             #c_nav.add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.goto_max_folder(1,1),accelerator="Backspace")
@@ -1903,7 +1965,6 @@ class Gui:
             final_info = self.empty_dirs_removal(res,True)
 
             self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info))
-            #,min_width=800
 
             self.tree_folder_update(self.sel_path_full)
 
@@ -2006,7 +2067,6 @@ class Gui:
 
         if not paths_to_scan_from_entry:
             self.info_dialog_on_scan.show('Error. No paths to scan.','Add paths to scan.')
-            #,min_width=400
             return False
 
         if res:=self.core.set_paths_to_scan(paths_to_scan_from_entry):
@@ -2093,12 +2153,10 @@ class Gui:
 
         if self.action_abort:
             self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
-            #,min_width=400
 
         return True
 
     def scan_dialog_show(self,do_scan=False):
-
         self.exclude_mask_update()
         self.paths_to_scan_update()
 
@@ -2184,8 +2242,10 @@ class Gui:
 
     def exclude_mask_add_dialog(self):
         self.exclude_dialog_on_scan.show('Specify Exclude expression','expression:','')
-        mask=self.exclude_dialog_on_scan.res_bool
-        if mask:
+        confirmed=self.exclude_dialog_on_scan.res_bool
+        mask=self.exclude_dialog_on_scan.res_str
+
+        if confirmed:
             orglist=self.cfg.get(CFG_KEY_EXCLUDE,'').split('|')
             orglist.append(mask)
             self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
@@ -2431,9 +2491,12 @@ class Gui:
         if not current_path:
             return False
 
-        (dir_ctime,scan_dir_res)=self.core.set_scan_dir(current_path)
+        scan_dir_tuple=self.core.set_scan_dir(current_path)
+        dir_ctime = scan_dir_tuple[0]
+        scan_dir_res = scan_dir_tuple[1]
 
         if not scan_dir_res:
+            self.status(scan_dir_tuple[2])
             return False
 
         do_refresh=True
@@ -2506,20 +2569,22 @@ class Gui:
                         instances_h=''
                         i+=1
                 else:
-                    logging.error('what is it: %s,%s,%s,%s ?',file,islink,isdir,isfile)
+                    self.status('?? %s' % file)
+                    logging.error('what is it: %s:%s,%s,%s,%s ?',current_path,file,islink,isdir,isfile)
 
-                    presort_id = non_dir_code
-                    text='????'
-                    iid='%sx' % i
-                    kind = '?'
-                    crc = ''
-                    size=0
-                    size_h=''
-                    ctime=0
-                    ctime_h=''
-                    instances=0
-                    instances_h=''
-                    i+=1
+                    continue
+                    #presort_id = non_dir_code
+                    #text='????'
+                    #id='%sx' % i
+                    #kind = '?'
+                    #crc = ''
+                    #size=0
+                    #size_h=''
+                    #ctime=0
+                    #ctime_h=''
+                    #instances=0
+                    #instances_h=''
+                    #i+=1
 
                 values = (file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h)
                 folder_items.append( (presort_id,text,iid,values) )
@@ -2668,7 +2733,6 @@ class Gui:
 
         if not sel_count :
             self.info_dialog_on_main.show('No files found for specified path',path_param)
-            #,min_width=400
         else:
             self.status(f'Subdirectory action. {sel_count} File(s) Found')
             self.update_marks_folder()
@@ -2695,8 +2759,6 @@ class Gui:
         self.mark_dialog_on_main.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
         use_reg_expr = self.mark_dialog_on_main.res_check
         expression = self.mark_dialog_on_main.res_str
-        #use_reg_expr,expression) =
-        #,min_width=400
 
         items=[]
         use_reg_expr_info = '(regular expression)' if use_reg_expr else ''
@@ -2716,7 +2778,6 @@ class Gui:
                                 items.append(item)
                         except Exception as e:
                             self.info_dialog_on_main.show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}')
-                            #,min_width=400
                             tree.focus_set()
                             return
             else:
@@ -2728,7 +2789,6 @@ class Gui:
                                 items.append(item)
                         except Exception as e:
                             self.info_dialog_on_main.show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}')
-                            #,min_width=400
                             tree.focus_set()
                             return
 
@@ -2764,7 +2824,6 @@ class Gui:
 
             else:
                 self.info_dialog_on_main.show('No files found.',f'expression:"{expression}"  {use_reg_expr_info}\n')
-                #,min_width=400
 
         tree.focus_set()
 
@@ -2993,7 +3052,6 @@ class Gui:
             for crc in processed_items:
                 if len(processed_items[crc])==1:
                     self.info_dialog_on_main.show('Error - Can\'t hardlink single file.',"Mark more files.")
-                    #,min_width=400
 
                     self.crc_select_and_focus(crc,True)
                     return True
@@ -3021,7 +3079,6 @@ class Gui:
                             show_all_delete_warning=True
                         else:
                             self.info_dialog_on_main.show('Error (Delete) - All files marked',"Keep at least one file unmarked.")
-                            #,min_width=400
 
                             self.crc_select_and_focus(crc,True)
                             return True
@@ -3035,7 +3092,6 @@ class Gui:
             for crc in processed_items:
                 if len(remaining_items[crc])==0:
                     self.info_dialog_on_main.show('Error (Softlink) - All files marked',"Keep at least one file unmarked.")
-                    #,min_width=400
 
                     self.crc_select_and_focus(crc,True)
                     return True
@@ -3053,7 +3109,6 @@ class Gui:
                     logging.error(title)
                     logging.error(message)
                     self.info_dialog_on_main.show(title,message)
-                    #,min_width=400
                     return True
 
         for crc in processed_items:
@@ -3202,7 +3257,6 @@ class Gui:
 
         if final_info:
             self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info))
-            #,min_width=400
 
     def get_this_or_existing_parent(self,path):
         if os.path.exists(path):
@@ -3238,7 +3292,6 @@ class Gui:
 
         if not processed_items:
             self.info_dialog_on_main.show('info','No files left for processing. Fix files selection.')
-            #,min_width=400
             return
 
         logging.warning('###########################################################################################')
