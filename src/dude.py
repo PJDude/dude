@@ -208,7 +208,7 @@ class Gui:
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status('%s:%s',func,e)
+                self.status('%s:%s' % (func,e) )
                 res=None
                 logging.error('%s:%s',func,e)
 
@@ -230,7 +230,7 @@ class Gui:
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status(str(func) + ':' + str(e))
+                self.status('%s:%s' % (func,e) )
                 res=None
                 logging.error('%s:%s',func,e)
 
@@ -634,14 +634,15 @@ class Gui:
         #scan dialog
 
         def pre_show(first_level_dialog=True):
+            self.hide_tooltip()
+            self.menubar_unpost()
+
             if first_level_dialog:
                 if not self.do_process_events:
                     return True
 
                 self.menu_disable()
                 self.menubar.config(cursor="watch")
-                self.hide_tooltip()
-                self.menubar_unpost()
 
             return False
 
@@ -1680,7 +1681,7 @@ class Gui:
 
         self.sel_item = item
         self.sel_item_of_tree[self.groups_tree]=item
-        #self.sel_tree_index=0
+        self.sel_tree_index=0
 
         size = int(self.groups_tree.set(item,'size'))
 
@@ -1710,7 +1711,7 @@ class Gui:
         self.sel_kind = self.folder_tree.set(item,'kind')
         self.sel_item = item
         self.sel_item_of_tree[self.folder_tree] = item
-        #self.sel_tree_index=1
+        self.sel_tree_index=1
 
         self.set_full_path_to_file()
 
@@ -2145,14 +2146,16 @@ class Gui:
         #############################
 
         self.crc_progress_dialog_end()
-        self.scan_dialog.widget.config(cursor="")
 
         self.groups_show()
 
-        self.scan_dialog.unlock()
-
         if self.action_abort:
             self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
+
+        self.scan_dialog.widget.config(cursor="")
+        #self.scan_dialog.widget.update()
+
+        self.scan_dialog.unlock()
 
         return True
 
