@@ -94,7 +94,7 @@ jobs:
 
     - name: version read
       id: version
-      run: echo "version=$(cat ./version.txt)" >> $GITHUB_OUTPUT
+      run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
     - name: pack linux
       run: |
