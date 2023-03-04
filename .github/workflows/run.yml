@@ -29,7 +29,7 @@ jobs:
 
     - name: generate version number
       working-directory: ./scripts
-      run: bash "version.gen.bat"
+      run: "version.gen.bat"
       shell: cmd
 
     - name: version upload
