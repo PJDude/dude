@@ -967,6 +967,8 @@ class Gui:
 
         if paths_to_add:
             for path in paths_to_add:
+                if windows and path[-1]==':':
+                    path += '\\'
                 self.path_to_scan_add(os.path.abspath(path))
 
         run_scan_condition = bool(paths_to_add and not norun)
@@ -2188,7 +2190,11 @@ class Gui:
             self.paths_to_scan_entry_var[row]=tk.StringVar(value=path)
             ttk.Entry(frame,textvariable=self.paths_to_scan_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
 
-            ttk.Button(frame,text='❌',command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3).pack(side='right',padx=2,pady=1,fill='y')
+            remove_path_button=ttk.Button(frame,text='❌',command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3)
+            remove_path_button.pack(side='right',padx=2,pady=1,fill='y')
+
+            remove_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove path from list.'))
+            remove_path_button.bind("<Leave>", lambda event : self.widget_leave())
 
             row+=1
 
@@ -2222,7 +2228,11 @@ class Gui:
                 self.exclude_entry_var[row]=tk.StringVar(value=entry)
                 ttk.Entry(frame,textvariable=self.exclude_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
 
-                ttk.Button(frame,text='❌',command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3).pack(side='right',padx=2,pady=1,fill='y')
+                remove_expression_button=ttk.Button(frame,text='❌',command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
+                remove_expression_button.pack(side='right',padx=2,pady=1,fill='y')
+
+                remove_expression_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove expression from list.'))
+                remove_expression_button.bind("<Leave>", lambda event : self.widget_leave())
 
                 row+=1
 
