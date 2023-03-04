@@ -1,4 +1,4 @@
-name: win_lin
+name: win_lin_release
 
 on:
   push:
@@ -7,72 +7,7 @@ on:
 permissions: read-all
 
 jobs:
-  set-version:
-    runs-on: ubuntu-20.04
-
-    steps:
-    - name: checkout
-      uses: actions/checkout@v3
-
-    - name: python setup
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
-        cache: 'pip'
-        check-latest: true
-  
-    - name: generate version number
-      working-directory: ./scripts
-      run: bash "version.gen.sh"
-
-    - name: version upload
-      uses: actions/upload-artifact@v3
-      with:
-        name: version
-        path: ./src/version.txt
-  
-  build-lin:
-    needs: [set-version]
-    runs-on: ubuntu-20.04
-
-    steps:
-    - name: checkout
-      uses: actions/checkout@v3
-
-    - name: python setup
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
-        cache: 'pip'
-        check-latest: true
-
-    - name: pip upgrade
-      run: python -m pip install --upgrade pip
-
-    - name: install requirements
-      run: pip install -r requirements.txt
-
-    - name: version download
-      uses: actions/download-artifact@v3
-      with:
-        name: version
-        path: ./src
-        
-    - name: strip python binaries
-      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
-    
-    - name: run nuitka
-      working-directory: ./scripts
-      run: bash "nuitka.run.sh"
-    
-    - name: upload binary
-      uses: actions/upload-artifact@v3
-      with:
-        name: dude-lin
-        path: dude
-        
-  build-win:
-    needs: [set-version]
+  win-gen-version-build:
     runs-on: windows-latest
 
     steps:
@@ -91,14 +26,17 @@ jobs:
 
     - name: install requirements
       run: pip install -r requirements.txt
-    
-    - name: version download
-      id: version
-      uses: actions/download-artifact@v3
+
+    - name: generate version number
+      working-directory: ./scripts
+      run: bash "version.gen.bat"
+
+    - name: version upload
+      uses: actions/upload-artifact@v3
       with:
         name: version
-        path: ./src
-    
+        path: ./src/version.txt
+
     - name: run nuitka
       working-directory: ./scripts
       run: "nuitka.run.bat"
@@ -112,39 +50,62 @@ jobs:
           dude.exe
           dudegui.exe
 
-  release:
+  build-lin-release:
     permissions: write-all
+    needs: [win-gen-version-build]
     runs-on: ubuntu-20.04
-    needs: [build-lin, build-win]
-    
+
     steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: python setup
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+        check-latest: true
+
+    - name: pip upgrade
+      run: python -m pip install --upgrade pip
+
+    - name: install requirements
+      run: pip install -r requirements.txt
+
     - name: version download
       uses: actions/download-artifact@v3
       with:
         name: version
-        path: ./
-    
+        path: ./src
+
+    - name: strip python binaries
+      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
+
+    - name: run nuitka
+      working-directory: ./scripts
+      run: bash "nuitka.run.sh"
+
+    - name: upload binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: dude-lin
+        path: dude
+
     - name: version read
       id: version
       run: echo "version=$(cat ./version.txt)" >> $GITHUB_OUTPUT
-
-    - name: download linux build
-      uses: actions/download-artifact@v3
-      with:
-        name: dude-lin
-        path: ./
 
     - name: pack linux
       run: |
         chmod 777 ./dude
         tar -czvf dude.lin.${{ steps.version.outputs.version }}.tgz dude
-      
+
     - name: download windows build
       uses: actions/download-artifact@v3
       with:
         name: dude-win
         path: ./
-    
+
     - name: pack windows
       run: zip dude.win.${{ steps.version.outputs.version }}.zip dude.exe dudegui.exe
 
@@ -160,4 +121,3 @@ jobs:
         files: |
             dude.lin.${{ steps.version.outputs.version }}.tgz
             dude.win.${{ steps.version.outputs.version }}.zip
-    
