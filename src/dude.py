@@ -3565,7 +3565,8 @@ if __name__ == "__main__":
 
         pathlib.Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
 
-        print('log:',log)
+        if not foreground_window:
+            print('log:',log)
 
         logging.basicConfig(level=LOG_LEVEL,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
 
