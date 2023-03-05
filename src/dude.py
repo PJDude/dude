@@ -208,9 +208,9 @@ class Gui:
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status('%s:%s' % (func,e) )
+                self.status('busy_cursor_wrapp:%s:%s' % (func,e) )
                 res=None
-                logging.error('%s:%s',func,e)
+                logging.error('busy_cursor_wrapp:%s:%s',func,e)
 
             #self.main.after_cancel(after)
 
@@ -230,9 +230,9 @@ class Gui:
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status('%s:%s' % (func,e) )
+                self.status('restore_status_line_wrapp:%s:%s' % (func,e) )
+                logging.error('restore_status_line_wrapp:%s:%s',func,e)
                 res=None
-                logging.error('%s:%s',func,e)
 
             self.status(prev)
             return res
@@ -1179,7 +1179,7 @@ class Gui:
     def exit(self):
         self.main_geometry_store()
         self.splitter_store()
-        sys.exit()
+        self.main.destroy()
 
     def main_geometry_store(self):
         self.cfg.set('main',str(self.main.geometry()),section='geometry')
@@ -2574,7 +2574,6 @@ class Gui:
                         text = crc if show_full_crc else crc_cut
                         iid=file_id
                         kind=FILE
-                        crc=''
                         size_h=core.bytes_to_str(size)
                         ctime_h=time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) )
                         instances_h=str(instances)
@@ -2593,18 +2592,6 @@ class Gui:
                     logging.error('what is it: %s:%s,%s,%s,%s ?',current_path,file,islink,isdir,isfile)
 
                     continue
-                    #presort_id = non_dir_code
-                    #text='????'
-                    #id='%sx' % i
-                    #kind = '?'
-                    #crc = ''
-                    #size=0
-                    #size_h=''
-                    #ctime=0
-                    #ctime_h=''
-                    #instances=0
-                    #instances_h=''
-                    #i+=1
 
                 values = (file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h)
                 folder_items.append( (presort_id,text,iid,values) )
@@ -3140,13 +3127,13 @@ class Gui:
                     logging.error(message)
                     self.info_dialog_on_main.show(title,message)
                     return True
-
         for crc in processed_items:
             for item in remaining_items[crc]:
                 if res:=self.file_check_state(item):
                     self.info_dialog_on_main.show('Error',res+'\n\nNo action was taken.\n\nAborting. Repeat scanning please or unmark all files and groups affected by other programs.')
                     logging.error('aborting.')
                     return True
+
         logging.info('remaining files checking complete.')
         return False
 
@@ -3565,8 +3552,7 @@ if __name__ == "__main__":
 
         pathlib.Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
 
-        if not foreground_window:
-            print('log:',log)
+        print('log:',log)
 
         logging.basicConfig(level=LOG_LEVEL,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
 
@@ -3577,7 +3563,6 @@ if __name__ == "__main__":
         Gui(os.getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun)
 
         if foreground_window:
-            #experimental
             win32gui.ShowWindow(foreground_window, win32con.SW_SHOWDEFAULT)
             win32gui.ShowWindow(foreground_window, win32con.SW_RESTORE)
             win32gui.ShowWindow(foreground_window, win32con.SW_SHOW)
