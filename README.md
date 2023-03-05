@@ -74,5 +74,3 @@ pip install -r requirements.txt
 pip install appdirs
 python ./src/dude.py
 ```
-###### Stage of development
-Dude is in the working, pre-release stage.
