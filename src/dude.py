@@ -1767,7 +1767,9 @@ class Gui:
 
         pop.delete(0,'end')
 
-        file_actions_state=('disabled',item_actions_state)[self.sel_kind==FILE]
+        duplicate_file_actions_state=('disabled',item_actions_state)[self.sel_kind==FILE]
+        file_actions_state=('disabled',item_actions_state)[self.sel_kind in (FILE,SINGLE,SINGLEHARDLINKED) ]
+        file_or_dir_actions_state=('disabled',item_actions_state)[self.sel_kind in (FILE,SINGLE,SINGLEHARDLINKED,DIR,UPDIR) ]
 
         parent_dir_state = ('disabled','normal')[self.two_dots_condition() and self.sel_kind!=CRC]
 
@@ -1881,10 +1883,10 @@ class Gui:
             dir_actions_state=('disabled','normal')[self.sel_kind==DIR]
 
             c_local = Menu(pop,tearoff=0,bg=self.bg_color)
-            c_local.add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space",state=file_actions_state)
+            c_local.add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space",state=duplicate_file_actions_state)
             c_local.add_separator()
-            c_local.add_command(label = "Mark all files",        command = lambda : self.mark_in_folder(self.set_mark),accelerator="A",state=file_actions_state)
-            c_local.add_command(label = "Unmark all files",        command = lambda : self.mark_in_folder(self.unset_mark),accelerator="N",state=file_actions_state)
+            c_local.add_command(label = "Mark all files",        command = lambda : self.mark_in_folder(self.set_mark),accelerator="A",state=duplicate_file_actions_state)
+            c_local.add_command(label = "Unmark all files",        command = lambda : self.mark_in_folder(self.unset_mark),accelerator="N",state=duplicate_file_actions_state)
             c_local.add_separator()
             c_local.add_command(label = 'Mark By expression',command = lambda : self.mark_expression(self.set_mark,'Mark files'),accelerator="+")
             c_local.add_command(label = 'Unmark By expression',command = lambda : self.mark_expression(self.unset_mark,'Unmark files'),accelerator="-")
@@ -1947,7 +1949,7 @@ class Gui:
 
         pop.add_separator()
         pop.add_command(label = 'Open File',command = self.open_file,accelerator="Return",state=file_actions_state)
-        pop.add_command(label = 'Open Folder',command = self.open_folder,state=file_actions_state)
+        pop.add_command(label = 'Open Folder',command = self.open_folder,state=file_or_dir_actions_state)
 
         pop.add_separator()
         pop.add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S')
