@@ -25,6 +25,8 @@ GUI utility for finding duplicated files, delete or link them to save space.
 
 ## Download page:
 
+The portable executable for Linux and Windows can be downloaded from "Releases":
+
 https://pjdude.github.io/dude/
 
 ## General usage:
