@@ -60,6 +60,8 @@ def parse_args(ver):
     parser.add_argument('-l','--log' ,nargs='?'                     ,help='specify log file')
     parser.add_argument('-d','--debug' ,action='store_true'         ,help='set debug logging level')
 
+    if os.name=='nt':
+        parser.add_argument('-nh','--nohide' ,action='store_true'         ,help='don\'t hide console window ')
 
     parser_help=parser.format_help().split('\n')
     help_parts=[parser_help[0]] + parser_help[7::]
@@ -100,6 +102,7 @@ if __name__ == "__main__":
     if os.path.exists(GUI_MAIN_WIN_APP_NAME):
         try:
             Popen(command,stdin=DEVNULL,stdout=DEVNULL,stderr=DEVNULL)
+            #, shell=False
             #dont wait with open console for main process
             os.kill(os.getppid(),signal.SIGTERM)
         except Exception as e_gui:

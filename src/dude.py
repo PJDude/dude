@@ -792,7 +792,15 @@ class Gui:
         self.text_ask_dialog = dialogs.TextDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.mark_dialog_on_main = dialogs.CheckboxEntryDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+
+        #self.mark_dialog_on_main = dialogs.CheckboxEntryDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self.groups_tree,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.mark_dialog_on_folder = dialogs.CheckboxEntryDialogQuestion(self.folder_tree,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+
+        self.info_dialog_on_mark={}
+
+        self.info_dialog_on_mark[0] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=post_close)
+        self.info_dialog_on_mark[1] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=post_close)
 
         #self.find_dialog_on_main = dialogs.FindEntryDialog(self.main,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
 
@@ -1206,7 +1214,6 @@ class Gui:
             self.find_dialog_on_folder.show('Find',scope_info,initial=initialvalue,checkbutton_text='Use regular expressions matching',checkbutton_initial=False)
             self.find_by_tree[tree]=self.find_dialog_on_folder.entry.get()
 
-
         self.find_dialog_shown=False
 
         self.from_tab_switch=True
@@ -1302,12 +1309,13 @@ class Gui:
             self.find_result_index+=mod
             next_item=self.find_result[self.find_result_index%items_len]
 
+            self.find_tree.focus(next_item)
+
             if self.find_dialog_shown:
                 #focus is still on find dialog
                 self.find_tree.selection_set(next_item)
             else:
                 self.find_tree.focus_set()
-                self.find_tree.focus(next_item)
 
             self.find_tree.see(next_item)
             self.find_tree.update()
@@ -1616,7 +1624,6 @@ class Gui:
 
         tree.configure(style='semi_focus.Treeview')
         self.other_tree[tree].configure(style='default.Treeview')
-
 
         item=None
 
@@ -2769,9 +2776,18 @@ class Gui:
             range_str = ''
             title='Specify expression for file names in selected directory.'
 
-        self.mark_dialog_on_main.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
-        use_reg_expr = self.mark_dialog_on_main.res_check
-        expression = self.mark_dialog_on_main.res_str
+        #self.mark_dialog_on_main.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
+        #use_reg_expr = self.mark_dialog_on_main.res_check
+        #expression = self.mark_dialog_on_main.res_str
+
+        if tree==self.groups_tree:
+            self.mark_dialog_on_groups.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
+            use_reg_expr = self.mark_dialog_on_groups.res_check
+            expression = self.mark_dialog_on_groups.res_str
+        else:
+            self.mark_dialog_on_folder.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
+            use_reg_expr = self.mark_dialog_on_folder.res_check
+            expression = self.mark_dialog_on_folder.res_str
 
         items=[]
         use_reg_expr_info = '(regular expression)' if use_reg_expr else ''
@@ -2836,7 +2852,8 @@ class Gui:
                 self.main.update()
 
             else:
-                self.info_dialog_on_main.show('No files found.',f'expression:"{expression}"  {use_reg_expr_info}\n')
+                #self.info_dialog_on_main
+                self.info_dialog_on_mark[self.sel_tree_index].show('No files found.',f'expression:"{expression}"  {use_reg_expr_info}\n')
 
         tree.focus_set()
 
@@ -3522,6 +3539,10 @@ class Gui:
         else:
             os.system("xdg-open " + HOMEPAGE)
 
+if windows:
+    import win32gui
+    import win32con
+
 if __name__ == "__main__":
     try:
         #######################################################################
@@ -3529,9 +3550,15 @@ if __name__ == "__main__":
 
         VER_TIMESTAMP = console.get_ver_timestamp()
 
+        CURRENT_EXECUTABLE = os.path.abspath(sys.argv[0])
         DUDE_FILE = os.path.normpath(__file__)
 
         p_args = console.parse_args(VER_TIMESTAMP)
+
+        foreground_window := win32gui.GetForegroundWindow() if windows and not p_args.nohide else None:
+
+        if foreground_window:
+            win32gui.ShowWindow(foreground_window, win32con.SW_HIDE)
 
         log=os.path.abspath(p_args.log) if p_args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.txt'
         LOG_LEVEL = logging.DEBUG if p_args.debug else logging.INFO
@@ -3547,6 +3574,12 @@ if __name__ == "__main__":
         logging.debug('DEBUG LEVEL')
 
         Gui(os.getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun)
+
+        if foreground_window:
+            #experimental
+            win32gui.ShowWindow(foreground_window, win32con.SW_SHOWDEFAULT)
+            win32gui.ShowWindow(foreground_window, win32con.SW_RESTORE)
+            win32gui.ShowWindow(foreground_window, win32con.SW_SHOW)
 
     except Exception as e_main:
         print(e_main)

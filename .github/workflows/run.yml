@@ -49,7 +49,6 @@ jobs:
         name: dude-win
         path: |
           dude.exe
-          dudegui.exe
 
   build-lin-release:
     permissions: write-all
@@ -108,7 +107,7 @@ jobs:
         path: ./
 
     - name: pack windows
-      run: zip dude.win.${{ steps.version.outputs.version }}.zip dude.exe dudegui.exe
+      run: zip dude.win.${{ steps.version.outputs.version }}.zip dude.exe
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
