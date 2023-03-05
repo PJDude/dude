@@ -3555,7 +3555,7 @@ if __name__ == "__main__":
 
         p_args = console.parse_args(VER_TIMESTAMP)
 
-        foreground_window = win32gui.GetForegroundWindow() if windows and not p_args.nohide else None:
+        foreground_window = win32gui.GetForegroundWindow() if windows and not p_args.nohide else None
 
         if foreground_window:
             win32gui.ShowWindow(foreground_window, win32con.SW_HIDE)
