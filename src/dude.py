@@ -104,10 +104,11 @@ cfg_defaults={
 MARK='M'
 UPDIR='0'
 DIR='1'
-LINK='2'
-FILE='3'
-SINGLE='4'
-SINGLEHARDLINKED='5'
+DIRLINK='2'
+LINK='3'
+FILE='4'
+SINGLE='5'
+SINGLEHARDLINKED='6'
 CRC='C'
 
 DELETE=0
@@ -115,6 +116,10 @@ SOFTLINK=1
 HARDLINK=2
 
 HOMEPAGE='https://github.com/PJDude/dude'
+
+FOLDER_LINK = '⇦'
+FILE_LINK_LEFT = '🠔'
+FILE_LINK_RIGHT = '🠖'
 
 class Config:
     def __init__(self,config_dir):
@@ -589,6 +594,7 @@ class Gui:
 
         self.folder_tree.tag_configure(SINGLE, foreground='gray')
         self.folder_tree.tag_configure(DIR, foreground='blue2')
+        self.folder_tree.tag_configure(DIRLINK, foreground='blue2')
         self.folder_tree.tag_configure(LINK, foreground='darkgray')
 
         #bind_class breaks columns resizing
@@ -1098,12 +1104,18 @@ class Gui:
                 #pathnrstr=tree.set(item,'pathnr')
 
                 coldata=''
+                kind=tree.set(item,self.kind_index)
+                if kind==LINK:
+                    coldata='(soft-link)'
+                elif kind==DIRLINK:
+                    coldata='(directory soft-link)'
 
                 if col=="#0" :
-                    coldata=''
+                    pass
                 elif col:
-                    coldata=tree.set(item,col)
+                    coldata = coldata + ' ' + tree.set(item,col)
 
+                #islink
                 #if pathnrstr:
                 #    pathnr=int(pathnrstr)
                 #    path=tree.set(item,'path')
@@ -1462,12 +1474,12 @@ class Gui:
                     if self.sel_tree_index==0:
                         self.process_files_in_groups_wrapper(DELETE,ctrl_pressed)
                     else:
-                        self.process_files_in_folder_wrapper(DELETE,self.sel_kind==DIR)
+                        self.process_files_in_folder_wrapper(DELETE,self.sel_kind in (DIR,DIRLINK))
                 elif event.keysym == "Insert":
                     if self.sel_tree_index==0:
                         self.process_files_in_groups_wrapper((SOFTLINK,HARDLINK)[shift_pressed],ctrl_pressed)
                     else:
-                        self.process_files_in_folder_wrapper((SOFTLINK,HARDLINK)[shift_pressed],self.sel_kind==DIR)
+                        self.process_files_in_folder_wrapper((SOFTLINK,HARDLINK)[shift_pressed],self.sel_kind in (DIR,DIRLINK))
                 elif event.keysym=='F5':
                     self.goto_max_folder(0,-1 if shift_pressed else 1)
                 elif event.keysym=='F6':
@@ -1730,12 +1742,12 @@ class Gui:
             self.groups_tree_update(item)
         else:
             if kind==LINK:
-                if change_status_line: self.status('  🠖  ' + os.readlink(self.sel_full_path_to_file))
+                if change_status_line: self.status('  %s  %s' % (FILE_LINK_RIGHT,os.readlink(self.sel_full_path_to_file)) )
             elif kind==SINGLEHARDLINKED:
                 if change_status_line: self.status('File with hardlinks')
             elif kind==SINGLE:
                 if change_status_line: self.status('')
-            elif kind==DIR:
+            elif kind in (DIR,DIRLINK):
                 if change_status_line: self.status('Subdirectory')
             elif kind==UPDIR:
                 if change_status_line: self.status('Parent directory')
@@ -1769,7 +1781,7 @@ class Gui:
 
         duplicate_file_actions_state=('disabled',item_actions_state)[self.sel_kind==FILE]
         file_actions_state=('disabled',item_actions_state)[self.sel_kind in (FILE,SINGLE,SINGLEHARDLINKED) ]
-        file_or_dir_actions_state=('disabled',item_actions_state)[self.sel_kind in (FILE,SINGLE,SINGLEHARDLINKED,DIR,UPDIR) ]
+        file_or_dir_actions_state=('disabled',item_actions_state)[self.sel_kind in (FILE,SINGLE,SINGLEHARDLINKED,DIR,DIRLINK,UPDIR) ]
 
         parent_dir_state = ('disabled','normal')[self.two_dots_condition() and self.sel_kind!=CRC]
 
@@ -1880,7 +1892,7 @@ class Gui:
             c_nav.add_command(label = 'Go to last crc group'   ,command = lambda : self.goto_first_last_crc(-1), accelerator="End",state='normal')
 
         else:
-            dir_actions_state=('disabled','normal')[self.sel_kind==DIR]
+            dir_actions_state=('disabled','normal')[self.sel_kind in (DIR,DIRLINK)]
 
             c_local = Menu(pop,tearoff=0,bg=self.bg_color)
             c_local.add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space",state=duplicate_file_actions_state)
@@ -2011,7 +2023,7 @@ class Gui:
 
             if lower_tree:
                 kind = tree.set(item,'kind')
-                code=updir_code if kind==UPDIR else dir_code if kind==DIR else non_dir_code
+                code=updir_code if kind==UPDIR else dir_code if kind in (DIR,DIRLINK) else non_dir_code
                 tlist.append( ( (code,sortval),item) )
             else:
                 tlist.append( (sortval,item) )
@@ -2537,18 +2549,18 @@ class Gui:
             i=0
             sort_val_func = float if is_numeric else lambda x : x
 
-            for file,islink,isdir,isfile,mtime,ctime,dev,inode,size,nlink in scan_dir_res:
+            for file,islink,isdir,isfile,mtime,ctime_num,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
                     presort_id = dir_code if isdir else non_dir_code
-                    text = '\t📁 ⇦' if isdir else '\t  ⇦'
+                    text = '\t📁 %s' % FOLDER_LINK if isdir else '\t  %s' % FILE_LINK_LEFT
                     iid=('%sDL' % i) if isdir else ('%sFL' % i)
-                    kind= DIR if isdir else LINK
+                    kind= DIRLINK if isdir else LINK
                     crc=''
-                    size=0
+                    size='0'
                     size_h=''
-                    ctime=0
+                    ctime='0'
                     ctime_h=''
-                    instances=1
+                    instances='1'
                     instances_h=''
                     i+=1
 
@@ -2558,11 +2570,11 @@ class Gui:
                     iid='%sD' % i
                     kind= DIR
                     crc=''
-                    size=0
+                    size='0'
                     size_h=''
-                    ctime=0
+                    ctime='0'
                     ctime_h=''
-                    instances=1
+                    instances='1'
                     instances_h=''
                     i+=1
 
@@ -2570,27 +2582,29 @@ class Gui:
                     presort_id = non_dir_code
                     file_id=self.idfunc(inode,dev)
 
-                    if (file_id,ctime) in self.cache_by_id_ctime:
-                        crc,crc_cut,instances = self.cache_by_id_ctime[(file_id,ctime)]
+                    ctime=str(ctime_num)
+                    ctime_h=time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime_num) )
+
+                    size=str(size_num)
+                    size_h=core.bytes_to_str(size_num)
+
+                    if (file_id,ctime_num) in self.cache_by_id_ctime:
+                        crc,crc_cut,instances_num = self.cache_by_id_ctime[(file_id,ctime_num)]
 
                         text = crc if show_full_crc else crc_cut
                         iid=file_id
                         kind=FILE
-                        size_h=core.bytes_to_str(size)
-                        ctime_h=time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) )
-                        instances_h=str(instances)
+                        instances_h=instances=str(instances_num)
                     else:
-                        text = '\t ✹' if nlink!=1 else ''
+                        text = '\t ✹(%s)' % nlink if nlink!=1 else ''
                         iid='%sO' % i
                         crc=''
                         kind = SINGLEHARDLINKED if nlink!=1 else SINGLE
-                        size_h=core.bytes_to_str(size)
-                        ctime_h=time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime) )
-                        instances=1
+
+                        instances='1'
                         instances_h=''
                         i+=1
                 else:
-                    self.status('?? %s' % file)
                     logging.error('what is it: %s:%s,%s,%s,%s ?',current_path,file,islink,isdir,isfile)
 
                     continue
@@ -2605,9 +2619,8 @@ class Gui:
                         (\
                             text,\
                             iid,\
-                            (file,str(dev),str(inode),kind,crc,str(size),size_h,str(ctime),ctime_h,str(instances),instances_h),\
-                            kind,\
-                            SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR) else LINK if kind==LINK else ""\
+                            (file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h),\
+                            SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR,DIRLINK) else LINK if kind==LINK else "" \
                         ) \
                for presort_id,text,iid,(file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h) in sorted(folder_items,key=lambda x : (x[0],sort_val_func(x[3][sort_index_local]) ),reverse=reverse)] ) )
 
@@ -2624,13 +2637,7 @@ class Gui:
             #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
             self.folder_tree.insert(parent="", index='end', iid='0UP' , text='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
 
-        for (text,iid,values,kind,defaulttag) in self.folder_items_cache[current_path][1]:
-            try:
-                kind=values[self.kind_index]
-                self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if kind==FILE else defaulttag)
-            except Exception as e:
-                print(f'{iid=}')
-                print(e)
+        _ = {self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if values[self.kind_index]==FILE else defaulttag) for (text,iid,values,defaulttag) in self.folder_items_cache[current_path][1]}
 
         self.folder_tree_flat_items_list=self.folder_tree.get_children()
 
@@ -3161,7 +3168,7 @@ class Gui:
                 if remaining_items[crc]:
                     item = remaining_items[crc][0]
                     if self.cfg.get_bool(CFG_CONFIRM_SHOW_LINKSTARGETS):
-                        message.append('🠖 ' + (self.item_full_path(item) if show_full_path else self.groups_tree.set(item,'file')) )
+                        message.append('%s %s' % (FILE_LINK_RIGHT,(self.item_full_path(item) if show_full_path else self.groups_tree.set(item,'file'))) )
 
         if action==DELETE:
             self.text_ask_dialog.show('Delete marked files ?','Scope - ' + scope_title +'\n'+'\n'.join(message))
@@ -3484,7 +3491,7 @@ class Gui:
         if tree.set(item,'kind') == UPDIR:
             head,tail=os.path.split(self.sel_path_full)
             self.enter_dir(os.path.normpath(str(pathlib.Path(self.sel_path_full).parent.absolute())),tail)
-        elif tree.set(item,'kind') == DIR:
+        elif tree.set(item,'kind') in (DIR,DIRLINK):
             self.enter_dir(self.sel_path_full+self.folder_tree.set(item,'file') if self.sel_path_full=='/' else os.sep.join([self.sel_path_full,self.folder_tree.set(item,'file')]),'..' )
         elif tree.set(item,'kind')!=CRC:
             self.open_file()
@@ -3507,7 +3514,7 @@ class Gui:
                 os.startfile(os.sep.join([self.sel_path_full,self.sel_file]))
             else:
                 os.system("xdg-open "+ '"' + os.sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
-        elif self.sel_kind==DIR:
+        elif self.sel_kind in (DIR,DIRLINK):
             self.open_folder()
 
     def show_log(self):
