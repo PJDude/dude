@@ -71,6 +71,8 @@ pip install -r requirements.txt
 ```
 ###### Manual running of python script:
 ```
+pip install pywin32 ; #windows only
 pip install appdirs
+
 python ./src/dude.py
 ```
