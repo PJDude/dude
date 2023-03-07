@@ -48,34 +48,31 @@ MAX_THREADS = os.cpu_count()
 OPENED_FILES_PER_DEV_LIMIT=32
 
 def bytes_to_str(num,digits=2):
-    kb=num/k
 
-    if kb<k:
-        string=str(round(kb,digits))
-        if string[0:digits+1]=='0.00'[0:digits+1]:
-            return str(num)+'B'
-
-        return str(round(kb,digits))+'kB'
+    if num<512:
+        return '%sB' % num
+    if (kb:=num/k)<k:
+        return '%skB' % round(kb,digits)
     if kb<M:
-        return str(round(kb/k,digits))+'MB'
+        return '%sMB' % round(kb/k,digits)
     if kb<G:
-        return str(round(kb/M,digits))+'GB'
+        return '%sGB' % round(kb/M,digits)
 
-    return str(round(kb/G,digits))+'TB'
+    return '%sTB' % round(kb/G,digits)
 
 class DudeCore:
     scan_results_by_size=defaultdict(set)
     files_of_size_of_crc=defaultdict(lambda : defaultdict(set))
 
     sim_size=0
-    devs=[]
+    devs=()
     info=''
     windows=False
 
     def reset(self):
         self.scan_results_by_size=defaultdict(set)
         self.files_of_size_of_crc=defaultdict(lambda : defaultdict(set))
-        self.devs.clear()
+        self.devs=()
         self.crc_cut_len=40
         self.crc_cut={}
         self.scanned_paths=[]
@@ -176,10 +173,10 @@ class DudeCore:
                             try:
                                 stat = os.stat(os.path.join(path,name))
 
-                                mtime=round(stat.st_mtime)
-                                ctime=round(stat.st_ctime)
-                                dev=stat.st_dev
-                                inode=stat.st_ino
+                                mtime=str(round(stat.st_mtime))
+                                ctime=str(round(stat.st_ctime))
+                                dev=str(stat.st_dev)
+                                inode=str(stat.st_ino)
                                 size=stat.st_size
                                 nlink=stat.st_nlink
 
@@ -275,7 +272,7 @@ class DudeCore:
             self.reset()
             return False
 
-        self.devs=list({dev for size,data in self.scan_results_by_size.items() for pathnr,path,file_name,mtime,ctime,dev,inode in data})
+        self.devs=tuple(list({dev for size,data in self.scan_results_by_size.items() for pathnr,path,file_name,mtime,ctime,dev,inode in data}))
 
         ######################################################################
         #inodes collision detection
@@ -313,13 +310,13 @@ class DudeCore:
             self.crc_cache[dev]={}
             try:
                 self.log.debug('reading cache:%s:device:%s',self.cache_dir,dev)
-                with open(os.sep.join([self.cache_dir,str(dev)]),'r',encoding='ASCII' ) as cfile:
+                with open(os.sep.join([self.cache_dir,dev]),'r',encoding='ASCII' ) as cfile:
                     while line:=cfile.readline() :
                         inode,mtime,crc = line.rstrip('\n').split(' ')
                         if crc is None or crc=='None' or crc=='':
                             self.log.warning("crc_cache read error:%s,%s,%s",inode,mtime,crc)
                         else:
-                            self.crc_cache[dev][(int(inode),int(mtime))]=crc
+                            self.crc_cache[dev][(inode,mtime)]=crc
 
             except Exception as e:
                 self.log.warning(e)

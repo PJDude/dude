@@ -213,9 +213,9 @@ class Gui:
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status('busy_cursor_wrapp:%s:%s' % (func,e) )
+                self.status('busy_cursor_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
+                logging.error('busy_cursor_wrapp:%s:%s:args:%s:kwargs: %s',func,e,args,kwargs)
                 res=None
-                logging.error('busy_cursor_wrapp:%s:%s',func,e)
 
             #self.main.after_cancel(after)
 
@@ -235,8 +235,8 @@ class Gui:
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status('restore_status_line_wrapp:%s:%s' % (func,e) )
-                logging.error('restore_status_line_wrapp:%s:%s',func,e)
+                self.status('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
+                logging.error('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s',func,e,args,kwargs)
                 res=None
 
             self.status(prev)
@@ -1183,10 +1183,16 @@ class Gui:
         self.sel_kind = None
 
     def get_index_tuple_groups_tree(self,item):
-        #'pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','ctime_h','kind' ->
         #pathnr,path,file,ctime,dev,inode
 
-        return tuple([ fn(self.groups_tree.item(item)['values'][index]) for fn,index in ((int,0),(lambda x : x,1),(lambda x : x,2),(int,5),(int,6),(int,7)) ])
+        pathnr=int(self.groups_tree.set(item,'pathnr'))
+        path=self.groups_tree.set(item,'path')
+        file=self.groups_tree.set(item,'file')
+        ctime=self.groups_tree.set(item,'ctime')
+        dev=self.groups_tree.set(item,'dev')
+        inode=self.groups_tree.set(item,'inode')
+
+        return (pathnr,path,file,ctime,dev,inode)
 
     def exit(self):
         self.main_geometry_store()
@@ -1402,6 +1408,8 @@ class Gui:
         self.main.unbind_class('Treeview','<KeyPress>')
         self.hide_tooltip()
         self.menubar_unpost()
+        self.popup_groups.unpost()
+        self.popup_folder.unpost()
 
         try:
             tree=event.widget
@@ -1648,6 +1656,9 @@ class Gui:
 
             if not item:
                 item=tree.focus()
+
+            #if not item:
+            #    item = self.tree_groups_flat_items[0]
 
             if item:
                 tree.focus(item)
@@ -2045,7 +2056,7 @@ class Gui:
         self.column_sort_set_arrow(tree)
 
         if tree==self.groups_tree:
-            if colname in ('path','file'):
+            if colname in ('path','file','ctime_h'):
                 for crc in tree.get_children():
                     self.tree_sort_item(tree,crc,False)
             else:
@@ -2446,23 +2457,24 @@ class Gui:
 
         sizes_counter=0
         for size,size_dict in self.core.files_of_size_of_crc.items() :
-            size_str = core.bytes_to_str(size)
+            size_h = core.bytes_to_str(size)
+            size_str = str(size)
             if not sizes_counter%64:
-                self.status('Rendering data... (%s)' % size_str)
+                self.status('Rendering data... (%s)' % size_h)
 
             sizes_counter+=1
             for crc,crc_dict in size_dict.items():
                 #self.groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
-                instances=len(crc_dict)
-                crcitem=self.groups_tree.insert(parent='', index='end',iid=crc, values=('','','',str(size),size_str,'','','',crc,instances,str(instances),'',CRC),tags=CRC,open=True)
+                instances_str=str(len(crc_dict))
+                crcitem=self.groups_tree.insert(parent='', index='end',iid=crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',CRC),tags=CRC,open=True)
 
                 for pathnr,path,file,ctime,dev,inode in crc_dict:
                     self.groups_tree.insert(parent=crcitem, index='end',iid=self.idfunc(inode,dev), values=(\
-                            pathnr,path,file,str(size),\
+                            pathnr,path,file,size_str,\
                             '',\
-                            str(ctime),str(dev),str(inode),crc,\
+                            ctime,dev,inode,crc,\
                             '','',\
-                            time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime)) ,FILE),tags=())
+                            time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(int(ctime))) ,FILE),tags=())
         self.data_precalc()
 
         if self.column_sort_last_params[self.groups_tree]!=self.column_groups_sort_params_default:
@@ -2549,7 +2561,7 @@ class Gui:
             i=0
             sort_val_func = float if is_numeric else lambda x : x
 
-            for file,islink,isdir,isfile,mtime,ctime_num,dev,inode,size_num,nlink in scan_dir_res:
+            for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
                     presort_id = dir_code if isdir else non_dir_code
                     text = '\t📁 %s' % FOLDER_LINK if isdir else '\t  %s' % FILE_LINK_LEFT
@@ -2582,14 +2594,13 @@ class Gui:
                     presort_id = non_dir_code
                     file_id=self.idfunc(inode,dev)
 
-                    ctime=str(ctime_num)
-                    ctime_h=time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(ctime_num) )
+                    ctime_h=time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(int(ctime)) )
 
                     size=str(size_num)
                     size_h=core.bytes_to_str(size_num)
 
-                    if (file_id,ctime_num) in self.cache_by_id_ctime:
-                        crc,crc_cut,instances_num = self.cache_by_id_ctime[(file_id,ctime_num)]
+                    if (file_id,ctime) in self.cache_by_id_ctime:
+                        crc,crc_cut,instances_num = self.cache_by_id_ctime[(file_id,ctime)]
 
                         text = crc if show_full_crc else crc_cut
                         iid=file_id
@@ -3129,7 +3140,7 @@ class Gui:
 
         if action==HARDLINK:
             for crc in processed_items:
-                if len({int(self.groups_tree.set(item,'dev')) for item in processed_items[crc]})>1:
+                if len({self.groups_tree.set(item,'dev') for item in processed_items[crc]})>1:
                     title='Can\'t create hardlinks.'
                     message=f"Files on multiple devices selected. Crc:{crc}"
                     logging.error(title)
@@ -3335,14 +3346,11 @@ class Gui:
         #action
 
         if tree==self.groups_tree:
-            #orglist=self.groups_tree.get_children()
             orglist=self.tree_groups_flat_items
         else:
             org_sel_item=self.sel_item
             orglist=self.folder_tree.get_children()
-            #orglistNames=[self.folder_tree.item(item)['values'][2] for item in self.folder_tree.get_children()]
-            org_sel_item_name=self.folder_tree.item(org_sel_item)['values'][2]
-            #print(orglistNames)
+            org_sel_file=self.folder_tree.set(org_sel_item,'file')
 
         #############################################
         self.process_files_core(action,processed_items,remaining_items)
@@ -3366,7 +3374,10 @@ class Gui:
             if self.tree_folder_update(parent):
                 newlist=self.folder_tree.get_children()
 
-                item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_item_name,newlist)
+                item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_file,newlist)
+
+                self.from_tab_switch=True
+                self.folder_tree.focus_set()
 
                 if item_to_sel:
                     self.folder_tree.focus(item_to_sel)
@@ -3387,7 +3398,7 @@ class Gui:
         if not new_list:
             return None
 
-        new_list_names=[self.folder_tree.item(item)['values'][2] for item in self.folder_tree.get_children()]
+        new_list_names=[self.folder_tree.set(item,'file') for item in self.folder_tree.get_children()]
 
         if item_name in new_list_names:
             return new_list[new_list_names.index(item_name)]
