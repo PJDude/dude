@@ -169,7 +169,14 @@ class DudeCore:
                         is_dir=entry.is_dir()
                         is_file=entry.is_file()
 
-                        if not is_link:
+                        if is_link:
+                            mtime=None
+                            ctime=None
+                            dev=None
+                            inode=None
+                            size=None
+                            nlink=None
+                        else:
                             try:
                                 stat = os.stat(os.path.join(path,name))
 
@@ -183,13 +190,6 @@ class DudeCore:
                             except Exception as e:
                                 self.log.error('scandir(stat): %s is_link:%s is_dir:%s',e,is_link,is_dir )
                                 continue
-                        else:
-                            mtime=None
-                            ctime=None
-                            dev=None
-                            inode=None
-                            size=None
-                            nlink=None
 
                         reslist.append( (name,is_link,is_dir,is_file,mtime,ctime,dev,inode,size,nlink) )
 
@@ -224,7 +224,7 @@ class DudeCore:
 
             while loop_list:
                 try:
-                    path,path_ctime = loop_list.pop(0)
+                    path,path_ctime = loop_list.pop()
                     for file_name,is_link,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self.set_scan_dir(path,path_ctime)[1]:
 
                         fullpath=os.path.join(path,file_name)
@@ -242,7 +242,7 @@ class DudeCore:
                                     if nlink!=1:
                                         self.log.debug('scan skipp - hardlinks %s - %s,%s,%s',nlink,path_nr,path,file_name)
                                     else:
-                                        if size>0:
+                                        if size:
                                             self.info_size_sum+=size
 
                                             subpath=path.replace(path_to_scan,'')
