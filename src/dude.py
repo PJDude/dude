@@ -424,12 +424,14 @@ class Gui:
         style.configure("Treeview",rowheight=18)
 
         bg_focus='#90DD90'
+        bg_focus_off='#90AA90'
         bg_sel='#AAAAAA'
 
         #style.map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_color)])
         style.map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
 
         style.map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus),('','white')])
+        style.map('semi_focus_off.Treeview', background=[('focus',bg_focus_off),('selected',bg_focus_off),('','white')])
         style.map('default.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
 
         #works but not for every theme
@@ -537,6 +539,8 @@ class Gui:
         self.groups_tree.heading('instances_h',anchor=tk.W)
 
         self.groups_tree.heading('size_h', text='Size \u25BC')
+
+        self.tree_with_focus=self.groups_tree
 
         #bind_class breaks columns resizing
         self.groups_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
@@ -696,6 +700,10 @@ class Gui:
         self.exclude_frame.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
         self.add_exclude_button = ttk.Button(self.exclude_frame,width=18,text="Add Exclude Mask ...",command=self.exclude_mask_add_dialog,underline=4)
+        tooltip_string = 'during the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expressions)\nor .*windows.*, etc. (with regular expressions)' if windows else '*.git* etc. (without regular expressions)\nor .*\\.git.* etc. (with regular expressions)')
+        self.add_exclude_button.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip_string))
+        self.add_exclude_button.bind("<Leave>", lambda event : self.widget_leave())
+
         self.add_exclude_button.grid(column=0, row=100,pady=4,padx=4)
 
         self.clear_excludes_list_button=ttk.Button(self.exclude_frame,width=10,text="Clear List",command=self.exclude_masks_clear )
@@ -1152,7 +1160,7 @@ class Gui:
     menu_state_stack=[]
     def menu_enable(self):
         try:
-            self.menu_state_stack.pop(0)
+            self.menu_state_stack.pop()
             if not self.menu_state_stack:
                 self.menubar.entryconfig("File", state="normal")
                 self.menubar.entryconfig("Navigation", state="normal")
@@ -1234,7 +1242,7 @@ class Gui:
 
         self.find_dialog_shown=False
 
-        self.from_tab_switch=True
+        self.set_focus_on_item=True
         tree.focus_set()
 
     def find_prev_from_dialog(self,expression,use_reg_expr):
@@ -1406,6 +1414,7 @@ class Gui:
             return
 
         self.main.unbind_class('Treeview','<KeyPress>')
+
         self.hide_tooltip()
         self.menubar_unpost()
         self.popup_groups.unpost()
@@ -1414,15 +1423,15 @@ class Gui:
         try:
             tree=event.widget
             item=tree.focus()
-
+            key=event.keysym
             if sel:=tree.selection() : tree.selection_remove(sel)
 
-            if event.keysym in ("Up",'Down') :
+            if key in ("Up",'Down') :
                 (pool,pool_len) = (self.tree_groups_flat_items,len(self.tree_groups_flat_items) ) if self.sel_tree_index==0 else (self.folder_tree_flat_items_list,len(self.folder_tree_flat_items_list))
 
                 if pool_len:
                     index = pool.index(self.sel_item) if self.sel_item in pool else pool.index(self.sel_item_of_tree[tree]) if self.sel_item_of_tree[tree] in pool else pool.index(item) if item in  pool else 0
-                    index=(index+self.KEY_DIRECTION[event.keysym])%pool_len
+                    index=(index+self.KEY_DIRECTION[key])%pool_len
                     next_item=pool[index]
 
                     tree.focus(next_item)
@@ -1432,17 +1441,17 @@ class Gui:
                         self.groups_tree_sel_change(next_item)
                     else:
                         self.folder_tree_sel_change(next_item)
-            elif event.keysym in ("Prior","Next"):
+            elif key in ("Prior","Next"):
                 if self.sel_tree_index==0:
-                    self.goto_next_prev_crc(self.KEY_DIRECTION[event.keysym])
+                    self.goto_next_prev_crc(self.KEY_DIRECTION[key])
                 else:
-                    self.goto_next_prev_duplicate(self.KEY_DIRECTION[event.keysym])
-            elif event.keysym in ("Home","End"):
+                    self.goto_next_prev_duplicate(self.KEY_DIRECTION[key])
+            elif key in ("Home","End"):
                 if self.sel_tree_index==0:
-                    self.goto_first_last_crc(self.KEY_DIRECTION[event.keysym])
+                    self.goto_first_last_crc(self.KEY_DIRECTION[key])
                 else:
-                    self.goto_first_last_dir_entry(self.KEY_DIRECTION[event.keysym])
-            elif event.keysym == "space":
+                    self.goto_first_last_dir_entry(self.KEY_DIRECTION[key])
+            elif key == "space":
                 if self.sel_tree_index==0:
                     if tree.set(item,'kind')==CRC:
                         self.tag_toggle_selected(tree,*tree.get_children(item))
@@ -1450,12 +1459,12 @@ class Gui:
                         self.tag_toggle_selected(tree,item)
                 else:
                     self.tag_toggle_selected(tree,item)
-            elif event.keysym == "Tab":
+            elif key == "Tab":
                 tree.selection_set(tree.focus())
-                self.from_tab_switch=True
-            elif event.keysym in ('KP_Multiply','asterisk'):
+                self.set_focus_on_item=True
+            elif key in ('KP_Multiply','asterisk'):
                 self.mark_on_all(self.invert_mark)
-            elif event.keysym=='Return':
+            elif key=='Return':
                 item=tree.focus()
                 if item:
                     self.tree_action(tree,item)
@@ -1465,40 +1474,40 @@ class Gui:
                 ctrl_pressed = 'Control' in event_str
                 shift_pressed = 'Shift' in event_str
 
-                if event.keysym=='F3':
+                if key=='F3':
                     if shift_pressed:
                         self.find_prev()
                     else:
                         self.find_next()
-                elif event.keysym == "Right":
+                elif key == "Right":
                     self.goto_next_mark(event.widget,1,shift_pressed)
-                elif event.keysym == "Left":
+                elif key == "Left":
                     self.goto_next_mark(event.widget,-1,shift_pressed)
-                elif event.keysym in ('KP_Add','plus'):
+                elif key in ('KP_Add','plus'):
                     self.mark_expression(self.set_mark,'Mark files',ctrl_pressed)
-                elif event.keysym in ('KP_Subtract','minus'):
+                elif key in ('KP_Subtract','minus'):
                     self.mark_expression(self.unset_mark,'Unmark files',ctrl_pressed)
-                elif event.keysym == "Delete":
+                elif key == "Delete":
                     if self.sel_tree_index==0:
                         self.process_files_in_groups_wrapper(DELETE,ctrl_pressed)
                     else:
                         self.process_files_in_folder_wrapper(DELETE,self.sel_kind in (DIR,DIRLINK))
-                elif event.keysym == "Insert":
+                elif key == "Insert":
                     if self.sel_tree_index==0:
                         self.process_files_in_groups_wrapper((SOFTLINK,HARDLINK)[shift_pressed],ctrl_pressed)
                     else:
                         self.process_files_in_folder_wrapper((SOFTLINK,HARDLINK)[shift_pressed],self.sel_kind in (DIR,DIRLINK))
-                elif event.keysym=='F5':
+                elif key=='F5':
                     self.goto_max_folder(0,-1 if shift_pressed else 1)
-                elif event.keysym=='F6':
+                elif key=='F6':
                     self.goto_max_folder(1,-1 if shift_pressed else 1)
-                elif event.keysym=='F7':
+                elif key=='F7':
                     self.goto_max_group(0,-1 if shift_pressed else 1)
-                elif event.keysym=='F8':
+                elif key=='F8':
                     self.goto_max_group(1,-1 if shift_pressed else 1)
-                elif event.keysym=='BackSpace':
+                elif key=='BackSpace':
                     self.go_to_parent_dir()
-                elif event.keysym in ('i','I'):
+                elif key in ('i','I'):
                     if ctrl_pressed:
                         self.mark_on_all(self.invert_mark)
                     else:
@@ -1506,7 +1515,7 @@ class Gui:
                             self.mark_in_group(self.invert_mark)
                         else:
                             self.mark_in_folder(self.invert_mark)
-                elif event.keysym in ('o','O'):
+                elif key in ('o','O'):
                     if ctrl_pressed:
                         if shift_pressed:
                             self.mark_all_by_ctime('oldest',self.unset_mark)
@@ -1515,7 +1524,7 @@ class Gui:
                     else:
                         if self.sel_tree_index==0:
                             self.mark_in_group_by_ctime('oldest',self.invert_mark)
-                elif event.keysym in ('y','Y'):
+                elif key in ('y','Y'):
                     if ctrl_pressed:
                         if shift_pressed:
                             self.mark_all_by_ctime('youngest',self.unset_mark)
@@ -1524,7 +1533,7 @@ class Gui:
                     else:
                         if self.sel_tree_index==0:
                             self.mark_in_group_by_ctime('youngest',self.invert_mark)
-                elif event.keysym in ('c','C'):
+                elif key in ('c','C'):
                     if ctrl_pressed:
                         if shift_pressed:
                             self.clip_copy_file()
@@ -1533,7 +1542,7 @@ class Gui:
                     else:
                         self.clip_copy_full()
 
-                elif event.keysym in ('a','A'):
+                elif key in ('a','A'):
                     if self.sel_tree_index==0:
                         if ctrl_pressed:
                             self.mark_on_all(self.set_mark)
@@ -1542,7 +1551,7 @@ class Gui:
                     else:
                         self.mark_in_folder(self.set_mark)
 
-                elif event.keysym in ('n','N'):
+                elif key in ('n','N'):
                     if self.sel_tree_index==0:
                         if ctrl_pressed:
                             self.mark_on_all(self.unset_mark)
@@ -1550,7 +1559,7 @@ class Gui:
                             self.mark_in_group(self.unset_mark)
                     else:
                         self.mark_in_folder(self.unset_mark)
-                elif event.keysym in ('r','R'):
+                elif key in ('r','R'):
                     if self.sel_tree_index==1:
                         self.tree_folder_update()
                         self.folder_tree.focus_set()
@@ -1558,23 +1567,23 @@ class Gui:
                             self.folder_tree.focus(self.sel_item)
                         except Exception :
                             pass
-                elif event.keysym in self.reftuple1:
-                    index = self.reftuple1.index(event.keysym)
+                elif key in self.reftuple1:
+                    index = self.reftuple1.index(key)
 
                     if index<len(self.core.scanned_paths):
                         if self.sel_tree_index==0:
                             self.action_on_path(self.core.scanned_paths[index],self.set_mark,ctrl_pressed)
-                elif event.keysym in self.reftuple2:
-                    index = self.reftuple2.index(event.keysym)
+                elif key in self.reftuple2:
+                    index = self.reftuple2.index(key)
 
                     if index<len(self.core.scanned_paths):
                         if self.sel_tree_index==0:
                             self.action_on_path(self.core.scanned_paths[index],self.unset_mark,ctrl_pressed)
-                elif event.keysym in ('KP_Divide','slash'):
+                elif key in ('KP_Divide','slash'):
                     self.mark_subpath(self.set_mark,True)
-                elif event.keysym=='question':
+                elif key=='question':
                     self.mark_subpath(self.unset_mark,True)
-                elif event.keysym in ('f','F'):
+                elif key in ('f','F'):
                     self.finder_wrapper_show()
         except Exception :
             pass
@@ -1638,10 +1647,17 @@ class Gui:
             if toggle:
                 self.tag_toggle_selected(tree,item)
 
-    from_tab_switch=False
+    set_focus_on_item=False
     def tree_on_focus_in(self,event):
         tree=event.widget
 
+        if tree==self.folder_tree:
+            if len(self.folder_tree.get_children())==0:
+                #self.groups_tree.selection_remove(self.groups_tree.selection())
+                self.groups_tree.focus_set()
+                return
+
+        self.tree_with_focus=tree
         tree.configure(style='semi_focus.Treeview')
         self.other_tree[tree].configure(style='default.Treeview')
 
@@ -1651,33 +1667,36 @@ class Gui:
             tree.selection_remove(sel)
             item=sel[0]
 
-        if self.from_tab_switch:
-            self.from_tab_switch=False
+        if self.set_focus_on_item:
+            self.set_focus_on_item=False
 
             if not item:
                 item=tree.focus()
 
-            #if not item:
-            #    item = self.tree_groups_flat_items[0]
+            if tree==self.groups_tree:
+                if not item:
+                    item = self.tree_groups_flat_items[0]
+
+            else:
+                if not item:
+                    if items := self.folder_tree.get_children():
+                        item=items[0]
 
             if item:
                 tree.focus(item)
-                if tree==self.groups_tree:
-                    self.sel_tree_index=0
-                    self.groups_tree_sel_change(item,True)
-                else:
-                    self.sel_tree_index=1
-                    self.folder_tree_sel_change(item)
-
                 tree.see(item)
 
-        if len(self.folder_tree.get_children())==0:
-            self.groups_tree.selection_remove(self.groups_tree.selection())
-            self.groups_tree.focus_set()
+            if tree==self.groups_tree:
+                #self.sel_tree_index=0
+                self.groups_tree_sel_change(item,True)
+            else:
+                #self.sel_tree_index=1
+                self.folder_tree_sel_change(item)
 
     def tree_focus_out(self,event):
         tree=event.widget
         tree.selection_set(tree.focus())
+        tree.configure(style='semi_focus_off.Treeview')
 
     def set_full_path_to_file_win(self):
         self.sel_full_path_to_file=pathlib.Path(os.sep.join([self.sel_path_full,self.sel_file])) if self.sel_path_full and self.sel_file else None
@@ -3376,7 +3395,7 @@ class Gui:
 
                 item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_file,newlist)
 
-                self.from_tab_switch=True
+                self.set_focus_on_item=True
                 self.folder_tree.focus_set()
 
                 if item_to_sel:
