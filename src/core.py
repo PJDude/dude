@@ -324,12 +324,15 @@ class DudeCore:
 
     def crc_cache_write(self):
         self.info='Writing cache ...'
+
         pathlib.Path(self.cache_dir).mkdir(parents=True,exist_ok=True)
         for (dev,val_dict) in self.crc_cache.items():
+
             self.log.debug('writing cache:%s:device:%s',self.cache_dir,dev)
             with open(os.sep.join([self.cache_dir,str(dev)]),'w',encoding='ASCII') as cfile:
                 for (inode,mtime),crc in val_dict.items():
                     cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
+
         del self.crc_cache
 
     write_log=False
@@ -690,6 +693,19 @@ class DudeCore:
                 for index_tuple in self.files_of_size_of_crc[size][crc]:
                     self.log.info('    ' + ' '.join( [str(elem) for elem in list(index_tuple) ]))
         self.log.info('#######################################################')
+
+    def write_csv(self,file_name):
+        self.log.info('writing csv file: %s',file_name)
+
+        with open(file_name,'w') as csv_file:
+            csv_file.write('#size,crc,filepath\n#no checking if the path contains a comma\n')
+            for size in self.files_of_size_of_crc:
+                for crc in self.files_of_size_of_crc[size]:
+                    csv_file.write('%s,%s,\n' % (size,crc) )
+                    for index_tuple in self.files_of_size_of_crc[size][crc]:
+                        #(pathnr,path,file_name,ctime,dev,inode)
+                        csv_file.write(',,%s\n' % self.get_path(index_tuple) )
+            self.log.info('#######################################################')
 
     def check_crc_pool_and_prune(self,size):
         for crc in list(self.files_of_size_of_crc[size]):

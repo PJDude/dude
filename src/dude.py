@@ -38,7 +38,6 @@ import configparser
 import logging
 
 import tkinter as tk
-#from tkinter import *
 from tkinter import PhotoImage
 from tkinter import Menu
 from tkinter import PanedWindow
@@ -3586,7 +3585,7 @@ if __name__ == "__main__":
         if foreground_window:
             win32gui.ShowWindow(foreground_window, win32con.SW_HIDE)
 
-        log=os.path.abspath(p_args.log) if p_args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.txt'
+        log=os.path.abspath(p_args.log[0]) if p_args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.txt'
         LOG_LEVEL = logging.DEBUG if p_args.debug else logging.INFO
 
         pathlib.Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
@@ -3599,12 +3598,46 @@ if __name__ == "__main__":
 
         logging.debug('DEBUG LEVEL')
 
-        Gui(os.getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun)
+        if p_args.csv:
+            core = core.DudeCore(CACHE_DIR,logging)
 
-        if foreground_window:
-            win32gui.ShowWindow(foreground_window, win32con.SW_SHOWDEFAULT)
-            win32gui.ShowWindow(foreground_window, win32con.SW_RESTORE)
-            win32gui.ShowWindow(foreground_window, win32con.SW_SHOW)
+            core.set_paths_to_scan(p_args.paths)
+            core.set_exclude_masks(False,[])
+
+            if p_args.exclude:
+                core.set_exclude_masks(False,p_args.exclude)
+                #self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP)
+            elif p_args.exclude_regexp:
+                core.set_exclude_masks(True,p_args.exclude_regexp)
+
+            scan_thread=Thread(target=core.scan,daemon=True)
+            scan_thread.start()
+
+            while scan_thread.is_alive():
+                print('Scanning ...', core.info_counter,end='\r')
+                time.sleep(0.04)
+
+            scan_thread.join()
+
+            crc_thread=Thread(target=core.crc_calc,daemon=True)
+            crc_thread.start()
+
+            while crc_thread.is_alive():
+                print(f'crc_calc...{core.info_files_done}/{core.info_total}                 ',end='\r')
+                time.sleep(0.04)
+
+            crc_thread.join()
+            print('')
+            core.write_csv(p_args.csv[0])
+            print('Done')
+
+        else:
+            Gui(os.getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun)
+
+            if foreground_window:
+                win32gui.ShowWindow(foreground_window, win32con.SW_SHOWDEFAULT)
+                win32gui.ShowWindow(foreground_window, win32con.SW_RESTORE)
+                win32gui.ShowWindow(foreground_window, win32con.SW_SHOW)
 
     except Exception as e_main:
         print(e_main)

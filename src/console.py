@@ -52,16 +52,23 @@ def parse_args(ver):
             description = f"dude version {ver}\nCopyright (c) 2022 Piotr Jochymek\n\nhttps://github.com/PJDude/dude",
             )
 
-    parser.add_argument('paths'                 ,nargs='*'          ,help='path to scan')
+    parser.add_argument('paths',nargs='*',help='path to scan')
 
-    parser.add_argument('-e','--exclude'        ,nargs='*'          ,help='exclude expressions')
-    parser.add_argument('-er','--exclude-regexp' ,nargs='*'          ,help='exclude regular expressions')
-    parser.add_argument('--norun'           ,action='store_true'    ,help='don\'t run scanning, only show scan dialog')
-    parser.add_argument('-l','--log' ,nargs='?'                     ,help='specify log file')
+    parser.add_argument('-l','--log' ,nargs=1,help='specify log file')
     parser.add_argument('-d','--debug' ,action='store_true'         ,help='set debug logging level')
 
+    exclude_group = parser.add_mutually_exclusive_group()
+    exclude_group.add_argument('-e','--exclude',nargs='*'          ,help='exclude expressions')
+    exclude_group.add_argument('-er','--exclude-regexp',nargs='*'          ,help='exclude regular expressions')
+
+    run_mode_group = parser.add_mutually_exclusive_group()
+    run_mode_group.add_argument('--norun',action='store_true',help='don\'t run scanning, only show scan dialog')
+
+    c_help='do not run the gui. run the scan and save the result to the specified csv file. Implies -nh' if os.name=='nt' else 'do not run the gui. run the scan and save the result to the specified csv file.'
+    run_mode_group.add_argument('-c','--csv' ,nargs=1,help=c_help)
+
     if os.name=='nt':
-        parser.add_argument('-nh','--nohide' ,action='store_true'         ,help='don\'t hide console window ')
+        parser.add_argument('-nh','--nohide' ,action='store_true'         ,help='don\'t hide console window in gui mode')
 
     parser_help=parser.format_help().split('\n')
     help_parts=[parser_help[0]] + parser_help[7::]
