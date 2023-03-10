@@ -45,6 +45,10 @@ dude .
 ```
 dude c:\order d:\mess
 ```
+* Generate csv with report, exclude paths with '*windows*':
+```
+dude c:\ --exclude *windows* --csv result.csv
+```
 * check full set of available parameters:
 ```
 dude --help
