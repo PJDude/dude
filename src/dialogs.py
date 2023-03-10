@@ -189,7 +189,7 @@ class LabelDialog(GenericDialog):
 
         super().show()
 
-class TextDialogQuestion(GenericDialog):
+class TextDialogInfo(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=1000,min_height=600):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
@@ -205,18 +205,10 @@ class TextDialogQuestion(GenericDialog):
 
         self.area_main.grid_rowconfigure(0, weight=1)
 
-        self.cancel_button=ttk.Button(self.area_buttons, text='Cancel', width=14, command=super().hide )
-        self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
-
-        self.ok_button=ttk.Button(self.area_buttons, text='OK', width=14, command=self.ok )
-        self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
+        self.cancel_button=ttk.Button(self.area_buttons, text='Close', width=14, command=super().hide )
+        self.cancel_button.pack(side='bottom', anchor='n',padx=5,pady=5)
 
         self.focus=self.cancel_button
-
-    def ok (self):
-        self.res_bool=True
-        self.wait_var.set(True)
-        super().hide()
 
     def show(self,title='',message=''):
         self.widget.title(title)
@@ -233,6 +225,26 @@ class TextDialogQuestion(GenericDialog):
         self.text.grid(row=0,column=0,sticky='news',padx=5,pady=5)
 
         super().show()
+
+class TextDialogQuestion(TextDialogInfo):
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=1000,min_height=600):
+        super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
+
+        self.cancel_button.configure(text='Cancel')
+        self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
+
+        self.ok_button=ttk.Button(self.area_buttons, text='OK', width=14, command=self.ok )
+        self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
+
+        self.focus=self.cancel_button
+
+    def ok (self):
+        self.res_bool=True
+        self.wait_var.set(True)
+        super().hide()
+
+    def show(self,title='',message=''):
+        super().show(title,message)
 
 class EntryDialogQuestion(LabelDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=400,min_height=120):

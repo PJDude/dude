@@ -32,6 +32,7 @@ import os
 import os.path
 import pathlib
 import re
+import signal
 
 import time
 import configparser
@@ -255,7 +256,7 @@ class Gui:
         self.crc_progress_dialog = tk.Toplevel(parent,bg=self.bg_color)
         self.crc_progress_dialog.wm_transient(parent)
 
-        self.crc_progress_dialog.protocol("WM_DELETE_WINDOW", lambda event : self.crc_progress_dialog_abort())
+        self.crc_progress_dialog.protocol("WM_DELETE_WINDOW", self.crc_progress_dialog_abort)
         self.crc_progress_dialog.bind('<Escape>', lambda event : self.crc_progress_dialog_abort())
 
         self.crc_progress_dialog.wm_title(title)
@@ -362,7 +363,7 @@ class Gui:
     other_tree={}
 
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None):
-        self.core = core.DudeCore(CACHE_DIR,logging)
+        self.core = core.DudeCore(CACHE_DIR,logging,DEBUG_MODE)
         self.cwd=cwd
 
         self.cfg = Config(CONFIG_DIR)
@@ -372,6 +373,8 @@ class Gui:
         self.exclude_frames=[]
 
         self.paths_to_scan_from_dialog=[]
+
+        signal.signal(signal.SIGINT, lambda a, k : self.crc_progress_dialog_abort())
 
         ####################################################################
         self.main = tk.Tk()
@@ -803,6 +806,7 @@ class Gui:
         #######################################################################
         self.info_dialog_on_main = dialogs.LabelDialog(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.text_ask_dialog = dialogs.TextDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.text_info_dialog = dialogs.TextDialogInfo(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
 
@@ -2017,7 +2021,7 @@ class Gui:
         if res:=askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.main):
             final_info = self.empty_dirs_removal(res,True)
 
-            self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info))
+            self.text_info_dialog.show('Removed empty directories','\n'.join(final_info))
 
             self.tree_folder_update(self.sel_path_full)
 
@@ -3073,6 +3077,8 @@ class Gui:
 
     @restore_status_line
     def process_files_check_correctness(self,action,processed_items,remaining_items):
+        skip_incorrect = self.cfg.get_bool(CFG_SKIP_INCORRECT_GROUPS)
+
         for crc in processed_items:
             size = self.core.crc_to_size[crc]
             (checkres,tuples_to_remove)=self.core.check_group_files_state(size,crc)
@@ -3104,15 +3110,31 @@ class Gui:
 
         self.status('checking selection correctness...')
         if action==HARDLINK:
-            for crc in processed_items:
-                if len(processed_items[crc])==1:
-                    self.info_dialog_on_main.show('Error - Can\'t hardlink single file.',"Mark more files.")
+            if skip_incorrect:
+                incorrect_groups=[]
+                for crc in processed_items:
+                    if len(processed_items[crc])==1:
+                        incorrect_groups.append(crc)
+                if incorrect_groups:
+                    incorrect_group_str='\n'.join(incorrect_groups)
+                    self.info_dialog_on_main.show('Warning (Hardlink) - Single file marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFolowing CRC groups will not be processed and remain with markings:\n\n{incorrect_group_str}")
 
-                    self.crc_select_and_focus(crc,True)
-                    return True
+                    self.crc_select_and_focus(incorrect_groups[0],True)
+
+                    for crc in incorrect_groups:
+                        del processed_items[crc]
+                        del remaining_items[crc]
+
+            else:
+                for crc in processed_items:
+                    if len(processed_items[crc])==1:
+                        self.info_dialog_on_main.show('Error - Can\'t hardlink single file.',"Mark more files.")
+
+                        self.crc_select_and_focus(crc,True)
+                        return True
 
         elif action==DELETE:
-            if self.cfg.get_bool(CFG_SKIP_INCORRECT_GROUPS):
+            if skip_incorrect:
                 incorrect_groups=[]
                 for crc in processed_items:
                     if len(remaining_items[crc])==0:
@@ -3123,9 +3145,9 @@ class Gui:
 
                     self.crc_select_and_focus(incorrect_groups[0],True)
 
-                for crc in incorrect_groups:
-                    del processed_items[crc]
-                    del remaining_items[crc]
+                    for crc in incorrect_groups:
+                        del processed_items[crc]
+                        del remaining_items[crc]
             else:
                 show_all_delete_warning=False
                 for crc in processed_items:
@@ -3144,12 +3166,27 @@ class Gui:
                         return True
 
         elif action==SOFTLINK:
-            for crc in processed_items:
-                if len(remaining_items[crc])==0:
-                    self.info_dialog_on_main.show('Error (Softlink) - All files marked',"Keep at least one file unmarked.")
+            if skip_incorrect:
+                incorrect_groups=[]
+                for crc in processed_items:
+                    if len(remaining_items[crc])==0:
+                        incorrect_groups.append(crc)
+                if incorrect_groups:
+                    incorrect_group_str='\n'.join(incorrect_groups)
+                    self.info_dialog_on_main.show('Warning (Softlink) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFolowing CRC groups will not be processed and remain with markings:\n\n{incorrect_group_str}")
 
-                    self.crc_select_and_focus(crc,True)
-                    return True
+                    self.crc_select_and_focus(incorrect_groups[0],True)
+
+                    for crc in incorrect_groups:
+                        del processed_items[crc]
+                        del remaining_items[crc]
+            else:
+                for crc in processed_items:
+                    if len(remaining_items[crc])==0:
+                        self.info_dialog_on_main.show('Error (Softlink) - All files marked',"Keep at least one file unmarked.")
+
+                        self.crc_select_and_focus(crc,True)
+                        return True
         return False
 
     @restore_status_line
@@ -3311,7 +3348,7 @@ class Gui:
         self.tree_groups_flat_items_update()
 
         if final_info:
-            self.info_dialog_on_main.show('removed empty directories','\n'.join(final_info))
+            self.text_info_dialog.show('Removed empty directories','\n'.join(final_info))
 
     def get_this_or_existing_parent(self,path):
         if os.path.exists(path):
@@ -3580,10 +3617,11 @@ if __name__ == "__main__":
 
         p_args = console.parse_args(VER_TIMESTAMP)
 
-        foreground_window = win32gui.GetForegroundWindow() if windows and not p_args.nohide else None
+        if not p_args.csv:
+            foreground_window = win32gui.GetForegroundWindow() if windows and not p_args.nohide else None
 
-        if foreground_window:
-            win32gui.ShowWindow(foreground_window, win32con.SW_HIDE)
+            if foreground_window:
+                win32gui.ShowWindow(foreground_window, win32con.SW_HIDE)
 
         log=os.path.abspath(p_args.log[0]) if p_args.log else LOG_DIR + os.sep + time.strftime('%Y_%m_%d_%H_%M_%S',time.localtime(time.time()) ) +'.txt'
         LOG_LEVEL = logging.DEBUG if p_args.debug else logging.INFO
@@ -3599,7 +3637,9 @@ if __name__ == "__main__":
         logging.debug('DEBUG LEVEL')
 
         if p_args.csv:
-            core = core.DudeCore(CACHE_DIR,logging)
+            core = core.DudeCore(CACHE_DIR,logging,DEBUG_MODE)
+
+            signal.signal(signal.SIGINT, lambda a, k : core.abort())
 
             core.set_paths_to_scan(p_args.paths)
             core.set_exclude_masks(False,[])
