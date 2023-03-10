@@ -29,6 +29,7 @@
 from collections import defaultdict
 from queue import Queue
 from threading import Thread
+#from multiprocessing import Process
 
 import os
 import pathlib
@@ -68,6 +69,7 @@ class DudeCore:
     devs=()
     info=''
     windows=False
+    debug=False
 
     def reset(self):
         self.scan_results_by_size=defaultdict(set)
@@ -79,10 +81,11 @@ class DudeCore:
 
         self.exclude_list=[]
 
-    def __init__(self,cache_dir,log_par):
+    def __init__(self,cache_dir,log_par,debug=False):
         self.cache_dir=cache_dir
         self.log=log_par
         self.windows = bool(os.name=='nt')
+        self.debug=debug
 
         self.reset()
 
@@ -227,8 +230,8 @@ class DudeCore:
                     path,path_ctime = loop_list.pop()
                     for file_name,is_link,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self.set_scan_dir(path,path_ctime)[1]:
 
-                        fullpath=os.path.join(path,file_name)
                         if self.exclude_list:
+                            fullpath=os.path.join(path,file_name)
                             if any({self.excl_fn(expr,fullpath) for expr in self.exclude_list}):
                                 self.log.info('skipping by Exclude Mask:%s',fullpath)
                                 continue
@@ -357,37 +360,27 @@ class DudeCore:
         buf = bytearray(self.CRC_BUFFER_SIZE)
         view = memoryview(buf)
 
-        size_done=0
-        files_done=0
-
         while True:
-            task = src_queue.get()
-            src_queue.task_done()
+            if task := src_queue.get():
+                src_queue.task_done()
 
-            if task:
                 file_handle,index_tuple,size,mtime = task
-                hasher = hashlib.sha1()
-
-                self.crc_thread_progress_info[dev]=0
-
                 self.crc_thread_file_info[dev]=(size,index_tuple)
+
+                hasher = hashlib.sha1()
                 while rsize := file_handle.readinto(buf):
                     hasher.update(view[:rsize])
                     self.crc_thread_progress_info[dev]+=rsize
 
                     if self.abort_action:
-                        break
-
-                if not self.abort_action:
-                    res_queue.put((index_tuple,size,mtime,hasher.hexdigest()))
-                    size_done+=size
-                    files_done+=1
-                    self.crc_thread_total_info[dev]=(files_done,size_done)
-
-                self.crc_thread_progress_info[dev]=0
-                self.crc_thread_file_info[dev]=None
+                        file_handle.close()
+                        return
 
                 file_handle.close()
+
+                res_queue.put((index_tuple,size,mtime,hasher.hexdigest()))
+                self.crc_thread_progress_info[dev]=0
+
             else:
                 break
 
@@ -418,7 +411,6 @@ class DudeCore:
         opened_files_queue={}
         files_crc_queue={}
 
-        self.crc_thread_total_info={}
         self.crc_thread_file_info={}
         self.crc_thread_progress_info={}
 
@@ -430,13 +422,13 @@ class DudeCore:
             opened_files_queue[dev]=Queue()
             files_crc_queue[dev]=Queue()
 
-            self.crc_thread_total_info[dev]=(0,0)
             self.crc_thread_file_info[dev]=None
             self.crc_thread_progress_info[dev]=0
 
             threads_started[dev]=False
 
             crc_thread[dev] = Thread(target=self.threaded_crc_calc_on_opened_files,args=(dev,opened_files_queue[dev],files_crc_queue[dev],),daemon=True)
+            #crc_thread[dev] = Process(target=self.threaded_crc_calc_on_opened_files,args=(dev,opened_files_queue[dev],files_crc_queue[dev],),daemon=True)
 
         scan_results_sizes = list(self.scan_results_by_size)
         scan_results_sizes.sort(reverse=True)
@@ -465,14 +457,19 @@ class DudeCore:
                 file_names_queue[dev].put((size,pathnr,path,file_name,mtime,ctime,inode))
         #########################################################################################################
 
-        info_size_not_calculated=self.info_size_done
-        info_files_not_calculated=self.info_files_done
+        size_done_cached = self.info_size_done
+        files_done_cached = self.info_files_done
+
+        size_done_skipped = 0
+        files_done_skipped = 0
+
+        size_done_calculated = 0
+        files_done_calculated = 0
 
         measures_pool=[]
 
         last_time_info_update=0
         last_time_results_check = 0
-        last_time_line_info_update = 0
 
         info=''
 
@@ -484,6 +481,9 @@ class DudeCore:
             prev_line_show_same_max[dev]=0
 
         self.info_line="CRC calculation ..."
+
+        thread_pool_need_checking=True
+        alive_threads=0
 
         while True:
             ########################################################################
@@ -500,8 +500,8 @@ class DudeCore:
                         file_handle=open(self.get_full_path_to_scan(pathnr,path,file_name),'rb')
                     except Exception as e:
                         self.log.error(e)
-                        info_size_not_calculated+=size
-                        info_files_not_calculated+=1
+                        size_done_skipped += size
+                        files_done_skipped += 1
                     else:
                         index_tuple=(pathnr,path,file_name,ctime,dev,inode)
                         opened_files_queue[dev].put((file_handle,index_tuple,size,mtime))
@@ -525,63 +525,79 @@ class DudeCore:
                     cache_key=(inode,mtime)
                     self.crc_cache[dev][cache_key]=crc
 
+                    size_done_calculated+=size
+                    files_done_calculated+=1
+
             ########################################################################
             # threads starting/finishing
 
-            alive_threads=sum([1 if crc_thread[dev].is_alive() else 0 for dev in self.devs])
-            all_crc_processed=all(files_crc_queue[dev].qsize()==0 for dev in self.devs)
+            any_thread_started=False
+            alive_threads=len({dev for dev in self.devs if crc_thread[dev].is_alive()})
 
-            nothing_started=True
-            if alive_threads<MAX_THREADS:
+            if thread_pool_need_checking:
+                if alive_threads<MAX_THREADS:
+                    for dev in self.devs:
+                        if not threads_started[dev] and not crc_thread[dev].is_alive():
+                            crc_thread[dev].start()
+                            threads_started[dev]=True
+                            any_thread_started=True
+                            break
+
+                all_started=True
                 for dev in self.devs:
-                    if not threads_started[dev] and not crc_thread[dev].is_alive():
-                        crc_thread[dev].start()
-                        threads_started[dev]=True
-                        nothing_started=False
+                    if not threads_started[dev]:
+                        all_started=False
                         break
+                if all_started:
+                    thread_pool_need_checking=False
 
             for dev in self.devs:
                 if self.abort_action or (file_names_queue[dev].qsize()==0 and opened_files_queue[dev].qsize()==0):
                     if crc_thread[dev].is_alive():
                         opened_files_queue[dev].put(None)
 
-            if nothing_started and alive_threads==0 and all_crc_processed:
-                break
-
-            if not anything_opened and not anything_processed and nothing_started:
-                self.info_threads=str(alive_threads)
-                time.sleep(0.01)
-
             ########################################################################
             # info
-            now=time.time()
 
-            if now-last_time_info_update>0.02 and not self.abort_action:
+            now=time.time()
+            if now-last_time_info_update>0.05 and not self.abort_action:
                 last_time_info_update=now
 
                 #######################################################
                 #sums info
-                info_size_done_temp=info_size_not_calculated
-                info_files_done_temp=info_files_not_calculated
+                self.info_size_done = size_done_cached + size_done_skipped + size_done_calculated + sum([self.crc_thread_progress_info[dev] for dev in self.devs])
+                self.info_files_done = files_done_cached + files_done_skipped + files_done_calculated
 
-                for dev in self.devs:
-                    files_done,size_done= self.crc_thread_total_info[dev]
-                    info_size_done_temp+=size_done
-                    info_size_done_temp+=self.crc_thread_progress_info[dev]
-                    info_files_done_temp+=files_done
+                if self.debug:
+                    self.info_threads=str(alive_threads)
 
-                self.info_size_done=info_size_done_temp
-                self.info_files_done=info_files_done_temp
-                #######################################################
-                #speed
-                measures_pool=[(pool_time,FSize,FQuant) for (pool_time,FSize,FQuant) in measures_pool if (now-pool_time)<3]
-                measures_pool.append((now,info_size_done_temp,info_files_done_temp))
+                    #######################################################
+                    #speed
+                    measures_pool=[(pool_time,FSize) for (pool_time,FSize) in measures_pool if (now-pool_time)<3] + [(now,self.info_size_done)]
 
-                first=measures_pool[0]
+                    first=measures_pool[0]
+                    if last_period_time_diff := now - first[0]:
+                        last_period_size_sum  = self.info_size_done - first[1]
+                        self.info_speed=int(last_period_size_sum/last_period_time_diff)
 
-                if last_period_time_diff := now - first[0]:
-                    last_period_size_sum  = info_size_done_temp - first[1]
-                    self.info_speed=int(last_period_size_sum/last_period_time_diff)
+                    #######################################################
+                    #status line info
+
+                    line_info_list=[]
+                    for dev in self.devs:
+                        #size,pathnr,path,file_name
+                        if self.crc_thread_progress_info[dev] and self.crc_thread_file_info[dev]:
+                            curr_line_info_file_size=self.crc_thread_file_info[dev][0]
+                            curr_line_info_file_name=self.crc_thread_file_info[dev][1][2]
+
+                            if curr_line_info_file_size==prev_line_info[dev]:
+                                if now-prev_line_show_same_max[dev]>1:
+                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str(self.crc_thread_progress_info[dev]) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
+                            else:
+                                prev_line_show_same_max[dev]=now
+                                prev_line_info[dev]=curr_line_info_file_size
+
+                    self.info_line = '    '.join([elem[1] for elem in sorted(line_info_list,key=lambda x : x[0],reverse=True)])
 
                 #######################################################
                 #found
@@ -603,27 +619,13 @@ class DudeCore:
                     self.info_found_groups=temp_info_groups
                     self.info_found_folders=len(temp_info_folders)
                     self.info_found_dupe_space=temp_info_dupe_space
-
-                #######################################################
-                #status line info
-                if now-last_time_line_info_update>0.25 and not self.abort_action:
-                    last_time_line_info_update=now
-
-                    line_info_list=[]
-                    for dev in self.devs:
-                        #size,pathnr,path,file_name
-                        if self.crc_thread_progress_info[dev] and self.crc_thread_file_info[dev]:
-                            curr_line_info_file_size=self.crc_thread_file_info[dev][0]
-                            curr_line_info_file_name=self.crc_thread_file_info[dev][1][2]
-
-                            if curr_line_info_file_size==prev_line_info[dev]:
-                                if now-prev_line_show_same_max[dev]>1:
-                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str(self.crc_thread_progress_info[dev]) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
-                            else:
-                                prev_line_show_same_max[dev]=now
-                                prev_line_info[dev]=curr_line_info_file_size
-
-                    self.info_line = '    '.join([elem[1] for elem in sorted(line_info_list,key=lambda x : x[0],reverse=True)])
+            elif not anything_opened and not anything_processed and not any_thread_started:
+                if alive_threads==0:
+                    #all_crc_processed
+                    if all(files_crc_queue[dev].qsize()==0 for dev in self.devs):
+                        break
+                else:
+                    time.sleep(0.01)
 
             ########################################################################
 
@@ -663,11 +665,11 @@ class DudeCore:
                     problem=True
                 else:
                     if stat.st_nlink!=1:
-                        res_problems.append('file became hardlink:%s - %s,%s,%s',stat.st_nlink,pathnr,path,file_name)
+                        res_problems.append('file became hardlink:%s - %s,%s,%s' % (stat.st_nlink,pathnr,path,file_name) )
                         problem=True
                     else:
-                        if (size,ctime,dev,inode) != (stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino):
-                            res_problems.append('file changed:%s,%s,%s,%s vs %s,%s,%s,%s',size,ctime,dev,inode,stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino)
+                        if (size,ctime,dev,inode) != (stat.st_size,str(round(stat.st_ctime)),str(stat.st_dev),str(stat.st_ino)):
+                            res_problems.append('file changed:%s,%s,%s,%s vs %s,%s,%s,%s' % (size,ctime,dev,inode,stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino) )
                             problem=True
                 if problem:
                     index_tuple=(pathnr,path,file_name,ctime,dev,inode)
@@ -702,7 +704,7 @@ class DudeCore:
             for size in self.files_of_size_of_crc:
                 for crc in self.files_of_size_of_crc[size]:
                     csv_file.write('%s,%s,\n' % (size,crc) )
-                    for index_tuple in self.files_of_size_of_crc[size][crc]:
+                    for index_tuple in sorted(self.files_of_size_of_crc[size][crc],key= lambda x : x[5]):
                         #(pathnr,path,file_name,ctime,dev,inode)
                         csv_file.write(',,%s\n' % self.get_path(index_tuple) )
             self.log.info('#######################################################')
