@@ -133,7 +133,7 @@ class DudeCore:
             try:
                 self.excl_fn(exclmask,teststring)
             except Exception as e:
-                return "Expression: '" + exclmask + "' ERROR:" + str(e)
+                return "Expression: '" + exclmask + "'\nERROR:" + str(e)
 
         self.exclude_list=masks_list
         return False
