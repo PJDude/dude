@@ -365,7 +365,6 @@ class Gui:
     other_tree={}
 
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None):
-        self.core = core.DudeCore(CACHE_DIR,logging,DEBUG_MODE)
         self.cwd=cwd
 
         self.cfg = Config(CONFIG_DIR)
@@ -1092,7 +1091,7 @@ class Gui:
                     if pathnrstr:
                         pathnr=int(pathnrstr)
                         if tree.set(item,'kind')==FILE:
-                            self.tooltip_lab.configure(text='%s - %s' % (self.NUMBERS[pathnr],self.core.scanned_paths[pathnr]) )
+                            self.tooltip_lab.configure(text='%s - %s' % (self.NUMBERS[pathnr],dude_core.scanned_paths[pathnr]) )
                             self.tooltip.deiconify()
 
                     else:
@@ -1108,7 +1107,7 @@ class Gui:
                     #    pathnr=int(pathnrstr)
                     #    path=tree.set(item,'path')
                     #    file=tree.set(item,'file')
-                    #    file_path = os.path.abspath(self.core.get_full_path_scanned(pathnr,path,file))
+                    #    file_path = os.path.abspath(dude_core.get_full_path_scanned(pathnr,path,file))
                     if coldata:
                         self.tooltip_lab.configure(text=coldata)
                         self.tooltip.deiconify()
@@ -1152,7 +1151,7 @@ class Gui:
                 #    pathnr=int(pathnrstr)
                 #    path=tree.set(item,'path')
                 #    file=tree.set(item,'file')
-                #    file_path = os.path.abspath(self.core.get_full_path_scanned(pathnr,path,file))
+                #    file_path = os.path.abspath(dude_core.get_full_path_scanned(pathnr,path,file))
                 if coldata:
                     self.tooltip_lab.configure(text=coldata)
                     self.tooltip.deiconify()
@@ -1593,15 +1592,15 @@ class Gui:
                 elif key in self.reftuple1:
                     index = self.reftuple1.index(key)
 
-                    if index<len(self.core.scanned_paths):
+                    if index<len(dude_core.scanned_paths):
                         if self.sel_tree_index==0:
-                            self.action_on_path(self.core.scanned_paths[index],self.set_mark,ctrl_pressed)
+                            self.action_on_path(dude_core.scanned_paths[index],self.set_mark,ctrl_pressed)
                 elif key in self.reftuple2:
                     index = self.reftuple2.index(key)
 
-                    if index<len(self.core.scanned_paths):
+                    if index<len(dude_core.scanned_paths):
                         if self.sel_tree_index==0:
-                            self.action_on_path(self.core.scanned_paths[index],self.unset_mark,ctrl_pressed)
+                            self.action_on_path(dude_core.scanned_paths[index],self.unset_mark,ctrl_pressed)
                 elif key in ('KP_Divide','slash'):
                     self.mark_subpath(self.set_mark,True)
                 elif key=='question':
@@ -1768,7 +1767,7 @@ class Gui:
 
             if pathnr: #non crc node
                 self.sel_path = path
-                self.sel_path_set(self.core.scanned_paths[int(pathnr)]+self.sel_path)
+                self.sel_path_set(dude_core.scanned_paths[int(pathnr)]+self.sel_path)
             else :
                 self.sel_path = None
                 self.sel_path_set(None)
@@ -1859,7 +1858,7 @@ class Gui:
             unmark_cascade_path = Menu(c_local, tearoff = 0,bg=self.bg_color)
 
             row=0
-            for path in self.core.scanned_paths:
+            for path in dude_core.scanned_paths:
                 mark_cascade_path.add_command(label = self.NUMBERS[row] + '  =  ' + path,    command  = lambda pathpar=path: self.action_on_path(pathpar,self.set_mark,False),accelerator=str(row+1)  )
                 unmark_cascade_path.add_command(label = self.NUMBERS[row] + '  =  ' + path,  command  = lambda pathpar=path: self.action_on_path(pathpar,self.unset_mark,False),accelerator="Shift+"+str(row+1)  )
                 row+=1
@@ -1905,7 +1904,7 @@ class Gui:
             unmark_cascade_path = Menu(c_all, tearoff = 0,bg=self.bg_color)
 
             row=0
-            for path in self.core.scanned_paths:
+            for path in dude_core.scanned_paths:
                 mark_cascade_path.add_command(label = self.NUMBERS[row] + '  =  ' + path,    command  = lambda pathpar=path: self.action_on_path(pathpar,self.set_mark,True) ,accelerator="Ctrl+"+str(row+1) )
                 unmark_cascade_path.add_command(label = self.NUMBERS[row] + '  =  ' + path,  command  = lambda pathpar=path: self.action_on_path(pathpar,self.unset_mark,True) ,accelerator="Ctrl+Shift+"+str(row+1) )
                 row+=1
@@ -2131,14 +2130,14 @@ class Gui:
         self.status('Scanning...')
         self.cfg.write()
 
-        self.core.reset()
+        dude_core.reset()
         self.status_var_path.set('')
         self.groups_show()
 
         paths_to_scan_from_entry = [var.get() for var in self.paths_to_scan_entry_var.values()]
         exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
 
-        if res:=self.core.set_exclude_masks(self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
+        if res:=dude_core.set_exclude_masks(self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
             self.info_dialog_on_scan.show('Error. Fix expression.',res)
             return False
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude_from_entry))
@@ -2147,7 +2146,7 @@ class Gui:
             self.info_dialog_on_scan.show('Error. No paths to scan.','Add paths to scan.')
             return False
 
-        if res:=self.core.set_paths_to_scan(paths_to_scan_from_entry):
+        if res:=dude_core.set_paths_to_scan(paths_to_scan_from_entry):
             self.info_dialog_on_scan.show('Error. Fix paths selection.',res)
             return False
 
@@ -2157,14 +2156,14 @@ class Gui:
 
         self.progress_dialog_show(self.scan_dialog.area_main,'Scanning',abort_tooltip='If you abort at this stage,\nyou will not get any results.')
 
-        scan_thread=Thread(target=self.core.scan,daemon=True)
+        scan_thread=Thread(target=dude_core.scan,daemon=True)
         scan_thread.start()
 
         while scan_thread.is_alive():
-            self.progress_dialog_update(self.NUMBERS[self.core.info_path_nr] + '\n' + self.core.info_path_to_scan + '\n\n' + str(self.core.info_counter) + '\n' + core.bytes_to_str(self.core.info_size_sum))
+            self.progress_dialog_update(self.NUMBERS[dude_core.info_path_nr] + '\n' + dude_core.info_path_to_scan + '\n\n' + str(dude_core.info_counter) + '\n' + core.bytes_to_str(dude_core.info_size_sum))
 
             if self.action_abort:
-                self.core.abort()
+                dude_core.abort()
                 break
 
             time.sleep(0.04)
@@ -2176,16 +2175,16 @@ class Gui:
             return False
 
         #############################
-        if self.core.sim_size==0:
+        if dude_core.sim_size==0:
             self.info_dialog_on_scan.show('Cannot Proceed.','No Duplicates.')
             return False
         #############################
         self.status('Calculating CRC ...')
         self.progress_dialog_show(self.scan_dialog.area_main,'CRC calculation','determinate','determinate',progress1_left_text='Total space:',progress2_left_text='Files number:',abort_tooltip='If you abort at this stage,\npartial results may be available if any CRC groups are found.')
 
-        self.core.writeLog=self.write_scan_log.get()
+        dude_core.writeLog=self.write_scan_log.get()
 
-        crc_thread=Thread(target=self.core.crc_calc,daemon=True)
+        crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
         crc_thread.start()
 
         self.scan_dialog.widget.config(cursor="watch")
@@ -2194,27 +2193,27 @@ class Gui:
             info = ""
 
             if DEBUG_MODE:
-                info =  'Active Threads: ' + self.core.info_threads \
-                    + '\nAvarage speed: ' + core.bytes_to_str(self.core.info_speed,1) + '/s\n\n'
+                info =  'Active Threads: ' + dude_core.info_threads \
+                    + '\nAvarage speed: ' + core.bytes_to_str(dude_core.info_speed,1) + '/s\n\n'
 
             info = info + 'Results:' \
-                + '\nCRC groups: ' + str(self.core.info_found_groups) \
-                + '\nfolders: ' + str(self.core.info_found_folders) \
-                + '\nspace: ' + core.bytes_to_str(self.core.info_found_dupe_space)
+                + '\nCRC groups: ' + str(dude_core.info_found_groups) \
+                + '\nfolders: ' + str(dude_core.info_found_folders) \
+                + '\nspace: ' + core.bytes_to_str(dude_core.info_found_dupe_space)
 
-            info_progress_size=float(100)*float(self.core.info_size_done)/float(self.core.sim_size)
-            info_progress_quantity=float(100)*float(self.core.info_files_done)/float(self.core.info_total)
+            info_progress_size=float(100)*float(dude_core.info_size_done)/float(dude_core.sim_size)
+            info_progress_quantity=float(100)*float(dude_core.info_files_done)/float(dude_core.info_total)
 
-            progress_size_descr=core.bytes_to_str(self.core.info_size_done) + '/' + core.bytes_to_str(self.core.sim_size)
-            progress_quant_descr=str(self.core.info_files_done) + '/' + str(self.core.info_total)
+            progress_size_descr=core.bytes_to_str(dude_core.info_size_done) + '/' + core.bytes_to_str(dude_core.sim_size)
+            progress_quant_descr=str(dude_core.info_files_done) + '/' + str(dude_core.info_total)
 
-            self.progress_dialog_update(info,info_progress_size,info_progress_quantity,progress_size_descr,progress_quant_descr,self.core.info_line)
+            self.progress_dialog_update(info,info_progress_size,info_progress_quantity,progress_size_descr,progress_quant_descr,dude_core.info_line)
 
-            if self.core.can_abort:
+            if dude_core.can_abort:
                 if self.action_abort:
-                    self.core.abort()
+                    dude_core.abort()
             else:
-                self.status(self.core.info)
+                self.status(dude_core.info)
 
             time.sleep(0.04)
 
@@ -2245,8 +2244,8 @@ class Gui:
         self.scan_dialog.show()
         #focus=self.scan_cancel_button,
 
-        if self.core.scanned_paths:
-            self.paths_to_scan_from_dialog=self.core.scanned_paths.copy()
+        if dude_core.scanned_paths:
+            self.paths_to_scan_from_dialog=dude_core.scanned_paths.copy()
 
     def paths_to_scan_update(self) :
         for subframe in self.paths_to_scan_frames:
@@ -2429,16 +2428,16 @@ class Gui:
         size=int(self.groups_tree.set(crc,'size'))
 
         crc_removed=False
-        if size not in self.core.files_of_size_of_crc:
+        if size not in dude_core.files_of_size_of_crc:
             self.groups_tree.delete(crc)
             logging.debug('crc_node_update-1 %s',crc)
             crc_removed=True
-        elif crc not in self.core.files_of_size_of_crc[size]:
+        elif crc not in dude_core.files_of_size_of_crc[size]:
             self.groups_tree.delete(crc)
             logging.debug('crc_node_update-2 %s',crc)
             crc_removed=True
         else:
-            crc_dict=self.core.files_of_size_of_crc[size][crc]
+            crc_dict=dude_core.files_of_size_of_crc[size][crc]
             for item in list(self.groups_tree.get_children(crc)):
                 index_tuple=self.get_index_tuple_groups_tree(item)
 
@@ -2454,7 +2453,7 @@ class Gui:
     def data_precalc(self):
         self.status('Precalculating data...')
 
-        self.cache_by_id_ctime = { (self.idfunc(inode,dev),ctime):(crc,self.core.crc_cut[crc],len(size_dict[crc]) ) for size,size_dict in self.core.files_of_size_of_crc.items() for crc,crc_dict in size_dict.items() for pathnr,path,file,ctime,dev,inode in crc_dict }
+        self.cache_by_id_ctime = { (self.idfunc(inode,dev),ctime):(crc,dude_core.crc_cut[crc],len(size_dict[crc]) ) for size,size_dict in dude_core.files_of_size_of_crc.items() for crc,crc_dict in size_dict.items() for pathnr,path,file,ctime,dev,inode in crc_dict }
         self.status_var_groups.set(len(self.groups_tree.get_children()))
 
         path_stat_size={}
@@ -2463,7 +2462,7 @@ class Gui:
         self.biggest_file_of_path={}
         self.biggest_file_of_path_id={}
 
-        for size,size_dict in self.core.files_of_size_of_crc.items() :
+        for size,size_dict in dude_core.files_of_size_of_crc.items() :
             for crc,crc_dict in size_dict.items():
                 for pathnr,path,file,ctime,dev,inode in crc_dict:
                     path_index=(pathnr,path)
@@ -2499,13 +2498,13 @@ class Gui:
     def groups_show(self):
         self.status('Rendering data...')
 
-        self.idfunc = (lambda i,d : '%s-%s'%(i,d)) if len(self.core.devs)>1 else (lambda i,d : str(i))
+        self.idfunc = (lambda i,d : '%s-%s'%(i,d)) if len(dude_core.devs)>1 else (lambda i,d : str(i))
 
         self.reset_sels()
         self.groups_tree.delete(*self.groups_tree.get_children())
 
         sizes_counter=0
-        for size,size_dict in self.core.files_of_size_of_crc.items() :
+        for size,size_dict in dude_core.files_of_size_of_crc.items() :
             size_h = core.bytes_to_str(size)
             size_str = str(size)
             if not sizes_counter%64:
@@ -2542,11 +2541,11 @@ class Gui:
         show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
         show_full_paths=self.cfg.get_bool(CFG_KEY_FULL_PATHS)
 
-        for size,size_dict in self.core.files_of_size_of_crc.items() :
+        for size,size_dict in dude_core.files_of_size_of_crc.items() :
             for crc,crc_dict in size_dict.items():
-                self.groups_tree.item(crc,text=crc if show_full_crc else self.core.crc_cut[crc])
+                self.groups_tree.item(crc,text=crc if show_full_crc else dude_core.crc_cut[crc])
                 for pathnr,path,file,ctime,dev,inode in crc_dict:
-                    self.groups_tree.item(self.idfunc(inode,dev),text=self.core.scanned_paths[pathnr] if show_full_paths else self.NUMBERS[pathnr])
+                    self.groups_tree.item(self.idfunc(inode,dev),text=dude_core.scanned_paths[pathnr] if show_full_paths else self.NUMBERS[pathnr])
 
     def groups_tree_update_none(self):
         self.groups_tree.selection_remove(self.groups_tree.selection())
@@ -2586,7 +2585,7 @@ class Gui:
         if not current_path:
             return False
 
-        scan_dir_tuple=self.core.set_scan_dir(current_path)
+        scan_dir_tuple=dude_core.set_scan_dir(current_path)
         dir_ctime = scan_dir_tuple[0]
         scan_dir_res = scan_dir_tuple[1]
 
@@ -3045,7 +3044,7 @@ class Gui:
         pathnr=int(self.groups_tree.set(item,'pathnr'))
         path=self.groups_tree.set(item,'path')
         file=self.groups_tree.set(item,'file')
-        return os.path.abspath(self.core.get_full_path_scanned(pathnr,path,file))
+        return os.path.abspath(dude_core.get_full_path_scanned(pathnr,path,file))
 
     def file_check_state(self,item):
         fullpath = self.item_full_path(item)
@@ -3113,14 +3112,14 @@ class Gui:
 
         self.status('checking data consistency with filesystem state ...')
         for crc in processed_items:
-            size = self.core.crc_to_size[crc]
-            (checkres,tuples_to_remove)=self.core.check_group_files_state(size,crc)
+            size = dude_core.crc_to_size[crc]
+            (checkres,tuples_to_remove)=dude_core.check_group_files_state(size,crc)
 
             if checkres:
                 self.info_dialog_on_main.show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
                 orglist=self.groups_tree.get_children()
 
-                self.core.remove_from_data_pool(size,crc,tuples_to_remove)
+                dude_core.remove_from_data_pool(size,crc,tuples_to_remove)
 
                 self.crc_node_update(crc)
 
@@ -3161,7 +3160,7 @@ class Gui:
         if incorrect_groups:
             if skip_incorrect:
 
-                incorrect_group_str='\n'.join([crc if show_full_crc else self.core.crc_cut[crc] for crc in incorrect_groups ])
+                incorrect_group_str='\n'.join([crc if show_full_crc else dude_core.crc_cut[crc] for crc in incorrect_groups ])
                 header = f'Warning ({NAME[action]}). {problem_header}'
                 message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
 
@@ -3297,9 +3296,9 @@ class Gui:
                 for item in processed_items[crc]:
                     index_tuple=self.get_index_tuple_groups_tree(item)
                     tuples_to_delete.add(index_tuple)
-                    directories_to_check.add(self.core.get_path(index_tuple))
+                    directories_to_check.add(dude_core.get_path(index_tuple))
 
-                if resmsg:=self.core.delete_file_wrapper(size,crc,tuples_to_delete):
+                if resmsg:=dude_core.delete_file_wrapper(size,crc,tuples_to_delete):
                     logging.error(resmsg)
                     self.info_dialog_on_main.show('Error',resmsg)
 
@@ -3323,7 +3322,7 @@ class Gui:
                 index_tuple_ref=self.get_index_tuple_groups_tree(to_keep_item)
                 size=int(self.groups_tree.set(to_keep_item,'size'))
 
-                if resmsg:=self.core.link_wrapper(True, do_rel_symlink, size,crc, index_tuple_ref, [self.get_index_tuple_groups_tree(item) for item in processed_items[crc] ] ):
+                if resmsg:=dude_core.link_wrapper(True, do_rel_symlink, size,crc, index_tuple_ref, [self.get_index_tuple_groups_tree(item) for item in processed_items[crc] ] ):
                     logging.error(resmsg)
                     self.info_dialog_on_main.show('Error',resmsg)
                 self.crc_node_update(crc)
@@ -3334,7 +3333,7 @@ class Gui:
                 index_tuple_ref=self.get_index_tuple_groups_tree(ref_item)
                 size=int(self.groups_tree.set(ref_item,'size'))
 
-                if resmsg:=self.core.link_wrapper(False, False, size,crc, index_tuple_ref, [self.get_index_tuple_groups_tree(item) for item in processed_items[crc][1:] ] ):
+                if resmsg:=dude_core.link_wrapper(False, False, size,crc, index_tuple_ref, [self.get_index_tuple_groups_tree(item) for item in processed_items[crc][1:] ] ):
                     logging.error(resmsg)
                     self.info_dialog_on_main.show('Error',resmsg)
                 self.crc_node_update(crc)
@@ -3643,39 +3642,43 @@ if __name__ == "__main__":
 
         logging.debug('DEBUG LEVEL')
 
+        dude_core = core.DudeCore(CACHE_DIR,logging,DEBUG_MODE)
+
         if p_args.csv:
-            core = core.DudeCore(CACHE_DIR,logging,DEBUG_MODE)
+            signal.signal(signal.SIGINT, lambda a, k : dude_core.abort())
 
-            signal.signal(signal.SIGINT, lambda a, k : core.abort())
-
-            core.set_paths_to_scan(p_args.paths)
-            core.set_exclude_masks(False,[])
+            dude_core.set_paths_to_scan(p_args.paths)
 
             if p_args.exclude:
-                core.set_exclude_masks(False,p_args.exclude)
-                #self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP)
+                set_exclude_masks_res=dude_core.set_exclude_masks(False,p_args.exclude)
             elif p_args.exclude_regexp:
-                core.set_exclude_masks(True,p_args.exclude_regexp)
+                set_exclude_masks_res=dude_core.set_exclude_masks(True,p_args.exclude_regexp)
+            else:
+                set_exclude_masks_res=dude_core.set_exclude_masks(False,[])
 
-            scan_thread=Thread(target=core.scan,daemon=True)
+            if set_exclude_masks_res:
+                print(set_exclude_masks_res)
+                sys.exit(2)
+
+            scan_thread=Thread(target=dude_core.scan,daemon=True)
             scan_thread.start()
 
             while scan_thread.is_alive():
-                print('Scanning ...', core.info_counter,end='\r')
+                print('Scanning ...', dude_core.info_counter,end='\r')
                 time.sleep(0.04)
 
             scan_thread.join()
 
-            crc_thread=Thread(target=core.crc_calc,daemon=True)
+            crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
             crc_thread.start()
 
             while crc_thread.is_alive():
-                print(f'crc_calc...{core.info_files_done}/{core.info_total}                 ',end='\r')
+                print(f'crc_calc...{dude_core.info_files_done}/{dude_core.info_total}                 ',end='\r')
                 time.sleep(0.04)
 
             crc_thread.join()
             print('')
-            core.write_csv(p_args.csv[0])
+            dude_core.write_csv(p_args.csv[0])
             print('Done')
 
         else:
