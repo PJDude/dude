@@ -123,7 +123,10 @@ class DudeCore:
         self.paths_to_scan=abspaths
         return False
 
+    reg_exp=False
     def set_exclude_masks(self,reg_exp,masks_list):
+        self.reg_exp=reg_exp
+
         self.excl_fn = (lambda expr,string : re.search(expr,string)) if reg_exp else (lambda expr,string : fnmatch.fnmatch(string,expr))
 
         teststring='abc'
@@ -207,9 +210,9 @@ class DudeCore:
     def scan(self):
         self.log.info('')
         self.log.info('SCANNING')
-
-        if self.exclude_list:
-            self.log.info('exclude_list:' + ' '.join(self.exclude_list))
+        self.log.info('paths to scan: %s',' '.join(self.paths_to_scan))
+        self.log.info('exclude_reg_exp: %s',self.reg_exp)
+        self.log.info('exclude_list: %s',' '.join(self.exclude_list))
 
         self.info_path_nr=0
         self.info_path_to_scan=''
