@@ -26,6 +26,8 @@
 #
 ####################################################################################
 
+import os
+
 import tkinter as tk
 from tkinter import ttk
 from tkinter import scrolledtext
@@ -37,17 +39,6 @@ def set_geometry_by_parent(widget,parent):
     widget.geometry(f'+{x_offset}+{y_offset}')
 
 class GenericDialog :
-    def focus_out(self,event):
-        pass
-        #dont work,breaks ask dir dialog ...
-
-        #if self.focus:
-            #self.widget.after_idle(self.focus.focus_set)
-            #self.focus.focus_force()
-        #else:
-            #self.widget.after_idle(self.widget.focus_set)
-            #self.widget.focus_force()
-
     def __init__(self,parent,icon,bg_color,title,pre_show=None,post_close=None,min_width=600,min_height=400):
         self.bg_color=bg_color
 
@@ -112,12 +103,7 @@ class GenericDialog :
         self.focus_restore=True
         self.pre_focus=self.parent.focus_get()
 
-        self.parent.unbind("<FocusOut>")
-        self.widget.bind("<FocusOut>", self.focus_out)
-
         self.parent.config(cursor="watch")
-
-        self.parent.lift()
 
         self.widget.update()
         set_geometry_by_parent(self.widget,self.parent)
@@ -135,7 +121,6 @@ class GenericDialog :
             #focus.focus_force()
 
         set_geometry_by_parent(self.widget,self.parent)
-        self.widget.lift()
 
         if self.do_command:
             commnad_res = self.do_command()
@@ -149,9 +134,6 @@ class GenericDialog :
     def hide(self):
         self.widget.grab_release()
         self.parent.config(cursor="")
-
-        self.widget.unbind("<FocusOut>")
-        self.parent.bind("<FocusOut>", self.focus_out)
 
         self.widget.withdraw()
 
@@ -355,3 +337,56 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
             super().show(title=title,message=message,initial=initial,checkbutton_text=checkbutton_text,checkbutton_initial=checkbutton_initial)
         except Exception as e:
             print(e)
+
+class SFrame(tk.Frame):
+    def __init__(self, parent,bg,relief='flat',width=200,height=100):
+        super().__init__(parent)
+
+        self.canvas = tk.Canvas(self, bd=0, bg=bg,highlightcolor=bg,width=width,height=height,relief=relief)
+        self.f = tk.Frame(self.canvas, bg=bg,takefocus=False)
+        self.vsb = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.vsb.set)
+
+        self.vsb.pack(side="right", fill="y")
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.canvas_window = self.canvas.create_window((0,0), window=self.f, anchor="nw")
+
+        self.f.bind("<Configure>", self.frame_conf)
+        self.canvas.bind("<Configure>", self.canv_conf)
+
+        self.f.bind('<Enter>', self.on_enter)
+        self.f.bind('<Leave>', self.on_leave)
+
+        self.frame_conf(None)
+
+    def frame(self):
+        return self.f
+
+    def frame_conf(self, event):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def canv_conf(self, event):
+        self.canvas.itemconfig(self.canvas_window, width = event.width)
+
+    def wheel(self, event):
+        if os.name=='nt':
+            self.canvas.yview_scroll(int(-1 * (event.delta/120)), "units")
+        else:
+            if event.num == 4:
+                self.canvas.yview_scroll( -1, "units" )
+            elif event.num == 5:
+                self.canvas.yview_scroll( 1, "units" )
+
+    def on_enter(self, event):
+        if os.name=='nt':
+           self.canvas.bind_all("<MouseWheel>", self.wheel)
+        else:
+            self.canvas.bind_all("<Button-4>", self.wheel)
+            self.canvas.bind_all("<Button-5>", self.wheel)
+
+    def on_leave(self, event):
+        if os.name=='nt':
+            self.canvas.unbind_all("<MouseWheel>")
+        else:
+            self.canvas.unbind_all("<Button-4>")
+            self.canvas.unbind_all("<Button-5>")
