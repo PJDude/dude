@@ -197,34 +197,28 @@ class Gui:
         def busy_cursor_wrapp(self,*args,**kwargs):
             prev_process_events=self.do_process_events
             self.do_process_events=False
-            #logging.debug('busy_cursor_wrapp: do_process_events -> False')
+
             prev_cursor=self.menubar.cget('cursor')
 
             self.menu_disable()
-
-            #after = self.main.after(1000,lambda : self.menubar.config(cursor='watch') or self.main.config(cursor='watch') or self.main.update())
-            #after = self.main.after(1000,lambda : self.main.update())
             self.main.update()
 
             self.menubar.config(cursor='watch')
             self.main.config(cursor='watch')
-            #self.main.update()
 
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
                 self.status('busy_cursor_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
+                self.info_dialog_on_main.show('INTERNAL ERROR busy_cursor_wrapp',str(e))
                 logging.error('busy_cursor_wrapp:%s:%s:args:%s:kwargs: %s',func,e,args,kwargs)
                 res=None
-
-            #self.main.after_cancel(after)
 
             self.menu_enable()
             self.main.config(cursor=prev_cursor)
             self.menubar.config(cursor=prev_cursor)
 
             self.do_process_events=prev_process_events
-            #logging.debug('busy_cursor_wrapp: do_process_events restored to %s', self.do_process_events)
 
             return res
         return busy_cursor_wrapp
@@ -236,10 +230,12 @@ class Gui:
                 res=func(self,*args,**kwargs)
             except Exception as e:
                 self.status('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
+                self.info_dialog_on_main.show('INTERNAL ERROR restore_status_line_wrapp',str(e))
                 logging.error('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s',func,e,args,kwargs)
                 res=None
+            else:
+                self.status(prev)
 
-            self.status(prev)
             return res
         return restore_status_line_wrapp
 
@@ -1430,7 +1426,6 @@ class Gui:
             self.folder_tree_sel_change(next_item)
             self.folder_tree.update()
 
-    #@busy_cursor
     def key_press(self,event):
         if not self.do_process_events:
             return
@@ -1607,8 +1602,9 @@ class Gui:
                     self.mark_subpath(self.unset_mark,True)
                 elif key in ('f','F'):
                     self.finder_wrapper_show()
-        except Exception :
-            pass
+        except Exception as e:
+            logging.error(e)
+            self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
 
         self.main.bind_class('Treeview','<KeyPress>', self.key_press )
 
@@ -3100,9 +3096,14 @@ class Gui:
 
         return self.process_files(action,processed_items,scope_title)
 
+    CHECK_OK='ok_special_string'
+    CHECK_ERR='error_special_string'
+
     @restore_status_line
     def process_files_check_correctness(self,action,processed_items,remaining_items):
+
         skip_incorrect = self.cfg.get_bool(CFG_SKIP_INCORRECT_GROUPS)
+        show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
 
         for crc in processed_items:
             size = self.core.crc_to_size[crc]
@@ -3141,8 +3142,8 @@ class Gui:
                     if len(processed_items[crc])==1:
                         incorrect_groups.append(crc)
                 if incorrect_groups:
-                    incorrect_group_str='\n'.join(incorrect_groups)
-                    self.info_dialog_on_main.show('Warning (Hardlink) - Single file marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFolowing CRC groups will not be processed and remain with markings:\n\n{incorrect_group_str}")
+                    incorrect_group_str='\n'.join([crc if show_full_crc else self.core.crc_cut[crc] for crc in incorrect_groups ])
+                    self.text_info_dialog.show('Warning (Hardlink) - Single file marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}")
 
                     self.crc_select_and_focus(incorrect_groups[0],True)
 
@@ -3153,10 +3154,10 @@ class Gui:
             else:
                 for crc in processed_items:
                     if len(processed_items[crc])==1:
-                        self.info_dialog_on_main.show('Error - Can\'t hardlink single file.',"Mark more files.")
+                        self.info_dialog_on_main.show('Error - Can\'t hardlink single file.',"Mark more files\nor enable option:\n\"Skip groups with invalid selection\"")
 
                         self.crc_select_and_focus(crc,True)
-                        return True
+                        return self.CHECK_ERR
 
         elif action==DELETE:
             if skip_incorrect:
@@ -3165,8 +3166,8 @@ class Gui:
                     if len(remaining_items[crc])==0:
                         incorrect_groups.append(crc)
                 if incorrect_groups:
-                    incorrect_group_str='\n'.join(incorrect_groups)
-                    self.info_dialog_on_main.show('Warning (Delete) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFolowing CRC groups will not be processed and remain with markings:\n\n{incorrect_group_str}")
+                    incorrect_group_str='\n'.join([crc if show_full_crc else self.core.crc_cut[crc] for crc in incorrect_groups ])
+                    self.text_info_dialog.show('Warning (Delete) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}")
 
                     self.crc_select_and_focus(incorrect_groups[0],True)
 
@@ -3180,15 +3181,15 @@ class Gui:
                         if self.cfg.get_bool(CFG_ALLOW_DELETE_ALL):
                             show_all_delete_warning=True
                         else:
-                            self.info_dialog_on_main.show('Error (Delete) - All files marked',"Keep at least one file unmarked.")
+                            self.info_dialog_on_main.show('Error (Delete) - All files marked',"Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"")
 
                             self.crc_select_and_focus(crc,True)
-                            return True
+                            return self.CHECK_ERR
 
                 if show_all_delete_warning:
                     self.text_ask_dialog.show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies in one or more groups are selected.|RED\n\nProceed ?|RED')
                     if not self.text_ask_dialog.res_bool:
-                        return True
+                        return self.CHECK_ERR
 
         elif action==SOFTLINK:
             if skip_incorrect:
@@ -3197,8 +3198,8 @@ class Gui:
                     if len(remaining_items[crc])==0:
                         incorrect_groups.append(crc)
                 if incorrect_groups:
-                    incorrect_group_str='\n'.join(incorrect_groups)
-                    self.info_dialog_on_main.show('Warning (Softlink) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFolowing CRC groups will not be processed and remain with markings:\n\n{incorrect_group_str}")
+                    incorrect_group_str='\n'.join([crc if show_full_crc else self.core.crc_cut[crc] for crc in incorrect_groups ])
+                    self.text_info_dialog.show('Warning (Softlink) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}")
 
                     self.crc_select_and_focus(incorrect_groups[0],True)
 
@@ -3208,11 +3209,11 @@ class Gui:
             else:
                 for crc in processed_items:
                     if len(remaining_items[crc])==0:
-                        self.info_dialog_on_main.show('Error (Softlink) - All files marked',"Keep at least one file unmarked.")
+                        self.info_dialog_on_main.show('Error (Softlink) - All files marked',"Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"")
 
                         self.crc_select_and_focus(crc,True)
-                        return True
-        return False
+                        return self.CHECK_ERR
+        return self.CHECK_OK
 
     @restore_status_line
     def process_files_check_correctness_last(self,action,processed_items,remaining_items):
@@ -3226,16 +3227,16 @@ class Gui:
                     logging.error(title)
                     logging.error(message)
                     self.info_dialog_on_main.show(title,message)
-                    return True
+                    return self.CHECK_ERR
         for crc in processed_items:
             for item in remaining_items[crc]:
                 if res:=self.file_check_state(item):
                     self.info_dialog_on_main.show('Error',res+'\n\nNo action was taken.\n\nAborting. Repeat scanning please or unmark all files and groups affected by other programs.')
                     logging.error('aborting.')
-                    return True
+                    return self.CHECK_ERR
 
         logging.info('remaining files checking complete.')
-        return False
+        return self.CHECK_OK
 
     @restore_status_line
     def process_files_confirm(self,action,processed_items,remaining_items,scope_title):
@@ -3404,11 +3405,16 @@ class Gui:
         for crc in affected_crcs:
             remaining_items[crc]=[item for item in self.groups_tree.get_children(crc) if not self.groups_tree.tag_has(MARK,item)]
 
-        if self.process_files_check_correctness(action,processed_items,remaining_items):
+        check=self.process_files_check_correctness(action,processed_items,remaining_items)
+
+        if check == self.CHECK_ERR:
+            return
+        elif check!=self.CHECK_OK:
+            self.info_dialog_on_main.show('INTERNAL ERROR 1 - aborting','got %s from process_files_check_correctness' % check)
             return
 
         if not processed_items:
-            self.info_dialog_on_main.show('info','No files left for processing. Fix files selection.')
+            self.info_dialog_on_main.show('info','No files left for processing.\nFix files selection.')
             return
 
         logging.warning('###########################################################################################')
@@ -3419,7 +3425,11 @@ class Gui:
             return
 
         #after confirmation
-        if self.process_files_check_correctness_last(action,processed_items,remaining_items):
+        check=self.process_files_check_correctness_last(action,processed_items,remaining_items)
+        if check == self.CHECK_ERR:
+            return
+        elif check!=self.CHECK_OK:
+            self.info_dialog_on_main.show('INTERNAL ERROR 1 - aborting','got %s process_files_check_correctness_last' % check)
             return
 
         #############################################
