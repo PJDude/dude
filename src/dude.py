@@ -241,7 +241,7 @@ class Gui:
 
     #######################################################################
     action_abort=False
-    def crc_progress_dialog_show(self,parent,title,progress_mode1=None,progress_mode2=None,progress1_left_text=None,progress2_left_text=None):
+    def progress_dialog_show(self,parent,title,progress_mode1=None,progress_mode2=None,progress1_left_text=None,progress2_left_text=None,abort_tooltip=None):
         self.parent=parent
 
         self.ps_index =0
@@ -249,17 +249,17 @@ class Gui:
         self.progress_mode1=progress_mode1
         self.progress_mode2=progress_mode2
 
-        self.crc_progress_dialog = tk.Toplevel(parent,bg=self.bg_color)
-        self.crc_progress_dialog.wm_transient(parent)
+        self.progress_dialog = tk.Toplevel(parent,bg=self.bg_color)
+        self.progress_dialog.wm_transient(parent)
 
-        self.crc_progress_dialog.protocol("WM_DELETE_WINDOW", self.crc_progress_dialog_abort)
-        self.crc_progress_dialog.bind('<Escape>', lambda event : self.crc_progress_dialog_abort())
+        self.progress_dialog.protocol("WM_DELETE_WINDOW", self.progress_dialog_abort)
+        self.progress_dialog.bind('<Escape>', lambda event : self.progress_dialog_abort())
 
-        self.crc_progress_dialog.wm_title(title)
-        self.crc_progress_dialog.iconphoto(False, self.iconphoto)
+        self.progress_dialog.wm_title(title)
+        self.progress_dialog.iconphoto(False, self.iconphoto)
 
-        (frame_0:=tk.Frame(self.crc_progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
-        (frame_1:=tk.Frame(self.crc_progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
+        (frame_0:=tk.Frame(self.progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
+        (frame_1:=tk.Frame(self.progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
 
         self.progr1var = tk.DoubleVar()
         self.progr1=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode=progress_mode1,variable=self.progr1var)
@@ -285,7 +285,7 @@ class Gui:
         self.progr2_lab_right=tk.Label(frame_0,width=17,bg=self.bg_color)
 
         if progress_mode2:
-            self.crc_progress_dialog.minsize(550, 60)
+            self.progress_dialog.minsize(550, 60)
             self.progr2.grid(row=1,column=1,padx=1,pady=4,sticky='news')
 
             if progress2_left_text:
@@ -295,18 +295,22 @@ class Gui:
 
             self.progr2_lab_right.grid(row=1,column=2,padx=1,pady=4)
         else:
-            self.crc_progress_dialog.minsize(300, 60)
+            self.progress_dialog.minsize(300, 60)
 
         frame_0.grid_columnconfigure(1, weight=1)
 
         self.message=tk.StringVar()
         tk.Label(frame_1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg_color).pack(side='top',padx=8,pady=8,expand=1,fill='x')
-        ttk.Button(frame_1, text='abort', width=10 ,command=self.crc_progress_dialog_abort ).pack(side='bottom',padx=8,pady=8)
+        (abort_button:=ttk.Button(frame_1, text='Abort', width=10 ,command=self.progress_dialog_abort ) ).pack(side='bottom',padx=8,pady=8)
+
+        if abort_tooltip:
+            abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event,abort_tooltip))
+            abort_button.bind("<Leave>", lambda event : self.widget_leave())
 
         try:
-            self.crc_progress_dialog.update()
-            self.crc_progress_dialog.grab_set()
-            dialogs.set_geometry_by_parent(self.crc_progress_dialog,parent)
+            self.progress_dialog.update()
+            self.progress_dialog.grab_set()
+            dialogs.set_geometry_by_parent(self.progress_dialog,parent)
         except Exception :
             pass
 
@@ -315,12 +319,12 @@ class Gui:
 
         self.action_abort=False
 
-    def crc_progress_dialog_abort(self):
+    def progress_dialog_abort(self):
         self.action_abort=True
 
-    def crc_progress_dialog_end(self):
-        self.crc_progress_dialog.grab_release()
-        self.crc_progress_dialog.destroy()
+    def progress_dialog_end(self):
+        self.progress_dialog.grab_release()
+        self.progress_dialog.destroy()
         self.parent.config(cursor=self.prev_parent_cursor)
 
     message_prev=''
@@ -328,7 +332,7 @@ class Gui:
     progr_2_right_prev=''
     time_without_busy_sign=0
 
-    def crc_progress_dialog_update(self,message,progress1=None,progress2=None,progress_size_descr=None,progress_quant_descr=None,status_info=None):
+    def progress_dialog_update(self,message,progress1=None,progress2=None,progress_size_descr=None,progress_quant_descr=None,status_info=None):
         prefix=''
 
         if status_info:
@@ -354,7 +358,7 @@ class Gui:
             self.progr2_lab_right.config(text=progress_quant_descr)
 
         self.message.set('%s\n%s'%(prefix,message))
-        self.crc_progress_dialog.update()
+        self.progress_dialog.update()
 
     other_tree={}
 
@@ -370,7 +374,7 @@ class Gui:
 
         self.paths_to_scan_from_dialog=[]
 
-        signal.signal(signal.SIGINT, lambda a, k : self.crc_progress_dialog_abort())
+        signal.signal(signal.SIGINT, lambda a, k : self.progress_dialog_abort())
 
         ####################################################################
         self.main = tk.Tk()
@@ -2149,13 +2153,13 @@ class Gui:
 
         #############################
 
-        self.crc_progress_dialog_show(self.scan_dialog.area_main,'Scanning')
+        self.progress_dialog_show(self.scan_dialog.area_main,'Scanning',abort_tooltip='If you abort at this stage,\nyou will not get any results.')
 
         scan_thread=Thread(target=self.core.scan,daemon=True)
         scan_thread.start()
 
         while scan_thread.is_alive():
-            self.crc_progress_dialog_update(self.NUMBERS[self.core.info_path_nr] + '\n' + self.core.info_path_to_scan + '\n\n' + str(self.core.info_counter) + '\n' + core.bytes_to_str(self.core.info_size_sum))
+            self.progress_dialog_update(self.NUMBERS[self.core.info_path_nr] + '\n' + self.core.info_path_to_scan + '\n\n' + str(self.core.info_counter) + '\n' + core.bytes_to_str(self.core.info_size_sum))
 
             if self.action_abort:
                 self.core.abort()
@@ -2164,7 +2168,7 @@ class Gui:
             time.sleep(0.04)
 
         scan_thread.join()
-        self.crc_progress_dialog_end()
+        self.progress_dialog_end()
 
         if self.action_abort:
             return False
@@ -2175,7 +2179,7 @@ class Gui:
             return False
         #############################
         self.status('Calculating CRC ...')
-        self.crc_progress_dialog_show(self.scan_dialog.area_main,'CRC calculation','determinate','determinate',progress1_left_text='Total space:',progress2_left_text='Files number:')
+        self.progress_dialog_show(self.scan_dialog.area_main,'CRC calculation','determinate','determinate',progress1_left_text='Total space:',progress2_left_text='Files number:',abort_tooltip='If you abort at this stage,\npartial results may be available if any CRC groups are found.')
 
         self.core.writeLog=self.write_scan_log.get()
 
@@ -2202,7 +2206,7 @@ class Gui:
             progress_size_descr=core.bytes_to_str(self.core.info_size_done) + '/' + core.bytes_to_str(self.core.sim_size)
             progress_quant_descr=str(self.core.info_files_done) + '/' + str(self.core.info_total)
 
-            self.crc_progress_dialog_update(info,info_progress_size,info_progress_quantity,progress_size_descr,progress_quant_descr,self.core.info_line)
+            self.progress_dialog_update(info,info_progress_size,info_progress_quantity,progress_size_descr,progress_quant_descr,self.core.info_line)
 
             if self.core.can_abort:
                 if self.action_abort:
@@ -2216,7 +2220,7 @@ class Gui:
         crc_thread.join()
         #############################
 
-        self.crc_progress_dialog_end()
+        self.progress_dialog_end()
 
         self.groups_show()
 
