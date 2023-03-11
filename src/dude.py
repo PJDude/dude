@@ -115,6 +115,8 @@ DELETE=0
 SOFTLINK=1
 HARDLINK=2
 
+NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink'}
+
 HOMEPAGE='https://github.com/PJDude/dude'
 
 FOLDER_LINK = '⇦'
@@ -3109,6 +3111,7 @@ class Gui:
         skip_incorrect = self.cfg.get_bool(CFG_SKIP_INCORRECT_GROUPS)
         show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
 
+        self.status('checking data consistency with filesystem state ...')
         for crc in processed_items:
             size = self.core.crc_to_size[crc]
             (checkres,tuples_to_remove)=self.core.check_group_files_state(size,crc)
@@ -3139,84 +3142,49 @@ class Gui:
                 self.calc_mark_stats_groups()
 
         self.status('checking selection correctness...')
+
+        incorrect_groups=[]
         if action==HARDLINK:
+            for crc in processed_items:
+                if len(processed_items[crc])==1:
+                    incorrect_groups.append(crc)
+            problem_header = 'Single file marked'
+            problem_message = "Mark more files\nor enable option:\n\"Skip groups with invalid selection\""
+        else:
+            for crc in processed_items:
+                if len(remaining_items[crc])==0:
+                    incorrect_groups.append(crc)
+
+            problem_header = 'All files marked'
+            problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
+
+        if incorrect_groups:
             if skip_incorrect:
-                incorrect_groups=[]
-                for crc in processed_items:
-                    if len(processed_items[crc])==1:
-                        incorrect_groups.append(crc)
-                if incorrect_groups:
-                    incorrect_group_str='\n'.join([crc if show_full_crc else self.core.crc_cut[crc] for crc in incorrect_groups ])
-                    self.text_info_dialog.show('Warning (Hardlink) - Single file marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}")
 
-                    self.crc_select_and_focus(incorrect_groups[0],True)
+                incorrect_group_str='\n'.join([crc if show_full_crc else self.core.crc_cut[crc] for crc in incorrect_groups ])
+                header = f'Warning ({NAME[action]}). {problem_header}'
+                message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
 
-                    for crc in incorrect_groups:
-                        del processed_items[crc]
-                        del remaining_items[crc]
+                self.text_info_dialog.show(header,message)
+
+                self.crc_select_and_focus(incorrect_groups[0],True)
+
+                for crc in incorrect_groups:
+                    del processed_items[crc]
+                    del remaining_items[crc]
 
             else:
-                for crc in processed_items:
-                    if len(processed_items[crc])==1:
-                        self.info_dialog_on_main.show('Error - Can\'t hardlink single file.',"Mark more files\nor enable option:\n\"Skip groups with invalid selection\"")
+                if action==DELETE and self.cfg.get_bool(CFG_ALLOW_DELETE_ALL):
+                    self.text_ask_dialog.show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED')
+                    if self.text_ask_dialog.res_bool:
+                        return self.CHECK_OK
+                else:
+                    header = f'Error ({NAME[action]}). {problem_header}'
+                    self.info_dialog_on_main.show(header,problem_message)
 
-                        self.crc_select_and_focus(crc,True)
-                        return self.CHECK_ERR
+                self.crc_select_and_focus(incorrect_groups[0],True)
+                return self.CHECK_ERR
 
-        elif action==DELETE:
-            if skip_incorrect:
-                incorrect_groups=[]
-                for crc in processed_items:
-                    if len(remaining_items[crc])==0:
-                        incorrect_groups.append(crc)
-                if incorrect_groups:
-                    incorrect_group_str='\n'.join([crc if show_full_crc else self.core.crc_cut[crc] for crc in incorrect_groups ])
-                    self.text_info_dialog.show('Warning (Delete) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}")
-
-                    self.crc_select_and_focus(incorrect_groups[0],True)
-
-                    for crc in incorrect_groups:
-                        del processed_items[crc]
-                        del remaining_items[crc]
-            else:
-                show_all_delete_warning=False
-                for crc in processed_items:
-                    if len(remaining_items[crc])==0:
-                        if self.cfg.get_bool(CFG_ALLOW_DELETE_ALL):
-                            show_all_delete_warning=True
-                        else:
-                            self.info_dialog_on_main.show('Error (Delete) - All files marked',"Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"")
-
-                            self.crc_select_and_focus(crc,True)
-                            return self.CHECK_ERR
-
-                if show_all_delete_warning:
-                    self.text_ask_dialog.show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies in one or more groups are selected.|RED\n\nProceed ?|RED')
-                    if not self.text_ask_dialog.res_bool:
-                        return self.CHECK_ERR
-
-        elif action==SOFTLINK:
-            if skip_incorrect:
-                incorrect_groups=[]
-                for crc in processed_items:
-                    if len(remaining_items[crc])==0:
-                        incorrect_groups.append(crc)
-                if incorrect_groups:
-                    incorrect_group_str='\n'.join([crc if show_full_crc else self.core.crc_cut[crc] for crc in incorrect_groups ])
-                    self.text_info_dialog.show('Warning (Softlink) - All files marked',f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}")
-
-                    self.crc_select_and_focus(incorrect_groups[0],True)
-
-                    for crc in incorrect_groups:
-                        del processed_items[crc]
-                        del remaining_items[crc]
-            else:
-                for crc in processed_items:
-                    if len(remaining_items[crc])==0:
-                        self.info_dialog_on_main.show('Error (Softlink) - All files marked',"Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"")
-
-                        self.crc_select_and_focus(crc,True)
-                        return self.CHECK_ERR
         return self.CHECK_OK
 
     @restore_status_line
