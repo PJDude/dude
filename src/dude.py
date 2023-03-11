@@ -680,17 +680,24 @@ class Gui:
         self.scan_dialog.widget.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
 
         ##############
-        self.paths_frame = tk.LabelFrame(self.scan_dialog.area_main,text='Paths To scan:',borderwidth=2,bg=self.bg_color)
-        self.paths_frame.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=4)
+        temp_frame = tk.LabelFrame(self.scan_dialog.area_main,text='Paths To scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        self.add_path_button = ttk.Button(self.paths_frame,width=18,text="Add Path ...",command=self.path_to_scan_add_dialog,underline=0)
-        self.add_path_button.grid(column=0, row=100,pady=4,padx=4)
+        sf_par=dialogs.SFrame(temp_frame,bg=self.bg_color)
+        sf_par.pack(fill='both',expand=True,side='top')
+        self.paths_frame=sf_par.frame()
 
-        #self.AddDrivesButton = ttk.Button(self.paths_frame,width=10,text="Add drives",command=self.AddDrives,underline=4)
+        buttons_fr = tk.Frame(temp_frame,bg=self.bg_color,takefocus=False)
+        buttons_fr.pack(fill='both',expand=False,side='bottom')
+
+        self.add_path_button = ttk.Button(buttons_fr,width=18,text="Add Path ...",command=self.path_to_scan_add_dialog,underline=0)
+        self.add_path_button.pack(side='left',pady=4,padx=4)
+
+        #self.AddDrivesButton = ttk.Button(buttons_fr,width=10,text="Add drives",command=self.AddDrives,underline=4)
         #self.AddDrivesButton.grid(column=1, row=100,pady=4,padx=4)
 
-        self.clear_paths_list_button=ttk.Button(self.paths_frame,width=10,text="Clear List",command=self.scan_paths_clear )
-        self.clear_paths_list_button.grid(column=2, row=100,pady=4,padx=4)
+        self.clear_paths_list_button=ttk.Button(buttons_fr,width=10,text="Clear List",command=self.scan_paths_clear )
+        self.clear_paths_list_button.pack(side='right',pady=4,padx=4)
 
         self.paths_frame.grid_columnconfigure(1, weight=1)
         self.paths_frame.grid_rowconfigure(99, weight=1)
@@ -698,18 +705,30 @@ class Gui:
         ##############
         self.exclude_regexp_scan=tk.BooleanVar()
 
-        self.exclude_frame = tk.LabelFrame(self.scan_dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color)
-        self.exclude_frame.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
+        temp_frame2 = tk.LabelFrame(self.scan_dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame2.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        self.add_exclude_button = ttk.Button(self.exclude_frame,width=18,text="Add Exclude Mask ...",command=self.exclude_mask_add_dialog,underline=4)
-        tooltip_string = 'during the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expressions)\nor .*windows.*, etc. (with regular expressions)' if windows else '*.git* etc. (without regular expressions)\nor .*\\.git.* etc. (with regular expressions)')
+        sf_par2=dialogs.SFrame(temp_frame2,bg=self.bg_color)
+        sf_par2.pack(fill='both',expand=True,side='top')
+        self.exclude_frame=sf_par2.frame()
+
+        buttons_fr2 = tk.Frame(temp_frame2,bg=self.bg_color,takefocus=False)
+        buttons_fr2.pack(fill='both',expand=False,side='bottom')
+
+        self.add_exclude_button = ttk.Button(buttons_fr2,width=18,text="Add Expression ...",command=self.exclude_mask_add_dialog,underline=4)
+        tooltip_string = 'during the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
         self.add_exclude_button.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip_string))
         self.add_exclude_button.bind("<Leave>", lambda event : self.widget_leave())
 
-        self.add_exclude_button.grid(column=0, row=100,pady=4,padx=4)
+        self.add_exclude_button.pack(side='left',pady=4,padx=4)
 
-        self.clear_excludes_list_button=ttk.Button(self.exclude_frame,width=10,text="Clear List",command=self.exclude_masks_clear )
-        self.clear_excludes_list_button.grid(column=2, row=100,pady=4,padx=4)
+        self.add_exclude_button2 = ttk.Button(buttons_fr2,width=18,text="Add path ...",command=self.exclude_mask_add_dir)
+        self.add_exclude_button2.pack(side='left',pady=4,padx=4)
+
+        ttk.Checkbutton(buttons_fr2,text='treat as a regular expression',variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
+
+        self.clear_excludes_list_button=ttk.Button(buttons_fr2,width=10,text="Clear List",command=self.exclude_masks_clear )
+        self.clear_excludes_list_button.pack(side='right',pady=4,padx=4)
 
         self.exclude_frame.grid_columnconfigure(1, weight=1)
         self.exclude_frame.grid_rowconfigure(99, weight=1)
@@ -1233,14 +1252,14 @@ class Gui:
         else:
             initialvalue='*'
 
-        #self.find_dialog_on_main.show('Find',scope_info,initial=initialvalue,checkbutton_text='Use regular expressions matching',checkbutton_initial=False)
+        #self.find_dialog_on_main.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
         #self.find_by_tree[tree]=self.find_dialog_on_main.entry.get()
 
         if self.sel_tree_index==0:
-            self.find_dialog_on_groups.show('Find',scope_info,initial=initialvalue,checkbutton_text='Use regular expressions matching',checkbutton_initial=False)
+            self.find_dialog_on_groups.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
             self.find_by_tree[tree]=self.find_dialog_on_groups.entry.get()
         else:
-            self.find_dialog_on_folder.show('Find',scope_info,initial=initialvalue,checkbutton_text='Use regular expressions matching',checkbutton_initial=False)
+            self.find_dialog_on_folder.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
             self.find_by_tree[tree]=self.find_dialog_on_folder.entry.get()
 
         self.find_dialog_shown=False
@@ -2118,7 +2137,7 @@ class Gui:
         exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
 
         if res:=self.core.set_exclude_masks(self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
-            self.info_dialog_on_scan.show('Error. Fix Exclude masks.',res)
+            self.info_dialog_on_scan.show('Error. Fix expression.',res)
             return False
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude_from_entry))
 
@@ -2270,9 +2289,7 @@ class Gui:
         self.exclude_frames=[]
         self.exclude_entry_var={}
 
-        ttk.Checkbutton(self.exclude_frame,text='Use regular expressions matching',variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).grid(row=0,column=0,sticky='news',columnspan=3,padx=5)
-
-        row=1
+        row=0
 
         for entry in self.cfg.get(CFG_KEY_EXCLUDE,'').split('|'):
             if entry:
@@ -2307,16 +2324,24 @@ class Gui:
         if res:=askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.scan_dialog.area_main):
             self.path_to_scan_add(res)
 
+    def exclude_mask_add_dir(self):
+        if res:=askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.scan_dialog.area_main):
+            expr = res + (".*" if self.exclude_regexp_scan.get() else "*")
+            self.exclude_mask_string(expr)
+
     def exclude_mask_add_dialog(self):
         self.exclude_dialog_on_scan.show('Specify Exclude expression','expression:','')
         confirmed=self.exclude_dialog_on_scan.res_bool
         mask=self.exclude_dialog_on_scan.res_str
 
         if confirmed:
-            orglist=self.cfg.get(CFG_KEY_EXCLUDE,'').split('|')
-            orglist.append(mask)
-            self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
-            self.exclude_mask_update()
+            self.exclude_mask_string(mask)
+
+    def exclude_mask_string(self,mask):
+        orglist=self.cfg.get(CFG_KEY_EXCLUDE,'').split('|')
+        orglist.append(mask)
+        self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
+        self.exclude_mask_update()
 
     def path_to_scan_remove(self,path) :
         self.paths_to_scan_from_dialog.remove(path)
@@ -2805,16 +2830,16 @@ class Gui:
             range_str = ''
             title='Specify expression for file names in selected directory.'
 
-        #self.mark_dialog_on_main.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
+        #self.mark_dialog_on_main.show(title,prompt + f'{range_str}', initialvalue,'treat as a regular expression',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
         #use_reg_expr = self.mark_dialog_on_main.res_check
         #expression = self.mark_dialog_on_main.res_str
 
         if tree==self.groups_tree:
-            self.mark_dialog_on_groups.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
+            self.mark_dialog_on_groups.show(title,prompt + f'{range_str}', initialvalue,'treat as a regular expression',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
             use_reg_expr = self.mark_dialog_on_groups.res_check
             expression = self.mark_dialog_on_groups.res_str
         else:
-            self.mark_dialog_on_folder.show(title,prompt + f'{range_str}', initialvalue,'Use regular expressions matching',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
+            self.mark_dialog_on_folder.show(title,prompt + f'{range_str}', initialvalue,'treat as a regular expression',self.cfg.get_bool(CFG_KEY_USE_REG_EXPR))
             use_reg_expr = self.mark_dialog_on_folder.res_check
             expression = self.mark_dialog_on_folder.res_str
 
