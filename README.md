@@ -45,9 +45,10 @@ dude .
 ```
 dude c:\order d:\mess
 ```
-* Generate csv with report, exclude paths with '*windows*':
+* Generate csv with report, exclude some paths:
 ```
-dude c:\ --exclude *windows* --csv result.csv
+dude ~ --exclude "*.git/*" --csv result.csv ; note the quotation marks on asterisks
+dude.exe c:\ --exclude *windows* --csv result.csv
 ```
 * check full set of available parameters:
 ```
