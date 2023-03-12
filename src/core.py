@@ -71,6 +71,11 @@ class DudeCore:
     windows=False
     debug=False
 
+    def handle_sigint(self):
+        print("Received SIGINT signal")
+        self.log.warning("Received SIGINT signal")
+        self.abort()
+
     def reset(self):
         self.scan_results_by_size=defaultdict(set)
         self.files_of_size_of_crc=defaultdict(lambda : defaultdict(set))
@@ -86,6 +91,8 @@ class DudeCore:
         self.log=log_par
         self.windows = bool(os.name=='nt')
         self.debug=debug
+
+        self.name_func = (lambda x : x.lower()) if self.windows else (lambda x : x)
 
         self.reset()
 
@@ -164,13 +171,13 @@ class DudeCore:
         if path not in self.scan_dir_cache or self.scan_dir_cache[path][0]!=path_ctime:
             try:
                 with os.scandir(path) as res:
-                    reslist=[]
+                    entry_set=set()
                     for entry in res:
-                        name = entry.name
+                        name = self.name_func(entry.name)
 
-                        #is_link=entry.is_symlink()
+                        is_link=entry.is_symlink()
                         #faster ?
-                        is_link=os.path.islink(entry)
+                        #is_link=os.path.islink(entry)
 
                         is_dir=entry.is_dir()
                         is_file=entry.is_file()
@@ -197,9 +204,9 @@ class DudeCore:
                                 self.log.error('scandir(stat): %s is_link:%s is_dir:%s',e,is_link,is_dir )
                                 continue
 
-                        reslist.append( (name,is_link,is_dir,is_file,mtime,ctime,dev,inode,size,nlink) )
+                        entry_set.add( (name,is_link,is_dir,is_file,mtime,ctime,dev,inode,size,nlink) )
 
-                    self.scan_dir_cache[path] = ( path_ctime,tuple(reslist) )
+                    self.scan_dir_cache[path] = ( path_ctime,tuple(entry_set) )
 
             except Exception as e:
                 self.log.error('scandir: %s',e)
@@ -226,11 +233,12 @@ class DudeCore:
         self.scan_results_by_size.clear()
 
         for path_to_scan in self.paths_to_scan:
-            loop_list=[(path_to_scan,None)]
+            loop_set=set()
+            loop_set.add((path_to_scan,None))
 
-            while loop_list:
+            while loop_set:
                 try:
-                    path,path_ctime = loop_list.pop()
+                    path,path_ctime = loop_set.pop()
                     for file_name,is_link,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self.set_scan_dir(path,path_ctime)[1]:
 
                         if self.exclude_list:
@@ -242,7 +250,7 @@ class DudeCore:
                             if is_link :
                                 self.log.debug('skippping link: %s / %s',path,file_name)
                             elif isdir:
-                                loop_list.append((os.path.join(path,file_name),ctime))
+                                loop_set.add((os.path.join(path,file_name),ctime))
                             elif isfile:
                                 if mtime: #stat succeeded
                                     if nlink!=1:
@@ -282,6 +290,7 @@ class DudeCore:
 
         ######################################################################
         #inodes collision detection
+        self.info='Inode collision detgection'
         known_dev_inodes=defaultdict(int)
         for size,data in self.scan_results_by_size.items():
             for pathnr,path,file_name,mtime,ctime,dev,inode in data:

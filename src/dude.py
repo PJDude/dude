@@ -364,6 +364,11 @@ class Gui:
 
     other_tree={}
 
+    def handle_sigint(self):
+        self.status("Received SIGINT signal")
+        logging.warning("Received SIGINT signal")
+        self.progress_dialog_abort()
+
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None):
         self.cwd=cwd
 
@@ -375,7 +380,7 @@ class Gui:
 
         self.paths_to_scan_from_dialog=[]
 
-        signal.signal(signal.SIGINT, lambda a, k : self.progress_dialog_abort())
+        signal.signal(signal.SIGINT, lambda a, k : self.handle_sigint())
 
         ####################################################################
         self.main = tk.Tk()
@@ -2599,7 +2604,8 @@ class Gui:
                 do_refresh=False
 
         if do_refresh :
-            folder_items=[]
+            #folder_items=set()
+            folder_items_dict={}
 
             show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
 
@@ -2669,9 +2675,12 @@ class Gui:
                     continue
 
                 values = (file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h)
-                folder_items.append( (presort_id,text,iid,values) )
+                #folder_items.add( (presort_id,text,iid,values) )
+                folder_items_dict[iid] = (presort_id,text,values)
 
             ############################################################
+
+            #for presort_id,text,iid,(file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h) in sorted(folder_items,key=lambda x : (x[0],sort_val_func(x[3][sort_index_local]) ),reverse=reverse)] ) )
 
             self.folder_items_cache[current_path]=(dir_ctime,\
                     tuple([ \
@@ -2681,7 +2690,9 @@ class Gui:
                             (file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h),\
                             SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR,DIRLINK) else LINK if kind==LINK else "" \
                         ) \
-               for presort_id,text,iid,(file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h) in sorted(folder_items,key=lambda x : (x[0],sort_val_func(x[3][sort_index_local]) ),reverse=reverse)] ) )
+               for iid,(presort_id,text,(file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h)) in sorted( list(folder_items_dict.items()), key=lambda x : ( x[1][0],sort_val_func(x[1][2][sort_index_local]) ),reverse=reverse ) ] ) )
+               #sorted(folder_items,key=lambda x : (x[0],sort_val_func(x[3][sort_index_local]) ),reverse=reverse)] ) )
+
 
         if arbitrary_path:
             #TODO - workaround
@@ -3645,7 +3656,7 @@ if __name__ == "__main__":
         dude_core = core.DudeCore(CACHE_DIR,logging,DEBUG_MODE)
 
         if p_args.csv:
-            signal.signal(signal.SIGINT, lambda a, k : dude_core.abort())
+            signal.signal(signal.SIGINT, lambda a, k : dude_core.handle_sigint())
 
             dude_core.set_paths_to_scan(p_args.paths)
 
