@@ -2077,7 +2077,7 @@ class Gui:
         tlist=[]
         for item in (tree.get_children(parent_item) if parent_item else tree.get_children(parent_item)):
             sortval_org=tree.set(item,real_column_to_sort)
-            sortval=(float(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
+            sortval=(int(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
 
             if lower_tree:
                 kind = tree.set(item,'kind')
@@ -2180,7 +2180,7 @@ class Gui:
             return False
 
         #############################
-        if dude_core.sim_size==0:
+        if dude_core.sum_size==0:
             self.info_dialog_on_scan.show('Cannot Proceed.','No Duplicates.')
             return False
         #############################
@@ -2206,10 +2206,10 @@ class Gui:
                 + '\nfolders: ' + str(dude_core.info_found_folders) \
                 + '\nspace: ' + core.bytes_to_str(dude_core.info_found_dupe_space)
 
-            info_progress_size=float(100)*float(dude_core.info_size_done)/float(dude_core.sim_size)
-            info_progress_quantity=float(100)*float(dude_core.info_files_done)/float(dude_core.info_total)
+            info_progress_size=100*int(dude_core.info_size_done)/int(dude_core.sum_size)
+            info_progress_quantity=100*int(dude_core.info_files_done)/int(dude_core.info_total)
 
-            progress_size_descr=core.bytes_to_str(dude_core.info_size_done) + '/' + core.bytes_to_str(dude_core.sim_size)
+            progress_size_descr=core.bytes_to_str(dude_core.info_size_done) + '/' + core.bytes_to_str(dude_core.sum_size)
             progress_quant_descr=str(dude_core.info_files_done) + '/' + str(dude_core.info_total)
 
             self.progress_dialog_update(info,info_progress_size,info_progress_quantity,progress_size_descr,progress_quant_descr,dude_core.info_line)
@@ -2604,7 +2604,6 @@ class Gui:
                 do_refresh=False
 
         if do_refresh :
-            #folder_items=set()
             folder_items_dict={}
 
             show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
@@ -2613,7 +2612,11 @@ class Gui:
             sort_index_local=sort_index-1
 
             i=0
-            sort_val_func = float if is_numeric else lambda x : x
+            sort_val_func = int if is_numeric else lambda x : x
+
+            #preallocate
+            keys=[None]*len(scan_dir_res)
+            keys.clear()
 
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
@@ -2621,6 +2624,7 @@ class Gui:
                     text = '\t📁 %s' % FOLDER_LINK if isdir else '\t  %s' % FILE_LINK_LEFT
                     iid=('%sDL' % i) if isdir else ('%sFL' % i)
                     kind= DIRLINK if isdir else LINK
+                    defaulttag = DIR if isdir else LINK
                     crc=''
                     size='0'
                     size_h=''
@@ -2629,12 +2633,12 @@ class Gui:
                     instances='1'
                     instances_h=''
                     i+=1
-
                 elif isdir:
                     presort_id = dir_code
                     text = '\t📁'
                     iid='%sD' % i
                     kind= DIR
+                    defaulttag = DIR
                     crc=''
                     size='0'
                     size_h=''
@@ -2643,7 +2647,6 @@ class Gui:
                     instances='1'
                     instances_h=''
                     i+=1
-
                 elif isfile:
                     presort_id = non_dir_code
                     file_id=self.idfunc(inode,dev)
@@ -2660,39 +2663,30 @@ class Gui:
                         iid=file_id
                         kind=FILE
                         instances_h=instances=str(instances_num)
+                        defaulttag=None
                     else:
                         text = '\t ✹(%s)' % nlink if nlink!=1 else ''
                         iid='%sO' % i
                         crc=''
                         kind = SINGLEHARDLINKED if nlink!=1 else SINGLE
+                        defaulttag = SINGLE
 
                         instances='1'
                         instances_h=''
                         i+=1
                 else:
                     logging.error('what is it: %s:%s,%s,%s,%s ?',current_path,file,islink,isdir,isfile)
-
                     continue
 
                 values = (file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h)
-                #folder_items.add( (presort_id,text,iid,values) )
-                folder_items_dict[iid] = (presort_id,text,values)
+
+                current_sort_key=(presort_id,sort_val_func(values[sort_index_local]),iid)
+                #keys[i]=current_sort_key
+                keys += current_sort_key,
+                folder_items_dict[iid] = (text,values,defaulttag)
 
             ############################################################
-
-            #for presort_id,text,iid,(file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h) in sorted(folder_items,key=lambda x : (x[0],sort_val_func(x[3][sort_index_local]) ),reverse=reverse)] ) )
-
-            self.folder_items_cache[current_path]=(dir_ctime,\
-                    tuple([ \
-                        (\
-                            text,\
-                            iid,\
-                            (file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h),\
-                            SINGLE if kind in (SINGLE,SINGLEHARDLINKED) else DIR if kind in (DIR,UPDIR,DIRLINK) else LINK if kind==LINK else "" \
-                        ) \
-               for iid,(presort_id,text,(file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h)) in sorted( list(folder_items_dict.items()), key=lambda x : ( x[1][0],sort_val_func(x[1][2][sort_index_local]) ),reverse=reverse ) ] ) )
-               #sorted(folder_items,key=lambda x : (x[0],sort_val_func(x[3][sort_index_local]) ),reverse=reverse)] ) )
-
+            self.folder_items_cache[current_path]=(dir_ctime, [ (iid,folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) ] )
 
         if arbitrary_path:
             #TODO - workaround
@@ -2707,7 +2701,7 @@ class Gui:
             #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
             self.folder_tree.insert(parent="", index='end', iid='0UP' , text='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
 
-        _ = {self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if values[self.kind_index]==FILE else defaulttag) for (text,iid,values,defaulttag) in self.folder_items_cache[current_path][1]}
+        _ = {self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if values[self.kind_index]==FILE else defaulttag) for (iid,(text,values,defaulttag)) in self.folder_items_cache[current_path][1]}
 
         self.folder_tree_flat_items_list=self.folder_tree.get_children()
 
@@ -2737,7 +2731,7 @@ class Gui:
         var_size.set(core.bytes_to_str(sum(int(tree.set(item,'size')) for item in marked)))
 
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
-        item=sorted([ (item,self.groups_tree.set(item,'ctime') ) for item in self.groups_tree.get_children(crc)],key=lambda x : float(x[1]),reverse=reverse)[0][0]
+        item=sorted([ (item,self.groups_tree.set(item,'ctime') ) for item in self.groups_tree.get_children(crc)],key=lambda x : int(x[1]),reverse=reverse)[0][0]
         if item:
             action(item,self.groups_tree)
             if select:
@@ -3062,7 +3056,7 @@ class Gui:
         logging.info('checking file:%s',fullpath)
         try:
             stat = os.stat(fullpath)
-            ctime_check=str(round(stat.st_ctime))
+            ctime_check=str(int(round(stat.st_ctime)))
         except Exception as e:
             self.status(str(e))
             mesage = f'can\'t check file: {fullpath}\n\n{e}'

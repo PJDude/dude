@@ -65,7 +65,7 @@ class DudeCore:
     scan_results_by_size=defaultdict(set)
     files_of_size_of_crc=defaultdict(lambda : defaultdict(set))
 
-    sim_size=0
+    sum_size=0
     devs=()
     info=''
     windows=False
@@ -163,7 +163,7 @@ class DudeCore:
     def set_scan_dir(self,path,path_ctime=None):
         if not path_ctime:
             try:
-                path_ctime=round(os.stat(path).st_ctime)
+                path_ctime=int(round(os.stat(path).st_ctime))
             except Exception as e:
                 self.log.error('st_ctime ERROR:%s',e)
                 return (0,tuple([]),str(e))
@@ -193,8 +193,8 @@ class DudeCore:
                             try:
                                 stat = os.stat(os.path.join(path,name))
 
-                                mtime=str(round(stat.st_mtime))
-                                ctime=str(round(stat.st_ctime))
+                                mtime=str(int(round(stat.st_mtime)))
+                                ctime=str(int(round(stat.st_ctime)))
                                 dev=str(stat.st_dev)
                                 inode=str(stat.st_ino)
                                 size=stat.st_size
@@ -308,13 +308,13 @@ class DudeCore:
                     self.scan_results_by_size[size].remove(this_index)
 
         ######################################################################
-        self.sim_size=0
+        self.sum_size=0
         for size in list(self.scan_results_by_size):
             quant=len(self.scan_results_by_size[size])
             if quant==1 :
                 del self.scan_results_by_size[size]
             else:
-                self.sim_size += quant*size
+                self.sum_size += quant*size
         ######################################################################
         return True
 
@@ -680,8 +680,8 @@ class DudeCore:
                         res_problems.append('file became hardlink:%s - %s,%s,%s' % (stat.st_nlink,pathnr,path,file_name) )
                         problem=True
                     else:
-                        if (size,ctime,dev,inode) != (stat.st_size,str(round(stat.st_ctime)),str(stat.st_dev),str(stat.st_ino)):
-                            res_problems.append('file changed:%s,%s,%s,%s vs %s,%s,%s,%s' % (size,ctime,dev,inode,stat.st_size,round(stat.st_ctime),stat.st_dev,stat.st_ino) )
+                        if (size,ctime,dev,inode) != (stat.st_size,str(int(round(stat.st_ctime))),str(stat.st_dev),str(stat.st_ino)):
+                            res_problems.append('file changed:%s,%s,%s,%s vs %s,%s,%s,%s' % (size,ctime,dev,inode,stat.st_size,int(round(stat.st_ctime)),stat.st_dev,stat.st_ino) )
                             problem=True
                 if problem:
                     index_tuple=(pathnr,path,file_name,ctime,dev,inode)
