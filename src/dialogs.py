@@ -38,14 +38,19 @@ def set_geometry_by_parent(widget,parent):
 
     widget.geometry(f'+{x_offset}+{y_offset}')
 
-class GenericDialog :
+
+class GenericDialog:
+    locked_by_child={}
+
     def __init__(self,parent,icon,bg_color,title,pre_show=None,post_close=None,min_width=600,min_height=400):
         self.bg_color=bg_color
 
         self.widget = tk.Toplevel(parent,bg=self.bg_color,bd=0, relief='flat')
         self.widget.withdraw()
         self.widget.update()
-        self.widget.protocol("WM_DELETE_WINDOW", self.hide)
+        self.widget.protocol("WM_DELETE_WINDOW", lambda : self.do_checked(self.hide))
+
+        self.locked_by_child[self.widget]=False
 
         self.set_mins(min_width,min_height)
 
@@ -54,7 +59,7 @@ class GenericDialog :
         self.widget.iconphoto(False, icon)
 
         self.widget.title(title)
-        self.widget.bind('<Escape>', lambda event : self.hide())
+        self.widget.bind('<Escape>', lambda event : self.do_checked(self.hide))
 
         self.widget.bind('<KeyPress-Return>', self.return_bind)
 
@@ -77,6 +82,10 @@ class GenericDialog :
 
         self.do_command=None
 
+    def do_checked(self,proc):
+        if not self.locked_by_child[self.widget]:
+            proc()
+
     def set_mins(self,min_width,min_height):
         self.widget.minsize(min_width, min_height)
 
@@ -96,14 +105,16 @@ class GenericDialog :
     def show(self):
         if self.pre_show:
             if self.pre_show():
+                if self.post_close:
+                    self.post_close()
+
                 return
 
         self.widget.wm_transient(self.parent)
+        self.locked_by_child[self.parent]=True
 
         self.focus_restore=True
         self.pre_focus=self.parent.focus_get()
-
-        self.parent.config(cursor="watch")
 
         self.widget.update()
         set_geometry_by_parent(self.widget,self.parent)
@@ -115,6 +126,8 @@ class GenericDialog :
 
         self.widget.deiconify()
         self.widget.update()
+
+        self.parent.config(cursor="watch")
 
         if self.focus:
             self.focus.focus_set()
@@ -133,7 +146,6 @@ class GenericDialog :
 
     def hide(self):
         self.widget.grab_release()
-        self.parent.config(cursor="")
 
         self.widget.withdraw()
 
@@ -142,8 +154,11 @@ class GenericDialog :
         except Exception as e:
             pass
 
+        self.parent.config(cursor="")
+
         if self.post_close:
             self.post_close()
+
 
         if self.focus_restore:
             if self.pre_focus:
@@ -152,6 +167,7 @@ class GenericDialog :
                 self.parent.focus_set()
 
         self.wait_var.set(True)
+        self.locked_by_child[self.parent]=False
 
 class LabelDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=120):
@@ -344,7 +360,7 @@ class SFrame(tk.Frame):
 
         self.canvas = tk.Canvas(self, bd=0, bg=bg,highlightcolor=bg,width=width,height=height,relief=relief)
         self.f = tk.Frame(self.canvas, bg=bg,takefocus=False)
-        self.vsb = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.vsb.set)
 
         self.vsb.pack(side="right", fill="y")
