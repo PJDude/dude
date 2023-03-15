@@ -38,7 +38,6 @@ def set_geometry_by_parent(widget,parent):
 
     widget.geometry(f'+{x_offset}+{y_offset}')
 
-
 class GenericDialog:
     locked_by_child={}
 
@@ -80,11 +79,16 @@ class GenericDialog:
         self.wait_var=tk.BooleanVar()
         self.wait_var.set(False)
 
-        self.do_command=None
+        self.do_command_after_show=None
+        self.external_can_check=None
+
+    def set_external_can_check(self,func):
+        self.external_can_check=func
 
     def do_checked(self,proc):
         if not self.locked_by_child[self.widget]:
-            proc()
+            if (self.external_can_check and self.external_can_check()) or not self.external_can_check:
+                proc()
 
     def set_mins(self,min_width,min_height):
         self.widget.minsize(min_width, min_height)
@@ -98,9 +102,6 @@ class GenericDialog:
 
     def unlock(self):
         self.wait_var.set(True)
-
-    def define_command(self,do_command=None):
-        self.do_command=do_command
 
     def show(self):
         if self.pre_show:
@@ -135,8 +136,8 @@ class GenericDialog:
 
         set_geometry_by_parent(self.widget,self.parent)
 
-        if self.do_command:
-            commnad_res = self.do_command()
+        if self.do_command_after_show:
+            commnad_res = self.do_command_after_show()
 
             if commnad_res:
                 self.hide()
@@ -159,15 +160,14 @@ class GenericDialog:
         if self.post_close:
             self.post_close()
 
-
         if self.focus_restore:
             if self.pre_focus:
                 self.pre_focus.focus_set()
             else:
                 self.parent.focus_set()
 
-        self.wait_var.set(True)
         self.locked_by_child[self.parent]=False
+        self.wait_var.set(True)
 
 class LabelDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=120):

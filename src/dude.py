@@ -51,9 +51,13 @@ from collections import defaultdict
 from threading import Thread
 import sys
 
+import traceback
+import functools
+
 import core
 import console
 import dialogs
+
 
 log_levels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 
@@ -86,6 +90,8 @@ CFG_SKIP_INCORRECT_GROUPS='skip_incorrect_groups'
 CFG_ALLOW_DELETE_NON_DUPLICATES='allow_delete_non_duplicates'
 
 CFG_KEY_EXCLUDE='exclude'
+CFG_KEY_WRAPPER_FILE = 'file_open_wrapper'
+CFG_KEY_WRAPPER_FOLDERS = 'folders_open_wrapper'
 
 cfg_defaults={
     CFG_KEY_FULL_CRC:False,
@@ -98,8 +104,11 @@ cfg_defaults={
     CFG_CONFIRM_SHOW_LINKSTARGETS:True,
     CFG_ALLOW_DELETE_ALL:False,
     CFG_SKIP_INCORRECT_GROUPS:True,
-    CFG_ALLOW_DELETE_NON_DUPLICATES:False
-    }
+    CFG_ALLOW_DELETE_NON_DUPLICATES:False,
+    CFG_KEY_WRAPPER_FILE:'',
+    CFG_KEY_WRAPPER_FOLDERS:'',
+    CFG_KEY_EXCLUDE:''
+}
 
 MARK='M'
 UPDIR='0'
@@ -122,6 +131,10 @@ HOMEPAGE='https://github.com/PJDude/dude'
 FOLDER_LINK = '⇦'
 FILE_LINK_LEFT = '🠔'
 FILE_LINK_RIGHT = '🠖'
+
+@functools.cache
+def get_htime(time_par):
+    return time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(int(time_par)))
 
 class Config:
     def __init__(self,config_dir):
@@ -156,16 +169,16 @@ class Config:
     def set_bool(self,key,val,section='main'):
         self.config.set(section,key,('0','1')[val])
 
-    def get(self,key,default=None,section='main'):
+    def get(self,key,default='',section='main'):
         try:
             res=self.config.get(section,key)
         except Exception as e:
             logging.warning('gettting config key: %s',key)
             logging.warning(e)
             res=default
-            self.set(key,str(default),section=section)
+            self.set(key,default,section=section)
 
-        return str(res).replace('[','').replace(']','').replace('"','').replace("'",'').replace(',','').replace(' ','')
+        return str(res)
 
     def get_bool(self,key,section='main'):
         try:
@@ -197,18 +210,18 @@ class Gui:
 
     def block_main_window(func):
         def block_main_window_wrapp(self,*args,**kwargs):
-                prev_active=self.main_window_active
-                self.main_window_active=False
-                try:
-                    res=func(self,*args,**kwargs)
-                except Exception as e:
-                    self.status('block_main_window_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
-                    self.info_dialog_on_main.show('INTERNAL ERROR block_main_window_wrapp',str(e))
-                    logging.error('block_main_window_wrapp:%s:%s:args:%s:kwargs: %s',func,e,args,kwargs)
-                    res=None
+            prev_active=self.main_window_active
+            self.main_window_active=False
+            try:
+                res=func(self,*args,**kwargs)
+            except Exception as e:
+                self.status('block_main_window_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
+                self.info_dialog_on_main.show('INTERNAL ERROR block_main_window_wrapp',str(e))
+                logging.error('block_main_window_wrapp:%s:%s:args:%s:kwargs: %s',func,e,args,kwargs)
+                res=None
 
-                self.main_window_active=prev_active
-                return res
+            self.main_window_active=prev_active
+            return res
         return block_main_window_wrapp
 
     def busy_cursor(func):
@@ -268,6 +281,7 @@ class Gui:
     action_abort=False
     def progress_dialog_show(self,parent,title,progress_mode1=None,progress_mode2=None,progress1_left_text=None,progress2_left_text=None,abort_tooltip=None):
         self.parent=parent
+        self.progres_dialog_shown=True
 
         self.ps_index =0
 
@@ -347,10 +361,15 @@ class Gui:
     def progress_dialog_abort(self):
         self.action_abort=True
 
+    progres_dialog_shown=False
+    def progress_dialog_ended(self):
+        return not self.progres_dialog_shown
+
     def progress_dialog_end(self):
         self.progress_dialog.grab_release()
         self.progress_dialog.destroy()
         self.parent.config(cursor=self.prev_parent_cursor)
+        self.progres_dialog_shown=False
 
     message_prev=''
     progr_1_right_prev=''
@@ -774,13 +793,14 @@ class Gui:
         self.scan_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Scan",command=self.scan_from_button,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
 
-        self.scan_cancel_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Cancel",command=self.scan_dialog.hide,underline=0)
+        self.scan_cancel_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Cancel",command=self.scan_dialog_hide_wrapper,underline=0)
         self.scan_cancel_button.pack(side='left',padx=4,pady=4)
 
         self.scan_dialog.focus=self.scan_cancel_button
 
         def pre_show_settings():
             _ = {var.set(self.cfg.get_bool(key)) for var,key in self.settings}
+            _ = {var.set(self.cfg.get(key)) for var,key in self.settings_str}
             return pre_show()
 
         #######################################################################
@@ -812,6 +832,10 @@ class Gui:
             (self.allow_delete_all,CFG_ALLOW_DELETE_ALL),
             (self.skip_incorrect_groups,CFG_SKIP_INCORRECT_GROUPS),
             (self.allow_delete_non_duplicates,CFG_ALLOW_DELETE_NON_DUPLICATES)
+        ]
+        self.settings_str = [
+            (self.file_open_wrapper,CFG_KEY_WRAPPER_FILE),
+            (self.folders_open_wrapper,CFG_KEY_WRAPPER_FOLDERS),
         ]
 
         row = 0
@@ -854,14 +878,14 @@ class Gui:
         tk.Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=0, column=0,sticky='news')
         tk.Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
 
-        (e1:=ttk.Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=0, column=1,sticky='news',padx=3,pady=2)
-        (e2:=ttk.Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
+        (en_1:=ttk.Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=0, column=1,sticky='news',padx=3,pady=2)
+        (en_2:=ttk.Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
 
-        e1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty default os association will be executed.'))
-        e1.bind("<Leave>", lambda event : self.widget_leave())
+        en_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty default os association will be executed.'))
+        en_1.bind("<Leave>", lambda event : self.widget_leave())
 
-        e2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty default os filemanager will be used.'))
-        e2.bind("<Leave>", lambda event : self.widget_leave())
+        en_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty default os filemanager will be used.'))
+        en_2.bind("<Leave>", lambda event : self.widget_leave())
 
         label_frame.grid_columnconfigure(1, weight=1)
 
@@ -1239,25 +1263,23 @@ class Gui:
         self.status_line.set(text)
         self.status_line_lab.update()
 
-    #menu_state_stack=[]
+    menu_state_stack=[]
     def menu_enable(self):
-        pass
-        #try:
-        #    self.menu_state_stack.pop()
-        #    if not self.menu_state_stack:
-        #        self.menubar.entryconfig("File", state="normal")
-        #        self.menubar.entryconfig("Navigation", state="normal")
-        #        self.menubar.entryconfig("Help", state="normal")
-        #except Exception as e:
-        #    logging.error(e)
+        try:
+            self.menu_state_stack.pop()
+            if not self.menu_state_stack:
+                self.menubar.entryconfig("File", state="normal")
+                self.menubar.entryconfig("Navigation", state="normal")
+                self.menubar.entryconfig("Help", state="normal")
+        except Exception as e:
+            logging.error(e)
 
     def menu_disable(self):
-        pass
-        #self.menubar.entryconfig("File", state="disabled")
-        #self.menubar.entryconfig("Navigation", state="disabled")
-        #self.menubar.entryconfig("Help", state="disabled")
-        #self.menu_state_stack.append('x')
-        #self.menubar.update()
+        self.menu_state_stack.append('x')
+        self.menubar.entryconfig("File", state="disabled")
+        self.menubar.entryconfig("Navigation", state="disabled")
+        self.menubar.entryconfig("Help", state="disabled")
+        self.menubar.update()
 
     sel_item_of_tree = {}
 
@@ -2196,7 +2218,10 @@ class Gui:
 
     def scan_from_button(self):
         if self.scan():
-            self.scan_dialog.hide()
+            self.scan_dialog_hide_wrapper()
+
+    def scan_dialog_hide_wrapper(self):
+        self.scan_dialog.hide()
 
     @restore_status_line
     def scan(self):
@@ -2228,6 +2253,7 @@ class Gui:
         #############################
 
         self.progress_dialog_show(self.scan_dialog.area_main,'Scanning',abort_tooltip='If you abort at this stage,\nyou will not get any results.')
+        self.scan_dialog.set_external_can_check(self.progress_dialog_ended)
 
         scan_thread=Thread(target=dude_core.scan,daemon=True)
         scan_thread.start()
@@ -2243,6 +2269,7 @@ class Gui:
 
         scan_thread.join()
         self.progress_dialog_end()
+        self.scan_dialog.set_external_can_check(None)
 
         if self.action_abort:
             return False
@@ -2254,6 +2281,7 @@ class Gui:
         #############################
         self.status('Calculating CRC ...')
         self.progress_dialog_show(self.scan_dialog.area_main,'CRC calculation','determinate','determinate',progress1_left_text='Total space:',progress2_left_text='Files number:',abort_tooltip='If you abort at this stage,\npartial results may be available if any CRC groups are found.')
+        self.scan_dialog.set_external_can_check(self.progress_dialog_ended)
 
         dude_core.writeLog=self.write_scan_log.get()
 
@@ -2274,8 +2302,8 @@ class Gui:
                 + '\nfolders: ' + str(dude_core.info_found_folders) \
                 + '\nspace: ' + core.bytes_to_str(dude_core.info_found_dupe_space)
 
-            info_progress_size=100*int(dude_core.info_size_done)/int(dude_core.sum_size)
-            info_progress_quantity=100*int(dude_core.info_files_done)/int(dude_core.info_total)
+            info_progress_size=100*dude_core.info_size_done/dude_core.sum_size
+            info_progress_quantity=100*dude_core.info_files_done/dude_core.info_total
 
             progress_size_descr=core.bytes_to_str(dude_core.info_size_done) + '/' + core.bytes_to_str(dude_core.sum_size)
             progress_quant_descr=str(dude_core.info_files_done) + '/' + str(dude_core.info_total)
@@ -2295,6 +2323,9 @@ class Gui:
         #############################
 
         self.progress_dialog_end()
+        #need to wait for rendering
+
+        self.scan_dialog.set_external_can_check(lambda : False)
 
         self.groups_show()
 
@@ -2303,8 +2334,7 @@ class Gui:
 
         self.scan_dialog.widget.config(cursor="")
         #self.scan_dialog.widget.update()
-
-        self.scan_dialog.unlock()
+        #self.scan_dialog.unlock()
 
         return True
 
@@ -2312,10 +2342,9 @@ class Gui:
         self.exclude_mask_update()
         self.paths_to_scan_update()
 
-        self.scan_dialog.define_command(do_command=self.scan if do_scan else None)
+        self.scan_dialog.do_command_after_show=self.scan if do_scan else None
 
         self.scan_dialog.show()
-        #focus=self.scan_cancel_button,
 
         if dude_core.scanned_paths:
             self.paths_to_scan_from_dialog=dude_core.scanned_paths.copy()
@@ -2481,6 +2510,12 @@ class Gui:
         if self.cfg.get_bool(CFG_CONFIRM_SHOW_LINKSTARGETS)!=self.confirm_show_links_targets.get():
             self.cfg.set_bool(CFG_CONFIRM_SHOW_LINKSTARGETS,self.confirm_show_links_targets.get())
 
+        if self.cfg.get(CFG_KEY_WRAPPER_FILE)!=self.file_open_wrapper.get():
+            self.cfg.set(CFG_KEY_WRAPPER_FILE,self.file_open_wrapper.get())
+
+        if self.cfg.get(CFG_KEY_WRAPPER_FOLDERS)!=self.folders_open_wrapper.get():
+            self.cfg.set(CFG_KEY_WRAPPER_FOLDERS,self.folders_open_wrapper.get())
+
         self.cfg.write()
 
         if update1:
@@ -2496,6 +2531,7 @@ class Gui:
 
     def settings_reset(self):
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
+        _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
     def crc_node_update(self,crc):
         size=int(self.groups_tree.set(crc,'size'))
@@ -2567,9 +2603,11 @@ class Gui:
             self.tree_folder_update_none()
             self.reset_sels()
 
+
     @block_main_window
     def groups_show(self):
         self.status('Rendering data...')
+        self.menu_disable()
 
         self.idfunc = (lambda i,d : '%s-%s'%(i,d)) if len(dude_core.devs)>1 else (lambda i,d : str(i))
 
@@ -2579,14 +2617,14 @@ class Gui:
         sizes_counter=0
         for size,size_dict in dude_core.files_of_size_of_crc.items() :
             size_h = core.bytes_to_str(size)
-            size_str = str(size)
+            size_str = core.int_to_str(size)
             if not sizes_counter%64:
                 self.status('Rendering data... (%s)' % size_h)
 
             sizes_counter+=1
             for crc,crc_dict in size_dict.items():
                 #self.groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
-                instances_str=str(len(crc_dict))
+                instances_str=core.int_to_str(len(crc_dict))
                 crcitem=self.groups_tree.insert(parent='', index='end',iid=crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',CRC),tags=CRC,open=True)
 
                 for pathnr,path,file,ctime,dev,inode in crc_dict:
@@ -2595,7 +2633,7 @@ class Gui:
                             '',\
                             ctime,dev,inode,crc,\
                             '','',\
-                            time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(int(ctime))) ,FILE),tags=())
+                            get_htime(ctime) ,FILE),tags=())
         self.data_precalc()
 
         if self.column_sort_last_params[self.groups_tree]!=self.column_groups_sort_params_default:
@@ -2608,6 +2646,7 @@ class Gui:
         self.initial_focus()
         self.calc_mark_stats_groups()
 
+        self.menu_enable()
         self.status('')
 
     def groups_tree_update_crc_and_path(self):
@@ -2719,9 +2758,9 @@ class Gui:
                     presort_id = non_dir_code
                     file_id=self.idfunc(inode,dev)
 
-                    ctime_h=time.strftime('%Y/%m/%d %H:%M:%S',time.localtime(int(ctime)) )
+                    ctime_h=get_htime(ctime)
 
-                    size=str(size_num)
+                    size=core.int_to_str(size_num)
                     size_h=core.bytes_to_str(size_num)
 
                     if (file_id,ctime) in self.cache_by_id_ctime:
@@ -2730,7 +2769,7 @@ class Gui:
                         text = crc if show_full_crc else crc_cut
                         iid=file_id
                         kind=FILE
-                        instances_h=instances=str(instances_num)
+                        instances_h=instances=core.int_to_str(instances_num)
                         defaulttag=None
                     else:
                         text = '\t ✹(%s)' % nlink if nlink!=1 else ''
@@ -2794,8 +2833,6 @@ class Gui:
             self.status(str(e))
             logging.error(e)
             self.folder_items_cache={}
-
-        #self.folder_tree_flat_items_list=self.folder_tree.get_children()
 
         if not arbitrary_path:
             if self.sel_item and self.sel_item in self.folder_tree.get_children():
@@ -3148,7 +3185,7 @@ class Gui:
         logging.info('checking file:%s',fullpath)
         try:
             stat = os.stat(fullpath)
-            ctime_check=str(int(round(stat.st_ctime)))
+            ctime_check=core.int_to_str(int(round(stat.st_ctime)))
         except Exception as e:
             self.status(str(e))
             mesage = f'can\'t check file: {fullpath}\n\n{e}'
@@ -3477,7 +3514,8 @@ class Gui:
 
         if check == self.CHECK_ERR:
             return
-        elif check!=self.CHECK_OK:
+
+        if check!=self.CHECK_OK:
             self.info_dialog_on_main.show('INTERNAL ERROR 1 - aborting','got %s from process_files_check_correctness' % check)
             return
 
@@ -3496,7 +3534,8 @@ class Gui:
         check=self.process_files_check_correctness_last(action,processed_items,remaining_items)
         if check == self.CHECK_ERR:
             return
-        elif check!=self.CHECK_OK:
+
+        if check!=self.CHECK_OK:
             self.info_dialog_on_main.show('INTERNAL ERROR 1 - aborting','got %s process_files_check_correctness_last' % check)
             return
 
@@ -3671,22 +3710,39 @@ class Gui:
     @block_main_window
     def open_folder(self):
         if self.sel_path_full:
-            self.status(f'Opening {self.sel_path_full}')
-            if windows:
-                os.startfile(self.sel_path_full)
+
+            if wrapper:=self.folders_open_wrapper.get():
+                self.status(f'Opening: {wrapper} {self.sel_path_full}')
+                if windows:
+                    os.startfile(wrapper + ' ' + self.sel_path_full)
+                else:
+                    os.system(wrapper + ' "' + self.sel_path_full.replace("'","\'").replace("`","\`") + '"')
             else:
-                os.system("xdg-open " + '"' + self.sel_path_full.replace("'","\'").replace("`","\`") + '"')
+                self.status(f'Opening: {self.sel_path_full}')
+                if windows:
+                    os.startfile(self.sel_path_full)
+                else:
+                    os.system('xdg-open "' + self.sel_path_full.replace("'","\'").replace("`","\`") + '"')
 
     #@restore_status_line
     @busy_cursor
     @block_main_window
     def open_file(self):
         if self.sel_kind in (FILE,LINK,SINGLE,SINGLEHARDLINKED):
-            self.status(f'Opening {self.sel_file}')
-            if windows:
-                os.startfile(os.sep.join([self.sel_path_full,self.sel_file]))
+
+            if wrapper:=self.file_open_wrapper.get():
+                self.status(f'Opening: {wrapper} {self.sel_file}')
+                if windows:
+                    os.startfile(wrapper + ' ' + os.sep.join([self.sel_path_full,self.sel_file]))
+                else:
+                    os.system(wrapper + ' "' + os.sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
             else:
-                os.system("xdg-open "+ '"' + os.sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
+                self.status(f'Opening: {self.sel_file}')
+                if windows:
+                    os.startfile(os.sep.join([self.sel_path_full,self.sel_file]))
+                else:
+                    os.system('xdg-open "' + os.sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
+
         elif self.sel_kind in (DIR,DIRLINK):
             self.open_folder()
 

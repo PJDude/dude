@@ -29,7 +29,6 @@
 from collections import defaultdict
 from queue import Queue
 from threading import Thread
-#from multiprocessing import Process
 
 import os
 import pathlib
@@ -38,6 +37,7 @@ import re
 
 import time
 import hashlib
+import functools
 
 k=1024
 M=k*1024
@@ -48,8 +48,8 @@ MAX_THREADS = os.cpu_count()
 
 OPENED_FILES_PER_DEV_LIMIT=32
 
+@functools.cache
 def bytes_to_str(num,digits=2):
-
     if num<512:
         return '%sB' % num
     if (kb:=num/k)<k:
@@ -60,6 +60,87 @@ def bytes_to_str(num,digits=2):
         return '%sGB' % round(kb/M,digits)
 
     return '%sTB' % round(kb/G,digits)
+
+
+@functools.cache
+def int_to_str(num):
+    return str(num)
+
+CRC_BUFFER_SIZE=4*1024*1024
+
+class CRCThreadedCalc:
+    def __init__(self,debug=False):
+        self.src_queue=Queue()
+        self.res_queue=Queue()
+        self.file_info=(None,None)
+        self.progress_info=0
+        self.debug=debug
+        self.abort_action=False
+        self.debug_action = lambda size,index_tuple : self.debug_info(size,index_tuple) if self.debug else lambda size,index_tuple : None
+        self.started=False
+        self.thread = Thread(target=self.calc,daemon=True)
+
+    def debug_info(self,size,index_tuple):
+        self.file_info=(size,index_tuple)
+
+    def put(self,task):
+        self.src_queue.put(task)
+
+    def src_size(self):
+        return self.src_queue.qsize()
+
+    def res_size(self):
+        return self.res_queue.qsize()
+
+    def get(self):
+        res=self.res_queue.get()
+        self.res_queue.task_done()
+        return res
+
+    def abort(self):
+        self.abort_action=True
+
+    def calc(self):
+        buf = bytearray(CRC_BUFFER_SIZE)
+        view = memoryview(buf)
+
+        self.started=True
+
+        while True:
+            if task := self.src_queue.get():
+                self.src_queue.task_done()
+
+                file_handle,index_tuple,size,mtime = task
+
+                self.debug_action(size,index_tuple)
+
+                hasher = hashlib.sha1()
+                while rsize := file_handle.readinto(buf):
+                    hasher.update(view[:rsize])
+
+                    if rsize==CRC_BUFFER_SIZE:
+                        #still reading
+                        self.progress_info+=rsize
+
+                        if self.abort_action:
+                            file_handle.close()
+                            return
+
+                file_handle.close()
+
+                self.res_queue.put((index_tuple,size,mtime,hasher.hexdigest()))
+                self.progress_info=0
+            else:
+                break
+
+    def is_alive(self):
+        return self.thread.is_alive()
+
+    def start(self):
+        return self.thread.start()
+
+    def join(self):
+        self.thread.join()
 
 class DudeCore:
     scan_results_by_size=defaultdict(set)
@@ -179,32 +260,18 @@ class DudeCore:
                         #faster ?
                         #is_link=os.path.islink(entry)
 
-                        is_dir=entry.is_dir()
-                        is_file=entry.is_file()
-
                         if is_link:
-                            mtime=None
-                            ctime=None
-                            dev=None
-                            inode=None
-                            size=None
-                            nlink=None
+                            entry_set.add( (name,is_link,entry.is_dir(),entry.is_file(),None,None,None,None,None,None) )
                         else:
                             try:
-                                stat = os.stat(os.path.join(path,name))
-
-                                mtime=str(int(round(stat.st_mtime)))
-                                ctime=str(int(round(stat.st_ctime)))
-                                dev=str(stat.st_dev)
-                                inode=str(stat.st_ino)
-                                size=stat.st_size
-                                nlink=stat.st_nlink
-
+                                #stat = os.stat(os.path.join(path,name))
+                                stat = os.stat(entry)
+                                res_tuple = (name,is_link,entry.is_dir(),entry.is_file(),int_to_str(int(round(stat.st_mtime))),int_to_str(int(round(stat.st_ctime))),int_to_str(stat.st_dev),int_to_str(stat.st_ino),stat.st_size,stat.st_nlink)
                             except Exception as e:
-                                self.log.error('scandir(stat): %s is_link:%s is_dir:%s',e,is_link,is_dir )
+                                self.log.error('scandir(stat):%s error:%s is_link:%s',name,e,is_link )
                                 continue
-
-                        entry_set.add( (name,is_link,is_dir,is_file,mtime,ctime,dev,inode,size,nlink) )
+                            else:
+                                entry_set.add( res_tuple )
 
                     self.scan_dir_cache[path] = ( path_ctime,tuple(entry_set) )
 
@@ -344,9 +411,9 @@ class DudeCore:
         for (dev,val_dict) in self.crc_cache.items():
 
             self.log.debug('writing cache:%s:device:%s',self.cache_dir,dev)
-            with open(os.sep.join([self.cache_dir,str(dev)]),'w',encoding='ASCII') as cfile:
+            with open(os.sep.join([self.cache_dir,int_to_str(dev)]),'w',encoding='ASCII') as cfile:
                 for (inode,mtime),crc in val_dict.items():
-                    cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
+                    cfile.write(' '.join([int_to_str(x) for x in [inode,mtime,crc] ]) +'\n' )
 
         del self.crc_cache
 
@@ -364,39 +431,6 @@ class DudeCore:
     info_threads='?'
 
     Status=''
-
-    CRC_BUFFER_SIZE=1024*1024
-
-    #############################################################
-    def threaded_crc_calc_on_opened_files(self,dev,src_queue,res_queue):
-        buf = bytearray(self.CRC_BUFFER_SIZE)
-        view = memoryview(buf)
-
-        while True:
-            if task := src_queue.get():
-                src_queue.task_done()
-
-                file_handle,index_tuple,size,mtime = task
-                self.crc_thread_file_info[dev]=(size,index_tuple)
-
-                hasher = hashlib.sha1()
-                while rsize := file_handle.readinto(buf):
-                    hasher.update(view[:rsize])
-                    self.crc_thread_progress_info[dev]+=rsize
-
-                    if self.abort_action:
-                        file_handle.close()
-                        return
-
-                file_handle.close()
-
-                res_queue.put((index_tuple,size,mtime,hasher.hexdigest()))
-                self.crc_thread_progress_info[dev]=0
-
-            else:
-                break
-
-    #############################################################
 
     info_line=None
     def crc_calc(self):
@@ -423,24 +457,10 @@ class DudeCore:
         opened_files_queue={}
         files_crc_queue={}
 
-        self.crc_thread_file_info={}
-        self.crc_thread_progress_info={}
-
-        crc_thread={}
-        threads_started={}
-
+        crc_core={}
         for dev in self.devs:
+            crc_core[dev]=CRCThreadedCalc(self.debug)
             file_names_queue[dev]=Queue()
-            opened_files_queue[dev]=Queue()
-            files_crc_queue[dev]=Queue()
-
-            self.crc_thread_file_info[dev]=None
-            self.crc_thread_progress_info[dev]=0
-
-            threads_started[dev]=False
-
-            crc_thread[dev] = Thread(target=self.threaded_crc_calc_on_opened_files,args=(dev,opened_files_queue[dev],files_crc_queue[dev],),daemon=True)
-            #crc_thread[dev] = Process(target=self.threaded_crc_calc_on_opened_files,args=(dev,opened_files_queue[dev],files_crc_queue[dev],),daemon=True)
 
         scan_results_sizes = list(self.scan_results_by_size)
         scan_results_sizes.sort(reverse=True)
@@ -499,14 +519,18 @@ class DudeCore:
 
         while True:
             ########################################################################
+            #propagate abort
+            if self.abort_action:
+                for dev in self.devs:
+                    crc_core[dev].abort()
+
+            ########################################################################
             # files opening
             anything_opened=False
             for dev in self.devs:
-                while not self.abort_action and file_names_queue[dev].qsize()>0 and opened_files_queue[dev].qsize()<OPENED_FILES_PER_DEV_LIMIT:
-                    name_combo = file_names_queue[dev].get()
+                while not self.abort_action and file_names_queue[dev].qsize()>0 and crc_core[dev].src_size()<OPENED_FILES_PER_DEV_LIMIT:
+                    size,pathnr,path,file_name,mtime,ctime,inode = file_names_queue[dev].get()
                     file_names_queue[dev].task_done()
-
-                    size,pathnr,path,file_name,mtime,ctime,inode = name_combo
 
                     try:
                         file_handle=open(self.get_full_path_to_scan(pathnr,path,file_name),'rb')
@@ -516,18 +540,15 @@ class DudeCore:
                         files_done_skipped += 1
                     else:
                         index_tuple=(pathnr,path,file_name,ctime,dev,inode)
-                        opened_files_queue[dev].put((file_handle,index_tuple,size,mtime))
+                        crc_core[dev].put((file_handle,index_tuple,size,mtime))
                         anything_opened=True
 
             ########################################################################
             # CRC data processing
             anything_processed=False
             for dev in self.devs:
-                while files_crc_queue[dev].qsize()>0:
-                    task = files_crc_queue[dev].get()
-                    files_crc_queue[dev].task_done()
-
-                    index_tuple,size,mtime,crc = task
+                while crc_core[dev].res_size()>0:
+                    index_tuple,size,mtime,crc = crc_core[dev].get()
 
                     self.files_of_size_of_crc[size][crc].add( index_tuple )
                     anything_processed=True
@@ -542,31 +563,29 @@ class DudeCore:
 
             ########################################################################
             # threads starting/finishing
-
             any_thread_started=False
-            alive_threads=len({dev for dev in self.devs if crc_thread[dev].is_alive()})
+            alive_threads=len({dev for dev in self.devs if crc_core[dev].is_alive()})
 
             if thread_pool_need_checking:
                 if alive_threads<MAX_THREADS:
                     for dev in self.devs:
-                        if not threads_started[dev] and not crc_thread[dev].is_alive():
-                            crc_thread[dev].start()
-                            threads_started[dev]=True
+                        if not crc_core[dev].started and not crc_core[dev].is_alive():
+                            crc_core[dev].start()
                             any_thread_started=True
                             break
 
                 all_started=True
                 for dev in self.devs:
-                    if not threads_started[dev]:
+                    if not crc_core[dev].started:
                         all_started=False
                         break
                 if all_started:
                     thread_pool_need_checking=False
 
             for dev in self.devs:
-                if self.abort_action or (file_names_queue[dev].qsize()==0 and opened_files_queue[dev].qsize()==0):
-                    if crc_thread[dev].is_alive():
-                        opened_files_queue[dev].put(None)
+                if self.abort_action or (file_names_queue[dev].qsize()==0 and crc_core[dev].src_size()==0):
+                    if crc_core[dev].is_alive():
+                        crc_core[dev].put(None)
 
             ########################################################################
             # info
@@ -577,7 +596,7 @@ class DudeCore:
 
                 #######################################################
                 #sums info
-                self.info_size_done = size_done_cached + size_done_skipped + size_done_calculated + sum([self.crc_thread_progress_info[dev] for dev in self.devs])
+                self.info_size_done = size_done_cached + size_done_skipped + size_done_calculated + sum([crc_core[dev].progress_info for dev in self.devs])
                 self.info_files_done = files_done_cached + files_done_skipped + files_done_calculated
 
                 if self.debug:
@@ -598,13 +617,13 @@ class DudeCore:
                     line_info_list=[]
                     for dev in self.devs:
                         #size,pathnr,path,file_name
-                        if self.crc_thread_progress_info[dev] and self.crc_thread_file_info[dev]:
-                            curr_line_info_file_size=self.crc_thread_file_info[dev][0]
-                            curr_line_info_file_name=self.crc_thread_file_info[dev][1][2]
+                        if crc_core[dev].progress_info and crc_core[dev].file_info:
+                            curr_line_info_file_size=crc_core[dev].file_info[0]
+                            curr_line_info_file_name=crc_core[dev].file_info[1][2]
 
                             if curr_line_info_file_size==prev_line_info[dev]:
                                 if now-prev_line_show_same_max[dev]>1:
-                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str(self.crc_thread_progress_info[dev]) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
+                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str(crc_core[dev].progress_info) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
                             else:
                                 prev_line_show_same_max[dev]=now
                                 prev_line_info[dev]=curr_line_info_file_size
@@ -634,7 +653,7 @@ class DudeCore:
             elif not anything_opened and not anything_processed and not any_thread_started:
                 if alive_threads==0:
                     #all_crc_processed
-                    if all(files_crc_queue[dev].qsize()==0 for dev in self.devs):
+                    if all(crc_core[dev].res_size()==0 for dev in self.devs):
                         break
                 else:
                     time.sleep(0.01)
@@ -644,7 +663,7 @@ class DudeCore:
         self.can_abort=False
 
         for dev in self.devs:
-            crc_thread[dev].join()
+            crc_core[dev].join()
 
         self.info='Pruning data ...'
         for size in scan_results_sizes:
@@ -680,7 +699,7 @@ class DudeCore:
                         res_problems.append('file became hardlink:%s - %s,%s,%s' % (stat.st_nlink,pathnr,path,file_name) )
                         problem=True
                     else:
-                        if (size,ctime,dev,inode) != (stat.st_size,str(int(round(stat.st_ctime))),str(stat.st_dev),str(stat.st_ino)):
+                        if (size,ctime,dev,inode) != (stat.st_size,int_to_str(int(round(stat.st_ctime))),int_to_str(stat.st_dev),int_to_str(stat.st_ino)):
                             res_problems.append('file changed:%s,%s,%s,%s vs %s,%s,%s,%s' % (size,ctime,dev,inode,stat.st_size,int(round(stat.st_ctime)),stat.st_dev,stat.st_ino) )
                             problem=True
                 if problem:
