@@ -119,5 +119,5 @@ jobs:
         draft: false
         prerelease: true
         files: |
-            dude.lin.${{ steps.version.outputs.version }}.tgz
-            dude.win.${{ steps.version.outputs.version }}.zip
+            dude.lin.${{ steps.version.outputs.version }}.portable.tgz
+            dude.win.${{ steps.version.outputs.version }}.portable.zip
