@@ -98,7 +98,7 @@ jobs:
     - name: pack linux
       run: |
         chmod 777 ./dude
-        tar -czvf dude.lin.${{ steps.version.outputs.version }}.tgz dude
+        tar -czvf dude.lin.${{ steps.version.outputs.version }}.portable.tgz dude
 
     - name: download windows build
       uses: actions/download-artifact@v3
@@ -107,7 +107,7 @@ jobs:
         path: ./
 
     - name: pack windows
-      run: zip dude.win.${{ steps.version.outputs.version }}.zip dude.exe
+      run: zip dude.win.${{ steps.version.outputs.version }}.portable.zip dude.exe
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
@@ -117,7 +117,7 @@ jobs:
         tag_name: ${{ steps.version.outputs.version }}
         name: Release ${{ steps.version.outputs.version }}
         draft: false
-        prerelease: false
+        prerelease: true
         files: |
             dude.lin.${{ steps.version.outputs.version }}.tgz
             dude.win.${{ steps.version.outputs.version }}.zip
