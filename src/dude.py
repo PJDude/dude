@@ -51,13 +51,11 @@ from collections import defaultdict
 from threading import Thread
 import sys
 
-import traceback
 import functools
 
 import core
 import console
 import dialogs
-
 
 log_levels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 
@@ -279,130 +277,9 @@ class Gui:
 
     #######################################################################
     action_abort=False
-    def progress_dialog_show(self,parent,title,progress_mode1=None,progress_mode2=None,progress1_left_text=None,progress2_left_text=None,abort_tooltip=None):
-        self.parent=parent
-        self.progres_dialog_shown=True
-
-        self.ps_index =0
-
-        self.progress_mode1=progress_mode1
-        self.progress_mode2=progress_mode2
-
-        self.progress_dialog = tk.Toplevel(parent,bg=self.bg_color)
-        self.progress_dialog.wm_transient(parent)
-
-        self.progress_dialog.protocol("WM_DELETE_WINDOW", self.progress_dialog_abort)
-        self.progress_dialog.bind('<Escape>', lambda event : self.progress_dialog_abort())
-
-        self.progress_dialog.wm_title(title)
-        self.progress_dialog.iconphoto(False, self.iconphoto)
-
-        (frame_0:=tk.Frame(self.progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
-        (frame_1:=tk.Frame(self.progress_dialog,bg=self.bg_color)).pack(expand=1,fill='both',side='top')
-
-        self.progr1var = tk.DoubleVar()
-        self.progr1=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode=progress_mode1,variable=self.progr1var)
-
-        if progress_mode1:
-            self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')
-
-        self.progr1_lab_left=tk.Label(frame_0,width=17,bg=self.bg_color)
-        if progress1_left_text:
-            self.progr1_lab_left.grid(row=0,column=0,padx=1,pady=4)
-            self.progr1_lab_left.config(text=progress1_left_text)
-
-        self.progr1_lab_right=tk.Label(frame_0,width=17,bg=self.bg_color)
-
-        if self.progress_mode1=='determinate':
-            self.progr1_lab_right.grid(row=0,column=2,padx=1,pady=4)
-            self.progress1_func = lambda progress1 : self.progr1var.set(progress1)
-        else :
-            self.progress1_func = lambda args : None
-
-        self.progr2_var = tk.DoubleVar()
-        self.progr2=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode=progress_mode2,variable=self.progr2_var)
-        self.progr2_lab_right=tk.Label(frame_0,width=17,bg=self.bg_color)
-
-        if progress_mode2:
-            self.progress_dialog.minsize(550, 60)
-            self.progr2.grid(row=1,column=1,padx=1,pady=4,sticky='news')
-
-            if progress2_left_text:
-                self.progr1_lab_left=tk.Label(frame_0,width=17,bg=self.bg_color)
-                self.progr1_lab_left.grid(row=1,column=0,padx=1,pady=4)
-                self.progr1_lab_left.config(text=progress2_left_text)
-
-            self.progr2_lab_right.grid(row=1,column=2,padx=1,pady=4)
-        else:
-            self.progress_dialog.minsize(300, 60)
-
-        frame_0.grid_columnconfigure(1, weight=1)
-
-        self.message=tk.StringVar()
-        tk.Label(frame_1,textvariable=self.message,anchor='n',justify='center',width=20,bg=self.bg_color).pack(side='top',padx=8,pady=8,expand=1,fill='x')
-        (abort_button:=ttk.Button(frame_1, text='Abort', width=10 ,command=self.progress_dialog_abort ) ).pack(side='bottom',padx=8,pady=8)
-
-        if abort_tooltip:
-            abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event,abort_tooltip))
-            abort_button.bind("<Leave>", lambda event : self.widget_leave())
-
-        try:
-            self.progress_dialog.update()
-            self.progress_dialog.grab_set()
-            dialogs.set_geometry_by_parent(self.progress_dialog,parent)
-        except Exception :
-            pass
-
-        self.prev_parent_cursor=parent.cget('cursor')
-        parent.config(cursor="watch")
-
-        self.action_abort=False
 
     def progress_dialog_abort(self):
         self.action_abort=True
-
-    progres_dialog_shown=False
-    def progress_dialog_ended(self):
-        return not self.progres_dialog_shown
-
-    def progress_dialog_end(self):
-        self.progress_dialog.grab_release()
-        self.progress_dialog.destroy()
-        self.parent.config(cursor=self.prev_parent_cursor)
-        self.progres_dialog_shown=False
-
-    message_prev=''
-    progr_1_right_prev=''
-    progr_2_right_prev=''
-    time_without_busy_sign=0
-
-    def progress_dialog_update(self,message,progress1=None,progress2=None,progress_size_descr=None,progress_quant_descr=None,status_info=None):
-        prefix=''
-
-        if status_info:
-            self.status(status_info)
-        else:
-            self.status('')
-
-        if self.progr_1_right_prev==progress_size_descr and self.progr_2_right_prev==progress_quant_descr and self.message_prev==message:
-            if time.time()>self.time_without_busy_sign+1.0:
-                prefix=self.PROGRESS_SIGNS[self.ps_index]
-                self.ps_index=(self.ps_index+1)%4
-
-        else:
-            self.message_prev=message
-            self.progr_1_right_prev=progress_size_descr
-            self.progr_2_right_prev=progress_quant_descr
-
-            self.time_without_busy_sign=time.time()
-
-            self.progress1_func(progress1)
-            self.progr1_lab_right.config(text=progress_size_descr)
-            self.progr2_var.set(progress2)
-            self.progr2_lab_right.config(text=progress_quant_descr)
-
-        self.message.set('%s\n%s'%(prefix,message))
-        self.progress_dialog.update()
 
     other_tree={}
 
@@ -437,7 +314,6 @@ class Gui:
         self.main.iconphoto(False, self.iconphoto)
 
         self.main.bind('<KeyPress-F2>', lambda event : self.settings_dialog.show())
-        #focus=self.cancel_button
         self.main.bind('<KeyPress-F1>', lambda event : self.aboout_dialog.show())
         self.main.bind('<KeyPress-s>', lambda event : self.scan_dialog_show())
         self.main.bind('<KeyPress-S>', lambda event : self.scan_dialog_show())
@@ -589,8 +465,6 @@ class Gui:
         self.groups_tree.heading('instances_h',anchor=tk.W)
 
         self.groups_tree.heading('size_h', text='Size \u25BC')
-
-        self.tree_with_focus=self.groups_tree
 
         #bind_class breaks columns resizing
         self.groups_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
@@ -908,6 +782,11 @@ class Gui:
         self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
 
+        self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
+        self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
+        self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
+
         #self.mark_dialog_on_main = dialogs.CheckboxEntryDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self.groups_tree,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.mark_dialog_on_folder = dialogs.CheckboxEntryDialogQuestion(self.folder_tree,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
@@ -1093,6 +972,8 @@ class Gui:
 
         #######################################################################
 
+        self.tooltip_message={}
+
         if paths_to_add:
             for path in paths_to_add:
                 if windows and path[-1]==':':
@@ -1131,8 +1012,10 @@ class Gui:
         self.menubar_unpost()
         self.hide_tooltip()
 
-    def motion_on_widget(self,event,message):
-        self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widet(event,message))
+    def motion_on_widget(self,event,message=None):
+        if message:
+            self.tooltip_message[str(event.widget)]=message
+        self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widget(event))
 
     def motion_on_groups_tree(self,event):
         if self.main_window_active:
@@ -1142,11 +1025,11 @@ class Gui:
         if self.main_window_active:
             self.tooltip_show_after_folder = event.widget.after(1, self.show_tooltip_folder(event))
 
-    def show_tooltip_widet(self,event,message):
+    def show_tooltip_widget(self,event):
         self.unschedule_tooltip_widget(event)
         self.menubar_unpost()
 
-        self.tooltip_lab.configure(text=message)
+        self.tooltip_lab.configure(text=self.tooltip_message[str(event.widget)])
 
         self.tooltip.deiconify()
         self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
@@ -1517,15 +1400,16 @@ class Gui:
             self.folder_tree.update()
 
     def key_press(self,event):
+        if not self.main_window_active:
+            return
+
+        self.main.unbind_class('Treeview','<KeyPress>')
+
         self.hide_tooltip()
         self.menubar_unpost()
         self.popup_groups.unpost()
         self.popup_folder.unpost()
 
-        if not self.main_window_active:
-            return
-
-        self.main.unbind_class('Treeview','<KeyPress>')
 
         try:
             tree=event.widget
@@ -1535,12 +1419,9 @@ class Gui:
 
             if key in ("Up",'Down') :
                 try:
-                    if tree==self.groups_tree:
-                        (pool,pool_len) = (self.tree_groups_flat_items,len(self.tree_groups_flat_items) )
-                    else:
-                        (pool,pool_len) = (self.folder_tree_flat_items_list,len(self.folder_tree_flat_items_list))
+                    pool = self.tree_groups_flat_items if tree==self.groups_tree else self.folder_tree.get_children()
 
-                    if pool_len:
+                    if pool_len := len(pool):
                         index = pool.index(self.sel_item) if self.sel_item in pool else pool.index(self.sel_item_of_tree[tree]) if self.sel_item_of_tree[tree] in pool else pool.index(item) if item in  pool else 0
                         index=(index+self.KEY_DIRECTION[key])%pool_len
                         next_item=pool[index]
@@ -1554,7 +1435,7 @@ class Gui:
                             self.folder_tree_sel_change(next_item)
                 except Exception as e:
                     logging.error(e)
-                    print('pool:',pool,' pool_len:',pool_len)
+                    #print('pool:',pool,' pool_len:',pool_len)
                     self.info_dialog_on_main.show('INTERNAL ERROR - Updown',str(e) + '\ntree:' + str(tree) + '\nindex:' + str(index) + '\nnext_item:' + str(next_item))
 
             elif key in ("Prior","Next"):
@@ -1771,12 +1652,11 @@ class Gui:
     def tree_on_focus_in(self,event):
         self.sel_tree=tree=event.widget
 
-        if tree==self.folder_tree:
-            if len(self.folder_tree.get_children())==0:
-                self.groups_tree.focus_set()
-                return
+        #if tree==self.folder_tree:
+        #    if len(self.folder_tree.get_children())==0:
+        #        self.groups_tree.focus_set()
+        #        return
 
-        self.tree_with_focus=tree
         tree.configure(style='semi_focus.Treeview')
         self.other_tree[tree].configure(style='default.Treeview')
 
@@ -2202,6 +2082,7 @@ class Gui:
             self.tree_groups_flat_items_update()
         else:
             self.tree_sort_item(tree,None,True)
+            #self.folder_tree_flat_items_list=self.folder_tree.get_children()
 
         tree.update()
 
@@ -2251,15 +2132,29 @@ class Gui:
         self.main.update()
 
         #############################
+        self.progress_dialog_on_scan.show('Scanning','init scan')
 
-        self.progress_dialog_show(self.scan_dialog.area_main,'Scanning',abort_tooltip='If you abort at this stage,\nyou will not get any results.')
-        self.scan_dialog.set_external_can_check(self.progress_dialog_ended)
+        self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='If you abort at this stage,\nyou will not get any results.'
+
+        self.action_abort=False
+        self.progress_dialog_on_scan.abort_button.configure(state='normal')
 
         scan_thread=Thread(target=dude_core.scan,daemon=True)
         scan_thread.start()
 
+        self.progress_dialog_on_scan.lab_l1.configure(text='Total space:')
+        self.progress_dialog_on_scan.lab_l2.configure(text='Files number:' )
+
+        self.progress_dialog_on_scan.progr1var.set(0)
+        self.progress_dialog_on_scan.progr2var.set(0)
+
         while scan_thread.is_alive():
-            self.progress_dialog_update(self.NUMBERS[dude_core.info_path_nr] + '\n' + dude_core.info_path_to_scan + '\n\n' + str(dude_core.info_counter) + '\n' + core.bytes_to_str(dude_core.info_size_sum))
+            self.progress_dialog_on_scan.update_fields(self.NUMBERS[dude_core.info_path_nr] + '\n\n' + dude_core.info_path_to_scan + '\n ',\
+                    0,\
+                    0,\
+                    core.bytes_to_str_nocache(dude_core.info_size_sum),\
+                    dude_core.info_counter,\
+                    dude_core.info_line )
 
             if self.action_abort:
                 dude_core.abort()
@@ -2268,27 +2163,26 @@ class Gui:
             time.sleep(0.04)
 
         scan_thread.join()
-        self.progress_dialog_end()
-        self.scan_dialog.set_external_can_check(None)
 
         if self.action_abort:
+            self.progress_dialog_on_scan.hide(True)
             return False
 
         #############################
         if dude_core.sum_size==0:
             self.info_dialog_on_scan.show('Cannot Proceed.','No Duplicates.')
+            self.progress_dialog_on_scan.hide(True)
             return False
         #############################
         self.status('Calculating CRC ...')
-        self.progress_dialog_show(self.scan_dialog.area_main,'CRC calculation','determinate','determinate',progress1_left_text='Total space:',progress2_left_text='Files number:',abort_tooltip='If you abort at this stage,\npartial results may be available if any CRC groups are found.')
-        self.scan_dialog.set_external_can_check(self.progress_dialog_ended)
+        self.progress_dialog_on_scan.widget.title('CRC calculation')
+
+        self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='If you abort at this stage,\npartial results may be available if any CRC groups are found.'
 
         dude_core.writeLog=self.write_scan_log.get()
 
         crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
         crc_thread.start()
-
-        self.scan_dialog.widget.config(cursor="watch")
 
         while crc_thread.is_alive():
             info = ""
@@ -2302,17 +2196,17 @@ class Gui:
                 + '\nfolders: ' + str(dude_core.info_found_folders) \
                 + '\nspace: ' + core.bytes_to_str(dude_core.info_found_dupe_space)
 
-            info_progress_size=100*dude_core.info_size_done/dude_core.sum_size
-            info_progress_quantity=100*dude_core.info_files_done/dude_core.info_total
-
-            progress_size_descr=core.bytes_to_str(dude_core.info_size_done) + '/' + core.bytes_to_str(dude_core.sum_size)
-            progress_quant_descr=str(dude_core.info_files_done) + '/' + str(dude_core.info_total)
-
-            self.progress_dialog_update(info,info_progress_size,info_progress_quantity,progress_size_descr,progress_quant_descr,dude_core.info_line)
+            self.progress_dialog_on_scan.update_fields(info,\
+                    100*dude_core.info_size_done/dude_core.sum_size,\
+                    100*dude_core.info_files_done/dude_core.info_total,\
+                    '%s / %s' % (core.bytes_to_str_nocache(dude_core.info_size_done),core.bytes_to_str_nocache(dude_core.sum_size)),\
+                    '%s / %s' % (dude_core.info_files_done,dude_core.info_total),\
+                    dude_core.info_line )
 
             if dude_core.can_abort:
                 if self.action_abort:
                     dude_core.abort()
+                    break
             else:
                 self.status(dude_core.info)
 
@@ -2322,18 +2216,17 @@ class Gui:
         crc_thread.join()
         #############################
 
-        self.progress_dialog_end()
-        #need to wait for rendering
-
-        self.scan_dialog.set_external_can_check(lambda : False)
+        self.progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
+        self.progress_dialog_on_scan.abort_button.configure(state='disabled')
+        self.progress_dialog_on_scan.label.update()
 
         self.groups_show()
+
+        self.progress_dialog_on_scan.hide(True)
 
         if self.action_abort:
             self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
 
-        self.scan_dialog.widget.config(cursor="")
-        #self.scan_dialog.widget.update()
         #self.scan_dialog.unlock()
 
         return True
@@ -2671,6 +2564,8 @@ class Gui:
         self.groups_tree.update()
 
     def tree_folder_update_none(self):
+        self.folder_tree.configure(takefocus=False)
+
         self.folder_tree.delete(*self.folder_tree.get_children())
         self.calc_mark_stats_folder()
         self.status_var_folder_size.set('')
@@ -2692,6 +2587,11 @@ class Gui:
 
     @block_main_window
     def tree_folder_update(self,arbitrary_path=None):
+        self.folder_tree.configure(takefocus=False)
+        #preallocate
+        #self.folder_tree_flat_items_list=[None]*(len(self.folder_items_cache[current_path][1])+1)
+        #self.folder_tree_flat_items_list.clear()
+
         current_path=arbitrary_path if arbitrary_path else self.sel_path_full
 
         if not current_path:
@@ -2803,16 +2703,11 @@ class Gui:
             self.sel_path_set(str(pathlib.Path(arbitrary_path)))
 
         self.folder_tree.delete(*self.folder_tree.get_children())
-
-        self.folder_tree_flat_items_list=[None]*(len(self.folder_items_cache[current_path][1])+1)
-        self.folder_tree_flat_items_list.clear()
-
         if self.two_dots_condition():
             #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
             self.folder_tree.insert(parent="", index='end', iid='0UP' , text='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
-            self.folder_tree_flat_items_list.append('0UP')
+            #self.folder_tree_flat_items_list.append('0UP')
 
-        #preallocate
         try:
             #_ = {self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if values[self.kind_index]==FILE else defaulttag) for (iid,(text,values,defaulttag)) in self.folder_items_cache[current_path][1]}
             for (iid,(text,values,defaulttag)) in self.folder_items_cache[current_path][1]:
@@ -2827,7 +2722,7 @@ class Gui:
                     tags = defaulttag
 
                 self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = tags)
-                self.folder_tree_flat_items_list.append(iid)
+                #self.folder_tree_flat_items_list.append(iid)
 
         except Exception as e:
             self.status(str(e))
@@ -2840,6 +2735,7 @@ class Gui:
                 self.folder_tree.see(self.sel_item)
 
         self.calc_mark_stats_folder()
+        self.folder_tree.configure(takefocus=True)
 
         return True
 

@@ -48,8 +48,7 @@ MAX_THREADS = os.cpu_count()
 
 OPENED_FILES_PER_DEV_LIMIT=32
 
-@functools.cache
-def bytes_to_str(num,digits=2):
+def bytes_to_str_nocache(num,digits=2):
     if num<512:
         return '%sB' % num
     if (kb:=num/k)<k:
@@ -61,6 +60,9 @@ def bytes_to_str(num,digits=2):
 
     return '%sTB' % round(kb/G,digits)
 
+@functools.cache
+def bytes_to_str(num,digits=2):
+    return bytes_to_str_nocache(num,digits)
 
 @functools.cache
 def int_to_str(num):

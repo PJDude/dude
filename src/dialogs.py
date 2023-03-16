@@ -31,6 +31,7 @@ import os
 import tkinter as tk
 from tkinter import ttk
 from tkinter import scrolledtext
+import time
 
 def set_geometry_by_parent(widget,parent):
     x_offset = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -47,7 +48,7 @@ class GenericDialog:
         self.widget = tk.Toplevel(parent,bg=self.bg_color,bd=0, relief='flat')
         self.widget.withdraw()
         self.widget.update()
-        self.widget.protocol("WM_DELETE_WINDOW", lambda : self.do_checked(self.hide))
+        self.widget.protocol("WM_DELETE_WINDOW", lambda : self.hide())
 
         self.locked_by_child[self.widget]=False
 
@@ -58,7 +59,7 @@ class GenericDialog:
         self.widget.iconphoto(False, icon)
 
         self.widget.title(title)
-        self.widget.bind('<Escape>', lambda event : self.do_checked(self.hide))
+        self.widget.bind('<Escape>', lambda event : self.hide() )
 
         self.widget.bind('<KeyPress-Return>', self.return_bind)
 
@@ -80,15 +81,7 @@ class GenericDialog:
         self.wait_var.set(False)
 
         self.do_command_after_show=None
-        self.external_can_check=None
-
-    def set_external_can_check(self,func):
-        self.external_can_check=func
-
-    def do_checked(self,proc):
-        if not self.locked_by_child[self.widget]:
-            if (self.external_can_check and self.external_can_check()) or not self.external_can_check:
-                proc()
+        self.command_on_close=None
 
     def set_mins(self,min_width,min_height):
         self.widget.minsize(min_width, min_height)
@@ -103,13 +96,9 @@ class GenericDialog:
     def unlock(self):
         self.wait_var.set(True)
 
-    def show(self):
+    def show(self,wait=True):
         if self.pre_show:
-            if self.pre_show():
-                if self.post_close:
-                    self.post_close()
-
-                return
+            self.pre_show()
 
         self.widget.wm_transient(self.parent)
         self.locked_by_child[self.parent]=True
@@ -120,13 +109,12 @@ class GenericDialog:
         self.widget.update()
         set_geometry_by_parent(self.widget,self.parent)
 
-        self.widget.grab_set()
-
         self.wait_var.set(False)
         self.res_bool=False
 
         self.widget.deiconify()
         self.widget.update()
+        self.widget.grab_set()
 
         self.parent.config(cursor="watch")
 
@@ -143,31 +131,39 @@ class GenericDialog:
                 self.hide()
                 return
 
-        self.widget.wait_variable(self.wait_var)
+        if wait:
+            self.widget.wait_variable(self.wait_var)
 
-    def hide(self):
-        self.widget.grab_release()
+    def hide(self,force_hide=False):
+        if self.locked_by_child[self.widget]:
+            return
 
-        self.widget.withdraw()
+        if not force_hide and self.command_on_close:
+            self.command_on_close()
+        else:
+            self.widget.grab_release()
 
-        try:
-            self.widget.update()
-        except Exception as e:
-            pass
+            self.widget.withdraw()
 
-        self.parent.config(cursor="")
+            try:
+                self.widget.update()
+            except Exception as e:
+                pass
 
-        if self.post_close:
-            self.post_close()
+            self.parent.config(cursor="")
 
-        if self.focus_restore:
-            if self.pre_focus:
-                self.pre_focus.focus_set()
-            else:
-                self.parent.focus_set()
+            if self.post_close:
+                self.post_close()
 
-        self.locked_by_child[self.parent]=False
-        self.wait_var.set(True)
+            if self.focus_restore:
+                if self.pre_focus:
+                    self.pre_focus.focus_set()
+                else:
+                    self.parent.focus_set()
+
+            self.locked_by_child[self.parent]=False
+
+            self.wait_var.set(True)
 
 class LabelDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=120):
@@ -186,6 +182,88 @@ class LabelDialog(GenericDialog):
         self.label.configure(text=message)
 
         super().show()
+
+class ProgressDialog(GenericDialog):
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=550,min_height=120):
+        super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
+
+        self.label = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
+        self.label.grid(row=1,column=0,padx=5,pady=5)
+
+        self.abort_button=ttk.Button(self.area_buttons, text='Abort', width=10,command=lambda : self.hide() )
+
+        self.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
+
+        (frame_0:=tk.Frame(self.area_main,bg=self.bg_color)).grid(row=0, column=0, sticky='news')
+        self.progr1var = tk.DoubleVar()
+        self.progr1=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode='determinate',variable=self.progr1var)
+        self.progr1.grid(row=0,column=1,padx=1,pady=4,sticky='news')
+
+        self.lab_l1=tk.Label(frame_0,width=18,bg=self.bg_color)
+        self.lab_l1.grid(row=0,column=0,padx=1,pady=4)
+        self.lab_l1.config(text='l1')
+
+        self.lab_r1=tk.Label(frame_0,width=18,bg=self.bg_color)
+        self.lab_r1.grid(row=0,column=2,padx=1,pady=4)
+        self.lab_r1.config(text='r1')
+
+        self.progr2var = tk.DoubleVar()
+        self.progr2=ttk.Progressbar(frame_0,orient='horizontal',length=100, mode='determinate',variable=self.progr2var)
+        self.progr2.grid(row=1,column=1,padx=1,pady=4,sticky='news')
+
+        self.lab_l2=tk.Label(frame_0,width=18,bg=self.bg_color)
+        self.lab_l2.grid(row=1,column=0,padx=1,pady=4)
+        self.lab_l2.config(text='l2')
+
+        self.lab_r2=tk.Label(frame_0,width=18,bg=self.bg_color)
+        self.lab_r2.grid(row=1,column=2,padx=1,pady=4)
+        self.lab_r2.config(text='r2')
+
+        frame_0.grid_columnconfigure(1, weight=1)
+
+        self.focus=self.abort_button
+
+        self.message_prev=''
+        self.lab_r1_str_prev=''
+        self.lab_r2_str_prev=''
+        self.time_without_busy_sign=0
+        self.ps_index=0
+
+    PROGRESS_SIGNS='◐◓◑◒'
+
+    def update_fields(self,message,progress1=None,progress2=None,lab_r1_str=None,lab_r2_str=None,status_info=None):
+        prefix=''
+
+        #if status_info:
+        #    self.status(status_info)
+        #else:
+        #    self.status('')
+
+        if self.lab_r1_str_prev==lab_r1_str and self.lab_r2_str_prev==lab_r2_str and self.message_prev==message:
+            if time.time()>self.time_without_busy_sign+1.0:
+                prefix=self.PROGRESS_SIGNS[self.ps_index]
+                self.ps_index=(self.ps_index+1)%4
+
+        else:
+            self.message_prev=message
+            self.lab_r1_str_prev=lab_r1_str
+            self.lab_r2_str_prev=lab_r2_str
+
+            self.time_without_busy_sign=time.time()
+
+            self.progr1var.set(progress1)
+            self.lab_r1.config(text=lab_r1_str)
+            self.progr2var.set(progress2)
+            self.lab_r2.config(text=lab_r2_str)
+
+        self.label.configure(text='%s\n%s'%(prefix,message))
+        self.area_main.update()
+
+    def show(self,title='',message='',wait=False):
+        self.widget.title(title)
+        self.label.configure(text=message)
+
+        super().show(wait)
 
 class TextDialogInfo(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=1000,min_height=600):
