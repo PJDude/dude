@@ -350,14 +350,14 @@ class Gui:
         style.configure("Treeview",rowheight=18)
 
         bg_focus='#90DD90'
-        bg_focus_off='#90AA90'
+        #bg_focus_off='#90AA90'
         bg_sel='#AAAAAA'
 
         #style.map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_color)])
         style.map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
 
         style.map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus),('','white')])
-        style.map('semi_focus_off.Treeview', background=[('focus',bg_focus_off),('selected',bg_focus_off),('','white')])
+        #style.map('semi_focus_off.Treeview', background=[('focus',bg_focus_off),('selected',bg_focus_off),('','white')])
         style.map('default.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
 
         #works but not for every theme
@@ -431,10 +431,6 @@ class Gui:
         self.main.unbind_class('Treeview', '<ButtonPress-1>')
 
         self.main.bind_class('Treeview','<KeyPress>', self.key_press )
-
-        self.main.bind_class('Treeview','<FocusIn>',    self.tree_on_focus_in )
-        self.main.bind_class('Treeview','<FocusOut>',   self.tree_focus_out )
-
         self.main.bind_class('Treeview','<ButtonPress-3>', self.context_menu_show)
 
         self.groups_tree=ttk.Treeview(frame_groups,takefocus=True,selectmode='none',show=('tree','headings') )
@@ -577,18 +573,14 @@ class Gui:
 
             if on_main_window_dialog:
                 self.main_window_active=False
-
                 self.menu_disable()
                 self.menubar.config(cursor="watch")
 
-            return False
-
         def post_close(on_main_window_dialog=True):
-            self.menu_enable()
-            self.menubar.config(cursor="")
-
             if on_main_window_dialog:
                 self.main_window_active=True
+                self.menu_enable()
+                self.menubar.config(cursor="")
 
         self.scan_dialog=dialogs.GenericDialog(self.main,self.iconphoto,self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
 
@@ -1001,6 +993,9 @@ class Gui:
         self.main_window_active=True
         self.groups_tree.focus_set()
 
+        #self.set_focus_on_item=True
+        self.tree_semi_focus(self.groups_tree)
+
         self.main.mainloop()
         #######################################################################
 
@@ -1235,8 +1230,9 @@ class Gui:
 
         self.find_dialog_shown=False
 
-        self.set_focus_on_item=True
+        #self.set_focus_on_item=True
         tree.focus_set()
+        self.tree_semi_focus(tree)
 
     def find_prev_from_dialog(self,expression,use_reg_expr):
         #logging.debug('find_prev_from_dialog %s,%s',expression,use_reg_expr)
@@ -1333,6 +1329,7 @@ class Gui:
                 self.find_tree.selection_set(next_item)
             else:
                 self.find_tree.focus_set()
+                self.tree_semi_focus(self.find_tree)
 
             self.find_tree.see(next_item)
             self.find_tree.update()
@@ -1410,24 +1407,25 @@ class Gui:
         self.popup_groups.unpost()
         self.popup_folder.unpost()
 
-
         try:
             tree=event.widget
             item=tree.focus()
             key=event.keysym
-            if sel:=tree.selection() : tree.selection_remove(sel)
 
             if key in ("Up",'Down') :
                 try:
                     pool = self.tree_groups_flat_items if tree==self.groups_tree else self.folder_tree.get_children()
 
                     if pool_len := len(pool):
-                        index = pool.index(self.sel_item) if self.sel_item in pool else pool.index(self.sel_item_of_tree[tree]) if self.sel_item_of_tree[tree] in pool else pool.index(item) if item in  pool else 0
+                        index = pool.index(item) if item in pool else pool.index(self.sel_item) if self.sel_item in pool else pool.index(self.sel_item_of_tree[tree]) if self.sel_item_of_tree[tree] in pool else 0
                         index=(index+self.KEY_DIRECTION[key])%pool_len
                         next_item=pool[index]
 
+                        if sel:=tree.selection() : tree.selection_remove(sel)
+
                         tree.focus(next_item)
                         tree.see(next_item)
+                        tree.selection_set(tree.focus())
 
                         if tree==self.groups_tree:
                             self.groups_tree_sel_change(next_item)
@@ -1458,7 +1456,8 @@ class Gui:
                     self.tag_toggle_selected(tree,item)
             elif key == "Tab":
                 tree.selection_set(tree.focus())
-                self.set_focus_on_item=True
+                #self.set_focus_on_item=True
+                self.tree_semi_focus(self.other_tree[tree])
             elif key in ('KP_Multiply','asterisk'):
                 self.mark_on_all(self.invert_mark)
             elif key=='Return':
@@ -1560,6 +1559,7 @@ class Gui:
                     if tree==self.folder_tree:
                         self.tree_folder_update()
                         self.folder_tree.focus_set()
+                        self.tree_semi_focus(self.folder_tree)
                         try:
                             self.folder_tree.focus(self.sel_item)
                         except Exception :
@@ -1586,18 +1586,20 @@ class Gui:
             logging.error(e)
             self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
 
+        tree.selection_set(tree.focus())
         self.main.bind_class('Treeview','<KeyPress>', self.key_press )
 
     def go_to_parent_dir(self):
         if self.sel_path_full :
             if self.two_dots_condition():
                 self.folder_tree.focus_set()
+                self.tree_semi_focus(self.folder_tree)
                 head,tail=os.path.split(self.sel_path_full)
                 self.enter_dir(os.path.normpath(str(pathlib.Path(self.sel_path_full).parent.absolute())),tail)
 
 #################################################
     def crc_select_and_focus(self,crc,try_to_show_all=False):
-        self.groups_tree.focus_set()
+        #self.groups_tree.focus_set()
 
         if try_to_show_all:
             self.groups_tree.see(self.groups_tree.get_children(crc)[-1])
@@ -1605,6 +1607,7 @@ class Gui:
 
         self.groups_tree.see(crc)
         self.groups_tree.focus(crc)
+        self.groups_tree.selection_set(crc)
         self.groups_tree.update()
         self.groups_tree_sel_change(crc)
 
@@ -1639,6 +1642,8 @@ class Gui:
 
             tree.focus_set()
             tree.focus(item)
+            tree.selection_set(item)
+            self.tree_semi_focus(tree)
 
             if tree==self.groups_tree:
                 self.groups_tree_sel_change(item)
@@ -1648,14 +1653,10 @@ class Gui:
             if toggle:
                 self.tag_toggle_selected(tree,item)
 
-    set_focus_on_item=False
-    def tree_on_focus_in(self,event):
-        self.sel_tree=tree=event.widget
+    #set_focus_on_item=False
 
-        #if tree==self.folder_tree:
-        #    if len(self.folder_tree.get_children())==0:
-        #        self.groups_tree.focus_set()
-        #        return
+    def tree_semi_focus(self,tree):
+        self.sel_tree=tree
 
         tree.configure(style='semi_focus.Treeview')
         self.other_tree[tree].configure(style='default.Treeview')
@@ -1663,37 +1664,33 @@ class Gui:
         item=None
 
         if sel:=tree.selection():
-            tree.selection_remove(sel)
+            #tree.selection_remove(sel)
             item=sel[0]
 
-        if self.set_focus_on_item:
-            self.set_focus_on_item=False
+        #if self.set_focus_on_item:
+        #    self.set_focus_on_item=False
 
+        if not item:
+            item=tree.focus()
+
+        if tree==self.groups_tree:
             if not item:
-                item=tree.focus()
+                item = self.tree_groups_flat_items[0]
 
-            if tree==self.groups_tree:
-                if not item:
-                    item = self.tree_groups_flat_items[0]
+        else:
+            if not item:
+                if items := self.folder_tree.get_children():
+                    item=items[0]
 
-            else:
-                if not item:
-                    if items := self.folder_tree.get_children():
-                        item=items[0]
+        if item:
+            tree.focus(item)
+            tree.see(item)
+            tree.selection_set(item)
 
-            if item:
-                tree.focus(item)
-                tree.see(item)
-
-            if tree==self.groups_tree:
-                self.groups_tree_sel_change(item,True)
-            else:
-                self.folder_tree_sel_change(item)
-
-    def tree_focus_out(self,event):
-        tree=event.widget
-        tree.selection_set(tree.focus())
-        tree.configure(style='semi_focus_off.Treeview')
+        if tree==self.groups_tree:
+            self.groups_tree_sel_change(item,True)
+        else:
+            self.folder_tree_sel_change(item)
 
     def set_full_path_to_file_win(self):
         self.sel_full_path_to_file=pathlib.Path(os.sep.join([self.sel_path_full,self.sel_file])) if self.sel_path_full and self.sel_file else None
@@ -2082,7 +2079,7 @@ class Gui:
             self.tree_groups_flat_items_update()
         else:
             self.tree_sort_item(tree,None,True)
-            #self.folder_tree_flat_items_list=self.folder_tree.get_children()
+            self.folder_tree_flat_items_list=self.folder_tree.get_children()
 
         tree.update()
 
@@ -2588,14 +2585,12 @@ class Gui:
     @block_main_window
     def tree_folder_update(self,arbitrary_path=None):
         self.folder_tree.configure(takefocus=False)
-        #preallocate
-        #self.folder_tree_flat_items_list=[None]*(len(self.folder_items_cache[current_path][1])+1)
-        #self.folder_tree_flat_items_list.clear()
 
         current_path=arbitrary_path if arbitrary_path else self.sel_path_full
 
         if not current_path:
             return False
+
 
         scan_dir_tuple=dude_core.set_scan_dir(current_path)
         dir_ctime = scan_dir_tuple[0]
@@ -2702,11 +2697,15 @@ class Gui:
             self.sel_path=sel_path_prev
             self.sel_path_set(str(pathlib.Path(arbitrary_path)))
 
+        #preallocate
+        self.folder_tree_flat_items_list=[None]*(len(self.folder_items_cache[current_path][1])+1)
+        self.folder_tree_flat_items_list.clear()
+
         self.folder_tree.delete(*self.folder_tree.get_children())
         if self.two_dots_condition():
             #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
             self.folder_tree.insert(parent="", index='end', iid='0UP' , text='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
-            #self.folder_tree_flat_items_list.append('0UP')
+            self.folder_tree_flat_items_list.append('0UP')
 
         try:
             #_ = {self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if values[self.kind_index]==FILE else defaulttag) for (iid,(text,values,defaulttag)) in self.folder_items_cache[current_path][1]}
@@ -2722,7 +2721,7 @@ class Gui:
                     tags = defaulttag
 
                 self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = tags)
-                #self.folder_tree_flat_items_list.append(iid)
+                self.folder_tree_flat_items_list.append(iid)
 
         except Exception as e:
             self.status(str(e))
@@ -2735,6 +2734,7 @@ class Gui:
                 self.folder_tree.see(self.sel_item)
 
         self.calc_mark_stats_folder()
+
         self.folder_tree.configure(takefocus=True)
 
         return True
@@ -2955,9 +2955,11 @@ class Gui:
         if marked:
             if go_to_no_mark:
                 #marked if not tree.tag_has(MARK,self.sel_item) else
-                pool= self.tree_groups_flat_items if tree==self.groups_tree else self.folder_tree.get_children()
+                pool= self.tree_groups_flat_items if tree==self.groups_tree else self.folder_tree_flat_items_list
+                #self.folder_tree.get_children()
             else:
-                pool=marked if tree.tag_has(MARK,self.sel_item) else self.tree_groups_flat_items if tree==self.groups_tree else self.folder_tree.get_children()
+                pool=marked if tree.tag_has(MARK,self.sel_item) else self.tree_groups_flat_items if tree==self.groups_tree else self.folder_tree_flat_items_list
+                #self.folder_tree.get_children()
 
             poollen=len(pool)
 
@@ -2981,7 +2983,8 @@ class Gui:
     def goto_next_dupe_file(self,tree,direction):
         marked=[item for item in tree.get_children() if tree.set(item,'kind')==FILE]
         if marked:
-            pool=marked if tree.set(self.sel_item,'kind')==FILE else self.folder_tree.get_children()
+            pool=marked if tree.set(self.sel_item,'kind')==FILE else self.folder_tree_flat_items_list
+            #self.folder_tree.get_children()
             poollen=len(pool)
 
             if poollen:
@@ -3058,6 +3061,7 @@ class Gui:
 
             try:
                 self.folder_tree.focus_set()
+                self.tree_semi_focus(self.folder_tree)
                 self.folder_tree.focus(item)
                 self.folder_tree_sel_change(item,change_status_line=False)
                 self.folder_tree.see(item)
@@ -3432,7 +3436,7 @@ class Gui:
             return
 
         if check!=self.CHECK_OK:
-            self.info_dialog_on_main.show('INTERNAL ERROR 1 - aborting','got %s process_files_check_correctness_last' % check)
+            self.info_dialog_on_main.show('INTERNAL ERROR 2 - aborting','got %s process_files_check_correctness_last' % check)
             return
 
         #############################################
@@ -3469,8 +3473,9 @@ class Gui:
 
                 item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_file,newlist)
 
-                self.set_focus_on_item=True
+                #self.set_focus_on_item=True
                 self.folder_tree.focus_set()
+                self.tree_semi_focus(self.folder_tree)
 
                 if item_to_sel:
                     self.folder_tree.focus(item_to_sel)
