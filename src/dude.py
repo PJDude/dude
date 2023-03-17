@@ -350,15 +350,13 @@ class Gui:
         style.configure("Treeview",rowheight=18)
 
         bg_focus='#90DD90'
-        #bg_focus_off='#90AA90'
+        bg_focus_off='#90AA90'
         bg_sel='#AAAAAA'
 
-        #style.map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_color)])
         style.map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
 
-        style.map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus),('','white')])
-        #style.map('semi_focus_off.Treeview', background=[('focus',bg_focus_off),('selected',bg_focus_off),('','white')])
-        style.map('default.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
+        style.map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
+        style.map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
 
         #works but not for every theme
         #style.configure("Treeview", fieldbackground=self.bg_color)
@@ -468,7 +466,7 @@ class Gui:
         self.main.unbind_class('Treeview', '<<TreeviewClose>>')
 
         vsb1 = ttk.Scrollbar(frame_groups, orient='vertical', command=self.groups_tree.yview,takefocus=False)
-        #,bg=self.bg_color
+
         self.groups_tree.configure(yscrollcommand=vsb1.set)
 
         vsb1.pack(side='right',fill='y',expand=0)
@@ -993,7 +991,6 @@ class Gui:
         self.main_window_active=True
         self.groups_tree.focus_set()
 
-        #self.set_focus_on_item=True
         self.tree_semi_focus(self.groups_tree)
 
         self.main.mainloop()
@@ -1064,11 +1061,6 @@ class Gui:
 
                     coldata=tree.set(item,col)
 
-                    #if pathnrstr:
-                    #    pathnr=int(pathnrstr)
-                    #    path=tree.set(item,'path')
-                    #    file=tree.set(item,'file')
-                    #    file_path = os.path.abspath(dude_core.get_full_path_scanned(pathnr,path,file))
                     if coldata:
                         self.tooltip_lab.configure(text=coldata)
                         self.tooltip.deiconify()
@@ -1093,7 +1085,6 @@ class Gui:
                 else:
                     self.hide_tooltip()
             elif item := tree.identify('item', event.x, event.y):
-                #pathnrstr=tree.set(item,'pathnr')
 
                 coldata=''
                 kind=tree.set(item,self.kind_index)
@@ -1230,12 +1221,10 @@ class Gui:
 
         self.find_dialog_shown=False
 
-        #self.set_focus_on_item=True
         tree.focus_set()
         self.tree_semi_focus(tree)
 
     def find_prev_from_dialog(self,expression,use_reg_expr):
-        #logging.debug('find_prev_from_dialog %s,%s',expression,use_reg_expr)
         self.find_items(expression,use_reg_expr)
         self.select_find_result(-1)
 
@@ -1247,7 +1236,6 @@ class Gui:
             self.select_find_result(-1)
 
     def find_next_from_dialog(self,expression,use_reg_expr):
-        #logging.debug('find_next_from_dialog %s,%s',expression,use_reg_expr)
         self.find_items(expression,use_reg_expr)
         self.select_find_result(1)
 
@@ -1283,7 +1271,6 @@ class Gui:
 
             if expression:
                 if self.sel_tree==self.groups_tree:
-                    self.find_tree=self.groups_tree
                     crc_range = self.groups_tree.get_children()
 
                     try:
@@ -1299,7 +1286,6 @@ class Gui:
                             print(e2)
                         return
                 else:
-                    self.find_tree=self.folder_tree
                     try:
                         for item in self.folder_tree.get_children():
                             #if tree.set(item,'kind')==FILE:
@@ -1313,6 +1299,7 @@ class Gui:
                 self.find_result=tuple(items)
                 self.find_params_changed=False
             else:
+                self.find_result=()
                 scope_info = 'Scope: All groups.' if self.find_tree==self.groups_tree else 'Scope: Selected directory.'
                 self.info_dialog_on_find[self.find_tree].show(scope_info,'No files found.')
 
@@ -1329,6 +1316,7 @@ class Gui:
                 self.find_tree.selection_set(next_item)
             else:
                 self.find_tree.focus_set()
+                self.find_tree.selection_set(next_item)
                 self.tree_semi_focus(self.find_tree)
 
             self.find_tree.see(next_item)
@@ -1456,7 +1444,6 @@ class Gui:
                     self.tag_toggle_selected(tree,item)
             elif key == "Tab":
                 tree.selection_set(tree.focus())
-                #self.set_focus_on_item=True
                 self.tree_semi_focus(self.other_tree[tree])
             elif key in ('KP_Multiply','asterisk'):
                 self.mark_on_all(self.invert_mark)
@@ -1599,8 +1586,6 @@ class Gui:
 
 #################################################
     def crc_select_and_focus(self,crc,try_to_show_all=False):
-        #self.groups_tree.focus_set()
-
         if try_to_show_all:
             self.groups_tree.see(self.groups_tree.get_children(crc)[-1])
             self.groups_tree.update()
@@ -1608,6 +1593,8 @@ class Gui:
         self.groups_tree.see(crc)
         self.groups_tree.focus(crc)
         self.groups_tree.selection_set(crc)
+        self.groups_tree.focus_set()
+        self.tree_semi_focus(self.groups_tree)
         self.groups_tree.update()
         self.groups_tree_sel_change(crc)
 
@@ -1653,32 +1640,24 @@ class Gui:
             if toggle:
                 self.tag_toggle_selected(tree,item)
 
-    #set_focus_on_item=False
-
     def tree_semi_focus(self,tree):
         self.sel_tree=tree
 
         tree.configure(style='semi_focus.Treeview')
-        self.other_tree[tree].configure(style='default.Treeview')
+        self.other_tree[tree].configure(style='no_focus.Treeview')
 
         item=None
 
         if sel:=tree.selection():
-            #tree.selection_remove(sel)
             item=sel[0]
-
-        #if self.set_focus_on_item:
-        #    self.set_focus_on_item=False
 
         if not item:
             item=tree.focus()
 
-        if tree==self.groups_tree:
-            if not item:
+        if not item:
+            if tree==self.groups_tree:
                 item = self.tree_groups_flat_items[0]
-
-        else:
-            if not item:
+            else:
                 if items := self.folder_tree.get_children():
                     item=items[0]
 
@@ -1687,10 +1666,10 @@ class Gui:
             tree.see(item)
             tree.selection_set(item)
 
-        if tree==self.groups_tree:
-            self.groups_tree_sel_change(item,True)
-        else:
-            self.folder_tree_sel_change(item)
+            if tree==self.groups_tree:
+                self.groups_tree_sel_change(item,True)
+            else:
+                self.folder_tree_sel_change(item)
 
     def set_full_path_to_file_win(self):
         self.sel_full_path_to_file=pathlib.Path(os.sep.join([self.sel_path_full,self.sel_file])) if self.sel_path_full and self.sel_file else None
@@ -3140,7 +3119,6 @@ class Gui:
 
     @restore_status_line
     def process_files_check_correctness(self,action,processed_items,remaining_items):
-
         skip_incorrect = self.cfg.get_bool(CFG_SKIP_INCORRECT_GROUPS)
         show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
 
@@ -3473,7 +3451,6 @@ class Gui:
 
                 item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_file,newlist)
 
-                #self.set_focus_on_item=True
                 self.folder_tree.focus_set()
                 self.tree_semi_focus(self.folder_tree)
 
