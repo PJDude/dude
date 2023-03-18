@@ -1659,7 +1659,8 @@ class Gui:
 
         if not item:
             if tree==self.groups_tree:
-                item = self.tree_groups_flat_items[0]
+                if items:=self.tree_groups_flat_items:
+                    item = items[0]
             else:
                 if items := self.folder_tree.get_children():
                     item=items[0]
@@ -2136,7 +2137,7 @@ class Gui:
                 break
 
             if it_is_long:
-                self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='currently scanning:\n%s\n...' % dude_core.info_line
+                self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='currently scanning:\n%s...' % dude_core.info_line
                 self.configure_tooltip(str(self.progress_dialog_on_scan.abort_button))
                 update_tootlip_once=True
             else:
@@ -2195,7 +2196,7 @@ class Gui:
                     break
 
                 if it_is_long:
-                    self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='crc calculating:\n%s\n...' % dude_core.info_line
+                    self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='crc calculating:\n%s...' % dude_core.info_line
                     self.configure_tooltip(str(self.progress_dialog_on_scan.abort_button))
                     update_tootlip_once=True
                 else:
