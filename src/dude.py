@@ -1017,11 +1017,14 @@ class Gui:
         if self.main_window_active:
             self.tooltip_show_after_folder = event.widget.after(1, self.show_tooltip_folder(event))
 
+    def configure_tooltip(self,widget):
+        self.tooltip_lab.configure(text=self.tooltip_message[str(widget)])
+
     def show_tooltip_widget(self,event):
         self.unschedule_tooltip_widget(event)
         self.menubar_unpost()
 
-        self.tooltip_lab.configure(text=self.tooltip_message[str(event.widget)])
+        self.configure_tooltip(event.widget)
 
         self.tooltip.deiconify()
         self.tooltip.wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
@@ -2124,17 +2127,23 @@ class Gui:
         self.progress_dialog_on_scan.progr1var.set(0)
         self.progress_dialog_on_scan.progr2var.set(0)
 
+        update_tootlip_once=True
         while scan_thread.is_alive():
-            self.progress_dialog_on_scan.update_fields(self.NUMBERS[dude_core.info_path_nr] + '\n\n' + dude_core.info_path_to_scan + '\n ',\
-                    0,\
-                    0,\
-                    core.bytes_to_str_nocache(dude_core.info_size_sum),\
-                    dude_core.info_counter,\
-                    dude_core.info_line )
+            it_is_long=self.progress_dialog_on_scan.update_fields( "%s\n%s\n%s\n%s" % (self.NUMBERS[dude_core.info_path_nr],dude_core.info_path_to_scan,core.bytes_to_str_nocache(dude_core.info_size_sum),str(dude_core.info_counter)) ,0,0,'- - - -','- - - -',dude_core.info_line )
 
             if self.action_abort:
                 dude_core.abort()
                 break
+
+            if it_is_long:
+                self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='currently scanning:\n%s\n...' % dude_core.info_line
+                self.configure_tooltip(str(self.progress_dialog_on_scan.abort_button))
+                update_tootlip_once=True
+            else:
+                if update_tootlip_once:
+                    self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='If you abort at this stage,\nyou will not get any results.'
+                    self.configure_tooltip(str(self.progress_dialog_on_scan.abort_button))
+                    update_tootlip_once=False
 
             time.sleep(0.04)
 
@@ -2160,6 +2169,7 @@ class Gui:
         crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
         crc_thread.start()
 
+        update_tootlip_once=True
         while crc_thread.is_alive():
             info = ""
 
@@ -2172,7 +2182,7 @@ class Gui:
                 + '\nfolders: ' + str(dude_core.info_found_folders) \
                 + '\nspace: ' + core.bytes_to_str(dude_core.info_found_dupe_space)
 
-            self.progress_dialog_on_scan.update_fields(info,\
+            it_is_long=self.progress_dialog_on_scan.update_fields(info,\
                     100*dude_core.info_size_done/dude_core.sum_size,\
                     100*dude_core.info_files_done/dude_core.info_total,\
                     '%s / %s' % (core.bytes_to_str_nocache(dude_core.info_size_done),core.bytes_to_str_nocache(dude_core.sum_size)),\
@@ -2183,6 +2193,17 @@ class Gui:
                 if self.action_abort:
                     dude_core.abort()
                     break
+
+                if it_is_long:
+                    self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='crc calculating:\n%s\n...' % dude_core.info_line
+                    self.configure_tooltip(str(self.progress_dialog_on_scan.abort_button))
+                    update_tootlip_once=True
+                else:
+                    if update_tootlip_once:
+                        self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='If you abort at this stage,\npartial results may be available if any CRC groups are found.'
+                        self.configure_tooltip(str(self.progress_dialog_on_scan.abort_button))
+                        update_tootlip_once=False
+
             else:
                 self.status(dude_core.info)
 

@@ -233,16 +233,14 @@ class ProgressDialog(GenericDialog):
 
     def update_fields(self,message,progress1=None,progress2=None,lab_r1_str=None,lab_r2_str=None,status_info=None):
         prefix=''
-
-        #if status_info:
-        #    self.status(status_info)
-        #else:
-        #    self.status('')
+        append_status=''
 
         if self.lab_r1_str_prev==lab_r1_str and self.lab_r2_str_prev==lab_r2_str and self.message_prev==message:
             if time.time()>self.time_without_busy_sign+1.0:
                 prefix=self.PROGRESS_SIGNS[self.ps_index]
                 self.ps_index=(self.ps_index+1)%4
+                if len(status_info)>30:
+                    append_status='%s...' % status_info[0:30]
 
         else:
             self.message_prev=message
@@ -256,8 +254,10 @@ class ProgressDialog(GenericDialog):
             self.progr2var.set(progress2)
             self.lab_r2.config(text=lab_r2_str)
 
-        self.label.configure(text='%s\n%s'%(prefix,message))
+        self.label.configure(text='%s\n%s\n%s'%(prefix,message,append_status))
         self.area_main.update()
+
+        return prefix
 
     def show(self,title='',message='',wait=False):
         self.widget.title(title)

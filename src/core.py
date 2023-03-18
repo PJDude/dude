@@ -308,6 +308,8 @@ class DudeCore:
             while loop_set:
                 try:
                     path,path_ctime = loop_set.pop()
+                    self.info_line=path
+
                     for file_name,is_link,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self.set_scan_dir(path,path_ctime)[1]:
 
                         if self.exclude_list:
@@ -315,6 +317,7 @@ class DudeCore:
                             if any({self.excl_fn(expr,fullpath) for expr in self.exclude_list}):
                                 self.log.info('skipping by Exclude Mask:%s',fullpath)
                                 continue
+
                         try:
                             if is_link :
                                 self.log.debug('skippping link: %s / %s',path,file_name)
@@ -435,6 +438,7 @@ class DudeCore:
     Status=''
 
     info_line=None
+
     def crc_calc(self):
         self.crc_cache_read()
 
