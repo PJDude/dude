@@ -112,9 +112,12 @@ class GenericDialog:
         self.wait_var.set(False)
         self.res_bool=False
 
-        self.widget.deiconify()
-        self.widget.update()
-        self.widget.grab_set()
+        try:
+            self.widget.deiconify()
+            self.widget.update()
+            self.widget.grab_set()
+        except Exception as e:
+            print(e)
 
         self.parent.config(cursor="watch")
 
