@@ -42,8 +42,8 @@ import tkinter as tk
 from tkinter import PhotoImage
 from tkinter import Menu
 from tkinter import PanedWindow
-
 from tkinter import ttk
+from subprocess import Popen
 
 from tkinter.filedialog import askdirectory
 
@@ -90,6 +90,7 @@ CFG_ALLOW_DELETE_NON_DUPLICATES='allow_delete_non_duplicates'
 CFG_KEY_EXCLUDE='exclude'
 CFG_KEY_WRAPPER_FILE = 'file_open_wrapper'
 CFG_KEY_WRAPPER_FOLDERS = 'folders_open_wrapper'
+CFG_KEY_WRAPPER_FOLDERS_PARAMS = 'folders_open_wrapper_params'
 
 cfg_defaults={
     CFG_KEY_FULL_CRC:False,
@@ -105,6 +106,7 @@ cfg_defaults={
     CFG_ALLOW_DELETE_NON_DUPLICATES:False,
     CFG_KEY_WRAPPER_FILE:'',
     CFG_KEY_WRAPPER_FOLDERS:'',
+    CFG_KEY_WRAPPER_FOLDERS_PARAMS:'2',
     CFG_KEY_EXCLUDE:''
 }
 
@@ -174,7 +176,10 @@ class Config:
             logging.warning('gettting config key: %s',key)
             logging.warning(e)
             res=default
-            self.set(key,default,section=section)
+            if not res:
+                res=cfg_defaults[key]
+
+            self.set(key,res,section=section)
 
         return str(res)
 
@@ -685,6 +690,7 @@ class Gui:
         self.confirm_show_links_targets = tk.BooleanVar()
         self.file_open_wrapper = tk.StringVar()
         self.folders_open_wrapper = tk.StringVar()
+        self.folders_open_wrapper_params = tk.StringVar()
 
         self.settings = [
             (self.show_full_crc,CFG_KEY_FULL_CRC),
@@ -700,6 +706,7 @@ class Gui:
         self.settings_str = [
             (self.file_open_wrapper,CFG_KEY_WRAPPER_FILE),
             (self.folders_open_wrapper,CFG_KEY_WRAPPER_FOLDERS),
+            (self.folders_open_wrapper_params,CFG_KEY_WRAPPER_FOLDERS_PARAMS)
         ]
 
         row = 0
@@ -739,17 +746,20 @@ class Gui:
         label_frame=tk.LabelFrame(self.settings_dialog.area_main, text="Opening wrappers",borderwidth=2,bg=self.bg_color)
         label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-        tk.Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=0, column=0,sticky='news')
-        tk.Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
+        tk.Label(label_frame,text='parameters #',bg=self.bg_color,anchor='n').grid(row=0, column=2,sticky='news')
 
-        (en_1:=ttk.Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=0, column=1,sticky='news',padx=3,pady=2)
-        (en_2:=ttk.Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
-
+        tk.Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
+        (en_1:=ttk.Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
         en_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty default os association will be executed.'))
         en_1.bind("<Leave>", lambda event : self.widget_leave())
 
+        tk.Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=2, column=0,sticky='news')
+        (en_2:=ttk.Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=2, column=1,sticky='news',padx=3,pady=2)
         en_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty default os filemanager will be used.'))
         en_2.bind("<Leave>", lambda event : self.widget_leave())
+        (cb_2:=ttk.Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly')).grid(row=2, column=2,sticky='ew',padx=3)
+        cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action is performed on crc groups\ndefault is 2'))
+        cb_2.bind("<Leave>", lambda event : self.widget_leave())
 
         label_frame.grid_columnconfigure(1, weight=1)
 
@@ -1450,13 +1460,10 @@ class Gui:
                 self.tree_semi_focus(self.other_tree[tree])
             elif key in ('KP_Multiply','asterisk'):
                 self.mark_on_all(self.invert_mark)
-            elif key=='Return':
-                item=tree.focus()
-                if item:
-                    self.tree_action(tree,item)
             else:
                 event_str=str(event)
 
+                alt_pressed = True if event.state & 0x18 else False
                 ctrl_pressed = 'Control' in event_str
                 shift_pressed = 'Shift' in event_str
 
@@ -1572,6 +1579,12 @@ class Gui:
                     self.mark_subpath(self.unset_mark,True)
                 elif key in ('f','F'):
                     self.finder_wrapper_show()
+
+                elif key=='Return':
+                    item=tree.focus()
+                    if item:
+                        self.tree_action(tree,item,alt_pressed)
+
         except Exception as e:
             logging.error(e)
             self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
@@ -1790,7 +1803,7 @@ class Gui:
 
         duplicate_file_actions_state=('disabled',item_actions_state)[self.sel_kind==FILE]
         file_actions_state=('disabled',item_actions_state)[self.sel_kind in (FILE,SINGLE,SINGLEHARDLINKED) ]
-        file_or_dir_actions_state=('disabled',item_actions_state)[self.sel_kind in (FILE,SINGLE,SINGLEHARDLINKED,DIR,DIRLINK,UPDIR) ]
+        file_or_dir_actions_state=('disabled',item_actions_state)[self.sel_kind in (FILE,SINGLE,SINGLEHARDLINKED,DIR,DIRLINK,UPDIR,CRC) ]
 
         parent_dir_state = ('disabled','normal')[self.two_dots_condition() and self.sel_kind!=CRC]
 
@@ -1970,7 +1983,7 @@ class Gui:
 
         pop.add_separator()
         pop.add_command(label = 'Open File',command = self.open_file,accelerator="Return",state=file_actions_state)
-        pop.add_command(label = 'Open Folder',command = self.open_folder,state=file_or_dir_actions_state)
+        pop.add_command(label = 'Open Folder(s)',command = self.open_folder,accelerator="Alt+Return",state=file_or_dir_actions_state)
 
         pop.add_separator()
         pop.add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S')
@@ -2407,6 +2420,9 @@ class Gui:
         if self.cfg.get(CFG_KEY_WRAPPER_FOLDERS)!=self.folders_open_wrapper.get():
             self.cfg.set(CFG_KEY_WRAPPER_FOLDERS,self.folders_open_wrapper.get())
 
+        if self.cfg.get(CFG_KEY_WRAPPER_FOLDERS_PARAMS)!=self.folders_open_wrapper_params.get():
+            self.cfg.set(CFG_KEY_WRAPPER_FOLDERS_PARAMS,self.folders_open_wrapper_params.get())
+
         self.cfg.write()
 
         if update1:
@@ -2576,7 +2592,7 @@ class Gui:
     kind_index=3
 
     def two_dots_condition_win(self):
-        return bool(self.sel_path_full.split(os.sep)[1]!='')
+        return bool(self.sel_path_full.split(os.sep)[1]!='' if self.sel_path_full else False)
 
     def two_dots_condition_lin(self):
         return bool(self.sel_path_full!='/')
@@ -3597,54 +3613,79 @@ class Gui:
             if item:=tree.identify('item',event.x,event.y):
                 self.main.after_idle(lambda : self.tree_action(tree,item))
 
-    def tree_action(self,tree,item):
+    def tree_action(self,tree,item,alt_pressed=False):
+        print('tree_action',alt_pressed)
         if tree.set(item,'kind') == UPDIR:
             head,tail=os.path.split(self.sel_path_full)
             self.enter_dir(os.path.normpath(str(pathlib.Path(self.sel_path_full).parent.absolute())),tail)
         elif tree.set(item,'kind') in (DIR,DIRLINK):
             self.enter_dir(self.sel_path_full+self.folder_tree.set(item,'file') if self.sel_path_full=='/' else os.sep.join([self.sel_path_full,self.folder_tree.set(item,'file')]),'..' )
-        elif tree.set(item,'kind')!=CRC:
-            self.open_file()
+        else :
+            if alt_pressed:
+                self.open_folder()
+            elif tree.set(item,'kind')!=CRC:
+                self.open_file()
 
-    @busy_cursor
-    @block_main_window
     def open_folder(self):
-        if self.sel_path_full:
+        tree=self.sel_tree
 
-            if wrapper:=self.folders_open_wrapper.get():
-                self.status(f'Opening: {wrapper} {self.sel_path_full}')
-                if windows:
-                    os.startfile(wrapper + ' ' + self.sel_path_full)
-                else:
-                    os.system(wrapper + ' "' + self.sel_path_full.replace("'","\'").replace("`","\`") + '"')
-            else:
-                self.status(f'Opening: {self.sel_path_full}')
-                if windows:
-                    os.startfile(self.sel_path_full)
-                else:
-                    os.system('xdg-open "' + self.sel_path_full.replace("'","\'").replace("`","\`") + '"')
+        params=[]
+        if tree.set(self.sel_item,'kind')==CRC:
+            self.status(f'Opening folders(s)')
+            for item in tree.get_children(self.sel_item):
+                pathnr=int(tree.set(item,'pathnr'))
+                item_path=tree.set(item,'path')
+                params.append(dude_core.scanned_paths[int(pathnr)]+item_path)
+        elif self.sel_path_full:
+            self.status(f'Opening: {self.sel_path_full}')
+            params.append(self.sel_path_full)
+        else:
+            return
 
-    #@restore_status_line
-    @busy_cursor
-    @block_main_window
+        if wrapper:=self.cfg.get(CFG_KEY_WRAPPER_FOLDERS):
+            params_num = self.cfg.get(CFG_KEY_WRAPPER_FOLDERS_PARAMS)
+
+            num = 1024 if params_num=='all' else int(params_num)
+            run_command = lambda : Popen([wrapper,*params[:num]])
+        elif windows:
+            run_command = lambda : os.startfile(params[0])
+        else:
+            run_command = lambda : Popen(["xdg-open",params[0]])
+
+        Thread(target=run_command,daemon=True).start()
+
     def open_file(self):
-        if self.sel_kind in (FILE,LINK,SINGLE,SINGLEHARDLINKED):
 
-            if wrapper:=self.file_open_wrapper.get():
-                self.status(f'Opening: {wrapper} {self.sel_file}')
-                if windows:
-                    os.startfile(wrapper + ' ' + os.sep.join([self.sel_path_full,self.sel_file]))
-                else:
-                    os.system(wrapper + ' "' + os.sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
+        if self.sel_path_full and self.sel_file:
+            file_to_open = os.sep.join([self.sel_path_full,self.sel_file])
+
+            if wrapper:=self.cfg.get(CFG_KEY_WRAPPER_FILE) and self.sel_kind in (FILE,LINK,SINGLE,SINGLEHARDLINKED):
+                run_command = lambda : Popen([wrapper,file_to_open])
+            elif windows:
+                run_command = lambda : os.startfile(file_to_open)
             else:
-                self.status(f'Opening: {self.sel_file}')
-                if windows:
-                    os.startfile(os.sep.join([self.sel_path_full,self.sel_file]))
-                else:
-                    os.system('xdg-open "' + os.sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
+                run_command = lambda : Popen(["xdg-open",file_to_open])
 
-        elif self.sel_kind in (DIR,DIRLINK):
-            self.open_folder()
+            Thread(target=run_command,daemon=True).start()
+
+
+            #if self.sel_kind in (FILE,LINK,SINGLE,SINGLEHARDLINKED):
+
+            #    if wrapper:=self.file_open_wrapper.get():
+            #        self.status(f'Opening: {wrapper} {self.sel_file}')
+            #        if windows:
+            #            os.startfile(wrapper + ' ' + os.sep.join([self.sel_path_full,self.sel_file]))
+            #        else:
+            #            os.system(wrapper + ' "' + os.sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
+            #    else:
+            #        self.status(f'Opening: {self.sel_file}')
+            #        if windows:
+            #            os.startfile(os.sep.join([self.sel_path_full,self.sel_file]))
+            #        else:
+            #            os.system('xdg-open "' + os.sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
+
+            #elif self.sel_kind in (DIR,DIRLINK):
+            #    self.open_folder()
 
     def show_log(self):
         if windows:
