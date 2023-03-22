@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2022 Piotr Jochymek
+#  Copyright (c) 2022-2023 Piotr Jochymek
 #
 #  MIT License
 #
@@ -750,15 +750,15 @@ class Gui:
 
         tk.Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
         (en_1:=ttk.Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
-        en_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty default os association will be executed.'))
+        en_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.'))
         en_1.bind("<Leave>", lambda event : self.widget_leave())
 
         tk.Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=2, column=0,sticky='news')
         (en_2:=ttk.Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=2, column=1,sticky='news',padx=3,pady=2)
-        en_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty default os filemanager will be used.'))
+        en_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.'))
         en_2.bind("<Leave>", lambda event : self.widget_leave())
         (cb_2:=ttk.Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly')).grid(row=2, column=2,sticky='ew',padx=3)
-        cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action is performed on crc groups\ndefault is 2'))
+        cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on crc groups\ndefault is 2'))
         cb_2.bind("<Leave>", lambda event : self.widget_leave())
 
         label_frame.grid_columnconfigure(1, weight=1)
