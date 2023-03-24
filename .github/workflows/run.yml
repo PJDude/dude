@@ -53,7 +53,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: dude-win-raw
-        path: dude
+        path: dude-raw.zip
 
   build-lin-release:
     permissions: write-all
@@ -121,8 +121,8 @@ jobs:
         name: dude-win-raw
         path: ./
 
-    - name: pack windows raw
-      run: zip dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip dude
+    - name: rename windows raw
+      run: mv ./dude-raw.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1

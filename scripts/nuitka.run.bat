@@ -5,3 +5,6 @@ python -m nuitka --follow-imports --follow-stdlib --onefile --show-scons --show-
 
 move dude.exe ../dude.exe
 move ../dude.dist ../dude
+
+cd ..
+powershell Compress-Archive dude dude-raw.zip
