@@ -47,8 +47,13 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: dude-win
-        path: |
-          dude.exe
+        path: dude.exe
+
+    - name: upload binary raw
+      uses: actions/upload-artifact@v3
+      with:
+        name: dude-win-raw
+        path: dude
 
   build-lin-release:
     permissions: write-all
@@ -99,6 +104,7 @@ jobs:
       run: |
         chmod 777 ./dude
         tar -czvf dude.${{ steps.version.outputs.version }}.portable.linux.tgz dude
+        rm ./dude
 
     - name: download windows build
       uses: actions/download-artifact@v3
@@ -108,6 +114,15 @@ jobs:
 
     - name: pack windows
       run: zip dude.${{ steps.version.outputs.version }}.portable.windows.zip dude.exe
+
+    - name: download windows build raw
+      uses: actions/download-artifact@v3
+      with:
+        name: dude-win-raw
+        path: ./
+
+    - name: pack windows raw
+      run: zip dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip dude
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
@@ -121,3 +136,4 @@ jobs:
         files: |
             dude.${{ steps.version.outputs.version }}.portable.linux.tgz
             dude.${{ steps.version.outputs.version }}.portable.windows.zip
+            dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip
