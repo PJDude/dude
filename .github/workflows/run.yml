@@ -121,11 +121,8 @@ jobs:
         name: dude-win-raw
         path: ./
 
-    - name: unpack windows raw
-      run: unzip ./dude-raw.zip
-
-    - name: repack windows raw
-      run: zip -9 ./dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip ./dude/*
+    - name: rename windows raw
+      run: mv ./dude-raw.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
