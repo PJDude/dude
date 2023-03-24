@@ -113,7 +113,7 @@ jobs:
         path: ./
 
     - name: pack windows
-      run: zip dude.${{ steps.version.outputs.version }}.portable.windows.zip dude.exe
+      run: zip -9 dude.${{ steps.version.outputs.version }}.portable.windows.zip dude.exe
 
     - name: download windows build raw
       uses: actions/download-artifact@v3
@@ -121,8 +121,11 @@ jobs:
         name: dude-win-raw
         path: ./
 
-    - name: rename windows raw
-      run: mv ./dude-raw.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip
+    - name: unpack windows raw
+      run: unzip ./dude-win-raw.zip
+
+    - name: repack windows raw
+      run: zip -9 ./dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip ./dude/*
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
