@@ -122,7 +122,7 @@ jobs:
         path: ./
 
     - name: unpack windows raw
-      run: unzip ./dude-win-raw.zip
+      run: unzip ./dude-raw.zip
 
     - name: repack windows raw
       run: zip -9 ./dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip ./dude/*
