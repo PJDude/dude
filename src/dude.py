@@ -1491,13 +1491,13 @@ class Gui:
                     else:
                         self.process_files_in_folder_wrapper((SOFTLINK,HARDLINK)[shift_pressed],self.sel_kind in (DIR,DIRLINK))
                 elif key=='F5':
-                    self.goto_max_folder(0,-1 if shift_pressed else 1)
-                elif key=='F6':
                     self.goto_max_folder(1,-1 if shift_pressed else 1)
+                elif key=='F6':
+                    self.goto_max_folder(0,-1 if shift_pressed else 1)
                 elif key=='F7':
-                    self.goto_max_group(0,-1 if shift_pressed else 1)
-                elif key=='F8':
                     self.goto_max_group(1,-1 if shift_pressed else 1)
+                elif key=='F8':
+                    self.goto_max_group(0,-1 if shift_pressed else 1)
                 elif key=='BackSpace':
                     self.go_to_parent_dir()
                 elif key in ('i','I'):
@@ -2176,7 +2176,7 @@ class Gui:
         self.status('Calculating CRC ...')
         self.progress_dialog_on_scan.widget.title('CRC calculation')
 
-        self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='If you abort at this stage,\npartial results may be available if any CRC groups are found.'
+        self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
 
         dude_core.writeLog=self.write_scan_log.get()
 
@@ -3614,7 +3614,6 @@ class Gui:
                 self.main.after_idle(lambda : self.tree_action(tree,item))
 
     def tree_action(self,tree,item,alt_pressed=False):
-        print('tree_action',alt_pressed)
         if tree.set(item,'kind') == UPDIR:
             head,tail=os.path.split(self.sel_path_full)
             self.enter_dir(os.path.normpath(str(pathlib.Path(self.sel_path_full).parent.absolute())),tail)
