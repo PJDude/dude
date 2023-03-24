@@ -20,14 +20,18 @@ The portable executable for Linux and Windows can be downloaded from the Release
 
 https://github.com/PJDude/dude/releases
 
+## SOFTPEDIA review:
+https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml
+
 ## General usage:
 - scan for duplicate files
 - mark files for processing
 - take action on marked files (delete, softlink, hardlink)
 
 ## Usage tips:
-- use keyboard shortcuts. All are described in the context menus of the main panels. As a general rule, actions with **Ctrl** key apply to all files/groups, without **Ctrl** work locally. Start by utilizing just **Tab**, **arrows**, **F6**, **space**, and **Delete**.
-- narrow down the scanning area, exclude from scanning unnecessary folders (e.g. Windows system folder which is full of duplicates)
+- use keyboard shortcuts. All are described in the context menus of the main panels. As a general rule, actions with **Ctrl** key apply to all files/groups, without **Ctrl** work locally. Start by utilizing just **Tab**, **arrows**, **F5**, **space**, and **Delete**.
+- sometimes it is more efficient to operate on entire folders than on CRC groups, so don't ignore lower panel, use **Tab** and **F5** (**F6**)
+- narrow down the scanning area, exclude from scanning unnecessary folders (e.g. Windows system folder which is full of duplicates), you can always add multiple (up to 8) independent scan paths
 - unzip the portable executable somewhere on your **PATH**, than **dude** command will be available everywhere
 - the performance of the scanning process (or of any other software that requires frequent or extensive access to files in general) may be degraded by the **atime** attribute of the scanned file system. Disabling it on Linux file systems may be done usually by applying the **noatime** attribute in **fstab**, on Windows/NTFS it is the **disablelastaccess** option available with the **fsutil** command or by modifying the registry.
 
