@@ -198,9 +198,10 @@ class Config:
 ###########################################################
 
 class Gui:
-    NUMBERS='①②③④⑤⑥⑦⑧⑨⑩' if windows else '⓵⓶⓷⓸⓹⓺⓻⓼⓽⓾'
+    NUMBERS='①②③④⑤⑥⑦⑧⑨⑩' if windows else '123456789A'
+    #'⓵⓶⓷⓸⓹⓺⓻⓼⓽⓾'
 
-    PROGRESS_SIGNS='◐◓◑◒'
+    PROGRESS_SIGNS='◐◓◑◒' if windows else '|/-\\'
 
     MAX_PATHS=10
 
@@ -2124,9 +2125,10 @@ class Gui:
 
         self.main.update()
 
-        #############################
-        self.progress_dialog_on_scan.show('Scanning','init scan')
+        #self.scan_dialog.widget.update()
 
+        #############################
+        self.scan_dialog.widget.update()
         self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='If you abort at this stage,\nyou will not get any results.'
 
         self.action_abort=False
@@ -2140,6 +2142,8 @@ class Gui:
 
         self.progress_dialog_on_scan.progr1var.set(0)
         self.progress_dialog_on_scan.progr2var.set(0)
+
+        self.progress_dialog_on_scan.show('Scanning','init scan\n\n\n\n\n\n')
 
         update_tootlip_once=True
         while scan_thread.is_alive():
@@ -2270,7 +2274,7 @@ class Gui:
             self.paths_to_scan_entry_var[row]=tk.StringVar(value=path)
             ttk.Entry(frame,textvariable=self.paths_to_scan_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
 
-            remove_path_button=ttk.Button(frame,text='❌',command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3)
+            remove_path_button=ttk.Button(frame,text='x',command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3)
             remove_path_button.pack(side='right',padx=2,pady=1,fill='y')
 
             remove_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove path from list.'))
@@ -2304,9 +2308,9 @@ class Gui:
                 self.exclude_frames.append(frame)
 
                 self.exclude_entry_var[row]=tk.StringVar(value=entry)
-                ttk.Entry(frame,textvariable=self.exclude_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
+                ttk.Entry(frame,textvariable=self.exclude_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1,padx=(2,0))
 
-                remove_expression_button=ttk.Button(frame,text='❌',command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
+                remove_expression_button=ttk.Button(frame,text='x',command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
                 remove_expression_button.pack(side='right',padx=2,pady=1,fill='y')
 
                 remove_expression_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove expression from list.'))
