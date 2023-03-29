@@ -128,9 +128,10 @@ NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink'}
 
 HOMEPAGE='https://github.com/PJDude/dude'
 
-FOLDER_LINK = '⇦'
-FILE_LINK_LEFT = '🠔'
-FILE_LINK_RIGHT = '🠖'
+FOLDER = '\t📁' if windows else '[]'
+FOLDER_LINK = '\t📁  ⇦' if windows else '<='
+FILE_LINK_LEFT = '\t  🠔' if windows else '<-'
+FILE_LINK_RIGHT = '🠖' if windows else '->'
 
 @functools.cache
 def get_htime(time_par):
@@ -2644,7 +2645,7 @@ class Gui:
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
                     presort_id = dir_code if isdir else non_dir_code
-                    text = '\t📁 %s' % FOLDER_LINK if isdir else '\t  %s' % FILE_LINK_LEFT
+                    text = FOLDER_LINK if isdir else FILE_LINK_LEFT
                     iid=('%sDL' % i) if isdir else ('%sFL' % i)
                     kind= DIRLINK if isdir else LINK
                     defaulttag = DIR if isdir else LINK
@@ -2658,7 +2659,7 @@ class Gui:
                     i+=1
                 elif isdir:
                     presort_id = dir_code
-                    text = '\t📁'
+                    text = FOLDER
                     iid='%sD' % i
                     kind= DIR
                     defaulttag = DIR

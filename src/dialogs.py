@@ -232,7 +232,7 @@ class ProgressDialog(GenericDialog):
         self.time_without_busy_sign=0
         self.ps_index=0
 
-    PROGRESS_SIGNS='◐◓◑◒'
+    PROGRESS_SIGNS='◐◓◑◒' if os.name=='nt' else '|/-\\'
 
     def update_fields(self,message,progress1=None,progress2=None,lab_r1_str=None,lab_r2_str=None,status_info=None):
         prefix=''
