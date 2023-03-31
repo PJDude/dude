@@ -190,8 +190,11 @@ class ProgressDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=550,min_height=120):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
+        self.label_pic = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
+        self.label_pic.grid(row=1,column=0,padx=5,pady=5)
+
         self.label = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
-        self.label.grid(row=1,column=0,padx=5,pady=5)
+        self.label.grid(row=2,column=0,padx=5,pady=5)
 
         self.abort_button=ttk.Button(self.area_buttons, text='Abort', width=10,command=lambda : self.hide() )
 
@@ -234,9 +237,11 @@ class ProgressDialog(GenericDialog):
 
     PROGRESS_SIGNS='◐◓◑◒' if os.name=='nt' else '|/-\\'
 
-    def update_fields(self,message,progress1=None,progress2=None,lab_r1_str=None,lab_r2_str=None,status_info=None):
+    def update_fields(self,message,progress1=None,progress2=None,lab_r1_str=None,lab_r2_str=None,status_info=None,image=''):
         prefix=''
         append_status=''
+
+        self.label_pic.configure(image=image)
 
         if self.lab_r1_str_prev==lab_r1_str and self.lab_r2_str_prev==lab_r2_str and self.message_prev==message:
             if time.time()>self.time_without_busy_sign+1.0:

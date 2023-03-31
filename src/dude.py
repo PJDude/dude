@@ -56,6 +56,7 @@ import functools
 import core
 import console
 import dialogs
+import images
 
 log_levels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 
@@ -129,9 +130,16 @@ NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink'}
 HOMEPAGE='https://github.com/PJDude/dude'
 
 FOLDER = '\t📁' if windows else '[]'
-FOLDER_LINK = '\t📁  ⇦' if windows else '<='
-FILE_LINK_LEFT = '\t  🠔' if windows else '<-'
+FOLDER_LINK = '\t📁  ⇦' if windows else '[] <='
+FILE_LINK_LEFT = '\t  🠔' if windows else '   <-'
 FILE_LINK_RIGHT = '🠖' if windows else '->'
+HARD_LINK = '\t ✹' if windows else '\t *'
+
+NONE_ICON=0
+FOLDER_ICON=1
+HARDLINK_ICON=2
+FILE_SOFT_LINK_ICON=3
+DIR_SOFT_LINK_ICON=4
 
 @functools.cache
 def get_htime(time_par):
@@ -260,7 +268,7 @@ class Gui:
                 res=func(self,*args,**kwargs)
             except Exception as e:
                 self.status('catched_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
-                self.info_dialog_on_main.show('INTERNAL ERROR catched_wrapp','%S %s' % (str(func),str(e)) )
+                self.info_dialog_on_main.show('INTERNAL ERROR catched_wrapp','%s %s' % (str(func),str(e)) )
                 logging.error('catched_wrapp:%s:%s:args:%s:kwargs: %s',func,e,args,kwargs)
                 res=None
             return res
@@ -268,7 +276,8 @@ class Gui:
 
     def restore_status_line(func):
         def restore_status_line_wrapp(self,*args,**kwargs):
-            prev=self.status_line.get()
+            #prev=self.status_line.get()
+            prev=self.status_line_lab.cget('text')
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
@@ -317,8 +326,36 @@ class Gui:
 
         self.main.minsize(1200, 800)
 
-        self.iconphoto = PhotoImage(file = os.path.join(os.path.dirname(DUDE_FILE),'icon.png'))
-        self.main.iconphoto(False, self.iconphoto)
+        dude_dirname = os.path.dirname(DUDE_FILE)
+        icons_dir = os.path.join(dude_dirname,'icons')
+
+        self.icon_dude = PhotoImage(data = images.image['dude'])
+        self.icon_delete = PhotoImage(data = images.image['delete'])
+        self.icon_scan = PhotoImage(data = images.image['scan'])
+        self.icon_abort = PhotoImage(data = images.image['abort'])
+        self.icon_open = PhotoImage(data = images.image['open'])
+        self.icon_expression = PhotoImage(data = images.image['expression'])
+
+        self.icon_nr={}
+        self.icon_nr[0]=PhotoImage(data = images.image['1'])
+        self.icon_nr[1]=PhotoImage(data = images.image['2'])
+        self.icon_nr[2]=PhotoImage(data = images.image['3'])
+        self.icon_nr[3]=PhotoImage(data = images.image['4'])
+        self.icon_nr[4]=PhotoImage(data = images.image['5'])
+        self.icon_nr[5]=PhotoImage(data = images.image['6'])
+        self.icon_nr[6]=PhotoImage(data = images.image['7'])
+        self.icon_nr[7]=PhotoImage(data = images.image['8'])
+
+        self.icon={}
+        self.icon[NONE_ICON]=''
+        self.icon[FOLDER_ICON]=PhotoImage(data = images.image['folder'])
+        self.icon[HARDLINK_ICON]=PhotoImage(data = images.image['hardlink'])
+        self.icon[FILE_SOFT_LINK_ICON]=PhotoImage(data = images.image['softlink'])
+        self.icon[DIR_SOFT_LINK_ICON]=PhotoImage(data = images.image['softlink_dir'])
+        self.icon_softlink_target=PhotoImage(data = images.image['softlink_target'])
+        self.icon_softlink_dir_target=PhotoImage(data = images.image['softlink_dir_target'])
+
+        self.main.iconphoto(False, self.icon_dude)
 
         self.main.bind('<KeyPress-F2>', lambda event : self.settings_dialog.show())
         self.main.bind('<KeyPress-F1>', lambda event : self.aboout_dialog.show())
@@ -404,7 +441,7 @@ class Gui:
         tk.Label(status_frame_groups,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
         tk.Label(status_frame_groups,width=10,textvariable=self.status_var_groups,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w').pack(fill='x',expand=0,side='right')
         tk.Label(status_frame_groups,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
-        #tk.Label(status_frame_groups,width=8,text='Full path: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='left')
+
         self.status_var_full_path_label = tk.Label(status_frame_groups,textvariable=self.status_var_path,relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_var_full_path_label.pack(fill='x',expand=1,side='left')
         self.status_var_full_path_label.bind("<Motion>", lambda event : self.motion_on_widget(event,'The full path of a directory shown in the bottom panel.'))
@@ -412,10 +449,11 @@ class Gui:
 
         (status_frame_folder := tk.Frame(frame_folder,bg=self.bg_color)).pack(side='bottom',fill='both')
 
-        self.status_line=tk.StringVar()
-        self.status_line.set('')
+        #self.status_line=tk.StringVar()
+        #self.status_line.set('')
 
-        self.status_line_lab=tk.Label(status_frame_folder,width=30,textvariable=self.status_line,borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        #textvariable=self.status_line
+        self.status_line_lab=tk.Label(status_frame_folder,width=30,image=self.icon_expression,compound= 'left',text='',borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
         self.status_line_lab.pack(fill='x',expand=1,side='left')
 
         tk.Label(status_frame_folder,width=10,textvariable=self.status_var_folder_quant,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w').pack(fill='x',expand=0,side='right')
@@ -567,6 +605,8 @@ class Gui:
         self.popup_folder = Menu(self.folder_tree, tearoff=0,bg=self.bg_color)
         self.popup_folder.bind("<FocusOut>",lambda event : self.popup_folder.unpost() )
 
+        self.main.bind("<FocusOut>",lambda event : self.unpost() )
+
         #######################################################################
         #scan dialog
 
@@ -587,7 +627,7 @@ class Gui:
                 self.menu_enable()
                 self.menubar.config(cursor="")
 
-        self.scan_dialog=dialogs.GenericDialog(self.main,self.iconphoto,self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
+        self.scan_dialog=dialogs.GenericDialog(self.main,self.icon_dude,self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
 
         self.write_scan_log=tk.BooleanVar()
         self.write_scan_log.set(False)
@@ -615,14 +655,17 @@ class Gui:
         buttons_fr = tk.Frame(temp_frame,bg=self.bg_color,takefocus=False)
         buttons_fr.pack(fill='both',expand=False,side='bottom')
 
-        self.add_path_button = ttk.Button(buttons_fr,width=18,text="Add Path ...",command=self.path_to_scan_add_dialog,underline=0)
+        self.add_path_button = ttk.Button(buttons_fr,width=18,image = self.icon_open, command=self.path_to_scan_add_dialog,underline=0)
         self.add_path_button.pack(side='left',pady=4,padx=4)
+
+        self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path to scan ..."))
+        self.add_path_button.bind("<Leave>", lambda event : self.widget_leave())
 
         #self.AddDrivesButton = ttk.Button(buttons_fr,width=10,text="Add drives",command=self.AddDrives,underline=4)
         #self.AddDrivesButton.grid(column=1, row=100,pady=4,padx=4)
 
-        self.clear_paths_list_button=ttk.Button(buttons_fr,width=10,text="Clear List",command=self.scan_paths_clear )
-        self.clear_paths_list_button.pack(side='right',pady=4,padx=4)
+        #self.clear_paths_list_button=ttk.Button(buttons_fr,width=10,text="Clear List",image=self.icon_delete,command=self.scan_paths_clear )
+        #self.clear_paths_list_button.pack(side='right',pady=4,padx=4)
 
         self.paths_frame.grid_columnconfigure(1, weight=1)
         self.paths_frame.grid_rowconfigure(99, weight=1)
@@ -640,20 +683,24 @@ class Gui:
         buttons_fr2 = tk.Frame(temp_frame2,bg=self.bg_color,takefocus=False)
         buttons_fr2.pack(fill='both',expand=False,side='bottom')
 
-        self.add_exclude_button = ttk.Button(buttons_fr2,width=18,text="Add Expression ...",command=self.exclude_mask_add_dialog,underline=4)
-        tooltip_string = 'during the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
+        self.add_exclude_button_dir = ttk.Button(buttons_fr2,width=18,image = self.icon_open,command=self.exclude_mask_add_dir)
+        self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
+        self.add_exclude_button_dir.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path as exclude expression ..."))
+        self.add_exclude_button_dir.bind("<Leave>", lambda event : self.widget_leave())
+
+        self.add_exclude_button = ttk.Button(buttons_fr2,width=18,image= self.icon_expression,command=self.exclude_mask_add_dialog,underline=4)
+
+        tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
         self.add_exclude_button.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip_string))
         self.add_exclude_button.bind("<Leave>", lambda event : self.widget_leave())
 
         self.add_exclude_button.pack(side='left',pady=4,padx=4)
 
-        self.add_exclude_button2 = ttk.Button(buttons_fr2,width=18,text="Add path ...",command=self.exclude_mask_add_dir)
-        self.add_exclude_button2.pack(side='left',pady=4,padx=4)
 
         ttk.Checkbutton(buttons_fr2,text='treat as a regular expression',variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
 
-        self.clear_excludes_list_button=ttk.Button(buttons_fr2,width=10,text="Clear List",command=self.exclude_masks_clear )
-        self.clear_excludes_list_button.pack(side='right',pady=4,padx=4)
+        #self.clear_excludes_list_button=ttk.Button(buttons_fr2,width=10,text="Clear List",image=self.icon_delete,command=self.exclude_masks_clear )
+        #self.clear_excludes_list_button.pack(side='right',pady=4,padx=4)
 
         self.exclude_frame.grid_columnconfigure(1, weight=1)
         self.exclude_frame.grid_rowconfigure(99, weight=1)
@@ -661,7 +708,7 @@ class Gui:
 
         ttk.Checkbutton(self.scan_dialog.area_main,text='write scan results to application log',variable=self.write_scan_log).grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
-        self.scan_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Scan",command=self.scan_from_button,underline=0)
+        self.scan_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self.icon_scan,compound='left',command=self.scan_from_button,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
 
         self.scan_cancel_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Cancel",command=self.scan_dialog_hide_wrapper,underline=0)
@@ -676,7 +723,7 @@ class Gui:
 
         #######################################################################
         #Settings Dialog
-        self.settings_dialog=dialogs.GenericDialog(self.main,self.iconphoto,self.bg_color,'Settings',pre_show=pre_show_settings,post_close=post_close)
+        self.settings_dialog=dialogs.GenericDialog(self.main,self.icon_dude,self.bg_color,'Settings',pre_show=pre_show_settings,post_close=post_close)
 
         self.show_full_crc = tk.BooleanVar()
         self.show_full_paths = tk.BooleanVar()
@@ -720,7 +767,7 @@ class Gui:
         cb_1.bind("<Leave>", lambda event : self.widget_leave())
 
         (cb_2:=ttk.Checkbutton(label_frame, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-        cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,f'If disabled, scan path numbers will be shown (e.g. {self.NUMBERS[0]},{self.NUMBERS[1]}... ) instead of full paths'))
+        cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,f'If disabled, scan path numbers will be shown instead of full paths'))
         cb_2.bind("<Leave>", lambda event : self.widget_leave())
 
         label_frame=tk.LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
@@ -778,41 +825,42 @@ class Gui:
         self.settings_dialog.area_main.grid_columnconfigure(0, weight=1)
 
         #######################################################################
-        self.info_dialog_on_main = dialogs.LabelDialog(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_ask_dialog = dialogs.TextDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_info_dialog = dialogs.TextDialogInfo(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_main = dialogs.LabelDialog(self.main,self.icon_dude,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.text_ask_dialog = dialogs.TextDialogQuestion(self.main,self.icon_dude,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.text_info_dialog = dialogs.TextDialogInfo(self.main,self.icon_dude,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.icon_dude,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.icon_dude,self.bg_color,pre_show=pre_show,post_close=post_close)
 
-        self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self.icon_dude,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
+        self.progress_dialog_on_scan.abort_button.configure(image=self.icon_abort,text='Abort',compound='left')
         self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
         self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
-        #self.mark_dialog_on_main = dialogs.CheckboxEntryDialogQuestion(self.main,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self.groups_tree,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.mark_dialog_on_folder = dialogs.CheckboxEntryDialogQuestion(self.folder_tree,self.iconphoto,self.bg_color,pre_show=pre_show,post_close=post_close)
+        #self.mark_dialog_on_main = dialogs.CheckboxEntryDialogQuestion(self.main,self.icon_dude,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self.groups_tree,self.icon_dude,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.mark_dialog_on_folder = dialogs.CheckboxEntryDialogQuestion(self.folder_tree,self.icon_dude,self.bg_color,pre_show=pre_show,post_close=post_close)
 
         self.info_dialog_on_mark={}
 
-        self.info_dialog_on_mark[self.groups_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
-        self.info_dialog_on_mark[self.folder_tree] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_mark[self.groups_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self.icon_dude,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_mark[self.folder_tree] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self.icon_dude,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
 
-        #self.find_dialog_on_main = dialogs.FindEntryDialog(self.main,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        #self.find_dialog_on_main = dialogs.FindEntryDialog(self.main,self.icon_dude,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
 
-        self.find_dialog_on_groups = dialogs.FindEntryDialog(self.groups_tree,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
-        self.find_dialog_on_folder = dialogs.FindEntryDialog(self.folder_tree,self.iconphoto,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        self.find_dialog_on_groups = dialogs.FindEntryDialog(self.groups_tree,self.icon_dude,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        self.find_dialog_on_folder = dialogs.FindEntryDialog(self.folder_tree,self.icon_dude,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
 
-        #self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog_on_main.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=post_close)
+        #self.info_dialog_on_find = dialogs.LabelDialog(self.find_dialog_on_main.widget,self.icon_dude,self.bg_color,pre_show=lambda : pre_show(False),post_close=post_close)
 
         self.info_dialog_on_find={}
 
-        self.info_dialog_on_find[self.groups_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
-        self.info_dialog_on_find[self.folder_tree] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self.iconphoto,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_find[self.groups_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self.icon_dude,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_find[self.folder_tree] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self.icon_dude,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
 
        #######################################################################
         #About Dialog
-        self.aboout_dialog=dialogs.GenericDialog(self.main,self.iconphoto,self.bg_color,'',pre_show=pre_show,post_close=post_close)
+        self.aboout_dialog=dialogs.GenericDialog(self.main,self.icon_dude,self.bg_color,'',pre_show=pre_show,post_close=post_close)
 
         frame1 = tk.LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
@@ -846,16 +894,16 @@ class Gui:
         logging.debug('DUDE_FILE:%s',DUDE_FILE )
 
         try:
-            self.license=pathlib.Path(os.path.join(os.path.dirname(DUDE_FILE),'LICENSE')).read_text(encoding='ASCII')
+            self.license=pathlib.Path(os.path.join(dude_dirname,'LICENSE')).read_text(encoding='ASCII')
         except Exception as exception_1:
             logging.error(exception_1)
             try:
-                self.license=pathlib.Path(os.path.join(os.path.dirname(os.path.dirname(DUDE_FILE)),'LICENSE')).read_text(encoding='ASCII')
+                self.license=pathlib.Path(os.path.join(os.path.dirname(dude_dirname),'LICENSE')).read_text(encoding='ASCII')
             except Exception as exception_2:
                 logging.error(exception_2)
                 self.exit()
 
-        self.license_dialog=dialogs.GenericDialog(self.main,self.iconphoto,self.bg_color,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
+        self.license_dialog=dialogs.GenericDialog(self.main,self.icon_dude,self.bg_color,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
 
         frame1 = tk.LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
@@ -1008,6 +1056,12 @@ class Gui:
         self.main.mainloop()
         #######################################################################
 
+    def unpost(self):
+        self.hide_tooltip()
+        self.menubar_unpost()
+        #self.popup_groups.unpost()
+        #self.popup_folder.unpost()
+
     tooltip_show_after_groups=''
     tooltip_show_after_folder=''
     tooltip_show_after_widget=''
@@ -1064,7 +1118,8 @@ class Gui:
                     if pathnrstr:
                         pathnr=int(pathnrstr)
                         if tree.set(item,'kind')==FILE:
-                            self.tooltip_lab.configure(text='%s - %s' % (self.NUMBERS[pathnr],dude_core.scanned_paths[pathnr]) )
+                            self.tooltip_lab.configure(text='%s - %s' % (pathnr+1,dude_core.scanned_paths[pathnr]) )
+                            #self.NUMBERS[pathnr]
                             self.tooltip.deiconify()
 
                     else:
@@ -1143,9 +1198,9 @@ class Gui:
     def hide_tooltip(self):
         self.tooltip.withdraw()
 
-    def status(self,text):
-        self.status_line.set(text)
-        self.status_line_lab.update()
+    def status(self,text=' ',image=''):
+        #self.status_line.set(text)
+        self.status_line_lab.configure(text=text,image=image,compound='left')
 
     menu_state_stack=[]
     def menu_enable(self):
@@ -1414,6 +1469,9 @@ class Gui:
             tree=event.widget
             item=tree.focus()
             key=event.keysym
+            state=event.state
+
+            #print('state:',state)
 
             if key in ("Up",'Down') :
                 try:
@@ -1465,7 +1523,8 @@ class Gui:
             else:
                 event_str=str(event)
 
-                alt_pressed = True if event.state & 0x18 else False
+                alt_pressed = (True if '0x20000' in event_str else False) if windows else (True if 'Mod1' in event_str or 'Mod5' in event_str else False)
+
                 ctrl_pressed = 'Control' in event_str
                 shift_pressed = 'Shift' in event_str
 
@@ -1586,6 +1645,9 @@ class Gui:
                     item=tree.focus()
                     if item:
                         self.tree_action(tree,item,alt_pressed)
+                #else:
+                #    print(key)
+                #    print(event_str)
 
         except Exception as e:
             logging.error(e)
@@ -1709,7 +1771,7 @@ class Gui:
     @catched
     def groups_tree_sel_change(self,item,force=False,change_status_line=True):
         if change_status_line :
-            self.status('')
+            self.status()
 
         pathnr=self.groups_tree.set(item,'pathnr')
         path=self.groups_tree.set(item,'path')
@@ -1762,19 +1824,22 @@ class Gui:
 
         kind=self.folder_tree.set(item,'kind')
         if kind==FILE:
-            if change_status_line: self.status('')
+            if change_status_line: self.status()
             self.groups_tree_update(item)
         else:
-            if kind==LINK:
-                if change_status_line: self.status('  %s  %s' % (FILE_LINK_RIGHT,os.readlink(self.sel_full_path_to_file)) )
-            elif kind==SINGLEHARDLINKED:
-                if change_status_line: self.status('File with hardlinks')
+            if kind==UPDIR:
+                if change_status_line: self.status('parent directory')
             elif kind==SINGLE:
                 if change_status_line: self.status('')
-            elif kind in (DIR,DIRLINK):
-                if change_status_line: self.status('Subdirectory')
-            elif kind==UPDIR:
-                if change_status_line: self.status('Parent directory')
+            elif kind in (DIR):
+                if change_status_line: self.status('subdirectory')
+            elif kind==LINK:
+                if change_status_line: self.status(os.readlink(self.sel_full_path_to_file),self.icon_softlink_target )
+                #'file softlink %s %s' % (FILE_LINK_RIGHT,
+            elif kind==SINGLEHARDLINKED:
+                if change_status_line: self.status('file with hardlinks')
+            elif kind in (DIRLINK):
+                if change_status_line: self.status(os.readlink(self.sel_full_path_to_file),self.icon_softlink_dir_target )
 
             self.groups_tree_update_none()
 
@@ -2144,11 +2209,11 @@ class Gui:
         self.progress_dialog_on_scan.progr1var.set(0)
         self.progress_dialog_on_scan.progr2var.set(0)
 
-        self.progress_dialog_on_scan.show('Scanning','init scan\n\n\n\n\n\n')
+        self.progress_dialog_on_scan.show('Scanning','init scan\n\n\n\n\n')
 
         update_tootlip_once=True
         while scan_thread.is_alive():
-            it_is_long=self.progress_dialog_on_scan.update_fields( "%s\n%s\n%s\n%s" % (self.NUMBERS[dude_core.info_path_nr],dude_core.info_path_to_scan,core.bytes_to_str_nocache(dude_core.info_size_sum),str(dude_core.info_counter)) ,0,0,'- - - -','- - - -',dude_core.info_line )
+            it_is_long=self.progress_dialog_on_scan.update_fields( "%s\n%s\n%s" % (dude_core.info_path_to_scan,core.bytes_to_str_nocache(dude_core.info_size_sum),str(dude_core.info_counter)) ,0,0,'- - - -','- - - -',dude_core.info_line,image=self.icon_nr[dude_core.info_path_nr] )
 
             if self.action_abort:
                 dude_core.abort()
@@ -2270,12 +2335,12 @@ class Gui:
             (frame:=tk.Frame(self.paths_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
             self.paths_to_scan_frames.append(frame)
 
-            tk.Label(frame,text=' ' + self.NUMBERS[row] + ' ' , relief='groove',bg=self.bg_color).pack(side='left',padx=2,pady=1,fill='y')
+            tk.Label(frame,image=self.icon_nr[row], relief='flat',bg=self.bg_color).pack(side='left',padx=2,pady=2,fill='y')
 
             self.paths_to_scan_entry_var[row]=tk.StringVar(value=path)
             ttk.Entry(frame,textvariable=self.paths_to_scan_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
 
-            remove_path_button=ttk.Button(frame,text='x',command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3)
+            remove_path_button=ttk.Button(frame,image=self.icon_delete,command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3)
             remove_path_button.pack(side='right',padx=2,pady=1,fill='y')
 
             remove_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove path from list.'))
@@ -2311,7 +2376,7 @@ class Gui:
                 self.exclude_entry_var[row]=tk.StringVar(value=entry)
                 ttk.Entry(frame,textvariable=self.exclude_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1,padx=(2,0))
 
-                remove_expression_button=ttk.Button(frame,text='x',command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
+                remove_expression_button=ttk.Button(frame,image=self.icon_delete,command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
                 remove_expression_button.pack(side='right',padx=2,pady=1,fill='y')
 
                 remove_expression_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove expression from list.'))
@@ -2569,7 +2634,11 @@ class Gui:
             for crc,crc_dict in size_dict.items():
                 self.groups_tree.item(crc,text=crc if show_full_crc else dude_core.crc_cut[crc])
                 for pathnr,path,file,ctime,dev,inode in crc_dict:
-                    self.groups_tree.item(self.idfunc(inode,dev),text=dude_core.scanned_paths[pathnr] if show_full_paths else self.NUMBERS[pathnr])
+                    if show_full_paths:
+                        self.groups_tree.item(self.idfunc(inode,dev),image='',text=dude_core.scanned_paths[pathnr])
+                    else:
+                        self.groups_tree.item(self.idfunc(inode,dev),text='',image=self.icon_nr[pathnr])
+
 
     def groups_tree_update_none(self):
         self.groups_tree.selection_remove(self.groups_tree.selection())
@@ -2618,7 +2687,8 @@ class Gui:
         dir_ctime = scan_dir_tuple[0]
         scan_dir_res = scan_dir_tuple[1]
 
-        if not scan_dir_res:
+        #scan_dir_res can be just empty without error
+        if len(scan_dir_tuple)>2:
             self.status(scan_dir_tuple[2])
             return False
 
@@ -2645,7 +2715,9 @@ class Gui:
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
                     presort_id = dir_code if isdir else non_dir_code
-                    text = FOLDER_LINK if isdir else FILE_LINK_LEFT
+                    #text = FOLDER_LINK if isdir else FILE_LINK_LEFT
+                    text = ''
+                    icon = DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON
                     iid=('%sDL' % i) if isdir else ('%sFL' % i)
                     kind= DIRLINK if isdir else LINK
                     defaulttag = DIR if isdir else LINK
@@ -2659,7 +2731,9 @@ class Gui:
                     i+=1
                 elif isdir:
                     presort_id = dir_code
-                    text = FOLDER
+                    #text = FOLDER
+                    text = ''
+                    icon = FOLDER_ICON
                     iid='%sD' % i
                     kind= DIR
                     defaulttag = DIR
@@ -2684,12 +2758,15 @@ class Gui:
                         crc,crc_cut,instances_num = self.cache_by_id_ctime[(file_id,ctime)]
 
                         text = crc if show_full_crc else crc_cut
+                        icon = NONE_ICON
                         iid=file_id
                         kind=FILE
                         instances_h=instances=core.int_to_str(instances_num)
                         defaulttag=None
                     else:
-                        text = '\t ✹(%s)' % nlink if nlink!=1 else ''
+                        #text = '%s(%s)' % (HARD_LINK,nlink) if nlink!=1 else ''
+                        text = '(%s)' % nlink if nlink!=1 else ''
+                        icon = HARDLINK_ICON if nlink!=1 else NONE_ICON
                         iid='%sO' % i
                         crc=''
                         kind = SINGLEHARDLINKED if nlink!=1 else SINGLE
@@ -2707,7 +2784,7 @@ class Gui:
                 current_sort_key=(presort_id,sort_val_func(values[sort_index_local]),iid)
                 #keys[i]=current_sort_key
                 keys += current_sort_key,
-                folder_items_dict[iid] = (text,values,defaulttag)
+                folder_items_dict[iid] = (text,values,defaulttag,icon)
 
             ############################################################
             self.folder_items_cache[current_path]=(dir_ctime, [ (iid,folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) ] )
@@ -2726,12 +2803,11 @@ class Gui:
         self.folder_tree.delete(*self.folder_tree.get_children())
         if self.two_dots_condition():
             #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
-            self.folder_tree.insert(parent="", index='end', iid='0UP' , text='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
+            self.folder_tree.insert(parent="", index='end', iid='0UP' , text='', image='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
             self.folder_tree_flat_items_list.append('0UP')
 
         try:
-            #_ = {self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = self.groups_tree.item(iid)['tags'] if values[self.kind_index]==FILE else defaulttag) for (iid,(text,values,defaulttag)) in self.folder_items_cache[current_path][1]}
-            for (iid,(text,values,defaulttag)) in self.folder_items_cache[current_path][1]:
+            for (iid,(text,values,defaulttag,icon)) in self.folder_items_cache[current_path][1]:
                 if values[self.kind_index]==FILE:
                     try:
                         tags = self.groups_tree.item(iid)['tags']
@@ -2742,7 +2818,7 @@ class Gui:
                 else:
                     tags = defaulttag
 
-                self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = tags)
+                self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = tags,image=self.icon[icon])
                 self.folder_tree_flat_items_list.append(iid)
 
         except Exception as e:
@@ -2758,6 +2834,7 @@ class Gui:
         self.calc_mark_stats_folder()
 
         self.folder_tree.configure(takefocus=True)
+        self.folder_tree.update()
 
         return True
 

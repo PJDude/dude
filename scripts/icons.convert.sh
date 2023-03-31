@@ -1,5 +1,6 @@
+#!/bin/bash
+
 dir="$(readlink -m $(dirname "$0"))"
 cd $dir/../src
 
-echo writing version
-python3.10 version.py
+python3.10 png.2.py.py

@@ -408,6 +408,7 @@ class DudeCore:
             except Exception as e:
                 self.log.warning(e)
                 self.crc_cache[dev]={}
+        self.info=''
 
     def crc_cache_write(self):
         self.info='Writing cache ...'
@@ -421,6 +422,7 @@ class DudeCore:
                     cfile.write(' '.join([int_to_str(x) for x in [inode,mtime,crc] ]) +'\n' )
 
         del self.crc_cache
+        self.info=''
 
     write_log=False
 
@@ -687,6 +689,8 @@ class DudeCore:
             self.info='Writing log ...'
             self.log_scan_results()
 
+        self.info=''
+
     def check_group_files_state(self,size,crc):
         res_problems=[]
         to_remove=[]
@@ -758,7 +762,7 @@ class DudeCore:
         self.info='CRC min length calculation ...'
         all_crcs_len=len(all_crcs:={crc for size,size_dict in self.files_of_size_of_crc.items() for crc in size_dict})
 
-        len_temp=1
+        len_temp=4
         while len({crc[0:len_temp] for crc in all_crcs})!=all_crcs_len:
             self.info='CRC min length calculation ... (%s)' % len_temp
             len_temp+=1

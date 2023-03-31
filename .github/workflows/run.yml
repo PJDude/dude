@@ -38,6 +38,11 @@ jobs:
         name: version
         path: ./src/version.txt
 
+    - name: convert icons to python source
+      working-directory: ./scripts
+      run: "icons.convert.bat"
+      shell: cmd
+
     - name: run nuitka
       working-directory: ./scripts
       run: "nuitka.run.bat"
@@ -85,6 +90,10 @@ jobs:
 
     - name: strip python binaries
       run: find $pythonLocation -name *.so* -type f -exec strip {} \;
+
+    - name: convert icons to python source
+      working-directory: ./scripts
+      run: bash "icons.convert.sh"
 
     - name: run nuitka
       working-directory: ./scripts
