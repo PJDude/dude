@@ -190,11 +190,10 @@ class ProgressDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=550,min_height=120):
         super().__init__(parent,icon,bg_color,'',pre_show,post_close,min_width,min_height)
 
-        self.label_pic = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
-        self.label_pic.grid(row=1,column=0,padx=5,pady=5)
-
-        self.label = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
-        self.label.grid(row=2,column=0,padx=5,pady=5)
+        self.lab={}
+        for i in range(5):
+            self.lab[i] = tk.Label(self.area_main, text='',justify='center',bg=self.bg_color)
+            self.lab[i].grid(row=i+1,column=0,padx=5)
 
         self.abort_button=ttk.Button(self.area_buttons, text='Abort', width=10,command=lambda : self.hide() )
 
@@ -235,42 +234,8 @@ class ProgressDialog(GenericDialog):
         self.time_without_busy_sign=0
         self.ps_index=0
 
-    PROGRESS_SIGNS='◐◓◑◒' if os.name=='nt' else '|/-\\'
-
-    def update_fields(self,message,progress1=None,progress2=None,lab_r1_str=None,lab_r2_str=None,status_info=None,image=''):
-        prefix=''
-        append_status=''
-
-        self.label_pic.configure(image=image)
-
-        if self.lab_r1_str_prev==lab_r1_str and self.lab_r2_str_prev==lab_r2_str and self.message_prev==message:
-            if time.time()>self.time_without_busy_sign+1.0:
-                prefix=self.PROGRESS_SIGNS[self.ps_index]
-                self.ps_index=(self.ps_index+1)%4
-                if len(status_info)>30:
-                    append_status='%s...' % status_info[0:30]
-
-        else:
-            self.message_prev=message
-            self.lab_r1_str_prev=lab_r1_str
-            self.lab_r2_str_prev=lab_r2_str
-
-            self.time_without_busy_sign=time.time()
-
-            self.progr1var.set(progress1)
-            self.lab_r1.config(text=lab_r1_str)
-            self.progr2var.set(progress2)
-            self.lab_r2.config(text=lab_r2_str)
-
-        self.label.configure(text='%s\n%s\n%s'%(prefix,message,append_status))
-        self.area_main.update()
-
-        return prefix
-
-    def show(self,title='',message='',wait=False):
+    def show(self,title='',wait=False):
         self.widget.title(title)
-        self.label.configure(text=message)
-
         super().show(wait)
 
 class TextDialogInfo(GenericDialog):
