@@ -192,7 +192,7 @@ class DudeCore:
             paths=[path + ('\\' if path[-1]==':' else '') for path in paths ]
             paths=[path.replace('/','\\').upper() for path in paths]
 
-        abspaths=[os.path.abspath(path) for path in paths]
+        abspaths=[self.name_func(os.path.abspath(path)) for path in paths]
 
         for path in abspaths:
             if not os.path.exists(path) or not os.path.isdir(path):
@@ -325,7 +325,7 @@ class DudeCore:
                                 loop_set.add((os.path.join(path,file_name),ctime))
                             elif isfile:
                                 if mtime: #stat succeeded
-                                    if nlink!=1:
+                                    if nlink>1:
                                         self.log.debug('scan skipp - hardlinks %s - %s,%s,%s',nlink,path_nr,path,file_name)
                                     else:
                                         if size:
@@ -705,7 +705,7 @@ class DudeCore:
                     res_problems.append('%s|RED' % e)
                     problem=True
                 else:
-                    if stat.st_nlink!=1:
+                    if stat.st_nlink>1:
                         res_problems.append('file became hardlink:%s - %s,%s,%s' % (stat.st_nlink,pathnr,path,file_name) )
                         problem=True
                     else:

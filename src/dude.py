@@ -2146,6 +2146,7 @@ class Gui:
         tree.heading(colname, text=self.org_label[colname] + ' ' + str('\u25BC' if reverse else '\u25B2') )
 
     def path_to_scan_add(self,path):
+        path = dude_core.name_func(path)
         if len(self.paths_to_scan_from_dialog)<10:
             self.paths_to_scan_from_dialog.append(path)
             self.paths_to_scan_update()
@@ -2168,7 +2169,7 @@ class Gui:
         self.status_path.configure(text='')
         self.groups_show()
 
-        paths_to_scan_from_entry = [var.get() for var in self.paths_to_scan_entry_var.values()]
+        paths_to_scan_from_entry = [dude_core.name_func(var.get()) for var in self.paths_to_scan_entry_var.values()]
         exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
 
         if res:=dude_core.set_exclude_masks(self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
@@ -2696,7 +2697,7 @@ class Gui:
                 instances_str=core.int_to_str(len(crc_dict))
                 crcitem=self.groups_tree.insert(parent='', index='end',iid=crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',CRC),tags=CRC,open=True)
 
-                for pathnr,path,file,ctime,dev,inode in crc_dict:
+                for pathnr,path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
                     self.groups_tree.insert(parent=crcitem, index='end',iid=self.idfunc(inode,dev), values=(\
                             pathnr,path,file,size_str,\
                             '',\
@@ -2854,12 +2855,12 @@ class Gui:
                         instances_h=instances=core.int_to_str(instances_num)
                         defaulttag=None
                     else:
-                        #text = '%s(%s)' % (HARD_LINK,nlink) if nlink!=1 else ''
-                        text = '(%s)' % nlink if nlink!=1 else ''
-                        icon = HARDLINK_ICON if nlink!=1 else NONE_ICON
+                        #files without permissions -> nlink==0
+                        text = '(%s)' % nlink if nlink>1 else ''
+                        icon = HARDLINK_ICON if nlink>1 else NONE_ICON
                         iid='%sO' % i
                         crc=''
-                        kind = SINGLEHARDLINKED if nlink!=1 else SINGLE
+                        kind = SINGLEHARDLINKED if nlink>1 else SINGLE
                         defaulttag = SINGLE
 
                         instances='1'
