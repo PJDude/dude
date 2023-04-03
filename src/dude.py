@@ -292,6 +292,8 @@ class Gui:
     action_abort=False
 
     def progress_dialog_abort(self):
+        self.status("Abort pressed ...")
+        logging.info("Abort pressed ...")
         self.action_abort=True
 
     other_tree={}
@@ -299,7 +301,7 @@ class Gui:
     def handle_sigint(self):
         self.status("Received SIGINT signal")
         logging.warning("Received SIGINT signal")
-        self.progress_dialog_abort()
+        self.action_abort=True
 
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None):
         self.cwd=cwd
@@ -677,7 +679,6 @@ class Gui:
         self.add_exclude_button.bind("<Leave>", lambda event : self.widget_leave())
 
         self.add_exclude_button.pack(side='left',pady=4,padx=4)
-
 
         ttk.Checkbutton(buttons_fr2,text='treat as a regular expression',variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
 
@@ -1192,8 +1193,13 @@ class Gui:
     def hide_tooltip(self):
         self.tooltip.withdraw()
 
+    status_prev_text=''
+    status_prev_image=''
     def status(self,text=' ',image=''):
-        self.status_line_lab.configure(text=text,image=image,compound='left')
+        if text != self.status_prev_text or image != self.status_prev_image:
+            self.status_line_lab.configure(text=text,image=image,compound='left')
+            self.status_prev_text=text
+            self.status_prev_image=text
 
     menu_state_stack=[]
     def menu_enable(self):
@@ -1242,20 +1248,26 @@ class Gui:
         return (pathnr,path,file,ctime,dev,inode)
 
     def delete_window_wrapper(self):
-        self.status('exiting ...')
-        self.main.withdraw()
-        self.main.update()
         if self.actions_processing:
             self.exit()
+        else:
+            self.status('WM_DELETE_WINDOW NOT exiting ...')
+            logging.info('WM_DELETE_WINDOW NOT exiting during processing')
 
     def exit(self):
-        self.main_geometry_store()
-        self.splitter_store()
-        self.main.destroy()
+        try:
+            self.cfg.set('main',str(self.main.geometry()),section='geometry')
+            coords=self.paned.sash_coord(0)
+            self.cfg.set('sash_coord',str(coords[1]),section='geometry')
+            self.cfg.write()
+        except Exception as e:
+            logging.error(e)
 
-    def main_geometry_store(self):
-        self.cfg.set('main',str(self.main.geometry()),section='geometry')
-        self.cfg.write()
+        self.status('exiting ...')
+        logging.info('exiting')
+        #self.main.withdraw()
+        sys.exit(0)
+        #self.main.destroy()
 
     find_result=()
     find_params_changed=True
@@ -2227,6 +2239,9 @@ class Gui:
         self.progress_dialog_on_scan.progr2var.set(0)
         self.progress_dialog_on_scan.lab_r2.config(text='- - - -')
 
+        wait_var=tk.BooleanVar()
+        wait_var.set(False)
+
         while scan_thread.is_alive():
             new_data[1]=dude_core.info_path_to_scan
             new_data[3]=core.bytes_to_str_nocache(dude_core.info_size_sum)
@@ -2268,7 +2283,8 @@ class Gui:
                 dude_core.abort()
                 break
 
-            time.sleep(0.04)
+            self.main.after(50,lambda : wait_var.set(not wait_var.get()))
+            self.main.wait_variable(wait_var)
 
         scan_thread.join()
 
@@ -2304,7 +2320,7 @@ class Gui:
 
         while crc_thread.is_alive():
             if DEBUG_MODE:
-                self.progress_dialog_on_scan.lab[1].configure(text='Active Threads: %s Avarage speed: %s' % (dude_core.info_threads,core.bytes_to_str(dude_core.info_speed,1)) )
+                self.progress_dialog_on_scan.lab[1].configure(text='Active Threads: %s Avarage speed: %s/s' % (dude_core.info_threads,core.bytes_to_str(dude_core.info_speed,1)) )
 
             anything_changed=False
 
@@ -2357,12 +2373,19 @@ class Gui:
 
             if dude_core.can_abort:
                 if self.action_abort:
+                    self.progress_dialog_on_scan.lab[0].configure(text='')
+                    self.progress_dialog_on_scan.lab[1].configure(text='...Aborting...')
+                    self.progress_dialog_on_scan.lab[2].configure(text='')
+                    self.progress_dialog_on_scan.lab[3].configure(text='')
+                    self.progress_dialog_on_scan.lab[4].configure(text='')
+                    self.progress_dialog_on_scan.widget.update()
                     dude_core.abort()
                     break
-            else:
-                self.status(dude_core.info)
 
-            time.sleep(0.04)
+            self.status(dude_core.info)
+
+            self.main.after(50,lambda : wait_var.set(not wait_var.get()))
+            self.main.wait_variable(wait_var)
 
         self.status('Finishing CRC Thread...')
         crc_thread.join()
@@ -2378,6 +2401,7 @@ class Gui:
 
         if self.action_abort:
             self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
+            #,image=self.ico['about']
 
         #self.scan_dialog.unlock()
 
@@ -2502,14 +2526,6 @@ class Gui:
             orglist.remove('')
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
         self.exclude_mask_update()
-
-    def splitter_store(self):
-        try:
-            coords=self.paned.sash_coord(0)
-            self.cfg.set('sash_coord',str(coords[1]),section='geometry')
-            self.cfg.write()
-        except Exception as e:
-            logging.error(e)
 
     def exclude_masks_clear(self):
         self.cfg.set(CFG_KEY_EXCLUDE,'')
@@ -3146,6 +3162,8 @@ class Gui:
         tree=self.sel_tree
         self.goto_next_mark(tree,direction,go_to_no_mark)
 
+    @block_actions_processing
+    @gui_block
     def goto_next_mark(self,tree,direction,go_to_no_mark=False):
         marked=[item for item in tree.get_children() if not tree.tag_has(MARK,item)] if go_to_no_mark else tree.tag_has(MARK)
         if marked:
@@ -3176,6 +3194,8 @@ class Gui:
 
                         break
 
+    @block_actions_processing
+    @gui_block
     def goto_next_dupe_file(self,tree,direction):
         marked=[item for item in tree.get_children() if tree.set(item,'kind')==FILE]
         if marked:
@@ -3229,7 +3249,7 @@ class Gui:
 
                 self.dominant_groups_index[size_flag] = int(temp)
                 info = core.bytes_to_str(biggest_crc_size_sum) if size_flag else str(biggest_crc_size_sum)
-                self.status(f'Dominant (index:{working_index}) group ({self.BY_WHAT[size_flag]}: {info})')
+                self.status(f'Dominant (index:{working_index}) group ({self.BY_WHAT[size_flag]}: {info})',image=self.ico['dominant_size' if size_flag else 'dominant_quant'])
 
     @block_actions_processing
     @gui_block
@@ -3270,7 +3290,7 @@ class Gui:
 
             self.dominant_groups_folder[size_flag] = int(temp)
             info = core.bytes_to_str(num) if size_flag else str(num)
-            self.status(f'Dominant (index:{working_index}) folder ({self.BY_WHAT[size_flag]}: {info})')
+            self.status(f'Dominant (index:{working_index}) folder ({self.BY_WHAT[size_flag]}: {info})',image=self.ico['dominant_size' if size_flag else 'dominant_quant'])
 
     def item_full_path(self,item):
         pathnr=int(self.groups_tree.set(item,'pathnr'))
