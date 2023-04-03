@@ -73,7 +73,7 @@ CRC_BUFFER_SIZE=4*1024*1024
 class CRCThreadedCalc:
     def __init__(self,log,debug=False):
         self.log=log
-        self.src_queue=Queue()
+        self.src_list=[]
         self.res_queue=Queue()
         self.file_info=(None,None)
         self.progress_info=0
@@ -89,7 +89,7 @@ class CRCThreadedCalc:
         self.file_info=(size,name)
 
     def put(self,task):
-        self.src_queue.put(task)
+        self.src_list.append(task)
 
     def res_size(self):
         return self.res_queue.qsize()
@@ -108,12 +108,9 @@ class CRCThreadedCalc:
 
         self.started=True
 
-        while self.src_queue.qsize():
-            fullpath,size,pathnr,path,file_name,mtime,ctime,inode = self.src_queue.get()
-            self.src_queue.task_done()
+        for fullpath,size,pathnr,path,file_name,mtime,ctime,inode in self.src_list:
             if self.abort_action:
-                #clean entire queue
-                continue
+                break
 
             try:
                 file_handle=open(fullpath,'rb')
@@ -141,6 +138,8 @@ class CRCThreadedCalc:
                 if not self.abort_action:
                     self.res_queue.put((pathnr,path,file_name,ctime,inode,size,mtime,hasher.hexdigest()))
                     self.progress_info=0
+
+        self.src_list.clear()
 
     def is_alive(self):
         return self.thread.is_alive()
@@ -475,7 +474,41 @@ class DudeCore:
         #########################################################################################################
         self.info_line="Using cached CRC data ..."
 
+        #########################################################################################################
+
+        folder_sizes_sum=defaultdict(int)
+        folder_sizes=defaultdict(set)
+
         for size in scan_results_sizes:
+            if self.abort_action:
+                break
+
+            for pathnr,path,file_name,mtime,ctime,dev,inode in self.scan_results_by_size[size]:
+                if self.abort_action:
+                    break
+
+                index = (pathnr,path)
+                folder_sizes_sum[index]+=size
+                folder_sizes[index].add(size)
+
+        #########################################################################################################
+        folder_rank=[(size_sum,pathnr,path) for ((pathnr,path),size_sum) in folder_sizes_sum.items()]
+
+        sizes_rank=[]
+        size_in_rank=set()
+
+        for size_sum,pathnr,path in sorted(folder_rank,key = lambda x : x[1]):
+            index = (pathnr,path)
+            for size in sorted(folder_sizes[index],reverse = True):
+                if size not in size_in_rank:
+                    size_in_rank.add(size)
+                    sizes_rank.append(size)
+
+        size_in_rank.clear()
+
+        #########################################################################################################
+
+        for size in sizes_rank:
             if self.abort_action:
                 break
 
@@ -579,7 +612,7 @@ class DudeCore:
 
                 #######################################################
                 #sums info
-                self.info_size_done = size_done_cached + sum([crc_core[dev].size_done_skipped for dev in self.devs]) + sum([crc_core[dev].progress_info for dev in self.devs])
+                self.info_size_done = size_done_cached + sum([crc_core[dev].size_done_skipped for dev in self.devs]) + size_done_calculated + sum([crc_core[dev].progress_info for dev in self.devs])
                 self.info_files_done = files_done_cached + sum([crc_core[dev].files_done_skipped for dev in self.devs]) + files_done_calculated
 
                 if self.debug:
