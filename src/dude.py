@@ -248,7 +248,7 @@ class Gui:
                 res=func(self,*args,**kwargs)
             except Exception as e:
                 self.status('gui_block_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
-                self.info_dialog_on_main.show('INTERNAL ERROR gui_block_wrapp',str(e))
+                self.info_dialog_on_main.show('INTERNAL ERROR gui_block_wrapp',str(func) + '\n' + str(e))
                 logging.error('gui_block_wrapp:%s:%s:args:%s:kwargs: %s',func,e,args,kwargs)
                 res=None
 
@@ -303,7 +303,7 @@ class Gui:
         logging.warning("Received SIGINT signal")
         self.action_abort=True
 
-    def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None):
+    def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,biggest_files_order=False):
         self.cwd=cwd
 
         self.cfg = Config(CONFIG_DIR)
@@ -613,8 +613,11 @@ class Gui:
 
         self.scan_dialog=dialogs.GenericDialog(self.main,self.ico['dude'],self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
 
-        self.write_scan_log=tk.BooleanVar()
-        self.write_scan_log.set(False)
+        self.biggest_files_order=tk.BooleanVar()
+        self.biggest_files_order.set(biggest_files_order)
+
+        self.log_skipped=tk.BooleanVar()
+        self.log_skipped.set(False)
 
         self.scan_dialog.area_main.grid_columnconfigure(0, weight=1)
         self.scan_dialog.area_main.grid_rowconfigure(0, weight=1)
@@ -689,7 +692,23 @@ class Gui:
         self.exclude_frame.grid_rowconfigure(99, weight=1)
         ##############
 
-        ttk.Checkbutton(self.scan_dialog.area_main,text='write scan results to application log',variable=self.write_scan_log).grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
+        SkipButton = ttk.Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped)
+        SkipButton.grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
+
+        SkipButton.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded)"))
+        SkipButton.bind("<Leave>", lambda event : self.widget_leave())
+
+        OrderButton = ttk.Checkbutton(self.scan_dialog.area_main,text='biggest files order',variable=self.biggest_files_order)
+        OrderButton.grid(row=4,column=0,sticky='news',padx=8,pady=3,columnspan=3)
+
+        tooltip = "Default algorithm of scanning tries to identify all duplicates in entire largest folders first.\n" \
+                   "When scanning is aborted, partial results contain as much duplicates in entire largest folders\n" \
+                   "as possible. Enable this option to search duplicates in order simply from the largest files\n" \
+                   "to the smallest without folders consideration. This option may change only partial results\n" \
+                   "after aborted scanning. if the scan completed without interruption this option changes nothing."
+
+        OrderButton.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip))
+        OrderButton.bind("<Leave>", lambda event : self.widget_leave())
 
         self.scan_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self.ico['scan'],compound='left',command=self.scan_from_button,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
@@ -1198,8 +1217,10 @@ class Gui:
     def status(self,text=' ',image=''):
         if text != self.status_prev_text or image != self.status_prev_image:
             self.status_line_lab.configure(text=text,image=image,compound='left')
+            self.status_line_lab.update()
             self.status_prev_text=text
             self.status_prev_image=text
+            logging.info('STATUS:%s',text)
 
     menu_state_stack=[]
     def menu_enable(self):
@@ -1252,7 +1273,6 @@ class Gui:
             self.exit()
         else:
             self.status('WM_DELETE_WINDOW NOT exiting ...')
-            logging.info('WM_DELETE_WINDOW NOT exiting during processing')
 
     def exit(self):
         try:
@@ -1264,7 +1284,6 @@ class Gui:
             logging.error(e)
 
         self.status('exiting ...')
-        logging.info('exiting')
         #self.main.withdraw()
         sys.exit(0)
         #self.main.destroy()
@@ -2304,7 +2323,8 @@ class Gui:
         self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
         self.progress_dialog_on_scan.abort_button.configure(image=self.ico['abort'],text='Abort',compound='left')
 
-        dude_core.writeLog=self.write_scan_log.get()
+        dude_core.biggest_files_order = self.biggest_files_order.get()
+        dude_core.log_skipped = self.log_skipped.get()
 
         crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
         crc_thread.start()
@@ -3512,7 +3532,6 @@ class Gui:
         string=f'Removing empty directories in:\'{startpath}\''
         self.status(string)
         self.main.update()
-        logging.info(string)
 
         removed=[]
         index=0

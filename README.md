@@ -12,6 +12,9 @@ GUI utility for finding duplicated files, delete or link them to save space.
   - taking action on marked files
 - Command Line parameters for integration with favorite file manager (e.g. Double Commander)
 
+## Why another anti-duplicate application ?
+- because you need to see the context of removed files, and use such application clearly,safely and easily.
+
 ## Dude GUI (gif not up to date):
 ![image info](./info/dude.gif)
 
@@ -37,7 +40,7 @@ https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.sh
 
 ## Supported platforms:
 - Linux
-- Windows
+- Windows (10,11)
 
 ## Command line examples:
 * Start scanning for duplicates in current directory:
@@ -59,8 +62,9 @@ dude --help
 ```
 
 ## Technical information
-- Scanning process analyzes selected paths and groups files with the same size. **Dude** compare files by calculated **SHA1** hash of file content. CRC calculation is done in order, from the largest files to the smallest files, in separate threads for every identified device (drive). Number of active threads is limited by available CPU cores. Aborting of CRC calculation gives only partial results - not all files may be identified as duplicates. Restarted scanning process will use cached data. The CRC is always calculated based on the entire contents of the file.
-- Calculated CRC is stored in internal cache which allows re-use it in future operation and speedup of searching of duplicates (e.g. with different set of search paths). Key of cache database is pair of inode of file and file modification time stored separately for every device-id, so any file modification or displacement will result in invalidation of obsolete data and recalculation of CRC.
+- Scanning process analyzes selected paths and groups files with the same size. **Dude** compare files by calculated **SHA1** hash of file content. CRC calculation is done ~~in order, from the largest files to the smallest files,~~ in separate threads for every identified device (drive). Number of active threads is limited by available CPU cores. Aborting of CRC calculation gives only partial results - not all files may be identified as duplicates. Restarted scanning process will use cached data. The CRC is always calculated based on the entire contents of the file.
+- scanning (CRC calculation to be precise) is done in **specific order**, that try to identify duplicates in most promising folders. In case of huge filesystems, when scan is aborted, partial results are more useful then. Its is possible to change order of scanning to simple order from the largest files to the smallest files by command line or gui option.
+- Calculated CRC is stored in **internal cache** which allows re-use it in future operation and speedup of searching of duplicates (e.g. with different set of search paths). Key of cache database is pair of inode of file and file modification time stored separately for every device-id, so any file modification or displacement will result in invalidation of obsolete data and recalculation of CRC.
 - Marking files does not cause any filesystem change. Any file deletion or linking needs confirmation and is logged.
 - Just before files processing, state of files (ctime) is compared with stored data. In case of inconsistency (state of files was changed somehow during operation between scanning/CRC calculation and files processing) action is aborted and data invalidated.
 - **Dude** is written in **python3** with **Tkinter** and compiled to single binary executable with **[Nuitka](https://github.com/Nuitka/Nuitka)** (great tool) for better performance. GitHub build for linux platform is done in **ubuntu-20.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**nuitka.run.sh**) or run python script (**dude.py**)
