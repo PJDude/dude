@@ -625,8 +625,8 @@ class Gui:
 
         self.scan_dialog.widget.bind('<Alt_L><a>',lambda event : self.path_to_scan_add_dialog())
         self.scan_dialog.widget.bind('<Alt_L><A>',lambda event : self.path_to_scan_add_dialog())
-        self.scan_dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_from_button())
-        self.scan_dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_from_button())
+        self.scan_dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_wrapper())
+        self.scan_dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_wrapper())
 
         self.scan_dialog.widget.bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
         self.scan_dialog.widget.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
@@ -695,7 +695,7 @@ class Gui:
         SkipButton = ttk.Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped)
         SkipButton.grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
-        SkipButton.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded)"))
+        SkipButton.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
         SkipButton.bind("<Leave>", lambda event : self.widget_leave())
 
         OrderButton = ttk.Checkbutton(self.scan_dialog.area_main,text='biggest files order',variable=self.biggest_files_order)
@@ -710,7 +710,7 @@ class Gui:
         OrderButton.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip))
         OrderButton.bind("<Leave>", lambda event : self.widget_leave())
 
-        self.scan_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self.ico['scan'],compound='left',command=self.scan_from_button,underline=0)
+        self.scan_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self.ico['scan'],compound='left',command=self.scan_wrapper,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
 
         self.scan_cancel_button = ttk.Button(self.scan_dialog.area_buttons,width=12,text="Cancel",image=self.ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
@@ -2184,9 +2184,21 @@ class Gui:
         else:
             logging.error('can\'t add:%s. limit exceeded',path)
 
-    def scan_from_button(self):
-        if self.scan():
-            self.scan_dialog_hide_wrapper()
+    scanning_in_progress=False
+    def scan_wrapper(self):
+        if self.scanning_in_progress:
+            logging.warning('scan_wrapper collision')
+            return
+
+        self.scanning_in_progress=True
+
+        try:
+            if self.scan():
+                self.scan_dialog_hide_wrapper()
+        except Exception as e:
+            logging.error(e)
+
+        self.scanning_in_progress=False
 
     def scan_dialog_hide_wrapper(self):
         self.scan_dialog.hide()
@@ -2261,6 +2273,8 @@ class Gui:
         wait_var=tk.BooleanVar()
         wait_var.set(False)
 
+        dude_core.log_skipped = self.log_skipped.get()
+
         while scan_thread.is_alive():
             new_data[1]=dude_core.info_path_to_scan
             new_data[3]=core.bytes_to_str_nocache(dude_core.info_size_sum)
@@ -2324,7 +2338,6 @@ class Gui:
         self.progress_dialog_on_scan.abort_button.configure(image=self.ico['abort'],text='Abort',compound='left')
 
         dude_core.biggest_files_order = self.biggest_files_order.get()
-        dude_core.log_skipped = self.log_skipped.get()
 
         crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
         crc_thread.start()
@@ -2332,8 +2345,9 @@ class Gui:
         update_once=True
         self.progress_dialog_on_scan.lab[0].configure(image='')
         self.progress_dialog_on_scan.lab[1].configure(text=' ')
-        #'Results:'
         self.progress_dialog_on_scan.lab[2].configure(image='',text='')
+        self.progress_dialog_on_scan.lab[3].configure(image='',text='')
+        self.progress_dialog_on_scan.lab[4].configure(image='',text='')
 
         prev_progress_size=0
         prev_progress_quant=0
@@ -2362,8 +2376,8 @@ class Gui:
 
             if anything_changed:
                 new_data[2]='CRC groups: %s' % dude_core.info_found_groups
-                new_data[3]='folders: %s' % dude_core.info_found_folders
-                new_data[4]='space: %s' % core.bytes_to_str(dude_core.info_found_dupe_space)
+                #new_data[3]='folders: %s' % dude_core.info_found_folders
+                #new_data[4]='space: %s' % core.bytes_to_str(dude_core.info_found_dupe_space)
 
                 for i in (2,3,4):
                     if new_data[i] != prev_data[i]:
@@ -2701,22 +2715,23 @@ class Gui:
     @block_actions_processing
     @gui_block
     def groups_show(self):
-        self.status('Rendering data...')
         self.menu_disable()
 
         self.idfunc = (lambda i,d : '%s-%s'%(i,d)) if len(dude_core.devs)>1 else (lambda i,d : str(i))
 
+        self.status('Cleaning tree...')
         self.reset_sels()
         self.groups_tree.delete(*self.groups_tree.get_children())
 
         cross_mode = self.cfg.get_bool(CFG_KEY_CROSS_MODE)
         self.active_crcs=set()
+        self.status('Rendering data...')
 
         sizes_counter=0
         for size,size_dict in dude_core.files_of_size_of_crc.items() :
             size_h = core.bytes_to_str(size)
             size_str = core.int_to_str(size)
-            if not sizes_counter%64:
+            if not sizes_counter%128:
                 self.status('Rendering data... (%s)' % size_h)
 
             sizes_counter+=1
@@ -3968,7 +3983,8 @@ if __name__ == "__main__":
 
         DEBUG_MODE = bool(p_args.debug)
 
-        logging.debug('DEBUG LEVEL')
+        logging.info('DUDE %s',VER_TIMESTAMP)
+        logging.debug('DEBUG LEVEL ENABLED')
 
         dude_core = core.DudeCore(CACHE_DIR,logging,DEBUG_MODE)
 
@@ -4010,7 +4026,7 @@ if __name__ == "__main__":
             print('Done')
 
         else:
-            Gui(os.getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun)
+            Gui(os.getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun,p_args.biggestfilesorder)
 
             if foreground_window:
                 win32gui.ShowWindow(foreground_window, win32con.SW_SHOWDEFAULT)

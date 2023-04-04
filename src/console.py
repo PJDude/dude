@@ -61,11 +61,14 @@ def parse_args(ver):
     exclude_group.add_argument('-e','--exclude',nargs='*'          ,help='exclude expressions')
     exclude_group.add_argument('-er','--exclude-regexp',nargs='*'          ,help='exclude regular expressions')
 
+
     run_mode_group = parser.add_mutually_exclusive_group()
     run_mode_group.add_argument('--norun',action='store_true',help='don\'t run scanning, only show scan dialog')
 
     c_help='do not run the gui. run the scan and save the result to the specified csv file. Implies -nh' if os.name=='nt' else 'do not run the gui. run the scan and save the result to the specified csv file.'
     run_mode_group.add_argument('-c','--csv' ,nargs=1,help=c_help)
+
+    parser.add_argument('-bfo','--biggestfilesorder' ,action='store_true',help='biggest files order')
 
     if os.name=='nt':
         parser.add_argument('-nh','--nohide' ,action='store_true'         ,help='don\'t hide console window in gui mode')
@@ -87,6 +90,9 @@ if __name__ == "__main__":
 
     if args.norun:
         command.append('--norun')
+
+    if args.bfo:
+        command.append('-bfo')
 
     if args.exclude:
         command.append('--exclude')
