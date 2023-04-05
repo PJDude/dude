@@ -70,7 +70,7 @@ def int_to_str(num):
 CRC_BUFFER_SIZE=4*1024*1024
 
 class CRCThreadedCalc:
-    def __init__(self,log,debug=False):
+    def __init__(self,log):
         self.log=log
         self.source=[]
         self.source_other_data=[]
@@ -78,20 +78,15 @@ class CRCThreadedCalc:
         self.results=[]
         self.file_info=(0,None)
         self.progress_info=0
-        self.debug=debug
         self.abort_action=False
-        self.debug_action = lambda size,name : self.debug_info(size,name) if self.debug else lambda size,name : None
         self.started=False
         self.thread = Thread(target=self.calc,daemon=True)
         self.size_done = 0
         self.files_done = 0
-        self.log.debug('CRCThreadedCalc initialized')
+        self.log.info('CRCThreadedCalc initialized')
 
     def __del__(self):
-        self.log.debug("CRCThreadedCalc gets destroyed")
-
-    def debug_info(self,size,name):
-        self.file_info=(size,name)
+        self.log.info("CRCThreadedCalc gets destroyed")
 
     def abort(self):
         self.abort_action=True
@@ -116,7 +111,6 @@ class CRCThreadedCalc:
                 self.size_done += size
                 self.files_done += 1
             else:
-                self.debug_action(size,fullpath)
 
                 hasher = hashlib.sha1()
                 while rsize := file_handle.readinto(buf):
@@ -143,11 +137,11 @@ class CRCThreadedCalc:
         return self.thread.is_alive()
 
     def start(self):
-        self.log.debug('CRCThreadedCalc start')
+        self.log.info('CRCThreadedCalc start')
         return self.thread.start()
 
     def join(self):
-        self.log.debug('CRCThreadedCalc join')
+        self.log.info('CRCThreadedCalc join')
         self.thread.join()
 
 class DudeCore:
@@ -282,8 +276,9 @@ class DudeCore:
                     self.scan_dir_cache[path] = ( path_ctime,tuple(entry_set) )
 
             except Exception as e:
-                self.log.error('scandir: %s',e)
                 self.scan_dir_cache[path] = (0,tuple([]),str(e))
+                if self.log_skipped:
+                    self.log.error('scandir: %s',e)
 
         return self.scan_dir_cache[path]
 
@@ -371,7 +366,7 @@ class DudeCore:
 
         ######################################################################
         #inodes collision detection
-        self.info='Inode collision detgection'
+        self.info='Inode collision detection'
         known_dev_inodes=defaultdict(int)
         for size,data in self.scan_results_by_size.items():
             for pathnr,path,file_name,mtime,ctime,dev,inode in data:
@@ -400,12 +395,11 @@ class DudeCore:
         return True
 
     def crc_cache_read(self):
-        self.info='Reading cache ...'
         self.crc_cache={}
         for dev in self.devs:
             self.crc_cache[dev]={}
             try:
-                self.log.debug('reading cache:%s:device:%s',self.cache_dir,dev)
+                self.log.info('reading cache:%s:device:%s',self.cache_dir,dev)
                 with open(os.sep.join([self.cache_dir,dev]),'r',encoding='ASCII' ) as cfile:
                     while line:=cfile.readline() :
                         inode,mtime,crc = line.rstrip('\n').split(' ')
@@ -424,7 +418,7 @@ class DudeCore:
         pathlib.Path(self.cache_dir).mkdir(parents=True,exist_ok=True)
         for (dev,val_dict) in self.crc_cache.items():
 
-            self.log.debug('writing cache:%s:device:%s',self.cache_dir,dev)
+            self.log.info('writing cache:%s:device:%s',self.cache_dir,dev)
             with open(os.sep.join([self.cache_dir,int_to_str(dev)]),'w',encoding='ASCII') as cfile:
                 for (inode,mtime),crc in sorted(val_dict.items()):
                     cfile.write(' '.join([int_to_str(x) for x in [inode,mtime,crc] ]) +'\n' )
@@ -473,7 +467,7 @@ class DudeCore:
         self.log.info('creating crc cores')
         for dev in self.devs:
             self.log.info('...%s',dev)
-            crc_core[dev]=CRCThreadedCalc(self.log,self.debug)
+            crc_core[dev]=CRCThreadedCalc(self.log)
 
         scan_results_sizes = list(self.scan_results_by_size)
 
@@ -633,7 +627,7 @@ class DudeCore:
 
                             if curr_line_info_file_size==prev_line_info[dev]:
                                 if now-prev_line_show_same_max[dev]>1:
-                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str(crc_core[dev].progress_info) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
+                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str_nocache(crc_core[dev].progress_info) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
                             else:
                                 prev_line_show_same_max[dev]=now
                                 prev_line_info[dev]=curr_line_info_file_size
