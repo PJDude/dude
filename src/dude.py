@@ -131,11 +131,7 @@ NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink'}
 
 HOMEPAGE='https://github.com/PJDude/dude'
 
-FOLDER = '\t📁' if windows else '[]'
-FOLDER_LINK = '\t📁  ⇦' if windows else '[] <='
-FILE_LINK_LEFT = '\t  🠔' if windows else '   <-'
 FILE_LINK_RIGHT = '🠖' if windows else '->'
-HARD_LINK = '\t ✹' if windows else '\t *'
 
 NONE_ICON=0
 FOLDER_ICON=1
@@ -220,22 +216,27 @@ class Gui:
 
     def block_actions_processing(func):
         def block_actions_processing_wrapp(self,*args,**kwargs):
+            logging.debug("block_actions_processing '%s' start",func.__name__)
+
             prev_active=self.actions_processing
             self.actions_processing=False
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status('block_actions_processing_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
+                self.status('block_actions_processing_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
                 self.info_dialog_on_main.show('INTERNAL ERROR block_actions_processing_wrapp',str(e))
-                logging.error('block_actions_processing_wrapp:%s:%s:args:%s:kwargs: %s',func,e,args,kwargs)
+                logging.error('block_actions_processing_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
                 res=None
 
             self.actions_processing=prev_active
+
+            logging.debug("block_actions_processing '%s' end",func.__name__)
             return res
         return block_actions_processing_wrapp
 
     def gui_block(func):
         def gui_block_wrapp(self,*args,**kwargs):
+            logging.debug("gui_block '%s' start",func.__name__)
             prev_cursor=self.menubar.cget('cursor')
 
             self.menu_disable()
@@ -247,29 +248,40 @@ class Gui:
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status('gui_block_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
-                self.info_dialog_on_main.show('INTERNAL ERROR gui_block_wrapp',str(func) + '\n' + str(e))
-                logging.error('gui_block_wrapp:%s:%s:args:%s:kwargs: %s',func,e,args,kwargs)
+                self.status('gui_block_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
+                self.info_dialog_on_main.show('INTERNAL ERROR gui_block_wrapp',func.__name__ + '\n' + str(e))
+                logging.error('gui_block_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
                 res=None
 
             self.menu_enable()
             self.main.config(cursor=prev_cursor)
             self.menubar.config(cursor=prev_cursor)
 
+            logging.debug("gui_block '%s' end",func.__name__)
             return res
         return gui_block_wrapp
 
     def catched(func):
         def catched_wrapp(self,*args,**kwargs):
+            logging.debug("catched '%s' start",func.__name__)
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status('catched_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
-                self.info_dialog_on_main.show('INTERNAL ERROR catched_wrapp','%s %s' % (str(func),str(e)) )
-                logging.error('catched_wrapp:%s:%s:args:%s:kwargs: %s',func,e,args,kwargs)
+                self.status('catched_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
+                self.info_dialog_on_main.show('INTERNAL ERROR catched_wrapp','%s %s' % (func.__name__,str(e)) )
+                logging.error('catched_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
                 res=None
+            logging.debug("catched '%s' end",func.__name__)
             return res
         return catched_wrapp
+
+    def logwrapper(func):
+        def logwrapper_wrapp(self,*args,**kwargs):
+            logging.info("logwrapper '%s' start",func.__name__)
+            res=func(self,*args,**kwargs)
+            logging.info("logwrapper '%s' end",func.__name__)
+            return res
+        return logwrapper_wrapp
 
     def restore_status_line(func):
         def restore_status_line_wrapp(self,*args,**kwargs):
@@ -278,9 +290,9 @@ class Gui:
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
-                self.status('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s' % (func,e,args,kwargs) )
+                self.status('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
                 self.info_dialog_on_main.show('INTERNAL ERROR restore_status_line_wrapp',str(e))
-                logging.error('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s',func,e,args,kwargs)
+                logging.error('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s',func.__name__,e,args,kwargs)
                 res=None
             else:
                 self.status(prev)
@@ -786,7 +798,7 @@ class Gui:
         cb_3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
         cb_3.bind("<Leave>", lambda event : self.widget_leave())
 
-        (cb_4:=ttk.Checkbutton(label_frame, text = 'Allow deletion of all copies (WARNING!)', variable=self.allow_delete_all)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+        (cb_4:=ttk.Checkbutton(label_frame, text = 'Allow deletion of all copies', variable=self.allow_delete_all,image=self.ico['warning'],compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
         cb_4.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
         cb_4.bind("<Leave>", lambda event : self.widget_leave())
 
@@ -835,7 +847,7 @@ class Gui:
 
         #######################################################################
         self.info_dialog_on_main = dialogs.LabelDialog(self.main,self.ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_ask_dialog = dialogs.TextDialogQuestion(self.main,self.ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.text_ask_dialog = dialogs.TextDialogQuestion(self.main,self.ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close,image=self.ico['warning'])
         self.text_info_dialog = dialogs.TextDialogInfo(self.main,self.ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
         self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
         self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
@@ -1214,13 +1226,14 @@ class Gui:
 
     status_prev_text=''
     status_prev_image=''
-    def status(self,text=' ',image=''):
+    def status(self,text='',image='',log=True):
         if text != self.status_prev_text or image != self.status_prev_image:
             self.status_line_lab.configure(text=text,image=image,compound='left')
             self.status_line_lab.update()
             self.status_prev_text=text
             self.status_prev_image=text
-            logging.info('STATUS:%s',text)
+            if (text or image) and log:
+                logging.info('STATUS:%s',text)
 
     menu_state_stack=[]
     def menu_enable(self):
@@ -1780,7 +1793,7 @@ class Gui:
                 self.folder_tree_sel_change(item)
 
     def set_full_path_to_file_win(self):
-        self.sel_full_path_to_file=pathlib.Path(os.sep.join([self.sel_path_full,self.sel_file])) if self.sel_path_full and self.sel_file else None
+        self.sel_full_path_to_file=str(pathlib.Path(os.sep.join([self.sel_path_full,self.sel_file]))) if self.sel_path_full and self.sel_file else None
 
     def set_full_path_to_file_lin(self):
         self.sel_full_path_to_file=(self.sel_path_full+self.sel_file if self.sel_path_full=='/' else os.sep.join([self.sel_path_full,self.sel_file])) if self.sel_path_full and self.sel_file else None
@@ -1855,18 +1868,23 @@ class Gui:
             self.groups_tree_update(item)
         else:
             if kind==UPDIR:
-                if change_status_line: self.status('parent directory')
+                if change_status_line: self.status('parent directory',log=False)
             elif kind==SINGLE:
-                if change_status_line: self.status('')
+                if change_status_line: self.status('',log=False)
             elif kind in (DIR):
-                if change_status_line: self.status('subdirectory')
+                if change_status_line: self.status('subdirectory',log=False)
             elif kind==LINK:
-                if change_status_line: self.status(os.readlink(self.sel_full_path_to_file),self.icon_softlink_target )
-                #'file softlink %s %s' % (FILE_LINK_RIGHT,
+                if change_status_line:
+                    self.status(os.readlink(self.sel_full_path_to_file),self.icon_softlink_target ,log=False)
+                    #if windows:
+                    #    dont work either
+                    #    self.status(os.path.realpath(self.sel_full_path_to_file),self.icon_softlink_target ,log=False)
+                    #else:
+
             elif kind==SINGLEHARDLINKED:
-                if change_status_line: self.status('file with hardlinks')
+                if change_status_line: self.status('file with hardlinks',log=False)
             elif kind in (DIRLINK):
-                if change_status_line: self.status(os.readlink(self.sel_full_path_to_file),self.icon_softlink_dir_target )
+                if change_status_line: self.status(os.readlink(self.sel_full_path_to_file),self.icon_softlink_dir_target ,log=False)
 
             self.groups_tree_update_none()
 
@@ -2109,6 +2127,7 @@ class Gui:
     def sel_dir(self,action):
         self.action_on_path(self.sel_full_path_to_file,action,True)
 
+    @logwrapper
     def column_sort_click(self, tree, colname):
         prev_colname,prev_sort_index,prev_is_numeric,prev_reverse,prev_updir_code,prev_dir_code,prev_non_dir_code=self.column_sort_last_params[tree]
         reverse = not prev_reverse if colname == prev_colname else prev_reverse
@@ -2125,6 +2144,7 @@ class Gui:
 
         self.column_sort(tree)
 
+    @logwrapper
     def tree_sort_item(self,tree,parent_item,lower_tree):
         colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
 
@@ -2149,6 +2169,7 @@ class Gui:
 
         _ = {tree.move(item, parent_item, index) for index,(val_tuple,item) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
 
+    @logwrapper
     @restore_status_line
     @block_actions_processing
     @gui_block
@@ -2203,6 +2224,7 @@ class Gui:
     def scan_dialog_hide_wrapper(self):
         self.scan_dialog.hide()
 
+    @logwrapper
     @restore_status_line
     def scan(self):
         self.status('Scanning...')
@@ -2639,6 +2661,7 @@ class Gui:
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
+    @logwrapper
     def crc_node_update(self,crc):
         size=int(self.groups_tree.set(crc,'size'))
 
@@ -2665,6 +2688,8 @@ class Gui:
                 logging.debug('crc_node_update-4:%s',crc)
                 crc_removed=True
 
+    @logwrapper
+    @catched
     def data_precalc(self):
         self.status('Precalculating data...')
 
@@ -2696,6 +2721,7 @@ class Gui:
         self.groups_combos_size = tuple(sorted([(crcitem,sum([int(self.groups_tree.set(item,'size')) for item in self.groups_tree.get_children(crcitem)])) for crcitem in self.groups_tree.get_children()],key = lambda x : x[1],reverse = True))
         self.groups_combos_quant = tuple(sorted([(crcitem,len(self.groups_tree.get_children(crcitem))) for crcitem in self.groups_tree.get_children()],key = lambda x : x[1],reverse = True))
 
+    @logwrapper
     def tree_groups_flat_items_update(self):
         self.tree_groups_flat_items = tuple([elem for sublist in [ tuple([crc])+tuple(self.groups_tree.get_children(crc)) for crc in self.groups_tree.get_children() ] for elem in sublist])
 
@@ -2712,6 +2738,7 @@ class Gui:
             self.tree_folder_update_none()
             self.reset_sels()
 
+    @logwrapper
     @block_actions_processing
     @gui_block
     def groups_show(self):
@@ -2732,7 +2759,7 @@ class Gui:
             size_h = core.bytes_to_str(size)
             size_str = core.int_to_str(size)
             if not sizes_counter%128:
-                self.status('Rendering data... (%s)' % size_h)
+                self.status('Rendering data... (%s)' % size_h,log=False)
 
             sizes_counter+=1
             for crc,crc_dict in size_dict.items():
@@ -2770,6 +2797,7 @@ class Gui:
         self.menu_enable()
         self.status('')
 
+    @logwrapper
     def groups_tree_update_crc_and_path(self):
         show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
         show_full_paths=self.cfg.get_bool(CFG_KEY_FULL_PATHS)
@@ -2857,7 +2885,6 @@ class Gui:
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
                     presort_id = dir_code if isdir else non_dir_code
-                    #text = FOLDER_LINK if isdir else FILE_LINK_LEFT
                     text = ''
                     icon = DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON
                     iid=('%sDL' % i) if isdir else ('%sFL' % i)
@@ -2873,7 +2900,6 @@ class Gui:
                     i+=1
                 elif isdir:
                     presort_id = dir_code
-                    #text = FOLDER
                     text = ''
                     icon = FOLDER_ICON
                     iid='%sD' % i
@@ -3221,6 +3247,7 @@ class Gui:
                     if (not go_to_no_mark and MARK in tree.item(next_item)['tags']) or (go_to_no_mark and MARK not in tree.item(next_item)['tags']):
                         tree.focus(next_item)
                         tree.see(next_item)
+                        tree.selection_set(next_item)
 
                         if tree==self.groups_tree:
                             self.groups_tree_sel_change(next_item)
@@ -3333,6 +3360,7 @@ class Gui:
         file=self.groups_tree.set(item,'file')
         return os.path.abspath(dude_core.get_full_path_scanned(pathnr,path,file))
 
+    @logwrapper
     def file_check_state(self,item):
         fullpath = self.item_full_path(item)
         logging.info('checking file:%s',fullpath)
@@ -3351,6 +3379,7 @@ class Gui:
 
         return None
 
+    @logwrapper
     @block_actions_processing
     def process_files_in_groups_wrapper(self,action,all_groups):
         processed_items=defaultdict(list)
@@ -3367,6 +3396,7 @@ class Gui:
 
         return self.process_files(action,processed_items,scope_title)
 
+    @logwrapper
     @block_actions_processing
     def process_files_in_folder_wrapper(self,action,on_dir_action=False):
         processed_items=defaultdict(list)
@@ -3393,6 +3423,7 @@ class Gui:
     CHECK_OK='ok_special_string'
     CHECK_ERR='error_special_string'
 
+    @logwrapper
     @restore_status_line
     @gui_block
     def process_files_check_correctness(self,action,processed_items,remaining_items):
@@ -3444,7 +3475,10 @@ class Gui:
                     incorrect_groups.append(crc)
 
             problem_header = 'All files marked'
-            problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
+            if action==SOFTLINK:
+                problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
+            else:
+                problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\""
 
         if incorrect_groups:
             if skip_incorrect:
@@ -3475,6 +3509,7 @@ class Gui:
 
         return self.CHECK_OK
 
+    @logwrapper
     @restore_status_line
     @gui_block
     def process_files_check_correctness_last(self,action,processed_items,remaining_items):
@@ -3499,6 +3534,7 @@ class Gui:
         logging.info('remaining files checking complete.')
         return self.CHECK_OK
 
+    @logwrapper
     @restore_status_line
     def process_files_confirm(self,action,processed_items,remaining_items,scope_title):
         self.status('confirmation required...')
@@ -3541,6 +3577,7 @@ class Gui:
         logging.warning('Confirmed.')
         return False
 
+    @logwrapper
     @block_actions_processing
     @gui_block
     def empty_dirs_removal(self,startpath,report_empty=False):
@@ -3571,6 +3608,7 @@ class Gui:
 
         return removed
 
+    @logwrapper
     @gui_block
     def process_files_core(self,action,processed_items,remaining_items):
         #self.main.config(cursor="watch")
@@ -3798,6 +3836,7 @@ class Gui:
                 return None
         return None
 
+    @logwrapper
     def csv_save(self):
         #ask_file_ask
         dude_core.write_csv('csv.csv')
@@ -3859,6 +3898,7 @@ class Gui:
 
         return "break"
 
+    @logwrapper
     def tree_action(self,tree,item,alt_pressed=False):
         if tree.set(item,'kind') == UPDIR:
             head,tail=os.path.split(self.sel_path_full)
@@ -3871,6 +3911,7 @@ class Gui:
             elif tree.set(item,'kind')!=CRC:
                 self.open_file()
 
+    @logwrapper
     def open_folder(self):
         tree=self.sel_tree
 
@@ -3899,6 +3940,7 @@ class Gui:
 
         Thread(target=run_command,daemon=True).start()
 
+    @logwrapper
     def open_file(self):
 
         if self.sel_path_full and self.sel_file:
