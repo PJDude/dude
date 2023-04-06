@@ -54,13 +54,13 @@ def parse_args(ver):
 
     parser.add_argument('paths',nargs='*',help='path to scan')
 
+    parser.add_argument('-ad','--appdirs',action='store_true',help="don't write files in portable mode (folder \"dude.data\" in the executable directory). Use platform specific folders provided by \"appdirs\" module.")
     parser.add_argument('-l','--log' ,nargs=1,help='specify log file')
     parser.add_argument('-d','--debug' ,action='store_true'         ,help='set debug logging level')
 
     exclude_group = parser.add_mutually_exclusive_group()
     exclude_group.add_argument('-e','--exclude',nargs='*'          ,help='exclude expressions')
     exclude_group.add_argument('-er','--exclude-regexp',nargs='*'          ,help='exclude regular expressions')
-
 
     run_mode_group = parser.add_mutually_exclusive_group()
     run_mode_group.add_argument('--norun',action='store_true',help='don\'t run scanning, only show scan dialog')

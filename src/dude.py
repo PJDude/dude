@@ -30,6 +30,7 @@ import fnmatch
 import shutil
 import os
 import os.path
+import platform
 import pathlib
 import re
 import signal
@@ -59,15 +60,6 @@ import dialogs
 import images
 
 log_levels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
-
-try:
-    from appdirs import user_cache_dir,user_log_dir,user_config_dir
-    CACHE_DIR = os.sep.join([user_cache_dir('dude','PJDude'),"cache"])
-    LOG_DIR = user_log_dir('dude','PJDude')
-    CONFIG_DIR = user_config_dir('dude')
-except Exception as e_import:
-    print(e_import)
-    CONFIG_DIR=LOG_DIR=CACHE_DIR = os.sep.join([os.getcwd(),"dude-no-appdirs"])
 
 windows = os.name=='nt'
 
@@ -335,10 +327,7 @@ class Gui:
         self.main.withdraw()
         self.main.update()
 
-        self.main.minsize(1200, 800)
-
-        dude_dirname = os.path.dirname(DUDE_FILE)
-        icons_dir = os.path.join(dude_dirname,'icons')
+        self.main.minsize(800, 600)
 
         self.ico={ img:PhotoImage(data = images.image[img]) for img in images.image }
 
@@ -912,14 +901,12 @@ class Gui:
 
         #######################################################################
         #License Dialog
-        logging.debug('DUDE_FILE:%s',DUDE_FILE )
-
         try:
-            self.license=pathlib.Path(os.path.join(dude_dirname,'LICENSE')).read_text(encoding='ASCII')
+            self.license=pathlib.Path(os.path.join(DUDE_DIR,'LICENSE')).read_text(encoding='ASCII')
         except Exception as exception_1:
             logging.error(exception_1)
             try:
-                self.license=pathlib.Path(os.path.join(os.path.dirname(dude_dirname),'LICENSE')).read_text(encoding='ASCII')
+                self.license=pathlib.Path(os.path.join(os.path.dirname(DUDE_DIR),'LICENSE')).read_text(encoding='ASCII')
             except Exception as exception_2:
                 logging.error(exception_2)
                 self.exit()
@@ -3998,15 +3985,47 @@ if windows:
 
 if __name__ == "__main__":
     try:
+
+        DUDE_FILE = os.path.normpath(__file__)
+        DUDE_DIR = os.path.dirname(DUDE_FILE)
+
+        DUDE_EXECUTABLE_FILE = os.path.normpath(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]))
+        DUDE_EXECUTABLE_DIR = os.path.dirname(DUDE_EXECUTABLE_FILE)
+        PORTABLE_DIR = os.sep.join([DUDE_EXECUTABLE_DIR,'dude.data'])
+
         #######################################################################
-        #timestamp
 
         VER_TIMESTAMP = console.get_ver_timestamp()
 
-        CURRENT_EXECUTABLE = os.path.abspath(sys.argv[0])
-        DUDE_FILE = os.path.normpath(__file__)
-
         p_args = console.parse_args(VER_TIMESTAMP)
+
+        use_appdir=bool(p_args.appdirs)
+
+        if not use_appdir:
+            try:
+                PORTABLE_DIR_TEST = os.sep.join([PORTABLE_DIR,'access.test'])
+                pathlib.Path(PORTABLE_DIR_TEST).mkdir(parents=True,exist_ok=False)
+                os.rmdir(PORTABLE_DIR_TEST)
+            except Exception as e_portable:
+                print('Cannot store files in portable mode:',e_portable)
+                use_appdir=True
+
+        if use_appdir:
+            try:
+                from appdirs import user_cache_dir,user_log_dir,user_config_dir
+                CACHE_DIR_DIR = user_cache_dir('dude','PJDude')
+                LOG_DIR = user_log_dir('dude','PJDude')
+                CONFIG_DIR = user_config_dir('dude')
+            except Exception as e_import:
+                print(e_import)
+
+        else:
+            CACHE_DIR_DIR = os.sep.join([PORTABLE_DIR,"cache"])
+            LOG_DIR = os.sep.join([PORTABLE_DIR,"logs"])
+            CONFIG_DIR = PORTABLE_DIR
+
+        #dont mix device id for different hosts in portable mode
+        CACHE_DIR = os.sep.join([CACHE_DIR_DIR,platform.node()])
 
         if not p_args.csv:
             foreground_window = win32gui.GetForegroundWindow() if windows and not p_args.nohide else None
@@ -4026,6 +4045,7 @@ if __name__ == "__main__":
         DEBUG_MODE = bool(p_args.debug)
 
         logging.info('DUDE %s',VER_TIMESTAMP)
+        logging.info('executable: %s',DUDE_EXECUTABLE_FILE)
         logging.debug('DEBUG LEVEL ENABLED')
 
         dude_core = core.DudeCore(CACHE_DIR,logging,DEBUG_MODE)
