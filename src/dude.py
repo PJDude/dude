@@ -2959,7 +2959,7 @@ class Gui:
                     if file_id in self.id2crc:
                         crc,core_ctime=self.id2crc[file_id]
 
-                        if str(dude_core.crc_to_size[crc])!=size or ctime != core_ctime:
+                        if dude_core.crc_to_size[crc]!=size_num or ctime != core_ctime:
                             item_rocognized=False
                         else:
                             text = crc if show_full_crc else crc[0:dude_core.crc_cut_len]
@@ -2967,7 +2967,7 @@ class Gui:
                             icon = NONE_ICON
                             iid=file_id
                             kind=FILE
-                            instances_num = len(dude_core.files_of_size_of_crc[size][crc])
+                            instances_num = len(dude_core.files_of_size_of_crc[size_num][crc])
                             instances_h=instances=str(instances_num)
                             defaulttag=None
                     else:
