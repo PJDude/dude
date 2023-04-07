@@ -1444,8 +1444,6 @@ class Gui:
         self.calc_mark_stats_folder()
 
     KEY_DIRECTION={}
-    KEY_DIRECTION['Up']=-1
-    KEY_DIRECTION['Down']=1
     KEY_DIRECTION['Prior']=-1
     KEY_DIRECTION['Next']=1
     KEY_DIRECTION['Home']=0
@@ -1454,32 +1452,95 @@ class Gui:
     reftuple1=('1','2','3','4','5','6','7')
     reftuple2=('exclam','at','numbersign','dollar','percent','asciicircum','ampersand')
 
+    @block_actions_processing
+    @gui_block
     def goto_next_prev_crc(self,direction):
-        pool=self.groups_tree.get_children()
-        item=self.groups_tree.focus()
+        status ='selecting next CRC group' if direction==1 else 'selecting prev CRC group'
 
-        if pool_len:=len(pool):
-            next_item=pool[(pool.index(self.groups_tree.set(item,'crc'))+direction) % pool_len]
-            self.crc_select_and_focus(next_item)
+        tree=self.groups_tree
+        current_item=self.sel_item
 
-    def goto_next_prev_duplicate(self,direction):
-        pool=[item for item in self.folder_tree.get_children() if self.folder_tree.set(item,'kind')==FILE]
-        item=self.folder_tree.focus()
+        while current_item:
+            current_item = self.my_next(tree,current_item) if direction==1 else self.my_prev(tree,current_item)
+            if tree.set(current_item,'kind')==CRC:
+                self.crc_select_and_focus(current_item)
+                self.status(status,log=False)
+                break
+            elif current_item==self.sel_item:
+                self.status('%s ... (no file)' % status,log=False)
+                break
 
-        if pool_len:=len(pool):
-            self.goto_next_dupe_file(self.folder_tree,direction)
-            self.folder_tree.update()
+    @block_actions_processing
+    @gui_block
+    def goto_next_prev_duplicate_in_folder(self,direction):
+        status = 'selecting next duplicate in folder' if direction==1 else 'selecting prev duplicate in folder'
+
+        tree=self.folder_tree
+
+        current_item = self.sel_item
+        while current_item:
+            current_item = self.my_next(tree,current_item) if direction==1 else self.my_prev(tree,current_item)
+
+            if tree.set(current_item,'kind')==FILE:
+                tree.focus(current_item)
+                tree.see(current_item)
+                self.folder_tree_sel_change(current_item)
+                self.status(status,log=False)
+                break
+            elif current_item==self.sel_item:
+                self.status('%s ... (no file)' % status,log=False)
+                break
 
     def goto_first_last_crc(self,index):
-        if next_item:=self.groups_tree.get_children()[index]:
-            self.crc_select_and_focus(next_item,True)
+        if children := self.groups_tree.get_children():
+            if next_item:=children[index]:
+                self.crc_select_and_focus(next_item,True)
 
     def goto_first_last_dir_entry(self,index):
-        if next_item:=self.folder_tree.get_children()[index]:
-            self.folder_tree.see(next_item)
-            self.folder_tree.focus(next_item)
-            self.folder_tree_sel_change(next_item)
-            self.folder_tree.update()
+        if children := self.folder_tree.get_children():
+            if next_item:=children[index]:
+                self.folder_tree.see(next_item)
+                self.folder_tree.focus(next_item)
+                self.folder_tree_sel_change(next_item)
+                self.folder_tree.update()
+
+    def my_next(self,tree,item):
+        if children := tree.get_children(item):
+            next_item=children[0]
+        else:
+            next_item=tree.next(item)
+
+        if not next_item:
+            next_item = tree.next(tree.parent(item))
+
+        if not next_item:
+            try:
+                next_item=tree.get_children()[0]
+            except:
+                return None
+
+        return next_item
+
+    def my_prev(self,tree,item):
+        prev_item=tree.prev(item)
+
+        if prev_item:
+            if prev_children := tree.get_children(prev_item):
+                prev_item = prev_children[-1]
+        else:
+            prev_item = tree.parent(item)
+
+        if not prev_item:
+            try:
+                last_parent=tree.get_children()[-1]
+            except :
+                return None
+
+            if last_parent_children := tree.get_children(last_parent):
+                prev_item=last_parent_children[-1]
+            else:
+                prev_item=last_parent
+        return prev_item
 
     def key_press(self,event):
         if self.actions_processing:
@@ -1496,35 +1557,23 @@ class Gui:
                 key=event.keysym
                 state=event.state
 
-                if key in ("Up",'Down') :
-                    try:
-                        pool = self.tree_groups_flat_items if tree==self.groups_tree else self.folder_tree.get_children()
+                if key in ("Up","Down"):
+                    new_item = self.my_next(tree,item) if key=='Down' else self.my_prev(tree,item)
 
-                        if pool_len := len(pool):
-                            index = pool.index(item) if item in pool else pool.index(self.sel_item) if self.sel_item in pool else pool.index(self.sel_item_of_tree[tree]) if self.sel_item_of_tree[tree] in pool else 0
-                            index=(index+self.KEY_DIRECTION[key])%pool_len
-                            next_item=pool[index]
+                    if new_item:
+                        tree.focus(new_item)
+                        tree.see(new_item)
+                        tree.selection_set(tree.focus())
 
-                            if sel:=tree.selection() : tree.selection_remove(sel)
-
-                            tree.focus(next_item)
-                            tree.see(next_item)
-                            tree.selection_set(tree.focus())
-
-                            if tree==self.groups_tree:
-                                self.groups_tree_sel_change(next_item)
-                            else:
-                                self.folder_tree_sel_change(next_item)
-                    except Exception as e:
-                        logging.error(e)
-                        #print('pool:',pool,' pool_len:',pool_len)
-                        self.info_dialog_on_main.show('INTERNAL ERROR - Updown',str(e) + '\ntree:' + str(tree) + '\nindex:' + str(index) + '\nnext_item:' + str(next_item))
-
+                        if tree==self.groups_tree:
+                            self.groups_tree_sel_change(new_item)
+                        else:
+                            self.folder_tree_sel_change(new_item)
                 elif key in ("Prior","Next"):
                     if tree==self.groups_tree:
                         self.goto_next_prev_crc(self.KEY_DIRECTION[key])
                     else:
-                        self.goto_next_prev_duplicate(self.KEY_DIRECTION[key])
+                        self.goto_next_prev_duplicate_in_folder(self.KEY_DIRECTION[key])
                 elif key in ("Home","End"):
                     if tree==self.groups_tree:
                         self.goto_first_last_crc(self.KEY_DIRECTION[key])
@@ -1763,11 +1812,15 @@ class Gui:
 
         if not item:
             if tree==self.groups_tree:
-                if items:=self.tree_groups_flat_items:
-                    item = items[0]
+                try:
+                    item = self.groups_tree.get_children()[0]
+                except :
+                    pass
             else:
-                if items := self.folder_tree.get_children():
-                    item=items[0]
+                try:
+                    item = self.folder_tree.get_children()[0]
+                except :
+                    pass
 
         if item:
             tree.focus(item)
@@ -2065,8 +2118,8 @@ class Gui:
             c_nav.add_separator()
             c_nav.add_command(label = 'Go to parent directory'       ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico['empty'],compound='left')
             c_nav.add_separator()
-            c_nav.add_command(label = 'Go to next duplicate'       ,command = lambda : self.goto_next_prev_duplicate(1),accelerator="Pg Down",state='normal', image = self.ico['empty'],compound='left')
-            c_nav.add_command(label = 'Go to previous duplicate'   ,command = lambda : self.goto_next_prev_duplicate(-1), accelerator="Pg Up",state='normal', image = self.ico['empty'],compound='left')
+            c_nav.add_command(label = 'Go to next duplicate'       ,command = lambda : self.goto_next_prev_duplicate_in_folder(1),accelerator="Pg Down",state='normal', image = self.ico['empty'],compound='left')
+            c_nav.add_command(label = 'Go to previous duplicate'   ,command = lambda : self.goto_next_prev_duplicate_in_folder(-1), accelerator="Pg Up",state='normal', image = self.ico['empty'],compound='left')
             c_nav.add_separator()
             c_nav.add_command(label = 'Go to first entry'       ,command = lambda : self.goto_first_last_dir_entry(0),accelerator="Home",state='normal', image = self.ico['empty'],compound='left')
             c_nav.add_command(label = 'Go to last entry'   ,command = lambda : self.goto_first_last_dir_entry(-1), accelerator="End",state='normal', image = self.ico['empty'],compound='left')
@@ -2156,10 +2209,10 @@ class Gui:
 
         _ = {tree.move(item, parent_item, index) for index,(val_tuple,item) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
 
-    @logwrapper
     @restore_status_line
     @block_actions_processing
     @gui_block
+    @logwrapper
     def column_sort(self, tree):
         self.status('Sorting...')
         colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
@@ -2172,11 +2225,8 @@ class Gui:
                     self.tree_sort_item(tree,crc,False)
             else:
                 self.tree_sort_item(tree,None,False)
-
-            self.tree_groups_flat_items_update()
         else:
             self.tree_sort_item(tree,None,True)
-            self.folder_tree_flat_items_list=self.folder_tree.get_children()
 
         tree.update()
 
@@ -2211,8 +2261,8 @@ class Gui:
     def scan_dialog_hide_wrapper(self):
         self.scan_dialog.hide()
 
-    @logwrapper
     @restore_status_line
+    @logwrapper
     def scan(self):
         self.status('Scanning...')
         self.cfg.write()
@@ -2238,8 +2288,6 @@ class Gui:
             return False
 
         self.main.update()
-
-        #self.scan_dialog.widget.update()
 
         #############################
         self.scan_dialog.widget.update()
@@ -2336,8 +2384,8 @@ class Gui:
 
         #############################
         if dude_core.sum_size==0:
-            self.info_dialog_on_scan.show('Cannot Proceed.','No Duplicates.')
             self.progress_dialog_on_scan.hide(True)
+            self.info_dialog_on_scan.show('Cannot Proceed.','No Duplicates.')
             return False
         #############################
         self.status('Calculating CRC ...')
@@ -2476,7 +2524,10 @@ class Gui:
             tk.Label(frame,image=self.icon_nr[row], relief='flat',bg=self.bg_color).pack(side='left',padx=2,pady=2,fill='y')
 
             self.paths_to_scan_entry_var[row]=tk.StringVar(value=path)
-            ttk.Entry(frame,textvariable=self.paths_to_scan_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1)
+            path_to_scan_entry = ttk.Entry(frame,textvariable=self.paths_to_scan_entry_var[row])
+            path_to_scan_entry.pack(side='left',expand=1,fill='both',pady=1)
+
+            path_to_scan_entry.bind("<KeyPress-Return>", lambda event : self.scan_wrapper())
 
             remove_path_button=ttk.Button(frame,image=self.ico['delete'],command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3)
             remove_path_button.pack(side='right',padx=2,pady=1,fill='y')
@@ -2652,15 +2703,15 @@ class Gui:
     def crc_node_update(self,crc):
         size=int(self.groups_tree.set(crc,'size'))
 
-        crc_removed=False
+        #crc_removed=False
         if size not in dude_core.files_of_size_of_crc:
             self.groups_tree.delete(crc)
             logging.debug('crc_node_update-1 %s',crc)
-            crc_removed=True
+            #crc_removed=True
         elif crc not in dude_core.files_of_size_of_crc[size]:
             self.groups_tree.delete(crc)
             logging.debug('crc_node_update-2 %s',crc)
-            crc_removed=True
+            #crc_removed=True
         else:
             crc_dict=dude_core.files_of_size_of_crc[size][crc]
             for item in list(self.groups_tree.get_children(crc)):
@@ -2673,10 +2724,10 @@ class Gui:
             if not self.groups_tree.get_children(crc):
                 self.groups_tree.delete(crc)
                 logging.debug('crc_node_update-4:%s',crc)
-                crc_removed=True
+                #crc_removed=True
 
-    @logwrapper
     @catched
+    @logwrapper
     def data_precalc(self):
         self.status('Precalculating data...')
 
@@ -2685,7 +2736,7 @@ class Gui:
         path_stat_size={}
         path_stat_quant={}
 
-        self.cache_by_id_ctime = {}
+        self.id2crc = {}
         self.biggest_file_of_path={}
         self.biggest_file_of_path_id={}
 
@@ -2693,7 +2744,7 @@ class Gui:
             for crc,crc_dict in size_dict.items():
                 if crc in self.active_crcs:
                     for pathnr,path,file,ctime,dev,inode in crc_dict:
-                        self.cache_by_id_ctime[(self.idfunc(inode,dev),ctime)]=(crc,dude_core.crc_cut[crc],len(size_dict[crc]) )
+                        self.id2crc[self.idfunc(inode,dev)]=(crc,ctime)
 
                         path_index=(pathnr,path)
                         path_stat_size[path_index] = path_stat_size.get(path_index,0) + size
@@ -2708,10 +2759,6 @@ class Gui:
         self.groups_combos_size = tuple(sorted([(crcitem,sum([int(self.groups_tree.set(item,'size')) for item in self.groups_tree.get_children(crcitem)])) for crcitem in self.groups_tree.get_children()],key = lambda x : x[1],reverse = True))
         self.groups_combos_quant = tuple(sorted([(crcitem,len(self.groups_tree.get_children(crcitem))) for crcitem in self.groups_tree.get_children()],key = lambda x : x[1],reverse = True))
 
-    @logwrapper
-    def tree_groups_flat_items_update(self):
-        self.tree_groups_flat_items = tuple([elem for sublist in [ tuple([crc])+tuple(self.groups_tree.get_children(crc)) for crc in self.groups_tree.get_children() ] for elem in sublist])
-
     def initial_focus(self):
         if self.groups_tree.get_children():
             first_node_file=next(iter(self.groups_tree.get_children(next(iter(self.groups_tree.get_children())))))
@@ -2725,9 +2772,9 @@ class Gui:
             self.tree_folder_update_none()
             self.reset_sels()
 
-    @logwrapper
     @block_actions_processing
     @gui_block
+    @logwrapper
     def groups_show(self):
         self.menu_disable()
 
@@ -2777,7 +2824,6 @@ class Gui:
         else:
             self.column_sort_set_arrow(self.groups_tree)
 
-        self.tree_groups_flat_items_update() #after sort !
         self.initial_focus()
         self.calc_mark_stats_groups()
 
@@ -2792,7 +2838,7 @@ class Gui:
         for size,size_dict in dude_core.files_of_size_of_crc.items() :
             for crc,crc_dict in size_dict.items():
                 if crc in self.active_crcs:
-                    self.groups_tree.item(crc,text=crc if show_full_crc else dude_core.crc_cut[crc])
+                    self.groups_tree.item(crc,text=crc if show_full_crc else crc[0:dude_core.crc_cut_len])
                     for pathnr,path,file,ctime,dev,inode in crc_dict:
                         if show_full_paths:
                             self.groups_tree.item(self.idfunc(inode,dev),image=self.icon_nr[pathnr],text=dude_core.scanned_paths[pathnr])
@@ -2909,16 +2955,24 @@ class Gui:
                     size=core.int_to_str(size_num)
                     size_h=core.bytes_to_str(size_num)
 
-                    if (file_id,ctime) in self.cache_by_id_ctime:
-                        crc,crc_cut,instances_num = self.cache_by_id_ctime[(file_id,ctime)]
+                    item_rocognized=True
+                    if file_id in self.id2crc:
+                        crc,core_ctime=self.id2crc[file_id]
+                        if dude_core.crc_to_size[crc]!=size or ctime != core_ctime:
+                            item_rocognized=False
+                        else:
+                            text = crc if show_full_crc else crc[0:duce_core.crc_cut_len]
 
-                        text = crc if show_full_crc else crc_cut
-                        icon = NONE_ICON
-                        iid=file_id
-                        kind=FILE
-                        instances_h=instances=core.int_to_str(instances_num)
-                        defaulttag=None
+                            icon = NONE_ICON
+                            iid=file_id
+                            kind=FILE
+                            instances_num = len(dude_core.files_of_size_of_crc[size][crc])
+                            instances_h=instances=core.int_to_str(instances_num)
+                            defaulttag=None
                     else:
+                        item_rocognized=False
+
+                    if not item_rocognized:
                         #files without permissions -> nlink==0
                         text = '(%s)' % nlink if nlink>1 else ''
                         icon = HARDLINK_ICON if nlink>1 else NONE_ICON
@@ -2943,6 +2997,7 @@ class Gui:
 
             ############################################################
             self.folder_items_cache[current_path]=(dir_ctime, [ (iid,folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) ] )
+            del keys
 
         if arbitrary_path:
             #TODO - workaround
@@ -2951,15 +3006,10 @@ class Gui:
             self.sel_path=sel_path_prev
             self.sel_path_set(str(pathlib.Path(arbitrary_path)))
 
-        #preallocate
-        self.folder_tree_flat_items_list=[None]*(len(self.folder_items_cache[current_path][1])+1)
-        self.folder_tree_flat_items_list.clear()
-
         self.folder_tree.delete(*self.folder_tree.get_children())
         if self.two_dots_condition():
             #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
             self.folder_tree.insert(parent="", index='end', iid='0UP' , text='', image='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
-            self.folder_tree_flat_items_list.append('0UP')
 
         try:
             for (iid,(text,values,defaulttag,icon)) in self.folder_items_cache[current_path][1]:
@@ -2974,7 +3024,6 @@ class Gui:
                     tags = defaulttag
 
                 self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = tags,image=self.icon[icon])
-                self.folder_tree_flat_items_list.append(iid)
 
         except Exception as e:
             self.status(str(e))
@@ -3213,61 +3262,32 @@ class Gui:
     @block_actions_processing
     @gui_block
     def goto_next_mark(self,tree,direction,go_to_no_mark=False):
-        marked=[item for item in tree.get_children() if not tree.tag_has(MARK,item)] if go_to_no_mark else tree.tag_has(MARK)
-        if marked:
-            if go_to_no_mark:
-                #marked if not tree.tag_has(MARK,self.sel_item) else
-                pool= self.tree_groups_flat_items if tree==self.groups_tree else self.folder_tree_flat_items_list
-                #self.folder_tree.get_children()
-            else:
-                pool=marked if tree.tag_has(MARK,self.sel_item) else self.tree_groups_flat_items if tree==self.groups_tree else self.folder_tree_flat_items_list
-                #self.folder_tree.get_children()
+        if go_to_no_mark:
+            status= 'selecting next not marked item' if direction==1 else 'selecting prev not marked item'
+        else:
+            status ='selecting next marked item' if direction==1 else 'selecting prev marked item'
 
-            poollen=len(pool)
+        current_item = self.sel_item
+        while current_item:
+            current_item = self.my_next(tree,current_item) if direction==1 else self.my_prev(tree,current_item)
 
-            if poollen:
-                index = pool.index(self.sel_item)
+            tag_has = tree.tag_has(MARK,current_item)
+            it_is_crc = tree.set(current_item,'kind')==CRC
+            if (tag_has and not go_to_no_mark) or (go_to_no_mark and not tag_has and not it_is_crc):
+                tree.focus(current_item)
+                tree.see(current_item)
+                tree.selection_set(current_item)
 
-                while True:
-                    index=(index+direction)%poollen
-                    next_item=pool[index]
-                    if (not go_to_no_mark and MARK in tree.item(next_item)['tags']) or (go_to_no_mark and MARK not in tree.item(next_item)['tags']):
-                        tree.focus(next_item)
-                        tree.see(next_item)
-                        tree.selection_set(next_item)
+                if tree==self.groups_tree:
+                    self.groups_tree_sel_change(current_item)
+                else:
+                    self.folder_tree_sel_change(current_item)
 
-                        if tree==self.groups_tree:
-                            self.groups_tree_sel_change(next_item)
-                        else:
-                            self.folder_tree_sel_change(next_item)
-
-                        break
-
-    @block_actions_processing
-    @gui_block
-    def goto_next_dupe_file(self,tree,direction):
-        marked=[item for item in tree.get_children() if tree.set(item,'kind')==FILE]
-        if marked:
-            pool=marked if tree.set(self.sel_item,'kind')==FILE else self.folder_tree_flat_items_list
-            #self.folder_tree.get_children()
-            poollen=len(pool)
-
-            if poollen:
-                index = pool.index(self.sel_item)
-
-                while True:
-                    index=(index+direction)%poollen
-                    next_item=pool[index]
-                    if tree.set(next_item,'kind')==FILE:
-                        tree.focus(next_item)
-                        tree.see(next_item)
-
-                        if tree==self.groups_tree:
-                            self.groups_tree_sel_change(next_item)
-                        else:
-                            self.folder_tree_sel_change(next_item)
-
-                        break
+                self.status(status,log=False)
+                break
+            elif current_item==self.sel_item:
+                self.status('%s ... (no file)' % status,log=False)
+                break
 
     dominant_groups_index={}
     dominant_groups_index[0] = -1
@@ -3366,8 +3386,8 @@ class Gui:
 
         return None
 
-    @logwrapper
     @block_actions_processing
+    @logwrapper
     def process_files_in_groups_wrapper(self,action,all_groups):
         processed_items=defaultdict(list)
         if all_groups:
@@ -3383,8 +3403,8 @@ class Gui:
 
         return self.process_files(action,processed_items,scope_title)
 
-    @logwrapper
     @block_actions_processing
+    @logwrapper
     def process_files_in_folder_wrapper(self,action,on_dir_action=False):
         processed_items=defaultdict(list)
         if on_dir_action:
@@ -3410,9 +3430,9 @@ class Gui:
     CHECK_OK='ok_special_string'
     CHECK_ERR='error_special_string'
 
-    @logwrapper
     @restore_status_line
     @gui_block
+    @logwrapper
     def process_files_check_correctness(self,action,processed_items,remaining_items):
         skip_incorrect = self.cfg.get_bool(CFG_SKIP_INCORRECT_GROUPS)
         show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
@@ -3429,8 +3449,6 @@ class Gui:
                 dude_core.remove_from_data_pool(size,crc,tuples_to_remove)
 
                 self.crc_node_update(crc)
-
-                self.tree_groups_flat_items_update()
 
                 self.data_precalc()
 
@@ -3470,7 +3488,7 @@ class Gui:
         if incorrect_groups:
             if skip_incorrect:
 
-                incorrect_group_str='\n'.join([crc if show_full_crc else dude_core.crc_cut[crc] for crc in incorrect_groups ])
+                incorrect_group_str='\n'.join([crc if show_full_crc else crc[0:dude_core.crc_cut_len] for crc in incorrect_groups ])
                 header = f'Warning ({NAME[action]}). {problem_header}'
                 message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
 
@@ -3496,9 +3514,9 @@ class Gui:
 
         return self.CHECK_OK
 
-    @logwrapper
     @restore_status_line
     @gui_block
+    @logwrapper
     def process_files_check_correctness_last(self,action,processed_items,remaining_items):
         self.status('final checking selection correctness')
 
@@ -3521,8 +3539,8 @@ class Gui:
         logging.info('remaining files checking complete.')
         return self.CHECK_OK
 
-    @logwrapper
     @restore_status_line
+    @logwrapper
     def process_files_confirm(self,action,processed_items,remaining_items,scope_title):
         self.status('confirmation required...')
         show_full_path=1
@@ -3564,9 +3582,9 @@ class Gui:
         logging.warning('Confirmed.')
         return False
 
-    @logwrapper
     @block_actions_processing
     @gui_block
+    @logwrapper
     def empty_dirs_removal(self,startpath,report_empty=False):
         string=f'Removing empty directories in:\'{startpath}\''
         self.status(string)
@@ -3596,7 +3614,6 @@ class Gui:
         return removed
 
     @logwrapper
-    @gui_block
     def process_files_core(self,action,processed_items,remaining_items):
         #self.main.config(cursor="watch")
         #self.menu_disable()
@@ -3658,7 +3675,6 @@ class Gui:
         #self.menu_enable()
 
         self.data_precalc()
-        self.tree_groups_flat_items_update()
 
         if final_info:
             self.text_info_dialog.show('Removed empty directories','\n'.join(final_info))
@@ -3726,7 +3742,15 @@ class Gui:
         #action
 
         if tree==self.groups_tree:
-            orglist=self.tree_groups_flat_items
+            item_to_select = self.sel_crc
+
+            while True:
+                item_to_select = tree.next(item_to_select)
+
+                if not item_to_select:
+                    break
+                elif item_to_select not in affected_crcs:
+                    break
         else:
             org_sel_item=self.sel_item
             orglist=self.folder_tree.get_children()
@@ -3737,15 +3761,13 @@ class Gui:
         #############################################
 
         if tree==self.groups_tree:
-            #newlist=self.groups_tree.get_children()
+            if tree.exists(self.sel_crc):
+                item_to_select=self.sel_crc
 
-            sel_item = self.sel_item if self.sel_item else self.sel_crc
-            item_to_sel = self.get_closest_in_crc(orglist,sel_item,self.tree_groups_flat_items)
-
-            if item_to_sel:
-                self.groups_tree.see(item_to_sel)
-                self.groups_tree.focus(item_to_sel)
-                self.groups_tree_sel_change(item_to_sel)
+            if item_to_select:
+                tree.selection_set(item_to_select)
+                self.groups_tree_sel_change(item_to_select)
+                self.tree_semi_focus(self.groups_tree)
             else:
                 self.initial_focus()
         else:

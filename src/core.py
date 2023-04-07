@@ -161,7 +161,6 @@ class DudeCore:
         self.files_of_size_of_crc=defaultdict(lambda : defaultdict(set))
         self.devs=()
         self.crc_cut_len=40
-        self.crc_cut={}
         self.scanned_paths=[]
 
         self.exclude_list=[]
@@ -774,7 +773,6 @@ class DudeCore:
             len_temp+=1
 
         self.crc_cut_len=len_temp
-        self.crc_cut={crc:crc[0:self.crc_cut_len] for crc in all_crcs }
         self.info=''
 
     def rename_file(self,src,dest):
@@ -818,17 +816,12 @@ class DudeCore:
             self.log.error(e)
             return 'Error on hard linking:' + str(e)
 
-    def reduce_crc_cut(self,size,crc):
-        if size not in self.files_of_size_of_crc or crc not in self.files_of_size_of_crc[size]:
-            del self.crc_cut[crc]
-
     def remove_from_data_pool(self,size,crc,index_tuple_list):
         for index_tuple in index_tuple_list:
             self.log.debug('remove_from_data_pool:%s,%s,%s',size,crc,index_tuple)
             self.files_of_size_of_crc[size][crc].remove(index_tuple)
 
         self.check_crc_pool_and_prune(size)
-        self.reduce_crc_cut(size,crc)
 
     def get_path(self,index_tuple):
         (pathnr,path,file_name,ctime,dev,inode)=index_tuple
@@ -898,7 +891,7 @@ class DudeCore:
             self.files_of_size_of_crc[size][crc].remove(index_tuple_ref)
 
         self.check_crc_pool_and_prune(size)
-        self.reduce_crc_cut(size,crc)
+
         return ''
 
 ############################################################################################
