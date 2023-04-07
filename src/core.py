@@ -63,10 +63,6 @@ def bytes_to_str_nocache(num,digits=2):
 def bytes_to_str(num,digits=2):
     return bytes_to_str_nocache(num,digits)
 
-@functools.cache
-def int_to_str(num):
-    return str(num)
-
 CRC_BUFFER_SIZE=4*1024*1024
 
 class CRCThreadedCalc:
@@ -264,7 +260,7 @@ class DudeCore:
                             try:
                                 #stat = os.stat(os.path.join(path,name))
                                 stat = os.stat(entry)
-                                res_tuple = (name,is_link,entry.is_dir(),entry.is_file(),int_to_str(int(round(stat.st_mtime))),int_to_str(int(round(stat.st_ctime))),int_to_str(stat.st_dev),int_to_str(stat.st_ino),stat.st_size,stat.st_nlink)
+                                res_tuple = (name,is_link,entry.is_dir(),entry.is_file(),str(int(round(stat.st_mtime))),str(int(round(stat.st_ctime))),str(stat.st_dev),str(stat.st_ino),stat.st_size,stat.st_nlink)
                             except Exception as e:
                                 if self.log_skipped:
                                     self.log.error('scandir(stat):%s error:%s is_link:%s',name,e,is_link )
@@ -418,9 +414,9 @@ class DudeCore:
         for (dev,val_dict) in self.crc_cache.items():
 
             self.log.info('writing cache:%s:device:%s',self.cache_dir,dev)
-            with open(os.sep.join([self.cache_dir,int_to_str(dev)]),'w',encoding='ASCII') as cfile:
+            with open(os.sep.join([self.cache_dir,str(dev)]),'w',encoding='ASCII') as cfile:
                 for (inode,mtime),crc in sorted(val_dict.items()):
-                    cfile.write(' '.join([int_to_str(x) for x in [inode,mtime,crc] ]) +'\n' )
+                    cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
 
         del self.crc_cache
         self.info=''
@@ -731,7 +727,7 @@ class DudeCore:
                         res_problems.append('file became hardlink:%s - %s,%s,%s' % (stat.st_nlink,pathnr,path,file_name) )
                         problem=True
                     else:
-                        if (size,ctime,dev,inode) != (stat.st_size,int_to_str(int(round(stat.st_ctime))),int_to_str(stat.st_dev),int_to_str(stat.st_ino)):
+                        if (size,ctime,dev,inode) != (stat.st_size,str(int(round(stat.st_ctime))),str(stat.st_dev),str(stat.st_ino)):
                             res_problems.append('file changed:%s,%s,%s,%s vs %s,%s,%s,%s' % (size,ctime,dev,inode,stat.st_size,int(round(stat.st_ctime)),stat.st_dev,stat.st_ino) )
                             problem=True
                 if problem:

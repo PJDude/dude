@@ -2791,7 +2791,7 @@ class Gui:
         sizes_counter=0
         for size,size_dict in dude_core.files_of_size_of_crc.items() :
             size_h = core.bytes_to_str(size)
-            size_str = core.int_to_str(size)
+            size_str = str(size)
             if not sizes_counter%128:
                 self.status('Rendering data... (%s)' % size_h,log=False)
 
@@ -2806,7 +2806,7 @@ class Gui:
                 self.active_crcs.add(crc)
 
                 #self.groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
-                instances_str=core.int_to_str(len(crc_dict))
+                instances_str=str(len(crc_dict))
                 crcitem=self.groups_tree.insert(parent='', index='end',iid=crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',CRC),tags=CRC,open=True)
 
                 for pathnr,path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
@@ -2952,22 +2952,23 @@ class Gui:
 
                     ctime_h=get_htime(ctime)
 
-                    size=core.int_to_str(size_num)
+                    size=str(size_num)
                     size_h=core.bytes_to_str(size_num)
 
                     item_rocognized=True
                     if file_id in self.id2crc:
                         crc,core_ctime=self.id2crc[file_id]
-                        if dude_core.crc_to_size[crc]!=size or ctime != core_ctime:
+
+                        if str(dude_core.crc_to_size[crc])!=size or ctime != core_ctime:
                             item_rocognized=False
                         else:
-                            text = crc if show_full_crc else crc[0:duce_core.crc_cut_len]
+                            text = crc if show_full_crc else crc[0:dude_core.crc_cut_len]
 
                             icon = NONE_ICON
                             iid=file_id
                             kind=FILE
                             instances_num = len(dude_core.files_of_size_of_crc[size][crc])
-                            instances_h=instances=core.int_to_str(instances_num)
+                            instances_h=instances=str(instances_num)
                             defaulttag=None
                     else:
                         item_rocognized=False
@@ -3373,7 +3374,7 @@ class Gui:
         logging.info('checking file:%s',fullpath)
         try:
             stat = os.stat(fullpath)
-            ctime_check=core.int_to_str(int(round(stat.st_ctime)))
+            ctime_check=str(int(round(stat.st_ctime)))
         except Exception as e:
             self.status(str(e))
             mesage = f'can\'t check file: {fullpath}\n\n{e}'
@@ -3446,7 +3447,7 @@ class Gui:
                 self.info_dialog_on_main.show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
                 orglist=self.groups_tree.get_children()
 
-                dude_core.remove_from_data_pool(size,crc,tuples_to_remove)
+                dude_core.remove_from_data_pool(int(size),crc,tuples_to_remove)
 
                 self.crc_node_update(crc)
 

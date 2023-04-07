@@ -1,6 +1,6 @@
 appdirs==1.4.4
 zstandard==0.20.0
 ordered-set==4.1.0
-nuitka==1.5.4
+nuitka==1.5.5
 
 pywin32; sys.platform == 'win32'
