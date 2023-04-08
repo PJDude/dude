@@ -203,6 +203,7 @@ class Gui:
 
     sel_path_full=''
     folder_items_cache={}
+    tagged=set()
 
     actions_processing=False
 
@@ -2334,7 +2335,7 @@ class Gui:
 
         while scan_thread.is_alive():
             new_data[1]=dude_core.info_path_to_scan
-            new_data[3]=core.bytes_to_str_nocache(dude_core.info_size_sum)
+            new_data[3]=core.bytes_to_str(dude_core.info_size_sum)
             new_data[4]='%s files' % dude_core.info_counter
 
             anything_changed=False
@@ -2373,7 +2374,7 @@ class Gui:
                 dude_core.abort()
                 break
 
-            self.main.after(50,lambda : wait_var.set(not wait_var.get()))
+            self.main.after(100,lambda : wait_var.set(not wait_var.get()))
             self.main.wait_variable(wait_var)
 
         scan_thread.join()
@@ -2400,8 +2401,8 @@ class Gui:
         crc_thread.start()
 
         update_once=True
-        self.progress_dialog_on_scan.lab[0].configure(image='')
-        self.progress_dialog_on_scan.lab[1].configure(text=' ')
+        self.progress_dialog_on_scan.lab[0].configure(image='',text='')
+        self.progress_dialog_on_scan.lab[1].configure(image='',text='')
         self.progress_dialog_on_scan.lab[2].configure(image='',text='')
         self.progress_dialog_on_scan.lab[3].configure(image='',text='')
         self.progress_dialog_on_scan.lab[4].configure(image='',text='')
@@ -2420,7 +2421,7 @@ class Gui:
                 prev_progress_size=size_progress_info
 
                 self.progress_dialog_on_scan.progr1var.set(size_progress_info)
-                self.progress_dialog_on_scan.lab_r1.config(text='%s / %s' % (core.bytes_to_str_nocache(dude_core.info_size_done),core.bytes_to_str_nocache(dude_core.sum_size)))
+                self.progress_dialog_on_scan.lab_r1.config(text='%s / %s' % (core.bytes_to_str(dude_core.info_size_done),core.bytes_to_str(dude_core.sum_size)))
                 anything_changed=True
 
             quant_progress_info=100*dude_core.info_files_done/dude_core.info_total
@@ -2432,14 +2433,15 @@ class Gui:
                 anything_changed=True
 
             if anything_changed:
-                new_data[2]='CRC groups: %s' % dude_core.info_found_groups
+                self.progress_dialog_on_scan.lab[1].configure(text='CRC groups: %s' % dude_core.info_found_groups)
+                #new_data[1]='CRC groups: %s' % dude_core.info_found_groups
                 #new_data[3]='folders: %s' % dude_core.info_found_folders
                 #new_data[4]='space: %s' % core.bytes_to_str(dude_core.info_found_dupe_space)
 
-                for i in (2,3,4):
-                    if new_data[i] != prev_data[i]:
-                        prev_data[i]=new_data[i]
-                        self.progress_dialog_on_scan.lab[i].configure(text=new_data[i])
+                #for i in (2,3,4):
+                #    if new_data[i] != prev_data[i]:
+                #        prev_data[i]=new_data[i]
+                #        self.progress_dialog_on_scan.lab[i].configure(text=new_data[i])
 
                 self.progress_dialog_on_scan.area_main.update()
 
@@ -2452,10 +2454,10 @@ class Gui:
                     self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='If you abort at this stage,\npartial results may be available if any CRC groups are found.'
                     self.configure_tooltip(str(self.progress_dialog_on_scan.abort_button))
 
-                    self.progress_dialog_on_scan.lab[0].configure(image=self.ico['empty'])
+                    self.progress_dialog_on_scan.lab[2].configure(image=self.ico['empty'])
             else :
                 if now>time_without_busy_sign+1.0:
-                    self.progress_dialog_on_scan.lab[0].configure(image=self.hg_ico[hr_index])
+                    self.progress_dialog_on_scan.lab[2].configure(image=self.hg_ico[hr_index])
                     hr_index=(hr_index+1) % len(self.hg_ico)
 
                     self.tooltip_message[str(self.progress_dialog_on_scan.abort_button)]='crc calculating:\n%s...' % dude_core.info_line
@@ -2466,7 +2468,7 @@ class Gui:
                 if self.action_abort:
                     self.progress_dialog_on_scan.lab[0].configure(text='')
                     self.progress_dialog_on_scan.lab[1].configure(text='...Aborting...')
-                    self.progress_dialog_on_scan.lab[2].configure(text='')
+                    self.progress_dialog_on_scan.lab[2].configure(image='',text='... Rendering data ...')
                     self.progress_dialog_on_scan.lab[3].configure(text='')
                     self.progress_dialog_on_scan.lab[4].configure(text='')
                     self.progress_dialog_on_scan.widget.update()
@@ -2475,8 +2477,18 @@ class Gui:
 
             self.status(dude_core.info)
 
-            self.main.after(50,lambda : wait_var.set(not wait_var.get()))
+            self.main.after(100,lambda : wait_var.set(not wait_var.get()))
             self.main.wait_variable(wait_var)
+
+        self.progress_dialog_on_scan.widget.config(cursor="watch")
+
+        if not self.action_abort:
+            self.progress_dialog_on_scan.lab[0].configure(image='',text='')
+            self.progress_dialog_on_scan.lab[1].configure(image='',text='... Finished ...')
+            self.progress_dialog_on_scan.lab[2].configure(image='',text='... Rendering data ...')
+            self.progress_dialog_on_scan.lab[3].configure(image='',text='')
+            self.progress_dialog_on_scan.lab[4].configure(image='',text='')
+            self.progress_dialog_on_scan.widget.update()
 
         self.status('Finishing CRC Thread...')
         crc_thread.join()
@@ -2488,6 +2500,7 @@ class Gui:
 
         self.groups_show()
 
+        self.progress_dialog_on_scan.widget.config(cursor="")
         self.progress_dialog_on_scan.hide(True)
 
         if self.action_abort:
@@ -2788,7 +2801,10 @@ class Gui:
         self.active_crcs=set()
         self.status('Rendering data...')
 
+        self.tagged=set()
         sizes_counter=0
+        self.iid_to_size={}
+
         for size,size_dict in dude_core.files_of_size_of_crc.items() :
             size_h = core.bytes_to_str(size)
             size_str = str(size)
@@ -2810,12 +2826,15 @@ class Gui:
                 crcitem=self.groups_tree.insert(parent='', index='end',iid=crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',CRC),tags=CRC,open=True)
 
                 for pathnr,path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
-                    self.groups_tree.insert(parent=crcitem, index='end',iid=self.idfunc(inode,dev), values=(\
+                    iid=self.idfunc(inode,dev)
+                    self.iid_to_size[iid]=size
+
+                    self.groups_tree.insert(parent=crcitem, index='end',iid=iid, values=(\
                             pathnr,path,file,size_str,\
                             '',\
                             ctime,dev,inode,crc,\
                             '','',\
-                            get_htime(ctime) ,FILE),tags=())
+                            get_htime(ctime) ,FILE),tags='')
         self.data_precalc()
 
         if self.column_sort_last_params[self.groups_tree]!=self.column_groups_sort_params_default:
@@ -2900,6 +2919,8 @@ class Gui:
             if dir_ctime==self.folder_items_cache[current_path][0]:
                 do_refresh=False
 
+        #self.status('do_refresh %s' % do_refresh)
+
         if do_refresh :
             folder_items_dict={}
 
@@ -2959,7 +2980,7 @@ class Gui:
                     if file_id in self.id2crc:
                         crc,core_ctime=self.id2crc[file_id]
 
-                        if dude_core.crc_to_size[crc]!=size_num or ctime != core_ctime:
+                        if ctime != core_ctime:
                             item_rocognized=False
                         else:
                             text = crc if show_full_crc else crc[0:dude_core.crc_cut_len]
@@ -2969,7 +2990,7 @@ class Gui:
                             kind=FILE
                             instances_num = len(dude_core.files_of_size_of_crc[size_num][crc])
                             instances_h=instances=str(instances_num)
-                            defaulttag=None
+                            defaulttag=''
                     else:
                         item_rocognized=False
 
@@ -3014,17 +3035,7 @@ class Gui:
 
         try:
             for (iid,(text,values,defaulttag,icon)) in self.folder_items_cache[current_path][1]:
-                if values[self.kind_index]==FILE:
-                    try:
-                        tags = self.groups_tree.item(iid)['tags']
-                    except Exception as e:
-                        self.status(str(e))
-                        logging.error(e)
-                        tags = defaulttag
-                else:
-                    tags = defaulttag
-
-                self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags = tags,image=self.icon[icon])
+                self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags=MARK if values[self.kind_index]==FILE and iid in self.tagged else defaulttag,image=self.icon[icon])
 
         except Exception as e:
             self.status(str(e))
@@ -3046,18 +3057,18 @@ class Gui:
     def update_marks_folder(self):
         for item in self.folder_tree.get_children():
             if self.folder_tree.set(item,'kind')==FILE:
-                self.folder_tree.item( item,tags=self.groups_tree.item(item)['tags'] )
+                self.folder_tree.item( item,tags=MARK if item in self.tagged else '')
+                #self.folder_tree.item( item,tags=self.groups_tree.item(item)['tags'] )
 
     def calc_mark_stats_groups(self):
-        self.calc_mark_stats_core(self.groups_tree,self.status_all_size,self.status_all_quant)
+        self.status_all_size.configure(text=str(len(self.tagged)))
+        self.status_all_quant.configure(text=core.bytes_to_str(sum([self.iid_to_size[iid] for iid in self.tagged])))
 
     def calc_mark_stats_folder(self):
-        self.calc_mark_stats_core(self.folder_tree,self.status_folder_size,self.status_folder_quant)
-
-    def calc_mark_stats_core(self,tree,var_size,var_quant):
-        marked=tree.tag_has(MARK)
-        var_quant.configure(text=str(len(marked)))
-        var_size.configure(text=core.bytes_to_str(sum(int(tree.set(item,'size')) for item in marked)))
+        #TODO - nie pobierac danych z drzewa
+        marked=self.folder_tree.tag_has(MARK)
+        self.status_folder_quant.configure(text=str(len(marked)))
+        self.status_folder_size.configure(text=core.bytes_to_str(sum(int(self.folder_tree.set(item,'size')) for item in marked)))
 
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
         item=sorted([ (item,self.groups_tree.set(item,'ctime') ) for item in self.groups_tree.get_children(crc)],key=lambda x : int(x[1]),reverse=reverse)[0][0]
@@ -3121,13 +3132,19 @@ class Gui:
         self.calc_mark_stats_folder()
 
     def set_mark(self,item,tree):
-        tree.item(item,tags=[MARK])
+        tree.item(item,tags=MARK)
+        self.tagged.add(item)
 
     def unset_mark(self,item,tree):
-        tree.item(item,tags=())
+        tree.item(item,tags='')
+        self.tagged.discard(item)
 
     def invert_mark(self,item,tree):
-        tree.item(item,tags=() if tree.item(item)['tags'] else [MARK])
+        tree.item(item,tags='' if tree.item(item)['tags'] else MARK)
+        if tree.item(item)['tags']:
+            self.tagged.add(item)
+        else:
+            self.tagged.discard(item)
 
     @block_actions_processing
     @gui_block
@@ -3438,9 +3455,11 @@ class Gui:
         skip_incorrect = self.cfg.get_bool(CFG_SKIP_INCORRECT_GROUPS)
         show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
 
+        crc_to_size = {crc:size for size,size_dict in dude_core.files_of_size_of_crc.items() for crc in size_dict}
+
         self.status('checking data consistency with filesystem state ...')
         for crc in processed_items:
-            size = dude_core.crc_to_size[crc]
+            size = crc_to_size[crc]
             (checkres,tuples_to_remove)=dude_core.check_group_files_state(size,crc)
 
             if checkres:
@@ -3760,6 +3779,10 @@ class Gui:
         #############################################
         self.process_files_core(action,processed_items,remaining_items)
         #############################################
+
+        for crc in processed_items:
+            for item in processed_items[crc]:
+                self.tagged.discard(item)
 
         if tree==self.groups_tree:
             if tree.exists(self.sel_crc):

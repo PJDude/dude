@@ -36,7 +36,6 @@ import re
 
 import time
 import hashlib
-import functools
 
 k=1024
 M=k*1024
@@ -45,9 +44,7 @@ T=G*1024
 
 MAX_THREADS = os.cpu_count()
 
-#OPENED_FILES_PER_DEV_LIMIT=32
-
-def bytes_to_str_nocache(num,digits=2):
+def bytes_to_str(num,digits=2):
     if num<512:
         return '%sB' % num
     if (kb:=num/k)<k:
@@ -59,9 +56,6 @@ def bytes_to_str_nocache(num,digits=2):
 
     return '%sTB' % round(kb/G,digits)
 
-@functools.cache
-def bytes_to_str(num,digits=2):
-    return bytes_to_str_nocache(num,digits)
 
 CRC_BUFFER_SIZE=4*1024*1024
 
@@ -622,7 +616,7 @@ class DudeCore:
 
                             if curr_line_info_file_size==prev_line_info[dev]:
                                 if now-prev_line_show_same_max[dev]>1:
-                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str_nocache(crc_core[dev].progress_info) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
+                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str(crc_core[dev].progress_info) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
                             else:
                                 prev_line_show_same_max[dev]=now
                                 prev_line_info[dev]=curr_line_info_file_size
@@ -650,7 +644,6 @@ class DudeCore:
                         if crc_inst>1:
                             temp_info_groups+=1
 
-
                     #temp_info_groups=sum([1 for crc,crc_inst in crc_temp_dict.items() if crc_inst>1 ])
 
                     #temp_info_folders=set()
@@ -672,7 +665,6 @@ class DudeCore:
                 break
             else:
                 time.sleep(0.01)
-
 
         self.can_abort=False
         ########################################################################
@@ -702,7 +694,6 @@ class DudeCore:
             self.check_crc_pool_and_prune(size)
 
         self.crc_cache_write()
-        self.crc_to_size = {crc:size for size,size_dict in self.files_of_size_of_crc.items() for crc in size_dict}
 
         end=time.time()
         self.log.debug('total time = %s',end-start)
