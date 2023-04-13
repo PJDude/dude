@@ -271,7 +271,13 @@ class Gui:
     def logwrapper(func):
         def logwrapper_wrapp(self,*args,**kwargs):
             logging.info("logwrapper '%s' start",func.__name__)
-            res=func(self,*args,**kwargs)
+            try:
+                res=func(self,*args,**kwargs)
+            except Exception as e:
+                self.status('logwrapper_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
+                self.info_dialog_on_main.show('INTERNAL ERROR logwrapper_wrapp','%s %s' % (func.__name__,str(e)) )
+                logging.error('logwrapper_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
+                res=None
             logging.info("logwrapper '%s' end",func.__name__)
             return res
         return logwrapper_wrapp
@@ -1244,7 +1250,6 @@ class Gui:
     sel_item_of_tree = {}
 
     def reset_sels(self):
-        self.sel_path_nr = None
         self.sel_path = None
         self.sel_file = None
         self.sel_crc = None
@@ -1263,9 +1268,9 @@ class Gui:
         pathnr=int(self.groups_tree.set(item,'pathnr'))
         path=self.groups_tree.set(item,'path')
         file=self.groups_tree.set(item,'file')
-        ctime=self.groups_tree.set(item,'ctime')
-        dev=self.groups_tree.set(item,'dev')
-        inode=self.groups_tree.set(item,'inode')
+        ctime=int(self.groups_tree.set(item,'ctime'))
+        dev=int(self.groups_tree.set(item,'dev'))
+        inode=int(self.groups_tree.set(item,'inode'))
 
         return (pathnr,path,file,ctime,dev,inode)
 
@@ -1385,7 +1390,7 @@ class Gui:
                         return
                 else:
                     try:
-                        for item in self.folder_tree.get_children():
+                        for item in self.current_folder_items:
                             #if tree.set(item,'kind')==FILE:
                             file=self.folder_tree.set(item,'file')
                             if (use_reg_expr and re.search(expression,file)) or (not use_reg_expr and fnmatch.fnmatch(file,expression) ):
@@ -1492,13 +1497,15 @@ class Gui:
                 self.status('%s ... (no file)' % status,log=False)
                 break
 
+    @catched
     def goto_first_last_crc(self,index):
         if children := self.groups_tree.get_children():
             if next_item:=children[index]:
                 self.crc_select_and_focus(next_item,True)
 
+    @catched
     def goto_first_last_dir_entry(self,index):
-        if children := self.folder_tree.get_children():
+        if children := self.current_folder_items:
             if next_item:=children[index]:
                 self.folder_tree.see(next_item)
                 self.folder_tree.focus(next_item)
@@ -1819,7 +1826,7 @@ class Gui:
                     pass
             else:
                 try:
-                    item = self.folder_tree.get_children()[0]
+                    item = self.current_folder_items[0]
                 except :
                     pass
 
@@ -1868,12 +1875,10 @@ class Gui:
 
         self.sel_item = item
         self.sel_item_of_tree[self.groups_tree]=item
-        #sel_tree=self.groups_tree
 
-        size = int(self.groups_tree.set(item,'size'))
-
-        if path!=self.sel_path or pathnr!=self.sel_path_nr or force:
-            self.sel_path_nr = pathnr
+        if path!=self.sel_path or force:
+            #or pathnr!=self.sel_path_nr
+            #self.sel_path_nr = pathnr
 
             if self.find_tree_index==1:
                 self.find_result=()
@@ -1899,7 +1904,6 @@ class Gui:
         self.sel_kind = self.folder_tree.set(item,'kind')
         self.sel_item = item
         self.sel_item_of_tree[self.folder_tree] = item
-        #self.sel_tree=self.folder_tree
 
         self.set_full_path_to_file()
 
@@ -2812,7 +2816,9 @@ class Gui:
                 self.status('Rendering data... (%s)' % size_h,log=False)
 
             sizes_counter+=1
+            logging.debug('groups_show size:%s', size)
             for crc,crc_dict in size_dict.items():
+                logging.debug('groups_show crc:%s', crc)
 
                 if cross_mode:
                     is_cross_group = True if len({pathnr for pathnr,path,file,ctime,dev,inode in crc_dict})>1 else False
@@ -2884,6 +2890,7 @@ class Gui:
         self.status_folder_quant.configure(text='')
 
         self.status_path.configure(text='')
+        self.current_folder_items=[]
 
     #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
     kind_index=3
@@ -2895,6 +2902,7 @@ class Gui:
         return bool(self.sel_path_full!='/')
 
     two_dots_condition = two_dots_condition_win if windows else two_dots_condition_lin
+    current_folder_items=[]
 
     @block_actions_processing
     def tree_folder_update(self,arbitrary_path=None):
@@ -2919,8 +2927,6 @@ class Gui:
             if dir_ctime==self.folder_items_cache[current_path][0]:
                 do_refresh=False
 
-        #self.status('do_refresh %s' % do_refresh)
-
         if do_refresh :
             folder_items_dict={}
 
@@ -2933,8 +2939,9 @@ class Gui:
             sort_val_func = int if is_numeric else lambda x : x
 
             #preallocate
-            keys=[None]*len(scan_dir_res)
-            keys.clear()
+            #keys=[None]*len(scan_dir_res)
+            #keys.clear()
+            keys=set()
 
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
@@ -2947,7 +2954,7 @@ class Gui:
                     crc=''
                     size='0'
                     size_h=''
-                    ctime='0'
+                    ctime_str='0'
                     ctime_h=''
                     instances='1'
                     instances_h=''
@@ -2962,7 +2969,7 @@ class Gui:
                     crc=''
                     size='0'
                     size_h=''
-                    ctime='0'
+                    ctime_str='0'
                     ctime_h=''
                     instances='1'
                     instances_h=''
@@ -2971,6 +2978,7 @@ class Gui:
                     presort_id = non_dir_code
                     file_id=self.idfunc(inode,dev)
 
+                    ctime_str=str(ctime)
                     ctime_h=get_htime(ctime)
 
                     size=str(size_num)
@@ -3010,15 +3018,20 @@ class Gui:
                     logging.error('what is it: %s:%s,%s,%s,%s ?',current_path,file,islink,isdir,isfile)
                     continue
 
-                values = (file,dev,inode,kind,crc,size,size_h,ctime,ctime_h,instances,instances_h)
+                values = (file,str(dev),str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
 
-                current_sort_key=(presort_id,sort_val_func(values[sort_index_local]),iid)
+                #current_sort_key=
                 #keys[i]=current_sort_key
-                keys += current_sort_key,
+                #keys += (presort_id,sort_val_func(values[sort_index_local]),iid),
+
+                keys.add((presort_id,sort_val_func(values[sort_index_local]),iid))
+                #keys.add((presort_id,sort_val_func(values[sort_index_local]),iid,text,values,defaulttag,icon))
+
                 folder_items_dict[iid] = (text,values,defaulttag,icon)
 
             ############################################################
             self.folder_items_cache[current_path]=(dir_ctime, [ (iid,folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) ] )
+            #self.folder_items_cache[current_path]=(dir_ctime, [ (iid,text,values,defaulttag,icon) for presort_id,sort_id,iid,text,values,defaulttag,icon in sorted(keys,reverse=reverse) ] )
             del keys
 
         if arbitrary_path:
@@ -3028,13 +3041,17 @@ class Gui:
             self.sel_path=sel_path_prev
             self.sel_path_set(str(pathlib.Path(arbitrary_path)))
 
+        self.current_folder_items=[]
+
         self.folder_tree.delete(*self.folder_tree.get_children())
         if self.two_dots_condition():
             #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
             self.folder_tree.insert(parent="", index='end', iid='0UP' , text='', image='', values=('..','','',UPDIR,'',0,'',0,'',0,''),tags=DIR)
+            self.current_folder_items.append('0UP')
 
         try:
             for (iid,(text,values,defaulttag,icon)) in self.folder_items_cache[current_path][1]:
+                self.current_folder_items.append(iid)
                 self.folder_tree.insert(parent="", index='end', iid=iid , text=text, values=values,tags=MARK if values[self.kind_index]==FILE and iid in self.tagged else defaulttag,image=self.icon[icon])
 
         except Exception as e:
@@ -3043,7 +3060,7 @@ class Gui:
             self.folder_items_cache={}
 
         if not arbitrary_path:
-            if self.sel_item and self.sel_item in self.folder_tree.get_children():
+            if self.sel_item and self.sel_item in self.current_folder_items:
                 self.folder_tree.selection_set(self.sel_item)
                 self.folder_tree.see(self.sel_item)
 
@@ -3055,20 +3072,19 @@ class Gui:
         return True
 
     def update_marks_folder(self):
-        for item in self.folder_tree.get_children():
-            if self.folder_tree.set(item,'kind')==FILE:
-                self.folder_tree.item( item,tags=MARK if item in self.tagged else '')
-                #self.folder_tree.item( item,tags=self.groups_tree.item(item)['tags'] )
+        for item in self.current_folder_items:
+            self.folder_tree.item( item,tags=MARK if item in self.tagged else '')
+            #if self.folder_tree.set(item,'kind')==FILE:
 
     def calc_mark_stats_groups(self):
-        self.status_all_size.configure(text=str(len(self.tagged)))
-        self.status_all_quant.configure(text=core.bytes_to_str(sum([self.iid_to_size[iid] for iid in self.tagged])))
+        self.status_all_quant.configure(text=str(len(self.tagged)))
+        self.status_all_size.configure(text=core.bytes_to_str(sum([self.iid_to_size[iid] for iid in self.tagged])))
 
     def calc_mark_stats_folder(self):
-        #TODO - nie pobierac danych z drzewa
-        marked=self.folder_tree.tag_has(MARK)
-        self.status_folder_quant.configure(text=str(len(marked)))
-        self.status_folder_size.configure(text=core.bytes_to_str(sum(int(self.folder_tree.set(item,'size')) for item in marked)))
+        marked_in_folder = [self.iid_to_size[iid] for iid in set(self.current_folder_items).intersection(self.tagged)]
+
+        self.status_folder_quant.configure(text=str(len(marked_in_folder)))
+        self.status_folder_size.configure(text=core.bytes_to_str(sum(marked_in_folder)))
 
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
         item=sorted([ (item,self.groups_tree.set(item,'ctime') ) for item in self.groups_tree.get_children(crc)],key=lambda x : int(x[1]),reverse=reverse)[0][0]
@@ -3126,7 +3142,7 @@ class Gui:
     @gui_block
     def mark_in_folder(self,action):
         self.status('Un/Setting marking in folder ...')
-        _ = { (action(item,self.folder_tree),action(item,self.groups_tree)) for item in self.folder_tree.get_children() if self.folder_tree.set(item,'kind')==FILE }
+        _ = { (action(item,self.folder_tree),action(item,self.groups_tree)) for item in self.current_folder_items if self.folder_tree.set(item,'kind')==FILE }
 
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -3222,7 +3238,7 @@ class Gui:
                             tree.focus_set()
                             return
             else:
-                for item in self.folder_tree.get_children():
+                for item in self.current_folder_items:
                     if tree.set(item,'kind')==FILE:
                         file=self.folder_tree.set(item,'file')
                         try:
@@ -3391,7 +3407,7 @@ class Gui:
         logging.info('checking file:%s',fullpath)
         try:
             stat = os.stat(fullpath)
-            ctime_check=str(int(round(stat.st_ctime)))
+            ctime_check=str(stat.st_ctime_ns//core.NS_FACTOR)
         except Exception as e:
             self.status(str(e))
             mesage = f'can\'t check file: {fullpath}\n\n{e}'
@@ -3438,7 +3454,7 @@ class Gui:
             scope_title='Selected Directory.'
             #self.sel_path_full
 
-            for item in self.folder_tree.get_children():
+            for item in self.current_folder_items:
                 if self.folder_tree.tag_has(MARK,item):
                     crc=self.folder_tree.set(item,'crc')
                     processed_items[crc].append(item)
@@ -3773,7 +3789,7 @@ class Gui:
                     break
         else:
             org_sel_item=self.sel_item
-            orglist=self.folder_tree.get_children()
+            orglist=self.current_folder_items
             org_sel_file=self.folder_tree.set(org_sel_item,'file')
 
         #############################################
@@ -3798,7 +3814,7 @@ class Gui:
             parent = self.get_this_or_existing_parent(self.sel_path_full)
 
             if self.tree_folder_update(parent):
-                newlist=self.folder_tree.get_children()
+                newlist=self.current_folder_items
 
                 item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_file,newlist)
 
