@@ -1,4 +1,5 @@
 appdirs==1.4.4
+send2trash==1.8.0
 zstandard==0.20.0
 ordered-set==4.1.0
 nuitka==1.5.5

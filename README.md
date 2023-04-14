@@ -77,6 +77,7 @@ dude --help
 
 - ***Soft links*** to **directories** are skipped during the scanning process. ***Soft links*** to **files** are ignored during scanning. Both appear in the bottom "folders" pane.
 - ***Hard links*** (files with stat.st_nlink>1) currently are ignored during the scanning process and will not be identified as duplicates (within the same inode obviously, as with other inodes). No action can be performed on them. They will only appear in the bottom "folders" pane. This may change in the future versions.
+- the "delete" action moves files to **Recycle Bin / Trash** or deletes them permanently according to option settings.
 
 ###### Manual build (linux):
 ```
