@@ -26,6 +26,9 @@ https://github.com/PJDude/dude/releases
 ## SOFTPEDIA review:
 https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml
 
+## MAJORGEEKS review:
+https://www.majorgeeks.com/files/details/dude_(duplicates_detector).html  
+
 ## General usage:
 - Scan for duplicate files
 - Mark files for processing
