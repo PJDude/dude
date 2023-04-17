@@ -1,4 +1,4 @@
 [pycodestyle]
 max-line-length=512
-disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,attribute-defined-outside-init,too-many-lines,too-many-statements,broad-except,too-many-branches,unused-variable,too-many-locals,too-many-nested-blocks,too-many-public-methods,too-many-arguments,too-many-instance-attributes,multiple-statements,bare-except,consider-using-f-string,consider-using-generator,too-many-return-statements
+disable=missing-module-docstring,missing-function-docstring,missing-class-docstring,attribute-defined-outside-init,too-many-lines,too-many-statements,broad-except,too-many-branches,unused-variable,too-many-locals,too-many-nested-blocks,too-many-public-methods,too-many-arguments,too-many-instance-attributes,multiple-statements,bare-except,consider-using-f-string,consider-using-generator,too-many-return-statements,unnecessary-lambda-assignment
 good-names=e,kb,i,k,ok

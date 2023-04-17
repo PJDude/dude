@@ -29,9 +29,9 @@
 import os
 
 dirname = os.path.dirname(os.path.normpath(__file__))
-with open(os.path.join(dirname,'images.py'), 'w') as images_file:
-    images_file.write('image={}\n')
+with open(os.path.join(dirname,'dude_images.py'), 'w') as images_file:
+    images_file.write('dude_image={}\n')
     with os.scandir(os.path.join(dirname,'icons')) as res:
         for entry in sorted(res,key = lambda x : x.name) :
             with open(entry.path, "rb") as png_file:
-                images_file.write('image["%s"] = %s\n' % (entry.name.split('.')[0],png_file.read()))
+                images_file.write('dude_image["%s"] = %s\n' % (entry.name.split('.')[0],png_file.read()))
