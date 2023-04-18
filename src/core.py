@@ -48,22 +48,27 @@ from send2trash import send2trash
 
 os_path = os.path
 
-def bytes_to_str(num,digits=2):
-    k=1024
-    M=k*1024
-    G=M*1024
-    T=G*1024
+K=1024
+b2str_const=100
+b2str_comp=K*b2str_const
 
-    if num<512:
-        return '%sB' % num
-    if (kb:=num/k)<k:
-        return '%skB' % round(kb,digits)
-    if kb<M:
-        return '%sMB' % round(kb/k,digits)
-    if kb<G:
-        return '%sGB' % round(kb/M,digits)
+def bytes_to_str(num):
+    for unit,do_cut in (('B',False),('kB',True),('MB',True),('GB',True),('TB',True)):
+        if do_cut:
+            if numx100 < b2str_comp:
+                s=str(numx100)
+                s_main,s_frac=s[:-2],s[-2:]
 
-    return '%sTB' % round(kb/G,digits)
+                if s_frac_strip := s_frac.rstrip('0'):
+                    return "%s.%s%s" % (s_main,s_frac_strip,unit)
+                else:
+                    return "%s%s" % (s_main,unit)
+        else:
+            if num < K:
+                return "%sB" % num
+            numx100=num*b2str_const
+
+        numx100 //= K
 
 class CRCThreadedCalc:
     def __init__(self,log):
@@ -429,9 +434,10 @@ class DudeCore:
 
     def crc_cache_read(self):
         self.crc_cache={}
+        self_crc_cache=self.crc_cache
         for dev in self.devs:
             #print('read:',dev,type(dev))
-            self.crc_cache[dev]={}
+            self_crc_cache[dev]={}
             try:
                 self.log.info('reading cache:%s:device:%s',self.cache_dir,dev)
                 with open(sep.join([self.cache_dir,str(dev)]),'r',encoding='ASCII' ) as cfile:
@@ -441,10 +447,10 @@ class DudeCore:
                         if crc is None or crc=='None' or crc=='':
                             self.log.warning("crc_cache read error:%s,%s,%s",inode,mtime,crc)
                         else:
-                            self.crc_cache[int(dev)][(int(inode),int(mtime))]=crc
+                            self_crc_cache[int(dev)][(int(inode),int(mtime))]=crc
             except Exception as e:
                 self.log.warning(e)
-                self.crc_cache[dev]={}
+                self_crc_cache[dev]={}
         self.info=''
 
     def crc_cache_write(self):
