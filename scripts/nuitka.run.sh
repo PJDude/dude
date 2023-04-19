@@ -11,7 +11,10 @@ rm -rf ../build-nuitka-lin
 mkdir ../build-nuitka-lin
 
 echo running-nuitka
-CCFLAGS='-Ofast -static' python3.11 -m nuitka --follow-imports --follow-stdlib --onefile --linux-icon=./icon.ico --show-scons --show-progress --show-modules --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=../build-nuitka-lin/dude --output-dir=../build-nuitka-lin --lto=yes ./dude.py
+CCFLAGS='-Ofast -static' python3.11 -m nuitka --follow-imports --follow-stdlib --onefile --linux-icon=./icon.ico --show-scons --show-progress --show-modules --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude --output-dir=../build-nuitka-lin --lto=yes ./dude.py
+
+mv ./dude ../build-nuitka-lin/dude
+
 # --file-description='DUplicates DEtector'
 # --copyright='2022-2023 Piotr Jochymek'
 #--product-version=$VERSION
