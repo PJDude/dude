@@ -148,8 +148,11 @@ HARDLINK_ICON=2
 FILE_SOFT_LINK_ICON=3
 DIR_SOFT_LINK_ICON=4
 
-def get_htime(time_par):
-    return strftime('%Y/%m/%d %H:%M:%S',localtime(int(time_par//1000000000)))
+DE_NANO = 1000000000
+
+#inlined :)
+#def get_htime(time_par):
+#    return strftime('%Y/%m/%d %H:%M:%S',localtime(time_par//DE_NANO))
 
 class Config:
     def __init__(self,config_dir):
@@ -284,6 +287,7 @@ class Gui:
 
     def logwrapper(func):
         def logwrapper_wrapp(self,*args,**kwargs):
+            start = time()
             l_info("logwrapper '%s' start",func.__name__)
             try:
                 res=func(self,*args,**kwargs)
@@ -292,7 +296,9 @@ class Gui:
                 self.info_dialog_on_main.show('INTERNAL ERROR logwrapper_wrapp','%s %s' % (func.__name__,str(e)) )
                 l_error('logwrapper_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
                 res=None
-            l_info("logwrapper '%s' end",func.__name__)
+
+            end = time()
+            l_info("logwrapper '%s' end. BENCHMARK TIME:%s",func.__name__,end-start)
             return res
         return logwrapper_wrapp
 
@@ -2886,6 +2892,7 @@ class Gui:
 
         self_iid_to_size=self.iid_to_size
 
+        DE_NANO_LOC = DE_NANO
         for size,size_dict in dude_core.files_of_size_of_crc.items() :
             size_h = core_bytes_to_str(size)
             size_str = str(size)
@@ -2917,7 +2924,7 @@ class Gui:
                             '',\
                             str(ctime),str(dev),str(inode),crc,\
                             '','',\
-                            get_htime(ctime) ,FILE),tags='')
+                            strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC)) ,FILE),tags='')
         self.data_precalc()
 
         if self.column_sort_last_params[self.groups_tree]!=self.column_groups_sort_params_default:
@@ -3047,6 +3054,8 @@ class Gui:
 
             self_icon=self.icon
 
+            DE_NANO_LOC = DE_NANO
+
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
                     presort_id = dir_code if isdir else non_dir_code
@@ -3083,7 +3092,7 @@ class Gui:
                     file_id=self_idfunc(inode,dev)
 
                     ctime_str=str(ctime)
-                    ctime_h=get_htime(ctime)
+                    ctime_h=strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
 
                     size=str(size_num)
                     size_h=core_bytes_to_str(size_num)

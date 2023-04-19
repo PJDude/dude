@@ -17,7 +17,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: "3.11"
         cache: 'pip'
         check-latest: true
 
@@ -48,17 +48,35 @@ jobs:
       run: "nuitka.run.bat"
       shell: cmd
 
-    - name: upload binary
+    - name: upload nuitka onefile
       uses: actions/upload-artifact@v3
       with:
-        name: dude-win
-        path: dude.exe
+        name: dude-nuitka-win-onefile
+        path: ./build-nuitka-win/dude.exe
 
-    - name: upload binary raw
+    - name: upload nuitka distro
       uses: actions/upload-artifact@v3
       with:
-        name: dude-win-raw
-        path: dude-raw.zip
+        name: dude-nuitka-win-distro
+        path: ./build-nuitka-win/dude.nuitka.win.zip
+
+
+    - name: run pyinstaller
+      working-directory: ./scripts
+      run: "pyinstaller.run.bat"
+      shell: cmd
+
+    - name: upload pyinstaller onefile
+      uses: actions/upload-artifact@v3
+      with:
+        name: dude-pyinstaller-win-onefile
+        path: ./build-pyinstaller-win/dude.exe
+
+    - name: upload pyinstaller distro
+      uses: actions/upload-artifact@v3
+      with:
+        name: dude-pyinstaller-win-distro
+        path: ./build-pyinstaller-win/dude.pyinstaller.win.zip
 
   build-lin-release:
     permissions: write-all
@@ -72,7 +90,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: "3.11"
         cache: 'pip'
         check-latest: true
 
@@ -82,14 +100,15 @@ jobs:
     - name: install requirements
       run: pip install -r requirements.txt
 
+    - name: strip python binaries
+      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
+
     - name: version download
       uses: actions/download-artifact@v3
       with:
         name: version
         path: ./src
 
-    - name: strip python binaries
-      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
 
     - name: convert icons to python source
       working-directory: ./scripts
@@ -99,39 +118,103 @@ jobs:
       working-directory: ./scripts
       run: bash "nuitka.run.sh"
 
-    - name: upload binary
+    - name: upload nuitka onefile
       uses: actions/upload-artifact@v3
       with:
-        name: dude-lin
-        path: dude
+        name: dude-nuitka-lin-onefile
+        path: ./build-nuitka-lin/dude
+
+    - name: upload nuitka distro
+      uses: actions/upload-artifact@v3
+      with:
+        name: dude-nuitka-lin-distro
+        path: ./build-nuitka-lin/dude.nuitka.lin.zip
+
+
+    - name: run pyinstaller
+      working-directory: ./scripts
+      run: bash "pyinstaller.run.sh"
+
+    - name: upload pyinstaller onefile
+      uses: actions/upload-artifact@v3
+      with:
+        name: dude-pyinstaller-lin-onefile
+        path: ./build-pyinstaller-lin/dude
+
+    - name: upload pyinstaller distro
+      uses: actions/upload-artifact@v3
+      with:
+        name: dude-pyinstaller-lin-distro
+        path: ./build-pyinstaller-lin/dude.pyinstaller.lin.zip
+
 
     - name: version read
       id: version
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
-    - name: pack linux
+    - name: pack linux onefile nuitka
       run: |
+        cd ./build-nuitka-lin
         chmod 777 ./dude
-        tar -czvf dude.${{ steps.version.outputs.version }}.portable.linux.tgz dude
+        tar -czvf ../dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz dude
         rm ./dude
 
-    - name: download windows build
+    - name: move linux distro nuitka
+      run: |
+        cd ./build-nuitka-lin
+        mv ./dude.nuitka.lin.zip ../dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
+
+    - name: pack linux onefile pyinstaller
+      run: |
+        cd ./build-pyinstaller-lin
+        chmod 777 ./dude
+        tar -czvf ../dude.${{ steps.version.outputs.version }}.portable.linux.pyinstaller.onefile.tgz dude
+        rm ./dude
+
+    - name: move linux distro pyinstaller
+      run: |
+        cd ./build-pyinstaller-lin
+        mv ./dude.pyinstaller.lin.zip ../dude.${{ steps.version.outputs.version }}.portable.linux.pyinstaller.tgz
+
+
+    - name: download windows onefile nuitka
       uses: actions/download-artifact@v3
       with:
-        name: dude-win
+        name: dude-nuitka-win-onefile
         path: ./
 
-    - name: pack windows
-      run: zip -9 dude.${{ steps.version.outputs.version }}.portable.windows.zip dude.exe
+    - name: pack windows onefile nuitka
+      run: zip -9 -m dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip dude.exe
 
-    - name: download windows build raw
+
+    - name: download windows onefile pyinstaller
       uses: actions/download-artifact@v3
       with:
-        name: dude-win-raw
+        name: dude-pyinstaller-win-onefile
         path: ./
 
-    - name: rename windows raw
-      run: mv ./dude-raw.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip
+    - name: pack windows onefile pyinstaller
+      run: zip -9 -m dude.${{ steps.version.outputs.version }}.portable.windows.pyinstaller.onefile.zip dude.exe
+
+
+    - name: download windows distro nuitka
+      uses: actions/download-artifact@v3
+      with:
+        name: dude-nuitka-win-distro
+        path: ./
+
+    - name: rename windows zip
+      run: mv ./dude.nuitka.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+
+    - name: download windows distro pyinstaller
+      uses: actions/download-artifact@v3
+      with:
+        name: dude-pyinstaller-win-distro
+        path: ./
+
+    - name: rename windows zip
+      run: mv ./dude.pyinstaller.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.pyinstaller.zip
+
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
@@ -139,10 +222,15 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.version.outputs.version }}
-        name: Release ${{ steps.version.outputs.version }}
+        name: Experimental Release ${{ steps.version.outputs.version }} python 3.11 + nuitka vs pyinstaller test and benchmark
         draft: false
-        prerelease: false
+        prerelease: true
         files: |
-            dude.${{ steps.version.outputs.version }}.portable.linux.tgz
-            dude.${{ steps.version.outputs.version }}.portable.windows.zip
-            dude.${{ steps.version.outputs.version }}.portable.windows.raw.zip
+            dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz
+            dude.${{ steps.version.outputs.version }}.portable.linux.pyinstaller.onefile.tgz
+            dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
+            dude.${{ steps.version.outputs.version }}.portable.linux.pyinstaller.tgz
+            dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip
+            dude.${{ steps.version.outputs.version }}.portable.windows.pyinstaller.onefile.zip
+            dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+            dude.${{ steps.version.outputs.version }}.portable.windows.pyinstaller.zip
