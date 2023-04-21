@@ -1,7 +1,9 @@
 @cd "%~dp0.."
 
-@rmdir /s /q build-nuitka-win
-@mkdir build-nuitka-win
+SET OUTDIR=build-nuitka-win%VENVNAME%
+
+@rmdir /s /q %OUTDIR%
+@mkdir %OUTDIR%
 
 @cd src
 
@@ -9,10 +11,14 @@
 @SET VERSION=%VERSION:~1,10%
 @echo VERSION=%VERSION%
 
-@echo building with nuitka
+@echo running-nuitka
 
-python -m nuitka --follow-imports --follow-stdlib --onefile --show-scons --show-progress --show-modules --assume-yes-for-downloads --windows-icon-from-ico=./icon.ico --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude.exe --output-dir=../build-nuitka-win --lto=yes --product-name=dude --product-version=%VERSION% --copyright="2022-2023 Piotr Jochymek" --file-description="DUplicates DEtector" ./dude.py
+python -m nuitka --version > distro.info.txt
 
-move dude.exe ../build-nuitka-win/dude.exe
-move ../build-nuitka-win/dude.dist ../build-nuitka-win/dude
-powershell Compress-Archive ../build-nuitka-win/dude ../build-nuitka-win/dude.nuitka.win.zip
+python -m nuitka --file-reference-choice=runtime --follow-imports --follow-stdlib --onefile --show-scons --show-progress --show-modules --assume-yes-for-downloads --windows-icon-from-ico=./icon.ico --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude.exe --output-dir=../%OUTDIR% --lto=yes --product-name=dude --product-version=%VERSION% --copyright="2022-2023 Piotr Jochymek" --file-description="DUplicates DEtector" ./dude.py
+
+move dude.exe ../%OUTDIR%/dude.exe
+move ../%OUTDIR%/dude.dist ../%OUTDIR%/dude
+powershell Compress-Archive ../%OUTDIR%/dude ../%OUTDIR%/dude.nuitka.win.zip
+
+exit

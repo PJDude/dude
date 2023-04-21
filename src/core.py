@@ -646,7 +646,7 @@ class DudeCore:
 
                 #######################################################
                 #sums info
-                self.info_size_done = size_done_cached + sum([crc_core[dev].size_done for dev in self_devs]) + sum([crc_core[dev].progress_info for dev in self_devs])
+                self.info_size_done = size_done_cached + sum([crc_core[dev].size_done + crc_core[dev].progress_info for dev in self_devs])
                 self.info_files_done = files_done_cached + sum([crc_core[dev].files_done for dev in self_devs])
 
                 if self_debug:

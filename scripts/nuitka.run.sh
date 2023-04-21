@@ -7,19 +7,24 @@ VERSION=`cat ./version.txt`
 VERSION=${VERSION:1:10}
 echo VERSION=$VERSION
 
-rm -rf ../build-nuitka-lin
-mkdir ../build-nuitka-lin
+outdir=build-nuitka-lin$venvname
+
+rm -rf ../$outdir
+mkdir ../$outdir
 
 echo running-nuitka
-CCFLAGS='-Ofast -static' python3.11 -m nuitka --follow-imports --follow-stdlib --onefile --linux-icon=./icon.ico --show-scons --show-progress --show-modules --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude --output-dir=../build-nuitka-lin --lto=yes ./dude.py
 
-mv ./dude ../build-nuitka-lin/dude
+python -m nuitka --version > distro.info.txt
+
+CCFLAGS='-Ofast -static' python -m nuitka --file-reference-choice=runtime --follow-imports --follow-stdlib --onefile --show-scons --show-progress --show-modules --assume-yes-for-downloads --linux-icon=./icon.ico --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude --output-dir=../$outdir --lto=yes ./dude.py
+
+mv ./dude ../$outdir/dude
 
 # --file-description='DUplicates DEtector'
 # --copyright='2022-2023 Piotr Jochymek'
 #--product-version=$VERSION
 #--product-name='dude'
-cd ../build-nuitka-lin
+cd ../$outdir
 
 mv ./dude ./dude-temp
 mv ./dude.dist ./dude

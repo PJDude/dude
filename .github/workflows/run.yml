@@ -90,7 +90,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: "3.10"
         cache: 'pip'
         check-latest: true
 
@@ -156,25 +156,25 @@ jobs:
       run: |
         cd ./build-nuitka-lin
         chmod 777 ./dude
-        tar -czvf ../dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz dude
+        tar -czvf ../dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz dude
         rm ./dude
 
     - name: move linux distro nuitka
       run: |
         cd ./build-nuitka-lin
-        mv ./dude.nuitka.lin.zip ../dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
+        mv ./dude.nuitka.lin.zip ../dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
 
     - name: pack linux onefile pyinstaller
       run: |
         cd ./build-pyinstaller-lin
         chmod 777 ./dude
-        tar -czvf ../dude.${{ steps.version.outputs.version }}.portable.linux.pyinstaller.onefile.tgz dude
+        tar -czvf ../dude.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz dude
         rm ./dude
 
     - name: move linux distro pyinstaller
       run: |
         cd ./build-pyinstaller-lin
-        mv ./dude.pyinstaller.lin.zip ../dude.${{ steps.version.outputs.version }}.portable.linux.pyinstaller.tgz
+        mv ./dude.pyinstaller.lin.zip ../dude.${{ steps.version.outputs.version }}.portable.linux.tgz
 
 
     - name: download windows onefile nuitka
@@ -184,7 +184,7 @@ jobs:
         path: ./
 
     - name: pack windows onefile nuitka
-      run: zip -9 -m dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip dude.exe
+      run: zip -9 -m dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip dude.exe
 
 
     - name: download windows onefile pyinstaller
@@ -194,7 +194,7 @@ jobs:
         path: ./
 
     - name: pack windows onefile pyinstaller
-      run: zip -9 -m dude.${{ steps.version.outputs.version }}.portable.windows.pyinstaller.onefile.zip dude.exe
+      run: zip -9 -m dude.${{ steps.version.outputs.version }}.portable.windows.onefile.zip dude.exe
 
 
     - name: download windows distro nuitka
@@ -204,7 +204,7 @@ jobs:
         path: ./
 
     - name: rename windows zip
-      run: mv ./dude.nuitka.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+      run: mv ./dude.nuitka.win.zip ./dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
 
     - name: download windows distro pyinstaller
       uses: actions/download-artifact@v3
@@ -213,7 +213,7 @@ jobs:
         path: ./
 
     - name: rename windows zip
-      run: mv ./dude.pyinstaller.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.pyinstaller.zip
+      run: mv ./dude.pyinstaller.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.zip
 
 
     - name: Create GitHub release
@@ -222,15 +222,15 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.version.outputs.version }}
-        name: Experimental Release ${{ steps.version.outputs.version }} python 3.11 + nuitka vs pyinstaller test and benchmark
+        name: Release ${{ steps.version.outputs.version }} python 3.11 + pyinstaller as a default packager
         draft: false
-        prerelease: true
+        prerelease: false
         files: |
-            dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz
-            dude.${{ steps.version.outputs.version }}.portable.linux.pyinstaller.onefile.tgz
-            dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
-            dude.${{ steps.version.outputs.version }}.portable.linux.pyinstaller.tgz
-            dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip
-            dude.${{ steps.version.outputs.version }}.portable.windows.pyinstaller.onefile.zip
-            dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
-            dude.${{ steps.version.outputs.version }}.portable.windows.pyinstaller.zip
+            dude.${{ steps.version.outputs.version }}.portable.linux.tgz
+            dude.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz
+            dude.${{ steps.version.outputs.version }}.portable.windows.zip
+            dude.${{ steps.version.outputs.version }}.portable.windows.onefile.zip
+            dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz
+            dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
+            dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip
+            dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip

@@ -7,15 +7,20 @@ VERSION=`cat ./version.txt`
 VERSION=${VERSION:1:10}
 echo VERSION=$VERSION
 
-rm -rf ../build-pyinstaller-lin
-mkdir ../build-pyinstaller-lin
+outdir=build-pyinstaller-lin$venvname
+
+rm -rf ../$outdir
+mkdir ../$outdir
 
 echo running-pyinstaller
 
-pyinstaller --noconsole --clean --add-data="version.txt:." --add-data="../LICENSE:." --icon=icon.ico --distpath=../build-pyinstaller-lin/ ./dude.py
-cd ../build-pyinstaller-lin/
+echo python:`python --version` >> distro.info.txt
+echo pyinstaller:`pyinstaller --version` > distro.info.txt
+
+pyinstaller --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --icon=icon.ico --distpath=../$outdir/ ./dude.py
+cd ../$outdir/
 zip -9 -r -m ./dude.pyinstaller.lin.zip ./dude
 cd ../src
-pyinstaller --noconsole --clean --add-data="version.txt:." --add-data="../LICENSE:." --icon=icon.ico --distpath=../build-pyinstaller-lin/ --onefile ./dude.py
+pyinstaller --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --icon=icon.ico --distpath=../$outdir/ --onefile ./dude.py
 
 

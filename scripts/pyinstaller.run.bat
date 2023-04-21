@@ -1,7 +1,9 @@
 @cd "%~dp0.."
 
-@rmdir /s /q build-pyinstaller-win
-@mkdir build-pyinstaller-win
+SET OUTDIR=build-pyinstaller-win%VENVNAME%
+
+@rmdir /s /q %OUTDIR%
+@mkdir %OUTDIR%
 
 @cd src
 
@@ -11,8 +13,11 @@
 
 @echo building with pyinstaller
 
-pyinstaller --clean --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=../build-pyinstaller-win dude.py
+pyinstaller --clean --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=../%OUTDIR% dude.py
 
-powershell Compress-Archive ../build-pyinstaller-win/dude ../build-pyinstaller-win/dude.pyinstaller.win.zip
+powershell Compress-Archive ../%OUTDIR%/dude ../%OUTDIR%/dude.pyinstaller.win.zip
 
-pyinstaller --clean --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=../build-pyinstaller-win --onefile dude.py
+pyinstaller --clean --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=../%OUTDIR% --onefile dude.py
+
+exit
+
