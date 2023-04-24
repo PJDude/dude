@@ -18,10 +18,16 @@ GUI utility for finding duplicated files, delete or link them to save space.
 ## Dude GUI (gif not up to date):
 ![image info](./info/dude.gif)
 
-## Download page:
-The portable executable for Linux and Windows can be downloaded from the Releases site:
+## Download:
+The portable executable for Linux and   Windows can be downloaded from the Releases site:
 
-https://github.com/PJDude/dude/releases
+https://github.com/PJDude/dude/releases   
+
+main distributions:  
+**dude.**{version}**.portable.linux.tgz**  
+**dude.**{version}**.portable.windows.zip**  
+contain portable executables with necessary libraries made by [PyInstaller](https://pyinstaller.org/en/stable). Files with **.onefile** postfix contain self-extracting single-file distributions. They are more handy but start a little slower than main distributions (need of unpacking to temporary folder).Onefile distribution also may cause more false positive anti virus alerts (see below). **auxiliary** distributions are made by [Nuitka](https://github.com/Nuitka/Nuitka) for test purposes and may be nonoperational at current stage.
+
 
 ## SOFTPEDIA review:
 https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml
@@ -69,15 +75,14 @@ dude --help
 
 
 ## Technical information
-- Scanning process analyzes selected paths and groups files with the same size. **Dude** compare files by calculated **SHA1** hash of file content. CRC calculation is done ~~in order, from the largest files to the smallest files,~~ in separate threads for every identified device (drive). Number of active threads is limited by available CPU cores. Aborting of CRC calculation gives only partial results - not all files may be identified as duplicates. Restarted scanning process will use cached data. The CRC is always calculated based on the entire contents of the file.
+- Scanning process analyzes selected paths and groups files with the same size. **Dude** compare files by calculated **SHA1** hash of file content. CRC calculation is done in separate threads for every identified device (drive). Number of active threads is limited by available CPU cores. Aborting of CRC calculation gives only partial results - not all files may be identified as duplicates. Restarted scanning process will use cached data. The CRC is always calculated based on the entire contents of the file.
 - scanning (CRC calculation to be precise) is done in **specific order**, that try to identify duplicates in most promising folders. In case of huge filesystems, when scan is aborted, partial results are more useful then. Its is possible to change order of scanning to simple order from the largest files to the smallest files by command line or gui option.
 - Calculated CRC is stored in **internal cache** which allows re-use it in future operation and speedup of searching of duplicates (e.g. with different set of search paths). Key of cache database is pair of inode of file and file modification time stored separately for every device-id, so any file modification or displacement will result in invalidation of obsolete data and recalculation of CRC.
 - Marking files does not cause any filesystem change. Any file deletion or linking needs confirmation and is logged.
 - Just before files processing, state of files (ctime) is compared with stored data. In case of inconsistency (state of files was changed somehow during operation between scanning/CRC calculation and files processing) action is aborted and data invalidated.
-- **Dude** is written in **python3** with **Tkinter** and compiled to single binary executable with **[Nuitka](https://github.com/Nuitka/Nuitka)** (great tool) for better performance. GitHub build for linux platform is done in **ubuntu-20.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**nuitka.run.sh**) or run python script (**dude.py**)
-- **Dude** for windows ~~is build as two binary executables: **dude.exe** and **dudegui.exe**. They should be saved in the same path. **dude.exe** is basically only to respond on console to --help parameter or for passing command line parameters (if correct) to dudegui.exe. **dudegui.exe** will also accept parameters but will not respond to the console.~~ hides the console when starting the GUI. To keep the console untouched, use the --nohide parameter.
-- standard **Dude** Windows distribution causes **Windows Defender false positive**. The problem is well known: **[Nuitka](https://nuitka.net/doc/user-manual.html#windows-virus-scanners)**. To avoid this inconvenience, another distribution **windows.raw** is built, which contains a zipped folder with uncompressed necessary files and dude.exe. Last time I checked, it didn't trigger any antivirus alerts. Choose any distro you prefer.
-
+- **Dude** is written in **python3** with **Tkinter** and packed with [PyInstaller](https://pyinstaller.org/en/stable) to portable distribution. Auxiliary distro is packed by **[Nuitka](https://github.com/Nuitka/Nuitka). GitHub build for linux platform is done in **ubuntu-20.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**pyinstaller.run.sh**) or run python script (**dude.py**)
+- **Dude** for windows hides the console when starting the GUI. To keep the console untouched, use the --nohide parameter.
+- **Dude** Windows distribution causes some anti-virus false positives. The problem is well known for both PyInstaller and Nuitka.
 - ***Soft links*** to **directories** are skipped during the scanning process. ***Soft links*** to **files** are ignored during scanning. Both appear in the bottom "folders" pane.
 - ***Hard links*** (files with stat.st_nlink>1) currently are ignored during the scanning process and will not be identified as duplicates (within the same inode obviously, as with other inodes). No action can be performed on them. They will only appear in the bottom "folders" pane. This may change in the future versions.
 - the "delete" action moves files to **Recycle Bin / Trash** or deletes them permanently according to option settings.
@@ -85,17 +90,22 @@ dude --help
 ###### Manual build (linux):
 ```
 pip install -r requirements.txt
-./scripts/nuitka.run.sh
+./scripts/icons.convert.sh
+./scripts/version.gen.sh
+./scripts/pyinstaller.run.sh
 ```
 ###### Manual build (windows):
 ```
 pip install -r requirements.txt
-.\scripts\nuitka.run.bat
+.\scripts\icons.convert.bat
+.\scripts\version.gen.bat
+.\scripts\pyinstaller.run.bat
 ```
 ###### Manual running of python script:
 ```
-pip install pywin32 ; #windows only
-pip install appdirs
+pip install -r requirements.txt
+./scripts/icons.convert.sh
+./scripts/version.gen.sh
 
 python ./src/dude.py
 ```
