@@ -300,6 +300,7 @@ class DudeCore:
 
     log_skipped = False
 
+    scan_update_info_path_nr=None
     def scan(self):
         self.log.info('')
         self.log.info('SCANNING')
@@ -329,11 +330,15 @@ class DudeCore:
         self_excl_fn=self.excl_fn
 
         self_name_func=self.name_func
+        self.sum_size=0
+        self.info_size_done_perc=0
+        self.info_files_done_perc=0
 
         self_scan_dir_cache=self.scan_dir_cache
         for path_to_scan in self.paths_to_scan:
             self.info_path_to_scan=path_to_scan
             self.info_path_nr=path_nr
+            self.scan_update_info_path_nr(path_nr)
 
             loop_set=set()
             loop_set_add=loop_set.add
@@ -422,7 +427,6 @@ class DudeCore:
                     self.scan_results_by_size[size].remove(this_index)
 
         ######################################################################
-        self.sum_size=0
         for size in list(self.scan_results_by_size):
             quant=len(self.scan_results_by_size[size])
             if quant==1 :
@@ -610,6 +614,7 @@ class DudeCore:
         self_debug = self.debug
         self_files_of_size_of_crc_items = self.files_of_size_of_crc.items
 
+        self_sum_size = self.sum_size
         while True:
             ########################################################################
             #propagate abort
@@ -647,7 +652,10 @@ class DudeCore:
                 #######################################################
                 #sums info
                 self.info_size_done = size_done_cached + sum([crc_core[dev].size_done + crc_core[dev].progress_info for dev in self_devs])
+                self.info_size_done_perc = 100*self.info_size_done/self_sum_size
+
                 self.info_files_done = files_done_cached + sum([crc_core[dev].files_done for dev in self_devs])
+                self.info_files_done_perc = 100*self.info_files_done/self.info_total
 
                 if self_debug:
                     self.info_threads=str(alive_threads)

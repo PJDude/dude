@@ -2287,6 +2287,9 @@ class Gui:
     def scan_dialog_hide_wrapper(self):
         self.scan_dialog.hide()
 
+    def scan_update_info_path_nr(self,info_path_nr):
+        self.update_scan_path_nr=True
+
     @restore_status_line
     @logwrapper
     def scan(self):
@@ -2316,6 +2319,8 @@ class Gui:
         dude_core.scan_dir_cache_clear()
         self.folder_items_cache_clear()
 
+        dude_core.scan_update_info_path_nr=self.scan_update_info_path_nr
+
         self.main.update()
 
         #############################
@@ -2338,6 +2343,8 @@ class Gui:
 
         self.action_abort=False
         self_progress_dialog_on_scan.abort_button.configure(state='normal')
+
+        self.update_scan_path_nr=False
 
         scan_thread=Thread(target=dude_core.scan,daemon=True)
         scan_thread.start()
@@ -2380,24 +2387,29 @@ class Gui:
         self_tooltip_message = self.tooltip_message
         self_configure_tooltip = self.configure_tooltip
 
-        while scan_thread.is_alive():
-            new_data[1]=dude_core.info_path_to_scan
+        scan_thread_is_alive = scan_thread.is_alive
+
+        self_hg_ico = self.hg_ico
+        len_self_hg_ico = len(self_hg_ico)
+
+        while scan_thread_is_alive():
             new_data[3]=core_bytes_to_str(dude_core.info_size_sum)
             new_data[4]='%s files' % dude_core.info_counter
 
             anything_changed=False
-            for i in (1,3,4):
+            for i in (3,4):
                 if new_data[i] != prev_data[i]:
                     prev_data[i]=new_data[i]
                     self_progress_dialog_on_scan_lab[i].configure(text=new_data[i])
                     anything_changed=True
 
             now=time()
-            if anything_changed:
-                if prev_path_nr!=dude_core.info_path_nr:
-                    prev_path_nr=dude_core.info_path_nr
-                    self_progress_dialog_on_scan_lab[0].configure(image=self_icon_nr[dude_core.info_path_nr])
+            if self.update_scan_path_nr:
+                self.update_scan_path_nr=False
+                self_progress_dialog_on_scan_lab[0].configure(image=self_icon_nr[dude_core.info_path_nr])
+                self_progress_dialog_on_scan_lab[1].configure(text=dude_core.info_path_to_scan)
 
+            if anything_changed:
                 time_without_busy_sign=now
 
                 if update_once:
@@ -2408,8 +2420,8 @@ class Gui:
                     self_progress_dialog_on_scan_lab[2].configure(image=self.ico['empty'])
             else :
                 if now>time_without_busy_sign+1.0:
-                    self_progress_dialog_on_scan_lab[2].configure(image=self.hg_ico[hr_index],text = '', compound='left')
-                    hr_index=(hr_index+1) % len(self.hg_ico)
+                    self_progress_dialog_on_scan_lab[2].configure(image=self_hg_ico[hr_index],text = '', compound='left')
+                    hr_index=(hr_index+1) % len_self_hg_ico
 
                     self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='currently scanning:\n%s...' % dude_core.info_line
                     self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
@@ -2457,31 +2469,37 @@ class Gui:
         prev_progress_size=0
         prev_progress_quant=0
 
-        while crc_thread.is_alive():
+        crc_thread_is_alive = crc_thread.is_alive
+        self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
+        self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
+
+        core_bytes_to_str_dude_core_sum_size = core_bytes_to_str(dude_core.sum_size)
+
+        while crc_thread_is_alive():
             if DEBUG_MODE:
-                self_progress_dialog_on_scan_lab[1].configure(text='Active Threads: %s Avarage speed: %s/s' % (dude_core.info_threads,core_bytes_to_str(dude_core.info_speed)) )
+                self_progress_dialog_on_scan_lab[0].configure(text='Active Threads: %s Avarage speed: %s/s' % (dude_core.info_threads,core_bytes_to_str(dude_core.info_speed)) )
 
             anything_changed=False
 
-            size_progress_info=100*dude_core.info_size_done/dude_core.sum_size
+            size_progress_info=dude_core.info_size_done_perc
             if size_progress_info!=prev_progress_size:
                 prev_progress_size=size_progress_info
 
-                self_progress_dialog_on_scan_progr1var.set(size_progress_info)
-                self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (core_bytes_to_str(dude_core.info_size_done),core_bytes_to_str(dude_core.sum_size)))
+                self_progress_dialog_on_scan_progr1var_set(size_progress_info)
+                self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (core_bytes_to_str(dude_core.info_size_done),core_bytes_to_str_dude_core_sum_size))
                 anything_changed=True
 
-            quant_progress_info=100*dude_core.info_files_done/dude_core.info_total
+            quant_progress_info=dude_core.info_files_done_perc
             if quant_progress_info!=prev_progress_quant:
                 prev_progress_quant=quant_progress_info
 
-                self_progress_dialog_on_scan_progr2var.set(quant_progress_info)
+                self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
                 self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (dude_core.info_files_done,dude_core.info_total))
                 anything_changed=True
 
             if anything_changed:
                 if dude_core.info_found_groups:
-                    self_progress_dialog_on_scan_lab[1].configure(text='CRC groups: %s' % dude_core.info_found_groups)
+                    self_progress_dialog_on_scan_lab[3].configure(text='CRC groups: %s' % dude_core.info_found_groups)
 
                 #new_data[1]='CRC groups: %s' % dude_core.info_found_groups
                 #new_data[3]='folders: %s' % dude_core.info_found_folders
@@ -2497,6 +2515,8 @@ class Gui:
             now=time()
             if anything_changed:
                 time_without_busy_sign=now
+                info_line = dude_core.info_line if len(dude_core.info_line)<48 else ('...%s' % dude_core.info_line[-48:])
+                self_progress_dialog_on_scan_lab[1].configure(text=info_line)
 
                 if update_once:
                     update_once=False
@@ -2504,12 +2524,11 @@ class Gui:
                     self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
                     self_progress_dialog_on_scan_lab[2].configure(image=self.ico['empty'])
-                    info_line = dude_core.info_line if len(dude_core.info_line)<48 else ('...%s' % dude_core.info_line[-48:])
-                    self_progress_dialog_on_scan_lab[1].configure(text=info_line)
             else :
                 if now>time_without_busy_sign+1.0:
-                    self_progress_dialog_on_scan_lab[2].configure(image=self.hg_ico[hr_index])
-                    hr_index=(hr_index+1) % len(self.hg_ico)
+                    #self_progress_dialog_on_scan_lab[1].configure(text='')
+                    self_progress_dialog_on_scan_lab[2].configure(image=self_hg_ico[hr_index])
+                    hr_index=(hr_index+1) % len_self_hg_ico
 
                     self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='crc calculating:\n%s...' % dude_core.info_line
                     self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
@@ -2542,11 +2561,15 @@ class Gui:
             self_progress_dialog_on_scan_area_main_update()
 
         self.status('Finishing CRC Thread...')
-        crc_thread.join()
         #############################
 
         #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
-        self_progress_dialog_on_scan.abort_button.configure(state='disabled')
+        self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
+        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
+        self_progress_dialog_on_scan.widget.update()
+        self.main.focus_set()
+
+        crc_thread.join()
         #self_progress_dialog_on_scan.label.update()
 
         self.groups_show()
@@ -2881,6 +2904,8 @@ class Gui:
         self_CRC = self.CRC
         self_FILE = self.FILE
 
+        ctime_h_temp_cache={}
+
         for size,size_dict in dude_core.files_of_size_of_crc.items() :
             size_h = core_bytes_to_str(size)
             size_str = str(size)
@@ -2888,9 +2913,9 @@ class Gui:
                 self_status('Rendering data... (%s)' % size_h,do_log=False)
 
             sizes_counter+=1
-            l_debug('groups_show size:%s', size)
+            #l_debug('groups_show size:%s', size)
             for crc,crc_dict in size_dict.items():
-                l_debug('groups_show crc:%s', crc)
+                #l_debug('groups_show crc:%s', crc)
 
                 if cross_mode:
                     is_cross_group = bool(len({pathnr for pathnr,path,file,ctime,dev,inode in crc_dict})>1)
@@ -2901,18 +2926,23 @@ class Gui:
 
                 #self_groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
                 instances_str=str(len(crc_dict))
-                crcitem=self_groups_tree_insert(parent='', index='end',iid=crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',self_CRC),tags=self.CRC,open=True)
+                crcitem=self_groups_tree_insert(parent='', index='end',iid=crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',self_CRC),tags=self_CRC,open=True)
 
                 for pathnr,path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
                     iid=self_idfunc(inode,dev)
                     self_iid_to_size[iid]=size
+
+                    try:
+                        ctime_h = ctime_h_temp_cache[ctime]
+                    except:
+                        ctime_h = ctime_h_temp_cache[ctime] = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
 
                     self_groups_tree_insert(parent=crcitem, index='end',iid=iid, values=(\
                             str(pathnr),path,file,size_str,\
                             '',\
                             str(ctime),str(dev),str(inode),crc,\
                             '','',\
-                            strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC)) ,self_FILE),tags='')
+                            ctime_h ,self_FILE),tags='')
         self.data_precalc()
 
         if self.column_sort_last_params[self_groups_tree]!=self.column_groups_sort_params_default:
@@ -2977,6 +3007,7 @@ class Gui:
 
         self.status_path.configure(text='')
         self.current_folder_items=[]
+        self.current_folder_items_set=set()
 
     #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
 
@@ -2988,6 +3019,7 @@ class Gui:
 
     two_dots_condition = two_dots_condition_win if windows else two_dots_condition_lin
     current_folder_items=[]
+    current_folder_items_set=set()
 
     def folder_items_cache_clear(self):
         self.folder_items_cache={}
@@ -3049,14 +3081,21 @@ class Gui:
             FILE_SOFT_LINK_ICON=self_ico['softlink']
             DIR_SOFT_LINK_ICON=self_ico['softlink_dir']
 
+            self_DIRLINK = self.DIRLINK
+            self_LINK = self.LINK
+            self_DIR = self.DIR
+            self_SINGLE = self.SINGLE
+            self_SINGLEHARDLINKED = self.SINGLEHARDLINKED
+
+            ctime_h_temp_cache={}
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
                     presort_id = dir_code if isdir else non_dir_code
                     text = ''
                     icon = DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON
                     iid=('%sDL' % i) if isdir else ('%sFL' % i)
-                    kind= self.DIRLINK if isdir else self.LINK
-                    defaulttag = self.DIR if isdir else self.LINK
+                    kind= self_DIRLINK if isdir else self_LINK
+                    defaulttag = self_DIR if isdir else self_LINK
                     crc=''
                     size='0'
                     size_h=''
@@ -3070,8 +3109,8 @@ class Gui:
                     text = ''
                     icon = FOLDER_ICON
                     iid='%sD' % i
-                    kind= self.DIR
-                    defaulttag = self.DIR
+                    kind= self_DIR
+                    defaulttag = self_DIR
                     crc=''
                     size='0'
                     size_h=''
@@ -3085,7 +3124,11 @@ class Gui:
                     file_id=self_idfunc(inode,dev)
 
                     ctime_str=str(ctime)
-                    ctime_h=strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
+
+                    try:
+                        ctime_h = ctime_h_temp_cache[ctime]
+                    except:
+                        ctime_h = ctime_h_temp_cache[ctime] = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
 
                     size=str(size_num)
                     size_h=core_bytes_to_str(size_num)
@@ -3114,8 +3157,8 @@ class Gui:
                         icon = HARDLINK_ICON if nlink>1 else NONE_ICON
                         iid='%sO' % i
                         crc=''
-                        kind = self.SINGLEHARDLINKED if nlink>1 else self.SINGLE
-                        defaulttag = self.SINGLE
+                        kind = self_SINGLEHARDLINKED if nlink>1 else self_SINGLE
+                        defaulttag = self_SINGLE
 
                         instances='1'
                         instances_h=''
@@ -3132,8 +3175,7 @@ class Gui:
 
             ############################################################
             #KIND_INDEX==3
-            self_folder_items_cache[current_path]= dir_ctime, [ (iid,bool(folder_items_dict[iid][1][3]==self.FILE),folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) ]
-            #self_folder_items_cache[current_path]=(dir_ctime, [ (iid,text,values,defaulttag,icon) for presort_id,sort_id,iid,text,values,defaulttag,icon in sorted(keys,reverse=reverse) ] )
+            self_folder_items_cache[current_path]= dir_ctime, [ (iid,bool(folder_items_dict[iid][1][3]==self.FILE),*folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) ]
             del keys
 
         if arbitrary_path:
@@ -3144,32 +3186,35 @@ class Gui:
             self.sel_path_set(str(Path(arbitrary_path)))
             self.sel_tree=ftree
 
-        self_current_folder_items=self.current_folder_items=[]
-        self_current_folder_items_append=self_current_folder_items.append
-
         ftree_insert=ftree.insert
         self_tagged=self.tagged
 
         ftree.delete(*ftree.get_children())
-        if self.two_dots_condition():
-            #ftree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
-            ftree_insert(parent="", index='end', iid='0UP' , text='', image='', values=('..','','',self.UPDIR,'',0,'',0,'',0,''),tags=self.DIR)
-            self_current_folder_items_append('0UP')
 
+        self.current_folder_items=[]
+
+        if self.two_dots_condition():
+            self.current_folder_items.append(ftree_insert(parent="", index=0, iid='0UP' , text='', image='', values=('..','','',self.UPDIR,'',0,'',0,'',0,''),tags=self.DIR))
+
+        self_MARK = self.MARK
         try:
-            for (iid,filekind,(text,values,defaulttag,image)) in self_folder_items_cache[current_path][1]:
-                self_current_folder_items_append(iid)
-                ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self.MARK if filekind and (iid in self_tagged) else defaulttag,image=image)
+            self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self_MARK if filekind and (iid in self_tagged) else defaulttag,image=image) for (iid,filekind,text,values,defaulttag,image) in self_folder_items_cache[current_path][1]]
 
         except Exception as e:
             self.status(str(e))
             l_error(e)
             self_folder_items_cache={}
 
+
+
+        self.current_folder_items_set=set(self.current_folder_items)
         if not arbitrary_path:
-            if self.sel_item and self.sel_item in self_current_folder_items:
+            #if self.sel_item and self.sel_item in self.current_folder_items:
+            try:
                 ftree.selection_set(self.sel_item)
                 ftree.see(self.sel_item)
+            except Exception:
+                pass
 
         self.calc_mark_stats_folder()
 
@@ -3193,7 +3238,7 @@ class Gui:
 
     def calc_mark_stats_folder(self):
         self_iid_to_size = self.iid_to_size
-        marked_in_folder = [self_iid_to_size[iid] for iid in set(self.current_folder_items).intersection(self.tagged)]
+        marked_in_folder = [self_iid_to_size[iid] for iid in self.current_folder_items_set.intersection(self.tagged)]
 
         self.status_folder_quant.configure(text=str(len(marked_in_folder)))
         self.status_folder_size.configure(text=core_bytes_to_str(sum(marked_in_folder)))
