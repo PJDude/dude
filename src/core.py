@@ -46,6 +46,8 @@ from os import sep
 
 from send2trash import send2trash
 
+core_send2trash = send2trash
+
 os_path = os.path
 
 K=1024

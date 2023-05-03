@@ -204,8 +204,6 @@ class Gui:
 
     def block_actions_processing(func):
         def block_actions_processing_wrapp(self,*args,**kwargs):
-            l_debug("block_actions_processing '%s' start",func.__name__)
-
             prev_active=self.actions_processing
             self.actions_processing=False
             try:
@@ -218,17 +216,15 @@ class Gui:
 
             self.actions_processing=prev_active
 
-            l_debug("block_actions_processing '%s' end",func.__name__)
             return res
         return block_actions_processing_wrapp
 
     def gui_block(func):
         def gui_block_wrapp(self,*args,**kwargs):
-            l_debug("gui_block '%s' start",func.__name__)
             prev_cursor=self.menubar.cget('cursor')
 
             self.menu_disable()
-            self.main.update()
+            #self.main.update()
 
             self.menubar.config(cursor='watch')
             self.main.config(cursor='watch')
@@ -245,13 +241,11 @@ class Gui:
             self.main.config(cursor=prev_cursor)
             self.menubar.config(cursor=prev_cursor)
 
-            l_debug("gui_block '%s' end",func.__name__)
             return res
         return gui_block_wrapp
 
     def catched(func):
         def catched_wrapp(self,*args,**kwargs):
-            l_debug("catched '%s' start",func.__name__)
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
@@ -259,14 +253,13 @@ class Gui:
                 self.info_dialog_on_main.show('INTERNAL ERROR catched_wrapp','%s %s' % (func.__name__,str(e)) )
                 l_error('catched_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
                 res=None
-            l_debug("catched '%s' end",func.__name__)
             return res
         return catched_wrapp
 
     def logwrapper(func):
         def logwrapper_wrapp(self,*args,**kwargs):
-            start = time()
             l_info("logwrapper '%s' start",func.__name__)
+            start = time()
             try:
                 res=func(self,*args,**kwargs)
             except Exception as e:
@@ -275,8 +268,7 @@ class Gui:
                 l_error('logwrapper_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
                 res=None
 
-            end = time()
-            l_info("logwrapper '%s' end. BENCHMARK TIME:%s",func.__name__,end-start)
+            l_info("logwrapper '%s' end. BENCHMARK TIME:%s",func.__name__,time()-start)
             return res
         return logwrapper_wrapp
 
@@ -1238,21 +1230,24 @@ class Gui:
 
     menu_state_stack=[]
     def menu_enable(self):
+        norm = lambda x : self.menubar.entryconfig(x, state="normal")
         try:
             self.menu_state_stack.pop()
             if not self.menu_state_stack:
-                self.menubar.entryconfig("File", state="normal")
-                self.menubar.entryconfig("Navigation", state="normal")
-                self.menubar.entryconfig("Help", state="normal")
+                norm("File")
+                norm("Navigation")
+                norm("Help")
         except Exception as e:
             l_error(e)
 
     def menu_disable(self):
+        disable = lambda x : self.menubar.entryconfig(x, state="disabled")
+
         self.menu_state_stack.append('x')
-        self.menubar.entryconfig("File", state="disabled")
-        self.menubar.entryconfig("Navigation", state="disabled")
-        self.menubar.entryconfig("Help", state="disabled")
-        self.menubar.update()
+        disable("File")
+        disable("Navigation")
+        disable("Help")
+        #self.menubar.update()
 
     def reset_sels(self):
         self.sel_pathnr = None
@@ -1266,16 +1261,18 @@ class Gui:
         self.sel_kind = None
 
     def get_index_tuple_groups_tree(self,item):
+        self_groups_tree_set = lambda x : self.groups_tree.set(item,x)
+        int_self_groups_tree_set = lambda x : int(self_groups_tree_set(x))
+
         #pathnr,path,file,ctime,dev,inode
-
-        pathnr=int(self.groups_tree.set(item,'pathnr'))
-        path=self.groups_tree.set(item,'path')
-        file=self.groups_tree.set(item,'file')
-        ctime=int(self.groups_tree.set(item,'ctime'))
-        dev=int(self.groups_tree.set(item,'dev'))
-        inode=int(self.groups_tree.set(item,'inode'))
-
-        return (pathnr,path,file,ctime,dev,inode)
+        return (\
+                int_self_groups_tree_set('pathnr'),\
+                self_groups_tree_set('path'),\
+                self_groups_tree_set('file'),\
+                int_self_groups_tree_set('ctime'),\
+                int_self_groups_tree_set('dev'),\
+                int_self_groups_tree_set('inode')
+        )
 
     def delete_window_wrapper(self):
         if self.actions_processing:
@@ -1791,18 +1788,6 @@ class Gui:
             if region == 'heading':
                 if (colname:=tree.column(tree.identify_column(event.x),'id') ) in self.REAL_SORT_COLUMN:
                     self.column_sort_click(tree,colname)
-
-                    #if self.sel_kind==self.FILE:
-                    #    tree.focus_set()
-
-                    #    tree.focus(self.sel_item)
-                    #    tree.see(self.sel_item)
-
-                    #    if tree==self.groups_tree:
-                    #        self.groups_tree_sel_change(self.sel_item)
-                    #    else:
-                    #        self.folder_tree_sel_change(self.sel_item)
-
             elif item:=tree.identify('item',event.x,event.y):
                 tree.selection_remove(tree.selection())
 
@@ -1876,24 +1861,23 @@ class Gui:
 
     @catched
     def groups_tree_sel_change(self,item,force=False,change_status_line=True):
+        self.sel_item = item
+
         if change_status_line :
             self.status()
 
-        self_groups_tree_set=self.groups_tree.set
+        self_groups_tree_set_item=lambda x : self.groups_tree.set(item,x)
 
-        self.sel_file = self_groups_tree_set(item,'file')
-        new_crc = self_groups_tree_set(item,'crc')
-        path=self_groups_tree_set(item,'path')
-        pathnr = self_groups_tree_set(item,'pathnr')
-        self.sel_kind = self_groups_tree_set(item,'kind')
+        self.sel_file = self_groups_tree_set_item('file')
 
+        new_crc = self_groups_tree_set_item('crc')
         if self.sel_crc != new_crc:
             self.sel_crc = new_crc
 
             self.dominant_groups_index={0:-1,1:-1}
 
-        self.sel_item = item
-
+        path=self_groups_tree_set_item('path')
+        pathnr = self_groups_tree_set_item('pathnr')
         if path!=self.sel_path or pathnr!=self.sel_pathnr or force:
             if self.find_tree_index==1:
                 self.find_result=()
@@ -1908,6 +1892,7 @@ class Gui:
                 self.sel_path_set(None)
             self.set_full_path_to_file()
 
+        self.sel_kind = self_groups_tree_set_item('kind')
         if self.sel_kind==self.FILE:
             self.tree_folder_update()
         else:
@@ -1915,12 +1900,13 @@ class Gui:
 
     @catched
     def folder_tree_sel_change(self,item,change_status_line=True):
-        self_folder_tree_set = self.folder_tree.set
-
-        self.sel_file = self_folder_tree_set(item,'file')
-        self.sel_crc = self_folder_tree_set(item,'crc')
-        self.sel_kind = kind = self_folder_tree_set(item,'kind')
         self.sel_item = item
+
+        self_folder_tree_set_item = lambda x : self.folder_tree.set(item,x)
+
+        self.sel_file = self_folder_tree_set_item('file')
+        self.sel_crc = self_folder_tree_set_item('crc')
+        self.sel_kind = kind = self_folder_tree_set_item('kind')
 
         self.set_full_path_to_file()
 
@@ -2214,13 +2200,16 @@ class Gui:
         tlist=[]
         tree_set = tree.set
         tlist_append = tlist.append
+        self_UPDIR = self.UPDIR
+        dir_or_dirlink = (self.DIR,self.DIRLINK)
+
         for item in (tree.get_children(parent_item) if parent_item else tree.get_children(parent_item)):
             sortval_org=tree_set(item,real_column_to_sort)
             sortval=(int(sortval_org) if sortval_org.isdigit() else 0) if is_numeric else sortval_org
 
             if lower_tree:
                 kind = tree_set(item,'kind')
-                code=updir_code if kind==self.UPDIR else dir_code if kind in (self.DIR,self.DIRLINK) else non_dir_code
+                code=updir_code if kind==self_UPDIR else dir_code if kind in dir_or_dirlink else non_dir_code
                 tlist_append( ( (code,sortval),item) )
             else:
                 tlist_append( (sortval,item) )
@@ -2392,8 +2381,10 @@ class Gui:
         self_hg_ico = self.hg_ico
         len_self_hg_ico = len(self_hg_ico)
 
+        local_core_bytes_to_str = core_bytes_to_str
+
         while scan_thread_is_alive():
-            new_data[3]=core_bytes_to_str(dude_core.info_size_sum)
+            new_data[3]=local_core_bytes_to_str(dude_core.info_size_sum)
             new_data[4]='%s files' % dude_core.info_counter
 
             anything_changed=False
@@ -2473,11 +2464,12 @@ class Gui:
         self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
         self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
-        core_bytes_to_str_dude_core_sum_size = core_bytes_to_str(dude_core.sum_size)
+        core_bytes_to_str_dude_core_sum_size = local_core_bytes_to_str(dude_core.sum_size)
 
+        DEBUG_MODE_LOC = DEBUG_MODE
         while crc_thread_is_alive():
-            if DEBUG_MODE:
-                self_progress_dialog_on_scan_lab[0].configure(text='Active Threads: %s Avarage speed: %s/s' % (dude_core.info_threads,core_bytes_to_str(dude_core.info_speed)) )
+            if DEBUG_MODE_LOC:
+                self_progress_dialog_on_scan_lab[0].configure(text='Active Threads: %s Avarage speed: %s/s' % (dude_core.info_threads,local_core_bytes_to_str(dude_core.info_speed)) )
 
             anything_changed=False
 
@@ -2486,7 +2478,7 @@ class Gui:
                 prev_progress_size=size_progress_info
 
                 self_progress_dialog_on_scan_progr1var_set(size_progress_info)
-                self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (core_bytes_to_str(dude_core.info_size_done),core_bytes_to_str_dude_core_sum_size))
+                self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_core_bytes_to_str(dude_core.info_size_done),core_bytes_to_str_dude_core_sum_size))
                 anything_changed=True
 
             quant_progress_info=dude_core.info_files_done_perc
@@ -2503,7 +2495,7 @@ class Gui:
 
                 #new_data[1]='CRC groups: %s' % dude_core.info_found_groups
                 #new_data[3]='folders: %s' % dude_core.info_found_folders
-                #new_data[4]='space: %s' % core_bytes_to_str(dude_core.info_found_dupe_space)
+                #new_data[4]='space: %s' % local_core_bytes_to_str(dude_core.info_found_dupe_space)
 
                 #for i in (2,3,4):
                 #    if new_data[i] != prev_data[i]:
@@ -2520,7 +2512,7 @@ class Gui:
 
                 if update_once:
                     update_once=False
-                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available if any CRC groups are found.'
+                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
                     self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
                     self_progress_dialog_on_scan_lab[2].configure(image=self.ico['empty'])
@@ -2906,17 +2898,16 @@ class Gui:
 
         ctime_h_temp_cache={}
 
+        local_core_bytes_to_str = core_bytes_to_str
+
         for size,size_dict in dude_core.files_of_size_of_crc.items() :
-            size_h = core_bytes_to_str(size)
+            size_h = local_core_bytes_to_str(size)
             size_str = str(size)
             if not sizes_counter%128:
                 self_status('Rendering data... (%s)' % size_h,do_log=False)
 
             sizes_counter+=1
-            #l_debug('groups_show size:%s', size)
             for crc,crc_dict in size_dict.items():
-                #l_debug('groups_show crc:%s', crc)
-
                 if cross_mode:
                     is_cross_group = bool(len({pathnr for pathnr,path,file,ctime,dev,inode in crc_dict})>1)
                     if not is_cross_group:
@@ -3001,12 +2992,12 @@ class Gui:
         self.folder_tree.configure(takefocus=False)
 
         self.folder_tree.delete(*self.folder_tree.get_children())
-        self.calc_mark_stats_folder()
+
         self.status_folder_size.configure(text='')
         self.status_folder_quant.configure(text='')
 
         self.status_path.configure(text='')
-        self.current_folder_items=[]
+        self.current_folder_items=()
         self.current_folder_items_set=set()
 
     #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
@@ -3087,6 +3078,8 @@ class Gui:
             self_SINGLE = self.SINGLE
             self_SINGLEHARDLINKED = self.SINGLEHARDLINKED
 
+            local_core_bytes_to_str = core_bytes_to_str
+
             ctime_h_temp_cache={}
             for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
                 if islink :
@@ -3131,7 +3124,7 @@ class Gui:
                         ctime_h = ctime_h_temp_cache[ctime] = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
 
                     size=str(size_num)
-                    size_h=core_bytes_to_str(size_num)
+                    size_h=local_core_bytes_to_str(size_num)
 
                     item_rocognized=True
                     if file_id in self_id2crc:
@@ -3205,11 +3198,9 @@ class Gui:
             l_error(e)
             self_folder_items_cache={}
 
-
-
         self.current_folder_items_set=set(self.current_folder_items)
         if not arbitrary_path:
-            #if self.sel_item and self.sel_item in self.current_folder_items:
+
             try:
                 ftree.selection_set(self.sel_item)
                 ftree.see(self.sel_item)
@@ -3218,8 +3209,9 @@ class Gui:
 
         self.calc_mark_stats_folder()
 
-        ftree.configure(takefocus=True)
         ftree.update()
+
+        ftree.configure(takefocus=True)
 
         return True
 
@@ -3848,7 +3840,7 @@ class Gui:
                 try:
                     self_main_update()
                     if to_trash:
-                        send2trash(path)
+                        dude_core.core_send2trash(path)
                     else:
                         os_rmdir(path)
                     l_info('Empty removed:%s',path)
@@ -4125,30 +4117,35 @@ class Gui:
             dude_core.write_csv(str(csv_file))
             self.status('CSV file saved: "%s"' % str(csv_file))
 
+    @logwrapper
     def cache_clean(self):
         try:
             rmtree(CACHE_DIR)
         except Exception as e:
             l_error(e)
 
+    @logwrapper
     def clip_copy_full_path_with_file(self):
         if self.sel_path_full and self.sel_file:
             self.clip_copy(os.path.join(self.sel_path_full,self.sel_file))
         elif self.sel_crc:
             self.clip_copy(self.sel_crc)
 
+    @logwrapper
     def clip_copy_full(self):
         if self.sel_path_full:
             self.clip_copy(self.sel_path_full)
         elif self.sel_crc:
             self.clip_copy(self.sel_crc)
 
+    @logwrapper
     def clip_copy_file(self):
         if self.sel_file:
             self.clip_copy(self.sel_file)
         elif self.sel_crc:
             self.clip_copy(self.sel_crc)
 
+    @logwrapper
     def clip_copy(self,what):
         self.main.clipboard_clear()
         self.main.clipboard_append(what)
@@ -4192,7 +4189,7 @@ class Gui:
         elif tree.set(item,'kind') in (self.DIR,self.DIRLINK):
             self.enter_dir(self.sel_path_full+self.folder_tree.set(item,'file') if self.sel_path_full=='/' else sep.join([self.sel_path_full,self.folder_tree.set(item,'file')]),'..' )
         elif tree.set(item,'kind')!=self.CRC:
-                self.open_file()
+            self.open_file()
 
     @logwrapper
     def open_folder(self):
@@ -4230,54 +4227,63 @@ class Gui:
             file_to_open = sep.join([self.sel_path_full,self.sel_file])
 
             if wrapper:=self.cfg.get(CFG_KEY_WRAPPER_FILE) and self.sel_kind in (self.FILE,self.LINK,self.SINGLE,self.SINGLEHARDLINKED):
+                self.status('opening: %s' % file_to_open)
                 run_command = lambda : Popen([wrapper,file_to_open])
             elif windows:
+                self.status('opening: %s' % file_to_open)
                 run_command = lambda : os.startfile(file_to_open)
             else:
+                self.status('executing: xdg-open "%s"' % file_to_open)
                 run_command = lambda : Popen(["xdg-open",file_to_open])
 
             Thread(target=run_command,daemon=True).start()
 
-
-            #if self.sel_kind in (self.FILE,self.LINK,self.SINGLE,self.SINGLEHARDLINKED):
-
-            #    if wrapper:=self.file_open_wrapper.get():
-            #        self.status(f'Opening: {wrapper} {self.sel_file}')
-            #        if windows:
-            #            os.startfile(wrapper + ' ' + sep.join([self.sel_path_full,self.sel_file]))
-            #        else:
-            #            os.system(wrapper + ' "' + sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
-            #    else:
-            #        self.status(f'Opening: {self.sel_file}')
-            #        if windows:
-            #            os.startfile(sep.join([self.sel_path_full,self.sel_file]))
-            #        else:
-            #            os.system('xdg-open "' + sep.join([self.sel_path_full,self.sel_file]).replace("'","\'").replace("`","\`") + '"')
-
-            #elif self.sel_kind in (self.DIR,self.DIRLINK):
-            #    self.open_folder()
-
+    @logwrapper
     def show_log(self):
-        if windows:
-            os.startfile(log)
-        else:
-            os.system("xdg-open "+ '"' + log + '"')
+        try:
+            if windows:
+                self.status('opening: %s' % log)
+                os.startfile(log)
+            else:
+                self.status('executing: xdg-open "%s"' % log)
+                os.system("xdg-open "+ '"' + log + '"')
+        except Exception as e:
+            l_error(e)
+            self.status(str(e))
 
+    @logwrapper
     def show_logs_dir(self):
-        if windows:
-            os.startfile(LOG_DIR)
-        else:
-            os.system("xdg-open " + '"' + LOG_DIR + '"')
+        try:
+            if windows:
+                self.status('opening: %s' % LOG_DIR)
+                os.startfile(LOG_DIR)
+            else:
+                self.status('executing: xdg-open "%s"' % LOG_DIR)
+                os.system("xdg-open " + '"' + LOG_DIR + '"')
+        except Exception as e:
+            l_error(e)
+            self.status(str(e))
 
+    @logwrapper
     def show_homepage(self):
-        if windows:
-            os.startfile(HOMEPAGE)
-        else:
-            os.system("xdg-open " + HOMEPAGE)
+        try:
+            if windows:
+                self.status('opening: %s' % HOMEPAGE)
+                os.startfile(HOMEPAGE)
+            else:
+                self.status('executing: xdg-open %s' % HOMEPAGE)
+                os.system("xdg-open " + HOMEPAGE)
+        except Exception as e:
+            l_error(e)
+            self.status(str(e))
 
 if windows:
-    import win32gui
-    import win32con
+    try:
+        import win32gui
+        import win32con
+    except Exception as e:
+        l_error(e)
+        self.status(str(e))
 
 if __name__ == "__main__":
     try:
@@ -4325,17 +4331,22 @@ if __name__ == "__main__":
         CACHE_DIR = sep.join([CACHE_DIR_DIR,node()])
 
         if not p_args.csv:
-            foreground_window = win32gui.GetForegroundWindow() if windows and not p_args.nohide else None
+            try:
+                foreground_window = win32gui.GetForegroundWindow() if windows and not p_args.nohide else None
 
-            if foreground_window:
-                win32gui.ShowWindow(foreground_window, win32con.SW_HIDE)
+                if foreground_window:
+                    win32gui.ShowWindow(foreground_window, win32con.SW_HIDE)
+
+            except Exception as e:
+                l_error(e)
+                self.status(str(e))
 
         log=os.path.abspath(p_args.log[0]) if p_args.log else LOG_DIR + sep + strftime('%Y_%m_%d_%H_%M_%S',localtime(time()) ) +'.txt'
         LOG_LEVEL = logging.DEBUG if p_args.debug else logging.INFO
 
         Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
 
-        print('DUDE_EXECUTABLE_FILE:',DUDE_EXECUTABLE_FILE,'\nDUDE_EXECUTABLE_DIR:',DUDE_EXECUTABLE_DIR,'\nPORTABLE_DIR:',PORTABLE_DIR)
+        #print('DUDE_EXECUTABLE_FILE:',DUDE_EXECUTABLE_FILE,'\nDUDE_EXECUTABLE_DIR:',DUDE_EXECUTABLE_DIR,'\nPORTABLE_DIR:',PORTABLE_DIR)
         print('log:',log)
 
         logging.basicConfig(level=LOG_LEVEL,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')
