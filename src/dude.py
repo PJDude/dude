@@ -728,6 +728,7 @@ class Gui:
         def pre_show_settings():
             _ = {var.set(self.cfg.get_bool(key)) for var,key in self.settings}
             _ = {var.set(self.cfg.get(key)) for var,key in self.settings_str}
+            self.erase_empty_directories.set(False)
             return pre_show()
 
         #######################################################################
@@ -807,7 +808,7 @@ class Gui:
 
         ttk.Checkbutton(label_frame, text = 'Create relative symbolic links', variable=self.create_relative_symlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
         ttk.Checkbutton(label_frame, text = 'Send Files to %s instead of deleting them' % ('Recycle Bin' if windows else 'Trash'), variable=self.send_to_trash ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-        ttk.Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories                ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories,state='disabled').grid(row=2,column=0,sticky='wens',padx=3,pady=2)
 
         #ttk.Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.allow_delete_non_duplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2)
 
@@ -947,7 +948,7 @@ class Gui:
                 self.file_cascade.add_separator()
                 self.file_cascade.add_command(label = 'Settings ...',command=self.settings_dialog.show, accelerator="F2",image = self.ico['settings'],compound='left')
                 self.file_cascade.add_separator()
-                self.file_cascade.add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self.ico['empty'],compound='left')
+                self.file_cascade.add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self.ico['empty'],compound='left',state='disabled')
                 self.file_cascade.add_separator()
                 self.file_cascade.add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self.ico['empty'],compound='left')
                 self.file_cascade.add_separator()
@@ -3820,6 +3821,9 @@ class Gui:
     @gui_block
     @logwrapper
     def empty_dirs_removal(self,startpath,report_empty=False):
+        l_info('empty_dirs_removal temporarily disabled')
+        return []
+
         self.status("Removing empty directories in:'%s'" % startpath)
 
         to_trash=self.cfg.get_bool(CFG_SEND_TO_TRASH)
@@ -3832,10 +3836,8 @@ class Gui:
         removed=[]
         removed_append = removed.append
 
-        index=0
         for (path, dirs, files) in os.walk(startpath, topdown=False, followlinks=False):
-            index+=1
-            index %= 4
+            l_info('empty_dirs_removal:%s,%s,%s',path, dirs, files)
             if not files:
                 try:
                     self_main_update()
