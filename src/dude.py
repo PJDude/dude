@@ -34,6 +34,8 @@ from time import localtime
 from time import time
 from os import sep
 from os import stat
+from os import scandir
+
 import os
 import os.path
 
@@ -305,6 +307,7 @@ class Gui:
 
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,biggest_files_order=False):
         self.cwd=cwd
+        self.last_dir=self.cwd
 
         self.cfg = Config(CONFIG_DIR)
         self.cfg.read()
@@ -728,7 +731,6 @@ class Gui:
         def pre_show_settings():
             _ = {var.set(self.cfg.get_bool(key)) for var,key in self.settings}
             _ = {var.set(self.cfg.get(key)) for var,key in self.settings_str}
-            self.erase_empty_directories.set(False)
             return pre_show()
 
         #######################################################################
@@ -808,7 +810,7 @@ class Gui:
 
         ttk.Checkbutton(label_frame, text = 'Create relative symbolic links', variable=self.create_relative_symlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
         ttk.Checkbutton(label_frame, text = 'Send Files to %s instead of deleting them' % ('Recycle Bin' if windows else 'Trash'), variable=self.send_to_trash ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-        ttk.Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories,state='disabled').grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
 
         #ttk.Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.allow_delete_non_duplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2)
 
@@ -948,7 +950,7 @@ class Gui:
                 self.file_cascade.add_separator()
                 self.file_cascade.add_command(label = 'Settings ...',command=self.settings_dialog.show, accelerator="F2",image = self.ico['settings'],compound='left')
                 self.file_cascade.add_separator()
-                self.file_cascade.add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self.ico['empty'],compound='left',state='disabled')
+                self.file_cascade.add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self.ico['empty'],compound='left')
                 self.file_cascade.add_separator()
                 self.file_cascade.add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self.ico['empty'],compound='left')
                 self.file_cascade.add_separator()
@@ -2164,8 +2166,11 @@ class Gui:
 
         pop.grab_release()
 
+    @logwrapper
     def empty_folder_remove_ask(self):
-        if res:=askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.main):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+        if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.main):
+            self.last_dir=res
             final_info = self.empty_dirs_removal(res,True)
 
             self.text_info_dialog.show('Removed empty directories','\n'.join(final_info))
@@ -2330,6 +2335,7 @@ class Gui:
         self.scan_dialog.widget.update()
         self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
         self_progress_dialog_on_scan.abort_button.configure(image=self.ico['cancel'],text='Cancel',compound='left')
+        self_progress_dialog_on_scan.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
 
         self.action_abort=False
         self_progress_dialog_on_scan.abort_button.configure(state='normal')
@@ -2558,6 +2564,7 @@ class Gui:
 
         #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
         self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
+        self_progress_dialog_on_scan.abort_button.pack_forget()
         self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
         self_progress_dialog_on_scan.widget.update()
         self.main.focus_set()
@@ -2572,9 +2579,6 @@ class Gui:
 
         if self.action_abort:
             self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
-            #,image=self.ico['about']
-
-        #self.scan_dialog.unlock()
 
         return True
 
@@ -2667,11 +2671,15 @@ class Gui:
     #        pass
 
     def path_to_scan_add_dialog(self):
-        if res:=askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.scan_dialog.area_main):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+        if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
+            self.last_dir=res
             self.path_to_scan_add(res)
 
     def exclude_mask_add_dir(self):
-        if res:=askdirectory(title='Select Directory',initialdir=self.cwd,parent=self.scan_dialog.area_main):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+        if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
+            self.last_dir=res
             expr = res + (".*" if self.exclude_regexp_scan.get() else "*")
             self.exclude_mask_string(expr)
 
@@ -2782,7 +2790,7 @@ class Gui:
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
-    @logwrapper
+    @catched
     def crc_node_update(self,crc):
         self_groups_tree = self.groups_tree
         self_groups_tree_delete = self_groups_tree.delete
@@ -3332,16 +3340,18 @@ class Gui:
         self_groups_tree_get_children = self.groups_tree.get_children
         self_item_full_path = self.item_full_path
 
+        path_param_abs = dude_core.name_func(os.path.normpath(os.path.abspath(path_param)).rstrip(sep))
+
         for crcitem in crc_range:
             for item in self_groups_tree_get_children(crcitem):
                 fullpath = self_item_full_path(item)
 
-                if fullpath.startswith(path_param + sep):
+                if fullpath.startswith(path_param_abs + sep):
                     action(item,self.groups_tree)
                     sel_count+=1
 
         if not sel_count :
-            self.info_dialog_on_main.show('No files found for specified path',path_param)
+            self.info_dialog_on_main.show('No files found for specified path',path_param_abs)
         else:
             self.status(f'Subdirectory action. {sel_count} File(s) Found')
             self.update_marks_folder()
@@ -3455,7 +3465,9 @@ class Gui:
         tree.focus_set()
 
     def mark_subpath(self,action,all_groups=True):
-        if path:=askdirectory(title='Select Directory',initialdir=self.cwd):
+        initialdir = self.last_dir if self.last_dir else self.cwd
+        if path:=askdirectory(title='Select Directory',initialdir=initialdir):
+            self.last_dir = path
             self.action_on_path(path,action,all_groups)
 
     def goto_next_mark_menu(self,direction,go_to_no_mark=False):
@@ -3570,7 +3582,6 @@ class Gui:
         file=self.groups_tree.set(item,'file')
         return os.path.abspath(dude_core.get_full_path_scanned(pathnr,path,file))
 
-    @logwrapper
     def file_check_state(self,item):
         fullpath = self.item_full_path(item)
         l_info('checking file:%s',fullpath)
@@ -3601,11 +3612,12 @@ class Gui:
         self_groups_tree_tag_has = self.groups_tree.tag_has
         self_sel_crc = self.sel_crc
         self_groups_tree_get_children = self.groups_tree.get_children
+        self_MARK = self.MARK
 
         for crc in self_groups_tree_get_children():
             if all_groups or crc==self_sel_crc:
                 for item in self_groups_tree_get_children(crc):
-                    if self_groups_tree_tag_has(self.MARK,item):
+                    if self_groups_tree_tag_has(self_MARK,item):
                         processed_items[crc].append(item)
 
         return self.process_files(action,processed_items,scope_title)
@@ -3619,6 +3631,8 @@ class Gui:
         self_groups_tree_tag_has = self.groups_tree.tag_has
         self_groups_tree_get_children = self.groups_tree.get_children
 
+        self_MARK = self.MARK
+
         if on_dir_action:
             scope_title='All marked files on selected directory sub-tree.'
 
@@ -3626,8 +3640,8 @@ class Gui:
             for crc in self_groups_tree_get_children():
                 for item in self_groups_tree_get_children(crc):
                     if self_item_full_path(item).startswith(sel_path_with_sep):
-                        if self_groups_tree_tag_has(self.MARK,item):
-                            processed_items[crc].append(item)
+                        if self_groups_tree_tag_has(self_MARK,item):
+                            processed_items_crc_append(item)
         else:
             scope_title='Selected Directory.'
             #self.sel_path_full
@@ -3636,7 +3650,7 @@ class Gui:
             self_folder_tree_tag_has = self.folder_tree.tag_has
 
             for item in self.current_folder_items:
-                if self_folder_tree_tag_has(self.MARK,item):
+                if self_folder_tree_tag_has(self_MARK,item):
                     crc=self_folder_tree_set(item,'crc')
                     processed_items[crc].append(item)
 
@@ -3739,17 +3753,19 @@ class Gui:
         return self.CHECK_OK
 
     @restore_status_line
+    @block_actions_processing
     @gui_block
     @logwrapper
     def process_files_check_correctness_last(self,action,processed_items,remaining_items):
         self.status('final checking selection correctness')
+        self.main.update()
 
         self_groups_tree_set = self.groups_tree.set
         self_file_check_state = self.file_check_state
 
         if action==HARDLINK:
-            for crc in processed_items:
-                if len({self_groups_tree_set(item,'dev') for item in processed_items[crc]})>1:
+            for crc,items_list in processed_items.items():
+                if len({self_groups_tree_set(item,'dev') for item in items_list})>1:
                     title='Can\'t create hardlinks.'
                     message=f"Files on multiple devices selected. Crc:{crc}"
                     l_error(title)
@@ -3819,44 +3835,49 @@ class Gui:
 
     @block_actions_processing
     @gui_block
-    @logwrapper
-    def empty_dirs_removal(self,startpath,report_empty=False):
-        l_info('empty_dirs_removal temporarily disabled')
-        return []
-
-        self.status("Removing empty directories in:'%s'" % startpath)
-
-        to_trash=self.cfg.get_bool(CFG_SEND_TO_TRASH)
-
-        self_main_update = self.main.update
-        self_main_update()
-
-        os_rmdir = os.rmdir
-
-        removed=[]
-        removed_append = removed.append
-
-        for (path, dirs, files) in os.walk(startpath, topdown=False, followlinks=False):
-            l_info('empty_dirs_removal:%s,%s,%s',path, dirs, files)
-            if not files:
-                try:
-                    self_main_update()
-                    if to_trash:
-                        dude_core.core_send2trash(path)
-                    else:
-                        os_rmdir(path)
-                    l_info('Empty removed:%s',path)
-                    removed_append(path)
-                except Exception as e:
-                    l_error('empty_dirs_removal:%s',e)
-
-        self.status('')
+    def empty_dirs_removal(self,path,report_empty=False):
+        removal_func = core.core_send2trash if self.cfg.get_bool(CFG_SEND_TO_TRASH) else os.rmdir
+        clean,removed = self.empty_dirs_removal_core(path,removal_func)
 
         if report_empty and not removed:
-            removed_append(f'No empty subdirectories in:\'{startpath}\'')
+            removed.append(f'No empty subdirectories in:\'{path}\'')
 
         return removed
 
+    def empty_dirs_removal_core(self,path,removal_func):
+        result = []
+        result_extend = result.extend
+        try:
+            with scandir(path) as res:
+                clean = True
+                os_path_abspath = os.path.abspath
+                self_empty_dirs_removal_core = self.empty_dirs_removal_core
+                for entry in res:
+                    if entry.is_symlink():
+                        clean = False
+                    elif entry.is_dir():
+                        sub_clean,sub_result = self_empty_dirs_removal_core(os_path_abspath(os.path.join(path, entry.name)),removal_func)
+                        clean = clean and sub_clean
+                        result_extend(sub_result)
+                    else:
+                        clean = False
+            if clean:
+                try:
+                    l_info('empty_dirs_removal_core %s(%s)',removal_func.__name__,path)
+                    removal_func(path)
+                    result.append(path)
+                except Exception as removal_e:
+                    l_error('empty_dirs_removal_core:%s',removal_e)
+                    clean = False
+
+            return (clean,result)
+
+        except Exception as e:
+            l_error('empty_dirs_removal:%s',e)
+            return (False,result)
+
+    @block_actions_processing
+    @gui_block
     @logwrapper
     def process_files_core(self,action,processed_items,remaining_items):
         self.status('processing files ...')
@@ -3874,22 +3895,30 @@ class Gui:
         dude_core_link_wrapper = dude_core.link_wrapper
 
         final_info=[]
+
+        crc_to_size = {crc:size for size,size_dict in dude_core.files_of_size_of_crc.items() for crc in size_dict}
+
+        counter = 0
         if action==DELETE:
             directories_to_check=set()
             directories_to_check_add = directories_to_check.add
-            for crc in processed_items:
+            for crc,items_list in processed_items.items():
                 tuples_to_delete=set()
                 tuples_to_delete_add = tuples_to_delete.add
-                size=int(self_groups_tree_set(processed_items[crc][0],'size'))
-                for item in processed_items[crc]:
+                size = crc_to_size[crc]
+                for item in items_list:
+                    counter+=1
                     index_tuple=self_get_index_tuple_groups_tree(item)
                     tuples_to_delete_add(index_tuple)
                     directories_to_check_add(dude_core_get_path(index_tuple))
+                    if counter%128==0:
+                        self.status('processing files %s ...' % counter)
 
                 if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash):
                     l_error(resmsg)
                     self.info_dialog_on_main.show('Error',resmsg)
 
+            for crc in processed_items:
                 self_crc_node_update(crc)
 
             if self.cfg.get_bool(CFG_ERASE_EMPTY_DIRS):
@@ -3905,26 +3934,38 @@ class Gui:
 
         elif action==SOFTLINK:
             do_rel_symlink = self.cfg.get_bool(CFG_KEY_REL_SYMLINKS)
-            for crc in processed_items:
+            for crc,items_list in processed_items.items():
+                counter+=1
                 to_keep_item=list(remaining_items[crc])[0]
                 #self.groups_tree.focus()
                 index_tuple_ref=self_get_index_tuple_groups_tree(to_keep_item)
                 size=int(self_groups_tree_set(to_keep_item,'size'))
 
-                if resmsg:=dude_core_link_wrapper(True, do_rel_symlink, size,crc, index_tuple_ref, [self_get_index_tuple_groups_tree(item) for item in processed_items[crc] ] ):
+                if resmsg:=dude_core_link_wrapper(True, do_rel_symlink, size,crc, index_tuple_ref, [self_get_index_tuple_groups_tree(item) for item in items_list ] ):
                     l_error(resmsg)
                     self.info_dialog_on_main.show('Error',resmsg)
+
+                if counter%128==0:
+                    self.status('processing crc groups %s ...' % counter)
+
+            for crc in processed_items:
                 self_crc_node_update(crc)
 
         elif action==HARDLINK:
-            for crc in processed_items:
-                ref_item=processed_items[crc][0]
+            for crc,items_list in processed_items.items():
+                counter+=1
+                ref_item=items_list[0]
                 index_tuple_ref=self_get_index_tuple_groups_tree(ref_item)
                 size=int(self_groups_tree_set(ref_item,'size'))
 
-                if resmsg:=dude_core_link_wrapper(False, False, size,crc, index_tuple_ref, [self_get_index_tuple_groups_tree(item) for item in processed_items[crc][1:] ] ):
+                if resmsg:=dude_core_link_wrapper(False, False, size,crc, index_tuple_ref, [self_get_index_tuple_groups_tree(item) for item in items_list[1:] ] ):
                     l_error(resmsg)
                     self.info_dialog_on_main.show('Error',resmsg)
+
+                if counter%128==0:
+                    self.status('processing crc groups %s ...' % counter)
+
+            for crc in processed_items:
                 self_crc_node_update(crc)
 
         self.data_precalc()
@@ -3958,6 +3999,8 @@ class Gui:
         #istotna kolejnosc
 
         affected_crcs=processed_items.keys()
+        #print('affected_crcs:',affected_crcs)
+
 
         self.status('checking remaining items...')
         remaining_items={}
@@ -4021,8 +4064,8 @@ class Gui:
         #############################################
 
         self_tagged_discard = self.tagged.discard
-        for crc in processed_items:
-            for item in processed_items[crc]:
+        for crc,items_list in processed_items.items():
+            for item in items_list:
                 self_tagged_discard(item)
 
         if tree==self.groups_tree:
@@ -4057,6 +4100,7 @@ class Gui:
 
         self.find_result=()
 
+    @logwrapper
     def get_closest_in_folder(self,prev_list,item,item_name,new_list):
         if item in new_list:
             return item
@@ -4088,6 +4132,7 @@ class Gui:
 
         return None
 
+    @logwrapper
     def get_closest_in_crc(self,prev_list,item,new_list):
         if item in new_list:
             return item

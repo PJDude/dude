@@ -45,6 +45,7 @@ class GenericDialog:
     def __init__(self,parent,icon,bg_color,title,pre_show=None,post_close=None,min_width=600,min_height=400):
         self.bg_color=bg_color
 
+        self.icon = icon
         self.widget = tk.Toplevel(parent,bg=self.bg_color,bd=0, relief='flat')
         self.widget.withdraw()
         self.widget.update()
@@ -56,7 +57,7 @@ class GenericDialog:
 
         self.focus=None
 
-        self.widget.iconphoto(False, icon)
+        self.widget.iconphoto(False, self.icon)
 
         self.widget.title(title)
         self.widget.bind('<Escape>', lambda event : self.hide() )
@@ -133,6 +134,12 @@ class GenericDialog:
             if commnad_res:
                 self.hide()
                 return
+
+        #windows re-show workaround
+        try:
+            self.widget.iconphoto(False, self.icon)
+        except Exception as e:
+            print(e)
 
         if wait:
             self.widget.wait_variable(self.wait_var)

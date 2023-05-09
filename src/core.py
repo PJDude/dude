@@ -43,12 +43,16 @@ import os
 from os import stat
 from os import scandir
 from os import sep
+from os import symlink
+from os import link
 
 from send2trash import send2trash
 
 core_send2trash = send2trash
 
 os_path = os.path
+os_path_dirname = os_path.dirname
+os_path_normpath = os_path.normpath
 
 K=1024
 b2str_const=100
@@ -195,7 +199,7 @@ class DudeCore:
             paths=[path + ('\\' if path[-1]==':' else '') for path in paths ]
             paths=[path.replace('/','\\').upper() for path in paths]
 
-        abspaths=[self.name_func(os_path.abspath(path)) for path in paths]
+        abspaths=[self.name_func(os_path.normpath(os_path.abspath(path))).rstrip(sep) for path in paths]
 
         for path in abspaths:
             if not os_path.exists(path) or not os_path.isdir(path):
@@ -838,13 +842,19 @@ class DudeCore:
             self.log.error(e)
             return 'Rename error:' + str(e)
 
-    def delete_file(self,file_name,to_trash=False):
-        self.log.info('deleting file:%s to_trash:%s',file_name,to_trash)
+    def delete_file(self,file_name,l_info):
+        l_info('deleting file:%s',file_name)
         try:
-            if to_trash:
-                send2trash(file_name)
-            else:
-                os.remove(file_name)
+            os.remove(file_name)
+            return False
+        except Exception as e:
+            self.log.error(e)
+            return 'Delete error:' + str(e)
+
+    def delete_file_to_trash(self,file_name,l_info):
+        l_info('deleting file to trash:%s',file_name)
+        try:
+            send2trash(file_name)
             return False
         except Exception as e:
             self.log.error(e)
@@ -854,11 +864,11 @@ class DudeCore:
         self.log.info('soft-linking %s<-%s (relative:%s)',src,dest,relative)
         try:
             if relative:
-                dest_dir = os_path.dirname(dest)
+                dest_dir = os_path_dirname(dest)
                 src_rel = os_path.relpath(src, dest_dir)
-                os.symlink(src_rel,dest)
+                symlink(os_path_normpath(src_rel),os_path_normpath(dest))
             else:
-                os.symlink(src,dest)
+                symlink(src,dest)
             return False
         except Exception as e:
             self.log.error(e)
@@ -867,16 +877,18 @@ class DudeCore:
     def do_hard_link(self,src,dest):
         self.log.info('hard-linking %s<-%s',src,dest)
         try:
-            os.link(src,dest)
+            link(os_path_normpath(src),os_path_normpath(dest))
             return False
         except Exception as e:
             self.log.error(e)
             return 'Error on hard linking:' + str(e)
 
     def remove_from_data_pool(self,size,crc,index_tuple_list):
+        self_log_debug = self.log.debug
+        self_files_of_size_of_crc = self.files_of_size_of_crc
         for index_tuple in index_tuple_list:
-            self.log.debug('remove_from_data_pool:%s,%s,%s',size,crc,index_tuple)
-            self.files_of_size_of_crc[size][crc].remove(index_tuple)
+            self_log_debug('remove_from_data_pool:%s,%s,%s',size,crc,index_tuple)
+            self_files_of_size_of_crc[size][crc].remove(index_tuple)
 
         self.check_crc_pool_and_prune(size)
 
@@ -884,23 +896,36 @@ class DudeCore:
         (pathnr,path,file_name,ctime,dev,inode)=index_tuple
         return self.scanned_paths[pathnr]+path
 
-    def delete_file_wrapper(self,size,crc,index_tuple_list,to_trash=False):
-        messages=[]
+    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash=False):
+        messages=set()
+        messages_add = messages.add
+
         index_tuples_list_done=[]
-        for index_tuple in index_tuple_list:
-            self.log.debug("delete_file_wrapper:%s,%s,%s",size,crc,index_tuple)
+        l_info = self.log.info
+        self_get_full_path_scanned = self.get_full_path_scanned
+        self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
 
+        self_delete_file_to_trash = self.delete_file_to_trash
+        self_delete_file = self.delete_file
+
+        index_tuples_list_done_append = index_tuples_list_done.append
+
+        for index_tuple in index_tuple_set:
             (pathnr,path,file_name,ctime,dev,inode)=index_tuple
-            full_file_path=self.get_full_path_scanned(pathnr,path,file_name)
+            full_file_path=self_get_full_path_scanned(pathnr,path,file_name)
 
-            if index_tuple in self.files_of_size_of_crc[size][crc]:
-                if message:=self.delete_file(full_file_path,to_trash):
-                    #self.info('Error',message,self.main)
-                    messages.append(message)
+            if index_tuple in self_files_of_size_of_crc_size_crc:
+                if to_trash:
+                    message=self_delete_file_to_trash(full_file_path,l_info)
                 else:
-                    index_tuples_list_done.append(index_tuple)
+                    message=self_delete_file(full_file_path,l_info)
+
+                if message:
+                    messages_add(message)
+                else:
+                    index_tuples_list_done_append(index_tuple)
             else:
-                messages.append('delete_file_wrapper - Internal Data Inconsistency:' + full_file_path + ' / ' + str(index_tuple))
+                messages_add('delete_file_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path,str(index_tuple)) )
 
         self.remove_from_data_pool(size,crc,index_tuples_list_done)
 
@@ -914,38 +939,46 @@ class DudeCore:
 
         (path_nr_keep,path_keep,file_keep,ctime_keep,dev_keep,inode_keep)=index_tuple_ref
 
-        full_file_path_keep=self.get_full_path_scanned(path_nr_keep,path_keep,file_keep)
+        self_get_full_path_scanned = self.get_full_path_scanned
+        self_files_of_size_of_crc = self.files_of_size_of_crc
+        self_do_soft_link = self.do_soft_link
+        self_do_hard_link = self.do_hard_link
+        self_rename_file = self.rename_file
+        self_delete_file = self.delete_file
+        self.log.info
 
-        if index_tuple_ref not in self.files_of_size_of_crc[size][crc]:
+        full_file_path_keep=self_get_full_path_scanned(path_nr_keep,path_keep,file_keep)
+
+        if index_tuple_ref not in self_files_of_size_of_crc[size][crc]:
             return 'link_wrapper - Internal Data Inconsistency:' + full_file_path_keep + ' / ' + str(index_tuple_ref)
 
         for index_tuple in index_tuple_list:
             (pathnr,path,file_name,ctime,dev,inode)=index_tuple
-            full_file_path=self.get_full_path_scanned(pathnr,path,file_name)
+            full_file_path=self_get_full_path_scanned(pathnr,path,file_name)
 
-            if index_tuple not in self.files_of_size_of_crc[size][crc]:
+            if index_tuple not in self_files_of_size_of_crc[size][crc]:
                 return 'link_wrapper - Internal Data Inconsistency:' + full_file_path + ' / ' + str(index_tuple)
 
-            temp_file=full_file_path+'.temp'
+            temp_file='%s.temp' % full_file_path
 
-            if not self.rename_file(full_file_path,temp_file):
+            if not self_rename_file(full_file_path,temp_file):
                 if soft:
-                    any_problem=self.do_soft_link(full_file_path_keep,full_file_path,relative)
+                    any_problem=self_do_soft_link(full_file_path_keep,full_file_path,relative)
                 else:
-                    any_problem=self.do_hard_link(full_file_path_keep,full_file_path)
+                    any_problem=self_do_hard_link(full_file_path_keep,full_file_path)
 
                 if any_problem:
-                    self.rename_file(temp_file,full_file_path)
+                    self_rename_file(temp_file,full_file_path)
                     return any_problem
 
-                if message:=self.delete_file(temp_file):
+                if message:=self_delete_file(temp_file,self.log.info):
                     self.log.error(message)
                     #self.info('Error',message,self.main)
                 #self.remove_from_data_pool(size,crc,index_tuple)
-                self.files_of_size_of_crc[size][crc].remove(index_tuple)
+                self_files_of_size_of_crc[size][crc].remove(index_tuple)
         if not soft:
             #self.remove_from_data_pool(size,crc,index_tuple_ref)
-            self.files_of_size_of_crc[size][crc].remove(index_tuple_ref)
+            self_files_of_size_of_crc[size][crc].remove(index_tuple_ref)
 
         self.check_crc_pool_and_prune(size)
 
