@@ -61,8 +61,6 @@ from threading import Thread
 import sys
 import logging
 
-from send2trash import send2trash
-
 import core
 import console
 import dialogs
@@ -2674,13 +2672,13 @@ class Gui:
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
             self.last_dir=res
-            self.path_to_scan_add(res)
+            self.path_to_scan_add(os.path.normpath(os.path.abspath(res)))
 
     def exclude_mask_add_dir(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
             self.last_dir=res
-            expr = res + (".*" if self.exclude_regexp_scan.get() else "*")
+            expr = os.path.normpath(os.path.abspath(res)) + (".*" if self.exclude_regexp_scan.get() else "*")
             self.exclude_mask_string(expr)
 
     def exclude_mask_add_dialog(self):
@@ -2858,6 +2856,7 @@ class Gui:
         self.path_stat_list_quant=tuple(sorted([(pathnr,path,number) for (pathnr,path),number in path_stat_quant.items()],key=lambda x : x[2],reverse=True))
         self.groups_combos_size = tuple(sorted([(crcitem,sum([int(self_groups_tree_set(item,'size')) for item in self_groups_tree_get_children(crcitem)])) for crcitem in self_groups_tree_get_children()],key = lambda x : x[1],reverse = True))
         self.groups_combos_quant = tuple(sorted([(crcitem,len(self_groups_tree_get_children(crcitem))) for crcitem in self_groups_tree_get_children()],key = lambda x : x[1],reverse = True))
+        self.status('')
 
     def initial_focus(self):
         if self.groups_tree.get_children():
@@ -3641,7 +3640,7 @@ class Gui:
                 for item in self_groups_tree_get_children(crc):
                     if self_item_full_path(item).startswith(sel_path_with_sep):
                         if self_groups_tree_tag_has(self_MARK,item):
-                            processed_items_crc_append(item)
+                            processed_items[crc].append(item)
         else:
             scope_title='Selected Directory.'
             #self.sel_path_full
@@ -3794,16 +3793,13 @@ class Gui:
         message=[]
         message_append = message.append
 
-        if not cfg_show_crc_size:
-            message_append('')
-
         self_groups_tree_set = self.groups_tree.set
         self_item_full_path = self.item_full_path
 
         for crc in processed_items:
+            message_append('')
             if cfg_show_crc_size:
                 size=int(self_groups_tree_set(crc,'size'))
-                message_append('')
                 message_append('CRC:' + crc + ' size:' + core_bytes_to_str(size) + '|GRAY')
 
             for item in processed_items[crc]:
@@ -3915,8 +3911,9 @@ class Gui:
                         self.status('processing files %s ...' % counter)
 
                 if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash):
-                    l_error(resmsg)
-                    self.info_dialog_on_main.show('Error',resmsg)
+                    resmsg_str='\n'.join(resmsg)
+                    l_error(resmsg_str)
+                    self.info_dialog_on_main.show('Error',resmsg_str)
 
             for crc in processed_items:
                 self_crc_node_update(crc)
