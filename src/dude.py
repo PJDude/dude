@@ -197,7 +197,7 @@ class Gui:
     MAX_PATHS=8
 
     sel_path_full=''
-    folder_items_cache={}
+    #folder_items_cache={}
     tagged=set()
 
     actions_processing=False
@@ -624,8 +624,8 @@ class Gui:
         self.biggest_files_order=tk.BooleanVar()
         self.biggest_files_order.set(biggest_files_order)
 
-        self.log_skipped=tk.BooleanVar()
-        self.log_skipped.set(False)
+        self.log_skipped_var=tk.BooleanVar()
+        self.log_skipped_var.set(False)
 
         self.scan_dialog.area_main.grid_columnconfigure(0, weight=1)
         self.scan_dialog.area_main.grid_rowconfigure(0, weight=1)
@@ -700,7 +700,7 @@ class Gui:
         self.exclude_frame.grid_rowconfigure(99, weight=1)
         ##############
 
-        skip_button = ttk.Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped)
+        skip_button = ttk.Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped_var)
         skip_button.grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
         skip_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
@@ -1707,8 +1707,8 @@ class Gui:
                             self.mark_in_folder(self.unset_mark)
                     elif key in ('r','R'):
                         if tree==self.folder_tree:
-                            dude_core.scan_dir_cache_clear()
-                            self.folder_items_cache_clear()
+                            #dude_core.scan_dir_cache_clear()
+                            #self.folder_items_cache_clear()
 
                             self.tree_folder_update()
                             self.tree_semi_focus(self.folder_tree)
@@ -2190,8 +2190,8 @@ class Gui:
         is_numeric=self.REAL_SORT_COLUMN_IS_NUMERIC[colname]
         self.column_sort_last_params[tree]=(colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code)
 
-        if tree == self.folder_tree:
-            self.folder_items_cache={}
+        #if tree == self.folder_tree:
+        #    self.folder_items_cache={}
 
         self.column_sort(tree)
 
@@ -2254,7 +2254,6 @@ class Gui:
         tree.heading(colname, text=self.org_label[colname] + ' ' + str('\u25BC' if reverse else '\u25B2') )
 
     def path_to_scan_add(self,path):
-        path = dude_core.name_func(path)
         if len(self.paths_to_scan_from_dialog)<10:
             self.paths_to_scan_from_dialog.append(path)
             self.paths_to_scan_update()
@@ -2293,7 +2292,7 @@ class Gui:
         self.status_path.configure(text='')
         self.groups_show()
 
-        paths_to_scan_from_entry = [dude_core.name_func(var.get()) for var in self.paths_to_scan_entry_var.values()]
+        paths_to_scan_from_entry = [var.get() for var in self.paths_to_scan_entry_var.values()]
         exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
 
         if res:=dude_core.set_exclude_masks(self.cfg.get_bool(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
@@ -2309,8 +2308,8 @@ class Gui:
             self.info_dialog_on_scan.show('Error. Fix paths selection.',res)
             return False
 
-        dude_core.scan_dir_cache_clear()
-        self.folder_items_cache_clear()
+        #dude_core.scan_dir_cache_clear()
+        #self.folder_items_cache_clear()
 
         dude_core.scan_update_info_path_nr=self.scan_update_info_path_nr
 
@@ -2373,7 +2372,8 @@ class Gui:
         wait_var=tk.BooleanVar()
         wait_var.set(False)
 
-        dude_core.log_skipped = self.log_skipped.get()
+        dude_core.log_skipped = self.log_skipped_var.get()
+        self.log_skipped = self.log_skipped_var.get()
 
         self_progress_dialog_on_scan_lab[2].configure(image='',text='')
 
@@ -2724,7 +2724,7 @@ class Gui:
             self.cfg.set_bool(CFG_KEY_FULL_CRC,self.show_full_crc.get())
             update1=True
             update2=True
-            self.folder_items_cache={}
+            #self.folder_items_cache={}
 
         if self.cfg.get_bool(CFG_KEY_FULL_PATHS)!=self.show_full_paths.get():
             self.cfg.set_bool(CFG_KEY_FULL_PATHS,self.show_full_paths.get())
@@ -3020,8 +3020,8 @@ class Gui:
     current_folder_items=[]
     current_folder_items_set=set()
 
-    def folder_items_cache_clear(self):
-        self.folder_items_cache={}
+    #def folder_items_cache_clear(self):
+    #    self.folder_items_cache={}
 
     @block_actions_processing
     def tree_folder_update(self,arbitrary_path=None):
@@ -3033,151 +3033,161 @@ class Gui:
         if not current_path:
             return False
 
-        scan_dir_tuple=dude_core.set_scan_dir_gui_call(current_path)
-        dir_ctime = scan_dir_tuple[0]
-        scan_dir_res = scan_dir_tuple[1]
+        #scan_dir_tuple=dude_core.set_scan_dir_gui_call(current_path)
+        scan_dir_tuple=dude_core.set_scan_dir(current_path,self_log_skipped = False,self_log_error=l_error)
+        #dir_ctime = scan_dir_tuple[0]
+        scan_dir_res = scan_dir_tuple[0]
+
+        #print(scan_dir_tuple)
 
         #scan_dir_res can be just empty without error
-        if len(scan_dir_tuple)>2:
-            self.status(scan_dir_tuple[2])
+        #if len(scan_dir_tuple)>1:
+        if scan_dir_tuple[1]:
+            self.status(scan_dir_tuple[1])
             return False
 
-        self_folder_items_cache=self.folder_items_cache
+        #self_folder_items_cache=self.folder_items_cache
 
-        do_refresh=True
-        if current_path in self_folder_items_cache:
-            if dir_ctime==self_folder_items_cache[current_path][0]:
-                do_refresh=False
+        #do_refresh=True
+        #if not arbitrary_path:
+        #    if current_path in self_folder_items_cache:
+        #        if dir_ctime==self_folder_items_cache[current_path][0]:
+        #            do_refresh=False
 
-        if do_refresh :
-            folder_items_dict={}
+        #l_info("do_refresh:%s",do_refresh)
 
-            show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
+        #if do_refresh :
+        folder_items_dict={}
 
-            col_sort,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[ftree]
-            sort_index_local=sort_index-1
+        show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
 
-            i=0
-            sort_val_func = int if is_numeric else lambda x : x
+        col_sort,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[ftree]
+        sort_index_local=sort_index-1
 
-            keys=set()
+        i=0
+        sort_val_func = int if is_numeric else lambda x : x
 
-            keys_add = keys.add
+        keys=set()
 
-            self_idfunc=self.idfunc
+        keys_add = keys.add
 
-            self_id2crc=self.id2crc
-            dude_core_crc_cut_len=dude_core.crc_cut_len
-            dude_core_files_of_size_of_crc=dude_core.files_of_size_of_crc
+        self_idfunc=self.idfunc
 
-            DE_NANO_LOC = DE_NANO
+        self_id2crc=self.id2crc
+        dude_core_crc_cut_len=dude_core.crc_cut_len
+        dude_core_files_of_size_of_crc=dude_core.files_of_size_of_crc
 
-            self_ico = self.ico
+        DE_NANO_LOC = DE_NANO
 
-            NONE_ICON=''
-            FOLDER_ICON=self_ico['folder']
-            HARDLINK_ICON=self_ico['hardlink']
-            FILE_SOFT_LINK_ICON=self_ico['softlink']
-            DIR_SOFT_LINK_ICON=self_ico['softlink_dir']
+        self_ico = self.ico
 
-            self_DIRLINK = self.DIRLINK
-            self_LINK = self.LINK
-            self_DIR = self.DIR
-            self_SINGLE = self.SINGLE
-            self_SINGLEHARDLINKED = self.SINGLEHARDLINKED
+        NONE_ICON=''
+        FOLDER_ICON=self_ico['folder']
+        HARDLINK_ICON=self_ico['hardlink']
+        FILE_SOFT_LINK_ICON=self_ico['softlink']
+        DIR_SOFT_LINK_ICON=self_ico['softlink_dir']
 
-            local_core_bytes_to_str = core_bytes_to_str
+        self_DIRLINK = self.DIRLINK
+        self_LINK = self.LINK
+        self_DIR = self.DIR
+        self_SINGLE = self.SINGLE
+        self_SINGLEHARDLINKED = self.SINGLEHARDLINKED
 
-            ctime_h_temp_cache={}
-            for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
-                if islink :
-                    presort_id = dir_code if isdir else non_dir_code
-                    text = ''
-                    icon = DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON
-                    iid=('%sDL' % i) if isdir else ('%sFL' % i)
-                    kind= self_DIRLINK if isdir else self_LINK
-                    defaulttag = self_DIR if isdir else self_LINK
-                    crc=''
-                    size='0'
-                    size_h=''
-                    ctime_str='0'
-                    ctime_h=''
-                    instances='1'
-                    instances_h=''
-                    i+=1
-                elif isdir:
-                    presort_id = dir_code
-                    text = ''
-                    icon = FOLDER_ICON
-                    iid='%sD' % i
-                    kind= self_DIR
-                    defaulttag = self_DIR
-                    crc=''
-                    size='0'
-                    size_h=''
-                    ctime_str='0'
-                    ctime_h=''
-                    instances='1'
-                    instances_h=''
-                    i+=1
-                elif isfile:
-                    presort_id = non_dir_code
-                    file_id=self_idfunc(inode,dev)
+        local_core_bytes_to_str = core_bytes_to_str
 
-                    ctime_str=str(ctime)
+        ctime_h_temp_cache={}
+        for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
+            if islink :
+                presort_id = dir_code if isdir else non_dir_code
+                text = ''
+                icon = DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON
+                iid=('%sDL' % i) if isdir else ('%sFL' % i)
+                kind= self_DIRLINK if isdir else self_LINK
+                defaulttag = self_DIR if isdir else self_LINK
+                crc=''
+                size='0'
+                size_h=''
+                ctime_str='0'
+                ctime_h=''
+                instances='1'
+                instances_h=''
+                i+=1
+            elif isdir:
+                presort_id = dir_code
+                text = ''
+                icon = FOLDER_ICON
+                iid='%sD' % i
+                kind= self_DIR
+                defaulttag = self_DIR
+                crc=''
+                size='0'
+                size_h=''
+                ctime_str='0'
+                ctime_h=''
+                instances='1'
+                instances_h=''
+                i+=1
+            elif isfile:
+                presort_id = non_dir_code
+                file_id=self_idfunc(inode,dev)
 
-                    try:
-                        ctime_h = ctime_h_temp_cache[ctime]
-                    except:
-                        ctime_h = ctime_h_temp_cache[ctime] = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
+                ctime_str=str(ctime)
 
-                    size=str(size_num)
-                    size_h=local_core_bytes_to_str(size_num)
+                try:
+                    ctime_h = ctime_h_temp_cache[ctime]
+                except:
+                    ctime_h = ctime_h_temp_cache[ctime] = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
 
-                    item_rocognized=True
-                    if file_id in self_id2crc:
-                        crc,core_ctime=self_id2crc[file_id]
+                size=str(size_num)
+                size_h=local_core_bytes_to_str(size_num)
 
-                        if ctime != core_ctime:
-                            item_rocognized=False
-                        else:
-                            text = crc if show_full_crc else crc[:dude_core_crc_cut_len]
+                item_rocognized=True
+                if file_id in self_id2crc:
+                    crc,core_ctime=self_id2crc[file_id]
 
-                            icon = NONE_ICON
-                            iid=file_id
-                            kind=self.FILE
-                            instances_num = len(dude_core_files_of_size_of_crc[size_num][crc])
-                            instances_h=instances=str(instances_num)
-                            defaulttag=''
-                    else:
+                    if ctime != core_ctime:
                         item_rocognized=False
+                    else:
+                        text = crc if show_full_crc else crc[:dude_core_crc_cut_len]
 
-                    if not item_rocognized:
-                        #files without permissions -> nlink==0
-                        text = '(%s)' % nlink if nlink>1 else ''
-                        icon = HARDLINK_ICON if nlink>1 else NONE_ICON
-                        iid='%sO' % i
-                        crc=''
-                        kind = self_SINGLEHARDLINKED if nlink>1 else self_SINGLE
-                        defaulttag = self_SINGLE
-
-                        instances='1'
-                        instances_h=''
-                        i+=1
+                        icon = NONE_ICON
+                        iid=file_id
+                        kind=self.FILE
+                        instances_num = len(dude_core_files_of_size_of_crc[size_num][crc])
+                        instances_h=instances=str(instances_num)
+                        defaulttag=''
                 else:
-                    l_error('what is it: %s:%s,%s,%s,%s ?',current_path,file,islink,isdir,isfile)
-                    continue
+                    item_rocognized=False
 
-                values = (file,str(dev),str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
+                if not item_rocognized:
+                    #files without permissions -> nlink==0
+                    text = '(%s)' % nlink if nlink>1 else ''
+                    icon = HARDLINK_ICON if nlink>1 else NONE_ICON
+                    iid='%sO' % i
+                    crc=''
+                    kind = self_SINGLEHARDLINKED if nlink>1 else self_SINGLE
+                    defaulttag = self_SINGLE
 
-                keys_add((presort_id,sort_val_func(values[sort_index_local]),iid))
+                    instances='1'
+                    instances_h=''
+                    i+=1
+            else:
+                l_error('what is it: %s:%s,%s,%s,%s ?',current_path,file,islink,isdir,isfile)
+                continue
 
-                folder_items_dict[iid] = (text,values,defaulttag,icon)
+            values = (file,str(dev),str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
 
-            ############################################################
-            #KIND_INDEX==3
-            self_folder_items_cache[current_path]= dir_ctime, [ (iid,bool(folder_items_dict[iid][1][3]==self.FILE),*folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) ]
-            del keys
+            keys_add((presort_id,sort_val_func(values[sort_index_local]),iid))
+
+            folder_items_dict[iid] = (text,values,defaulttag,icon)
+
+        ############################################################
+
+        #KIND_INDEX==3
+        dir_ctime=None
+        #self_folder_items_cache[current_path]= dir_ctime, [ (iid,bool(folder_items_dict[iid][1][3]==self.FILE),*folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) ]
+        folder_items= ( (iid,bool(folder_items_dict[iid][1][3]==self.FILE),*folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) )
+        del keys
 
         if arbitrary_path:
             #TODO - workaround
@@ -3199,12 +3209,13 @@ class Gui:
 
         self_MARK = self.MARK
         try:
-            self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self_MARK if filekind and (iid in self_tagged) else defaulttag,image=image) for (iid,filekind,text,values,defaulttag,image) in self_folder_items_cache[current_path][1]]
+            #self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self_MARK if filekind and (iid in self_tagged) else defaulttag,image=image) for (iid,filekind,text,values,defaulttag,image) in folder_items]
+            self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self_MARK if filekind and (iid in self_tagged) else defaulttag,image=image) for (iid,filekind,text,values,defaulttag,image) in folder_items]
 
         except Exception as e:
             self.status(str(e))
             l_error(e)
-            self_folder_items_cache={}
+            #self_folder_items_cache={}
 
         self.current_folder_items_set=set(self.current_folder_items)
         if not arbitrary_path:
@@ -3339,11 +3350,12 @@ class Gui:
         self_groups_tree_get_children = self.groups_tree.get_children
         self_item_full_path = self.item_full_path
 
+        dude_core_name_func = dude_core.name_func
         path_param_abs = dude_core.name_func(os.path.normpath(os.path.abspath(path_param)).rstrip(sep))
 
         for crcitem in crc_range:
             for item in self_groups_tree_get_children(crcitem):
-                fullpath = self_item_full_path(item)
+                fullpath = dude_core_name_func(self_item_full_path(item))
 
                 if fullpath.startswith(path_param_abs + sep):
                     action(item,self.groups_tree)
@@ -3583,7 +3595,7 @@ class Gui:
 
     def file_check_state(self,item):
         fullpath = self.item_full_path(item)
-        l_info('checking file:%s',fullpath)
+        l_info('checking file: %s',fullpath)
         try:
             stat_res = stat(fullpath)
             ctime_check=str(stat_res.st_ctime_ns)
@@ -3635,7 +3647,7 @@ class Gui:
         if on_dir_action:
             scope_title='All marked files on selected directory sub-tree.'
 
-            sel_path_with_sep=self.sel_full_path_to_file + sep
+            sel_path_with_sep=self.sel_full_path_to_file.rstrip(sep) + sep
             for crc in self_groups_tree_get_children():
                 for item in self_groups_tree_get_children(crc):
                     if self_item_full_path(item).startswith(sel_path_with_sep):
@@ -3679,7 +3691,8 @@ class Gui:
             (checkres,tuples_to_remove)=dude_core_check_group_files_state(size,crc)
 
             if checkres:
-                self.info_dialog_on_main.show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
+                self.text_info_dialog.show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
+
                 orglist=self_groups_tree_get_children()
 
                 dude_core.remove_from_data_pool(int(size),crc,tuples_to_remove)
@@ -3700,6 +3713,8 @@ class Gui:
                     self.initial_focus()
 
                 self.calc_mark_stats_groups()
+
+                return self.CHECK_ERR
 
         self.status('checking selection correctness...')
 
@@ -3774,7 +3789,7 @@ class Gui:
         for crc in processed_items:
             for item in remaining_items[crc]:
                 if res:=self_file_check_state(item):
-                    self.info_dialog_on_main.show('Error',res+'\n\nNo action was taken.\n\nAborting. Repeat scanning please or unmark all files and groups affected by other programs.')
+                    self.info_dialog_on_main.show('Error',res+'\n\nNo action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.')
                     l_error('aborting.')
                     return self.CHECK_ERR
 
@@ -3833,26 +3848,29 @@ class Gui:
     @gui_block
     def empty_dirs_removal(self,path,report_empty=False):
         removal_func = core.core_send2trash if self.cfg.get_bool(CFG_SEND_TO_TRASH) else os.rmdir
-        clean,removed = self.empty_dirs_removal_core(path,removal_func)
+        os_path_abspath = os.path.abspath
+        os_path_join = os.path.join
+
+        clean,removed = self.empty_dirs_removal_core(path,removal_func,os_path_abspath,os_path_join)
 
         if report_empty and not removed:
             removed.append(f'No empty subdirectories in:\'{path}\'')
 
         return removed
 
-    def empty_dirs_removal_core(self,path,removal_func):
+    def empty_dirs_removal_core(self,path,removal_func,os_path_abspath,os_path_join):
         result = []
         result_extend = result.extend
+        result_append = result.append
         try:
             with scandir(path) as res:
                 clean = True
-                os_path_abspath = os.path.abspath
                 self_empty_dirs_removal_core = self.empty_dirs_removal_core
                 for entry in res:
                     if entry.is_symlink():
                         clean = False
                     elif entry.is_dir():
-                        sub_clean,sub_result = self_empty_dirs_removal_core(os_path_abspath(os.path.join(path, entry.name)),removal_func)
+                        sub_clean,sub_result = self_empty_dirs_removal_core(os_path_abspath(os_path_join(path, entry.name)),removal_func,os_path_abspath,os_path_join)
                         clean = clean and sub_clean
                         result_extend(sub_result)
                     else:
@@ -3861,7 +3879,7 @@ class Gui:
                 try:
                     l_info('empty_dirs_removal_core %s(%s)',removal_func.__name__,path)
                     removal_func(path)
-                    result.append(path)
+                    result_append(path)
                 except Exception as removal_e:
                     l_error('empty_dirs_removal_core:%s',removal_e)
                     clean = False
@@ -3987,7 +4005,7 @@ class Gui:
             return
 
         l_info('process_files: %s',action)
-        l_info('Scope %s',scope_title)
+        l_info('Scope: %s',scope_title)
 
         #############################################
         #check remainings
@@ -4011,6 +4029,7 @@ class Gui:
         check=self.process_files_check_correctness(action,processed_items,remaining_items)
 
         if check == self.CHECK_ERR:
+            self.status('action aborted')
             return
 
         if check!=self.CHECK_OK:
@@ -4031,6 +4050,7 @@ class Gui:
         #after confirmation
         check=self.process_files_check_correctness_last(action,processed_items,remaining_items)
         if check == self.CHECK_ERR:
+            self.status('action aborted')
             return
 
         if check!=self.CHECK_OK:
@@ -4039,12 +4059,16 @@ class Gui:
 
         #############################################
         #action
+        l_info('tree: %s',tree)
 
         if tree==self.groups_tree:
             item_to_select = self.sel_crc
 
             while True:
-                item_to_select = tree.next(item_to_select)
+                try:
+                    item_to_select = tree.next(item_to_select)
+                except :
+                    item_to_select = None
 
                 if not item_to_select:
                     break
@@ -4052,9 +4076,12 @@ class Gui:
                 if item_to_select not in affected_crcs:
                     break
         else:
-            org_sel_item=self.sel_item
             orglist=self.current_folder_items
-            org_sel_file=self.folder_tree.set(org_sel_item,'file')
+            org_sel_item=self.sel_item
+            try:
+                org_sel_file=self.folder_tree.set(org_sel_item,'file')
+            except :
+                org_sel_file=None
 
         #############################################
         self.process_files_core(action,processed_items,remaining_items)
@@ -4065,9 +4092,13 @@ class Gui:
             for item in items_list:
                 self_tagged_discard(item)
 
+        l_info('post-update %s',tree)
+
         if tree==self.groups_tree:
             if tree.exists(self.sel_crc):
                 item_to_select=self.sel_crc
+
+            l_info('updating groups : %s',item_to_select)
 
             if item_to_select:
                 tree.selection_set(item_to_select)
@@ -4077,23 +4108,30 @@ class Gui:
                 self.initial_focus()
         else:
             parent = self.get_this_or_existing_parent(self.sel_path_full)
+            l_info('updating folder %s:',parent)
 
             if self.tree_folder_update(parent):
                 newlist=self.current_folder_items
 
-                item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_file,newlist)
-
-                self.tree_semi_focus(self.folder_tree)
+                try:
+                    item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_file,newlist)
+                except :
+                    item_to_sel = None
 
                 if item_to_sel:
-                    self.folder_tree.focus(item_to_sel)
-                    self.folder_tree_sel_change(item_to_sel)
-                    self.folder_tree.see(item_to_sel)
-                    self.folder_tree.update()
+                    try:
+                        self.folder_tree.focus(item_to_sel)
+                        self.folder_tree_sel_change(item_to_sel)
+                        self.folder_tree.see(item_to_sel)
+                        self.folder_tree.update()
+
+                        self.tree_semi_focus(self.folder_tree)
+                    except :
+                        self.initial_focus()
 
         self.calc_mark_stats_groups()
 
-        self.folder_items_cache={}
+        #self.folder_items_cache={}
 
         self.find_result=()
 
@@ -4406,7 +4444,7 @@ if __name__ == "__main__":
         except Exception as exception_1:
             l_error(exception_1)
         else:
-            l_info('distro info:\n%s' % distro_info)
+            l_info('distro info:\n%s',distro_info)
 
         dude_core = core.DudeCore(CACHE_DIR,logging,DEBUG_MODE)
 

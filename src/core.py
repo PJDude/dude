@@ -193,36 +193,51 @@ class DudeCore:
         paths_len=len(paths)
 
         if self.windows:
-            paths=[path + ('\\' if path[-1]==':' else '') for path in paths ]
-            paths=[path.replace('/','\\').lower() for path in paths]
+            paths=[path.replace('/',chr(92)) + (chr(92) if path[-1]==':' else '') for path in paths ]
 
-        abspaths=[self.name_func(os_path_normpath(os_path.abspath(path))) for path in paths]
+        abspaths=[os_path_normpath(os_path.abspath(path)) for path in paths]
 
         for path in abspaths:
             if not os_path.exists(path) or not os_path.isdir(path):
                 return  path + '\n\nnot a directory'
 
-        apaths=list(zip(abspaths,paths))
+        abspaths_osnorm=[self.name_func(path) for path in abspaths]
+
+        #print('abspaths_osnorm:',abspaths_osnorm)
+        apaths=list(zip(paths,abspaths_osnorm))
+        #print('apaths:',apaths)
 
         for p_index1 in range(paths_len):
             for p_index2 in range(paths_len):
                 if p_index1!=p_index2:
-                    path1,orgpath1=apaths[p_index1]
-                    path2,orgpath2=apaths[p_index2]
-                    if path2==path1:
+                    orgpath1,osnorm_path1=apaths[p_index1]
+                    orgpath2,osnorm_path2=apaths[p_index2]
+                    if osnorm_path2==osnorm_path1:
                         return  orgpath2 + '\n\nis equal to:\n\n' +  orgpath1 + '\n'
 
-                    all_match=True
-                    for p1_elem,p2_elem in zip(path2.split(sep),path1.split(sep)):
-                        if p1_elem and p2_elem:
-                            if p1_elem!=p2_elem:
-                                all_match=False
-                                break
-                        else:
-                            break
+                    #print('osnorm_path:',osnorm_path1,osnorm_path2)
+                    #split1 = osnorm_path1.split(sep)
+                    #split2 = osnorm_path2.split(sep)
 
-                    if all_match:
+                    #print('split1:',split1)
+                    #print('split2:',split2)
+
+                    if osnorm_path1.startswith(osnorm_path2.rstrip(sep) + sep):
                         return  'subpaths selected:\n\n' +  orgpath1 + '\n' + orgpath2
+
+                    #if len(split1)==len(split2):
+                    #    all_match=True
+                    #    for p1_elem,p2_elem in zip(split1,split2):
+                    #        print('comp',p1_elem,p2_elem)
+                    #        if p1_elem and p2_elem:
+                    #            if p1_elem!=p2_elem:
+                    #                all_match=False
+                    #                break
+                    #        else:
+                    #            break
+
+                    #    if all_match:
+                    #        return  'subpaths selected:\n\n' +  orgpath1 + '\n' + orgpath2
 
         self.paths_to_scan=abspaths
         return False
@@ -256,23 +271,76 @@ class DudeCore:
     info_counter=0
     info_size_sum=0
 
-    scan_dir_cache={}
+    #scan_dir_cache={}
 
-    def scan_dir_cache_clear(self):
-        self.scan_dir_cache={}
+    #def scan_dir_cache_clear(self):
+    #    self.scan_dir_cache={}
 
-    def set_scan_dir_gui_call(self,path):
-        return self.set_scan_dir(path,path_ctime=None,self_scan_dir_cache=self.scan_dir_cache,self_log_skipped = self.log_skipped,self_log_error=self.log.error,self_name_func=self.name_func)
+    #def set_scan_dir_gui_call(self,path):
+    #    return self.set_scan_dir(path,path_ctime_par=None,self_scan_dir_cache=self.scan_dir_cache,self_log_skipped = self.log_skipped,self_log_error=self.log.error)
 
-    def set_scan_dir(self,path,path_ctime,self_scan_dir_cache,self_log_skipped,self_log_error,self_name_func):
-        if not path_ctime:
+    #def set_scan_dir_gui_call(self,path):
+    #    return self.set_scan_dir(path,self_log_skipped = self.log_skipped,self_log_error=self.log.error)
+
+    def set_scan_dir(self,path,self_log_skipped,self_log_error):
+        #if path_ctime_par:
+        #    path_ctime = path_ctime_par
+        #else:
+        #    try:
+        #        path_ctime=stat(path).st_ctime_ns
+        #    except Exception as e:
+        #        self.log.error('st_ctime ERROR:%s',e)
+        #        return (0,tuple([]),str(e))
+
+        try:
+            path_ctime=stat(path).st_ctime_ns
+        except Exception as e:
+            self_log_error('st_ctime ERROR:%s',e)
+            return (tuple([]),str(e))
+
+        try:
+            with scandir(path) as res:
+                entry_set=set()
+                entry_set_add=entry_set.add
+
+                for entry in res:
+                    is_link=entry.is_symlink()
+
+                    if is_link:
+                        entry_set_add( (entry.name,is_link,entry.is_dir(),entry.is_file(),None,None,None,None,None,None) )
+                    else:
+                        try:
+                            stat_res = stat(entry)
+                            res_tuple = (entry.name,is_link,entry.is_dir(),entry.is_file(),stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino,stat_res.st_size,stat_res.st_nlink)
+                        except Exception as e:
+                            if self_log_skipped:
+                                self_log_error('scandir(stat):%s error:%s is_link:%s',entry.name,e,is_link )
+                            continue
+                        else:
+                            entry_set_add( res_tuple )
+
+                return (tuple(entry_set),None)
+
+        except Exception as e:
+            #result = (0,tuple([]),str(e))
+
+            if self_log_skipped:
+                self_log_error('scandir: %s',e)
+
+            return (tuple([]),str(e))
+
+
+    def set_scan_dir_org(self,path,path_ctime_par,self_scan_dir_cache,self_log_skipped,self_log_error):
+        if path_ctime_par:
+            path_ctime = path_ctime_par
+        else:
             try:
                 path_ctime=stat(path).st_ctime_ns
             except Exception as e:
                 self.log.error('st_ctime ERROR:%s',e)
                 return (0,tuple([]),str(e))
 
-        if path not in self_scan_dir_cache or self_scan_dir_cache[path][0]!=path_ctime:
+        if (path not in self_scan_dir_cache) or (not path_ctime_par) or (self_scan_dir_cache[path][0]!=path_ctime):
 
             try:
                 with scandir(path) as res:
@@ -280,19 +348,17 @@ class DudeCore:
                     entry_set_add=entry_set.add
 
                     for entry in res:
-                        name = self_name_func(entry.name)
-
                         is_link=entry.is_symlink()
 
                         if is_link:
-                            entry_set_add( (name,is_link,entry.is_dir(),entry.is_file(),None,None,None,None,None,None) )
+                            entry_set_add( (entry.name,is_link,entry.is_dir(),entry.is_file(),None,None,None,None,None,None) )
                         else:
                             try:
                                 stat_res = stat(entry)
-                                res_tuple = (name,is_link,entry.is_dir(),entry.is_file(),stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino,stat_res.st_size,stat_res.st_nlink)
+                                res_tuple = (entry.name,is_link,entry.is_dir(),entry.is_file(),stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino,stat_res.st_size,stat_res.st_nlink)
                             except Exception as e:
                                 if self_log_skipped:
-                                    self_log_error('scandir(stat):%s error:%s is_link:%s',name,e,is_link )
+                                    self_log_error('scandir(stat):%s error:%s is_link:%s',entry.name,e,is_link )
                                 continue
                             else:
                                 entry_set_add( res_tuple )
@@ -340,12 +406,11 @@ class DudeCore:
         any_exclude_list = bool(self_exclude_list)
         self_excl_fn=self.excl_fn
 
-        self_name_func=self.name_func
         self.sum_size=0
         self.info_size_done_perc=0
         self.info_files_done_perc=0
 
-        self_scan_dir_cache=self.scan_dir_cache
+        #self_scan_dir_cache=self.scan_dir_cache
         for path_to_scan in self.paths_to_scan:
             self.info_path_to_scan=path_to_scan
             self.info_path_nr=path_nr
@@ -366,7 +431,8 @@ class DudeCore:
 
                     folder_size=0
                     folder_counter=0
-                    for file_name,is_link,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self_set_scan_dir(path,path_ctime=path_ctime,self_scan_dir_cache=self_scan_dir_cache,self_log_skipped=self_log_skipped,self_log_error=self_log_error,self_name_func=self_name_func)[1]:
+                    #for file_name,is_link,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self_set_scan_dir(path,path_ctime_par=path_ctime,self_scan_dir_cache=self_scan_dir_cache,self_log_skipped=self_log_skipped,self_log_error=self_log_error)[1]:
+                    for file_name,is_link,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self_set_scan_dir(path,self_log_skipped=self_log_skipped,self_log_error=self_log_error)[0]:
                         if any_exclude_list:
                             fullpath=os_path_join(path,file_name)
                             if any({self_excl_fn(expr,fullpath) for expr in self_exclude_list}):
