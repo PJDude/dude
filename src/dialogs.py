@@ -413,15 +413,16 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
             print(e)
 
 class SFrame(tk.Frame):
-    def __init__(self, parent,bg,relief='flat',width=200,height=100):
-        super().__init__(parent)
+    def __init__(self, parent,bg,width=200,height=100):
+        super().__init__(parent,bg=bg)
 
-        self.canvas = tk.Canvas(self, bd=0, bg=bg,highlightcolor=bg,width=width,height=height,relief=relief)
+        self.canvas = tk.Canvas(self, bd=0, bg=bg,highlightcolor=bg,width=width,height=height,relief='flat')
         self.f = tk.Frame(self.canvas, bg=bg,takefocus=False)
         self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.vsb.set)
+        self.canvas.configure(highlightthickness=0,takefocus=False)
 
-        self.vsb.pack(side="right", fill="y")
+        self.vsb.pack(side="right", fill="y",padx=2)
         self.canvas.pack(side="left", fill="both", expand=True)
         self.canvas_window = self.canvas.create_window((0,0), window=self.f, anchor="nw")
 

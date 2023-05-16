@@ -89,6 +89,7 @@ CFG_KEY_USE_REG_EXPR='use_reg_expr'
 CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
 
 CFG_ERASE_EMPTY_DIRS='erase_empty_dirs'
+CFG_ABORT_ON_ERROR='abort_on_error'
 CFG_SEND_TO_TRASH='send_to_trash'
 CFG_CONFIRM_SHOW_CRCSIZE='confirm_show_crcsize'
 CFG_CONFIRM_SHOW_LINKSTARGETS='confirm_show_links_targets'
@@ -110,6 +111,7 @@ cfg_defaults={
     CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
     CFG_ERASE_EMPTY_DIRS:True,
+    CFG_ABORT_ON_ERROR:True,
     CFG_SEND_TO_TRASH:True,
     CFG_CONFIRM_SHOW_CRCSIZE:False,
     CFG_CONFIRM_SHOW_LINKSTARGETS:True,
@@ -197,7 +199,6 @@ class Gui:
     MAX_PATHS=8
 
     sel_path_full=''
-    #folder_items_cache={}
     tagged=set()
 
     actions_processing=False
@@ -317,6 +318,11 @@ class Gui:
 
         signal.signal(signal.SIGINT, lambda a, k : self.handle_sigint())
 
+        self.two_dots_condition = lambda : (bool(self.sel_path_full.split(sep)[1]!='') if self.sel_path_full else False) if windows else bool(self.sel_path_full!='/')
+
+        self.tagged_add=self.tagged.add
+        self.tagged_discard=self.tagged.discard
+
         ####################################################################
         self.main = tk.Tk()
         self.main.title(f'Dude (DUplicates DEtector) {VER_TIMESTAMP}')
@@ -375,6 +381,7 @@ class Gui:
         style.theme_create("dummy", parent='vista' if windows else 'clam' )
 
         self.bg_color = style.lookup('TFrame', 'background')
+        #self.bd_color = style.lookup('TEntry', 'darkcolor')
 
         style.theme_use("dummy")
 
@@ -382,6 +389,8 @@ class Gui:
         style.configure("TButton", background = self.bg_color)
 
         style.configure("TCheckbutton", background = self.bg_color)
+        style.configure("TCombobox", borderwidth=2,highlightthickness=1,bordercolor='darkgray')
+
 
         style.map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
         style.map("TButton",  fg=[('disabled',"gray"),('',"black")] )
@@ -424,10 +433,14 @@ class Gui:
         (status_frame_groups := tk.Frame(frame_groups,bg=self.bg_color)).pack(side='bottom', fill='both')
 
         self.status_all_quant=tk.Label(status_frame_groups,width=10,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w')
+        self.status_all_quant_configure = self.status_all_quant.configure
+
         self.status_all_quant.pack(fill='x',expand=0,side='right')
         tk.Label(status_frame_groups,width=16,text="All marked files # ",relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
         self.status_all_size=tk.Label(status_frame_groups,width=10,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w')
         self.status_all_size.pack(fill='x',expand=0,side='right')
+        self.status_all_size_configure=self.status_all_size.configure
+
         tk.Label(status_frame_groups,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
         self.status_groups=tk.Label(status_frame_groups,text='0',image=self.ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
         self.status_groups.pack(fill='x',expand=0,side='right')
@@ -449,9 +462,13 @@ class Gui:
 
         self.status_folder_quant=tk.Label(status_frame_folder,width=10,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w')
         self.status_folder_quant.pack(fill='x',expand=0,side='right')
+        self.status_folder_quant_configure=self.status_folder_quant.configure
+
         tk.Label(status_frame_folder,width=16,text='Marked files # ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
         self.status_folder_size=tk.Label(status_frame_folder,width=10,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w')
         self.status_folder_size.pack(expand=0,side='right')
+        self.status_folder_size_configure=self.status_folder_size.configure
+
         tk.Label(status_frame_folder,width=18,text='Marked files size: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
         self.main.unbind_class('Treeview', '<KeyPress-Up>')
@@ -653,7 +670,7 @@ class Gui:
         self.add_path_button = ttk.Button(buttons_fr,width=18,image = self.ico['open'], command=self.path_to_scan_add_dialog,underline=0)
         self.add_path_button.pack(side='left',pady=4,padx=4)
 
-        self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path to scan ..."))
+        self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path to scan.\nA maximum of 8 paths are allowed."))
         self.add_path_button.bind("<Leave>", lambda event : self.widget_leave())
 
         #self.AddDrivesButton = ttk.Button(buttons_fr,width=10,text="Add drives",command=self.AddDrives,underline=4)
@@ -741,6 +758,7 @@ class Gui:
 
         self.create_relative_symlinks = tk.BooleanVar()
         self.erase_empty_directories = tk.BooleanVar()
+        self.abort_on_error = tk.BooleanVar()
         self.send_to_trash = tk.BooleanVar()
 
         self.allow_delete_all = tk.BooleanVar()
@@ -760,6 +778,7 @@ class Gui:
             (self.cross_mode,CFG_KEY_CROSS_MODE),
             (self.create_relative_symlinks,CFG_KEY_REL_SYMLINKS),
             (self.erase_empty_directories,CFG_ERASE_EMPTY_DIRS),
+            (self.abort_on_error,CFG_ABORT_ON_ERROR),
             (self.send_to_trash,CFG_SEND_TO_TRASH),
             (self.confirm_show_crc_and_size,CFG_CONFIRM_SHOW_CRCSIZE),
             (self.confirm_show_links_targets,CFG_CONFIRM_SHOW_LINKSTARGETS),
@@ -809,6 +828,7 @@ class Gui:
         ttk.Checkbutton(label_frame, text = 'Create relative symbolic links', variable=self.create_relative_symlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
         ttk.Checkbutton(label_frame, text = 'Send Files to %s instead of deleting them' % ('Recycle Bin' if windows else 'Trash'), variable=self.send_to_trash ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
         ttk.Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+        ttk.Checkbutton(label_frame, text = 'Abort on first error', variable=self.abort_on_error).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
         #ttk.Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.allow_delete_non_duplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2)
 
@@ -1707,8 +1727,6 @@ class Gui:
                             self.mark_in_folder(self.unset_mark)
                     elif key in ('r','R'):
                         if tree==self.folder_tree:
-                            #dude_core.scan_dir_cache_clear()
-                            #self.folder_items_cache_clear()
 
                             self.tree_folder_update()
                             self.tree_semi_focus(self.folder_tree)
@@ -2190,9 +2208,6 @@ class Gui:
         is_numeric=self.REAL_SORT_COLUMN_IS_NUMERIC[colname]
         self.column_sort_last_params[tree]=(colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code)
 
-        #if tree == self.folder_tree:
-        #    self.folder_items_cache={}
-
         self.column_sort(tree)
 
     @logwrapper
@@ -2307,9 +2322,6 @@ class Gui:
         if res:=dude_core.set_paths_to_scan(paths_to_scan_from_entry):
             self.info_dialog_on_scan.show('Error. Fix paths selection.',res)
             return False
-
-        #dude_core.scan_dir_cache_clear()
-        #self.folder_items_cache_clear()
 
         dude_core.scan_update_info_path_nr=self.scan_update_info_path_nr
 
@@ -2724,7 +2736,6 @@ class Gui:
             self.cfg.set_bool(CFG_KEY_FULL_CRC,self.show_full_crc.get())
             update1=True
             update2=True
-            #self.folder_items_cache={}
 
         if self.cfg.get_bool(CFG_KEY_FULL_PATHS)!=self.show_full_paths.get():
             self.cfg.set_bool(CFG_KEY_FULL_PATHS,self.show_full_paths.get())
@@ -2740,6 +2751,9 @@ class Gui:
 
         if self.cfg.get_bool(CFG_ERASE_EMPTY_DIRS)!=self.erase_empty_directories.get():
             self.cfg.set_bool(CFG_ERASE_EMPTY_DIRS,self.erase_empty_directories.get())
+
+        if self.cfg.get_bool(CFG_ABORT_ON_ERROR)!=self.abort_on_error.get():
+            self.cfg.set_bool(CFG_ABORT_ON_ERROR,self.abort_on_error.get())
 
         if self.cfg.get_bool(CFG_SEND_TO_TRASH)!=self.send_to_trash.get():
             self.cfg.set_bool(CFG_SEND_TO_TRASH,self.send_to_trash.get())
@@ -2889,7 +2903,8 @@ class Gui:
         self.active_crcs=set()
         self.status('Rendering data...')
 
-        self.tagged=set()
+        self.tagged.clear()
+
         sizes_counter=0
         self.iid_to_size={}
 
@@ -2904,9 +2919,11 @@ class Gui:
         self_CRC = self.CRC
         self_FILE = self.FILE
 
-        ctime_h_temp_cache={}
+        #ctime_h_temp_cache={}
 
         local_core_bytes_to_str = core_bytes_to_str
+
+        #ctime_h_temp_cache={ctime:strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC)) for size_dict in dude_core.files_of_size_of_crc.values() for crc_dict in size_dict.values() for _,_,_,ctime,_,_ in crc_dict}
 
         for size,size_dict in dude_core.files_of_size_of_crc.items() :
             size_h = local_core_bytes_to_str(size)
@@ -2931,17 +2948,12 @@ class Gui:
                     iid=self_idfunc(inode,dev)
                     self_iid_to_size[iid]=size
 
-                    try:
-                        ctime_h = ctime_h_temp_cache[ctime]
-                    except:
-                        ctime_h = ctime_h_temp_cache[ctime] = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
-
                     self_groups_tree_insert(parent=crcitem, index='end',iid=iid, values=(\
                             str(pathnr),path,file,size_str,\
                             '',\
                             str(ctime),str(dev),str(inode),crc,\
                             '','',\
-                            ctime_h ,self_FILE),tags='')
+                            strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC)),self_FILE),tags='')
         self.data_precalc()
 
         if self.column_sort_last_params[self_groups_tree]!=self.column_groups_sort_params_default:
@@ -2999,10 +3011,12 @@ class Gui:
     def tree_folder_update_none(self):
         self.folder_tree.configure(takefocus=False)
 
-        self.folder_tree.delete(*self.folder_tree.get_children())
+        if self.current_folder_items:
+            self.folder_tree.delete(*self.current_folder_items)
+        #self.folder_tree.get_children()
 
-        self.status_folder_size.configure(text='')
-        self.status_folder_quant.configure(text='')
+        self.status_folder_size_configure(text='')
+        self.status_folder_quant_configure(text='')
 
         self.status_path.configure(text='')
         self.current_folder_items=()
@@ -3010,18 +3024,8 @@ class Gui:
 
     #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
 
-    def two_dots_condition_win(self):
-        return bool(self.sel_path_full.split(sep)[1]!='' if self.sel_path_full else False)
-
-    def two_dots_condition_lin(self):
-        return bool(self.sel_path_full!='/')
-
-    two_dots_condition = two_dots_condition_win if windows else two_dots_condition_lin
     current_folder_items=[]
     current_folder_items_set=set()
-
-    #def folder_items_cache_clear(self):
-    #    self.folder_items_cache={}
 
     @block_actions_processing
     def tree_folder_update(self,arbitrary_path=None):
@@ -3033,31 +3037,13 @@ class Gui:
         if not current_path:
             return False
 
-        #scan_dir_tuple=dude_core.set_scan_dir_gui_call(current_path)
         scan_dir_tuple=dude_core.set_scan_dir(current_path,self_log_skipped = False,self_log_error=l_error)
-        #dir_ctime = scan_dir_tuple[0]
-        scan_dir_res = scan_dir_tuple[0]
 
-        #print(scan_dir_tuple)
-
-        #scan_dir_res can be just empty without error
-        #if len(scan_dir_tuple)>1:
         if scan_dir_tuple[1]:
             self.status(scan_dir_tuple[1])
             return False
 
-        #self_folder_items_cache=self.folder_items_cache
-
-        #do_refresh=True
-        #if not arbitrary_path:
-        #    if current_path in self_folder_items_cache:
-        #        if dir_ctime==self_folder_items_cache[current_path][0]:
-        #            do_refresh=False
-
-        #l_info("do_refresh:%s",do_refresh)
-
-        #if do_refresh :
-        folder_items_dict={}
+        #folder_items_dict={}
 
         show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
 
@@ -3068,7 +3054,6 @@ class Gui:
         sort_val_func = int if is_numeric else lambda x : x
 
         keys=set()
-
         keys_add = keys.add
 
         self_idfunc=self.idfunc
@@ -3092,54 +3077,87 @@ class Gui:
         self_DIR = self.DIR
         self_SINGLE = self.SINGLE
         self_SINGLEHARDLINKED = self.SINGLEHARDLINKED
+        self_FILE = self.FILE
+        self_MARK = self.MARK
 
         local_core_bytes_to_str = core_bytes_to_str
 
-        ctime_h_temp_cache={}
-        for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_res:
+        #scan_dir_data = scan_dir_tuple[0]
+
+        #ctime_h_temp_cache={ctime:strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC)) for _,_,_,_,_,ctime,_,_,_,_ in scan_dir_data }
+        #size_h_temp_cache={size_num:local_core_bytes_to_str(size_num) for _,_,_,_,_,_,_,_,size_num,_ in scan_dir_data }
+        #dev_str = {dev:str(dev) for _,_,_,_,_,_,dev,_,_,_ in scan_dir_data}
+
+        self_tagged=self.tagged
+
+        for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_tuple[0]:
             if islink :
-                presort_id = dir_code if isdir else non_dir_code
-                text = ''
-                icon = DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON
-                iid=('%sDL' % i) if isdir else ('%sFL' % i)
-                kind= self_DIRLINK if isdir else self_LINK
-                defaulttag = self_DIR if isdir else self_LINK
-                crc=''
-                size='0'
-                size_h=''
-                ctime_str='0'
-                ctime_h=''
-                instances='1'
-                instances_h=''
+                #presort_id = dir_code if isdir else non_dir_code
+
+                #text = ''
+                #icon = DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON
+                #iid=('%sDL' % i) if isdir else ('%sFL' % i)
+
+                #kind= self_DIRLINK if isdir else self_LINK
+                #defaulttag = self_DIR if isdir else self_LINK
+                #crc=''
+                #size='0'
+                #size_h=''
+                #ctime_str='0'
+                #ctime_h=''
+                #instances='1'
+                #instances_h=''
+                #values = (file,dev_str[dev],str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
+                values = (file,str(dev),str(inode),self_DIRLINK if isdir else self_LINK,'','0','','0','','1','')
+                #sort_val_func_res = sort_val_func(values[sort_index_local])
+
+                #folder_items_dict[iid] = ('',values,self_DIR if isdir else self_LINK,DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON)
+                keys_add((dir_code if isdir else non_dir_code,sort_val_func(values[sort_index_local]),('%sDL' % i) if isdir else ('%sFL' % i),'',values,self_DIR if isdir else self_LINK,DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON))
+
                 i+=1
             elif isdir:
-                presort_id = dir_code
-                text = ''
-                icon = FOLDER_ICON
-                iid='%sD' % i
-                kind= self_DIR
-                defaulttag = self_DIR
-                crc=''
-                size='0'
-                size_h=''
-                ctime_str='0'
-                ctime_h=''
-                instances='1'
-                instances_h=''
+                #presort_id = dir_code
+                #text = ''
+                #icon = FOLDER_ICON
+                #iid='%sD' % i
+
+                #kind= self_DIR
+                #defaulttag = self_DIR
+
+                #crc=''
+                #size='0'
+                #size_h=''
+                #ctime_str='0'
+                #ctime_h=''
+                #instances='1'
+                #instances_h=''
+
+                #values = (file,dev_str[dev],str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
+                values = (file,str(dev),str(inode),self_DIR,'','0','','0','','1','')
+                #sort_val_func_res = sort_val_func(values[sort_index_local])
+
+                #folder_items_dict[iid] = (text,values,defaulttag,icon)
+                #folder_items_dict[iid] = ('',values,self_DIR,FOLDER_ICON)
+                keys_add((dir_code,sort_val_func(values[sort_index_local]),'%sD' % i,'',values,self_DIR,FOLDER_ICON))
+
                 i+=1
             elif isfile:
-                presort_id = non_dir_code
+                #presort_id = non_dir_code
                 file_id=self_idfunc(inode,dev)
 
-                ctime_str=str(ctime)
+                #ctime_str=str(ctime)
 
-                try:
-                    ctime_h = ctime_h_temp_cache[ctime]
-                except:
-                    ctime_h = ctime_h_temp_cache[ctime] = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
+                ctime_h = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
+                #try:
+                #except:
+                #    ctime_h = ctime_h_temp_cache[ctime] = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//DE_NANO_LOC))
 
-                size=str(size_num)
+                #size=str(size_num)
+
                 size_h=local_core_bytes_to_str(size_num)
+                #try:
+                #except:
+                #    size_h=size_h_temp_cache[size_num] = local_core_bytes_to_str(size_num)
 
                 item_rocognized=True
                 if file_id in self_id2crc:
@@ -3148,46 +3166,55 @@ class Gui:
                     if ctime != core_ctime:
                         item_rocognized=False
                     else:
-                        text = crc if show_full_crc else crc[:dude_core_crc_cut_len]
+                        #text = crc if show_full_crc else crc[:dude_core_crc_cut_len]
 
-                        icon = NONE_ICON
-                        iid=file_id
-                        kind=self.FILE
-                        instances_num = len(dude_core_files_of_size_of_crc[size_num][crc])
-                        instances_h=instances=str(instances_num)
-                        defaulttag=''
+                        #icon = NONE_ICON
+                        #iid=file_id
+                        #kind=self_FILE
+                        #instances_both = str(len(dude_core_files_of_size_of_crc[size_num][crc]))
+                        #instances_h=instances=str(instances_num)
+                        #defaulttag=''
+
+                        #values = (file,dev_str[dev],str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
+                        values = (file,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
+                        #sort_val_func_res = sort_val_func(values[sort_index_local])
+                        #folder_items_dict[iid] = (crc if show_full_crc else crc[:dude_core_crc_cut_len],values,'',NONE_ICON)
+                        keys_add((non_dir_code,sort_val_func(values[sort_index_local]),file_id,crc if show_full_crc else crc[:dude_core_crc_cut_len],values,self_MARK if file_id in self_tagged else '',NONE_ICON))
+
                 else:
                     item_rocognized=False
 
                 if not item_rocognized:
                     #files without permissions -> nlink==0
-                    text = '(%s)' % nlink if nlink>1 else ''
-                    icon = HARDLINK_ICON if nlink>1 else NONE_ICON
-                    iid='%sO' % i
-                    crc=''
-                    kind = self_SINGLEHARDLINKED if nlink>1 else self_SINGLE
-                    defaulttag = self_SINGLE
+                    #text = '(%s)' % nlink if nlink>1 else ''
+                    #icon = HARDLINK_ICON if nlink>1 else NONE_ICON
+                    #iid='%sO' % i
+                    #crc=''
+                    #kind = self_SINGLEHARDLINKED if nlink>1 else self_SINGLE
+                    #defaulttag = self_SINGLE
 
-                    instances='1'
-                    instances_h=''
+                    #instances='1'
+                    #instances_h=''
+
+                    #values = (file,dev_str[dev],str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
+                    values = (file,str(dev),str(inode),self_SINGLEHARDLINKED if nlink>1 else self_SINGLE,'',str(size_num),size_h,str(ctime),ctime_h,'1','')
+
+                    #sort_val_func_res = sort_val_func(values[sort_index_local])
+                    #folder_items_dict[iid] = ('(%s)' % nlink if nlink>1 else '',values,self_SINGLE,HARDLINK_ICON if nlink>1 else NONE_ICON)
+                    keys_add((non_dir_code,sort_val_func(values[sort_index_local]),'%sO' % i,'(%s)' % nlink if nlink>1 else '',values,self_SINGLE,HARDLINK_ICON if nlink>1 else NONE_ICON))
+
                     i+=1
             else:
                 l_error('what is it: %s:%s,%s,%s,%s ?',current_path,file,islink,isdir,isfile)
                 continue
 
-            values = (file,str(dev),str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
+            #values = (file,dev_str[dev],str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
 
-            keys_add((presort_id,sort_val_func(values[sort_index_local]),iid))
+            #keys_add((presort_id,sort_val_func_res,iid))
 
-            folder_items_dict[iid] = (text,values,defaulttag,icon)
+            #folder_items_dict[iid] = (text,values,defaulttag,icon)
 
         ############################################################
-
-        #KIND_INDEX==3
-        dir_ctime=None
-        #self_folder_items_cache[current_path]= dir_ctime, [ (iid,bool(folder_items_dict[iid][1][3]==self.FILE),*folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) ]
-        folder_items= ( (iid,bool(folder_items_dict[iid][1][3]==self.FILE),*folder_items_dict[iid]) for presort_id,sort_id,iid in sorted(keys,reverse=reverse) )
-        del keys
 
         if arbitrary_path:
             #TODO - workaround
@@ -3198,24 +3225,29 @@ class Gui:
             self.sel_tree=ftree
 
         ftree_insert=ftree.insert
-        self_tagged=self.tagged
 
-        ftree.delete(*ftree.get_children())
+        #ftree.delete(*ftree.get_children())
+        if self.current_folder_items:
+            ftree.delete(*self.current_folder_items)
 
         self.current_folder_items=[]
 
         if self.two_dots_condition():
-            self.current_folder_items.append(ftree_insert(parent="", index=0, iid='0UP' , text='', image='', values=('..','','',self.UPDIR,'',0,'',0,'',0,''),tags=self.DIR))
+            self.current_folder_items.append(ftree_insert(parent="", index=0, iid='0UP' , text='', image='', values=('..','','',self.UPDIR,'',0,'',0,'',0,''),tags=self_DIR))
 
-        self_MARK = self.MARK
         try:
-            #self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self_MARK if filekind and (iid in self_tagged) else defaulttag,image=image) for (iid,filekind,text,values,defaulttag,image) in folder_items]
-            self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self_MARK if filekind and (iid in self_tagged) else defaulttag,image=image) for (iid,filekind,text,values,defaulttag,image) in folder_items]
+            #KIND_INDEX==3
+            #self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self_MARK if filekind and (iid in self_tagged) else defaulttag,image=image) \
+            #    for (iid,filekind,text,values,defaulttag,image) in ( (iid,bool(folder_items_dict[iid][1][3]==self_FILE),*folder_items_dict[iid]) \
+            #    for _,_,iid in sorted(keys,reverse=reverse) )]
+
+            self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=tag,image=image) for _,_,iid,text,values,tag,image in sorted(keys,reverse=reverse) ]
 
         except Exception as e:
             self.status(str(e))
             l_error(e)
-            #self_folder_items_cache={}
+
+        del keys
 
         self.current_folder_items_set=set(self.current_folder_items)
         if not arbitrary_path:
@@ -3238,21 +3270,24 @@ class Gui:
         self_folder_tree_item=self.folder_tree.item
         self_folder_tree_set=self.folder_tree.set
         self_tagged = self.tagged
+        self_FILE = self.FILE
+        self_MARK = self.MARK
         for item in self.current_folder_items:
             #cant unset other tags !
-            if self_folder_tree_set(item,'kind')==self.FILE:
-                self_folder_tree_item( item,tags=self.MARK if item in self_tagged else'')
+            if self_folder_tree_set(item,'kind')==self_FILE:
+                self_folder_tree_item( item,tags=self_MARK if item in self_tagged else'')
 
     def calc_mark_stats_groups(self):
-        self.status_all_quant.configure(text=str(len(self.tagged)))
-        self.status_all_size.configure(text=core_bytes_to_str(sum([self.iid_to_size[iid] for iid in self.tagged])))
+        self.status_all_quant_configure(text=str(len(self.tagged)))
+        self_iid_to_size=self.iid_to_size
+        self.status_all_size_configure(text=core_bytes_to_str(sum([self_iid_to_size[iid] for iid in self.tagged])))
 
     def calc_mark_stats_folder(self):
         self_iid_to_size = self.iid_to_size
         marked_in_folder = [self_iid_to_size[iid] for iid in self.current_folder_items_set.intersection(self.tagged)]
 
-        self.status_folder_quant.configure(text=str(len(marked_in_folder)))
-        self.status_folder_size.configure(text=core_bytes_to_str(sum(marked_in_folder)))
+        self.status_folder_quant_configure(text=str(len(marked_in_folder)))
+        self.status_folder_size_configure(text=core_bytes_to_str(sum(marked_in_folder)))
 
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
         self_groups_tree = self.groups_tree
@@ -3325,18 +3360,19 @@ class Gui:
 
     def set_mark(self,item,tree):
         tree.item(item,tags=self.MARK)
-        self.tagged.add(item)
+        self.tagged_add(item)
 
     def unset_mark(self,item,tree):
         tree.item(item,tags='')
-        self.tagged.discard(item)
+        self.tagged_discard(item)
 
     def invert_mark(self,item,tree):
-        tree.item(item,tags='' if tree.item(item)['tags'] else self.MARK)
         if tree.item(item)['tags']:
-            self.tagged.add(item)
+            tree.item(item,tags='')
+            self.tagged_discard(item)
         else:
-            self.tagged.discard(item)
+            tree.item(item,tags=self.MARK)
+            self.tagged_add(item)
 
     @block_actions_processing
     @gui_block
@@ -3501,10 +3537,12 @@ class Gui:
         self_my_next = self.my_next
         self_my_prev = self.my_prev
 
+        self_MARK = self.MARK
+
         while current_item:
             current_item = self_my_next(tree,current_item) if direction==1 else self_my_prev(tree,current_item)
 
-            tag_has = tree_tag_has(self.MARK,current_item)
+            tag_has = tree_tag_has(self_MARK,current_item)
 
             if (tag_has and not go_to_no_mark) or (go_to_no_mark and not tag_has and tree_set(current_item,'kind')!=self.CRC):
                 tree.focus(current_item)
@@ -3588,9 +3626,11 @@ class Gui:
             self.status(f'Dominant (index:{working_index}) folder ({self.BY_WHAT[size_flag]}: {info})',image=self.ico['dominant_size' if size_flag else 'dominant_quant'])
 
     def item_full_path(self,item):
-        pathnr=int(self.groups_tree.set(item,'pathnr'))
-        path=self.groups_tree.set(item,'path')
-        file=self.groups_tree.set(item,'file')
+        self_groups_tree_set = self.groups_tree.set
+
+        pathnr=int(self_groups_tree_set(item,'pathnr'))
+        path=self_groups_tree_set(item,'path')
+        file=self_groups_tree_set(item,'file')
         return os.path.abspath(dude_core.get_full_path_scanned(pathnr,path,file))
 
     def file_check_state(self,item):
@@ -3894,10 +3934,13 @@ class Gui:
     @gui_block
     @logwrapper
     def process_files_core(self,action,processed_items,remaining_items):
-        self.status('processing files ...')
+        self_status = self.status
+
+        self_status('processing files ...')
         self.main.update()
 
         to_trash=self.cfg.get_bool(CFG_SEND_TO_TRASH)
+        abort_on_error=self.cfg.get_bool(CFG_ABORT_ON_ERROR)
 
         self_groups_tree_set = self.groups_tree.set
         self_get_index_tuple_groups_tree = self.get_index_tuple_groups_tree
@@ -3913,6 +3956,10 @@ class Gui:
         crc_to_size = {crc:size for size,size_dict in dude_core.files_of_size_of_crc.items() for crc in size_dict}
 
         counter = 0
+        end_message_list=[]
+        end_message_list_append = end_message_list.append
+
+
         if action==DELETE:
             directories_to_check=set()
             directories_to_check_add = directories_to_check.add
@@ -3926,12 +3973,15 @@ class Gui:
                     tuples_to_delete_add(index_tuple)
                     directories_to_check_add(dude_core_get_path(index_tuple))
                     if counter%128==0:
-                        self.status('processing files %s ...' % counter)
+                        self_status('processing files %s ...' % counter)
 
                 if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash):
                     resmsg_str='\n'.join(resmsg)
                     l_error(resmsg_str)
-                    self.info_dialog_on_main.show('Error',resmsg_str)
+                    end_message_list_append(resmsg_str)
+
+                    if abort_on_error:
+                        break
 
             for crc in processed_items:
                 self_crc_node_update(crc)
@@ -3952,16 +4002,20 @@ class Gui:
             for crc,items_list in processed_items.items():
                 counter+=1
                 to_keep_item=list(remaining_items[crc])[0]
-                #self.groups_tree.focus()
+
                 index_tuple_ref=self_get_index_tuple_groups_tree(to_keep_item)
                 size=int(self_groups_tree_set(to_keep_item,'size'))
 
                 if resmsg:=dude_core_link_wrapper(True, do_rel_symlink, size,crc, index_tuple_ref, [self_get_index_tuple_groups_tree(item) for item in items_list ] ):
                     l_error(resmsg)
-                    self.info_dialog_on_main.show('Error',resmsg)
+
+                    end_message_list_append(resmsg)
+
+                    if abort_on_error:
+                        break
 
                 if counter%128==0:
-                    self.status('processing crc groups %s ...' % counter)
+                    self_status('processing crc groups %s ...' % counter)
 
             for crc in processed_items:
                 self_crc_node_update(crc)
@@ -3975,15 +4029,22 @@ class Gui:
 
                 if resmsg:=dude_core_link_wrapper(False, False, size,crc, index_tuple_ref, [self_get_index_tuple_groups_tree(item) for item in items_list[1:] ] ):
                     l_error(resmsg)
-                    self.info_dialog_on_main.show('Error',resmsg)
+
+                    end_message_list_append(resmsg)
+
+                    if abort_on_error:
+                        break
 
                 if counter%128==0:
-                    self.status('processing crc groups %s ...' % counter)
+                    self_status('processing crc groups %s ...' % counter)
 
             for crc in processed_items:
                 self_crc_node_update(crc)
 
         self.data_precalc()
+
+        if end_message_list:
+            self.text_info_dialog.show('Error','\n'.join(end_message_list))
 
         if final_info:
             self.text_info_dialog.show('Removed empty directories','\n'.join(final_info))
@@ -4087,10 +4148,10 @@ class Gui:
         self.process_files_core(action,processed_items,remaining_items)
         #############################################
 
-        self_tagged_discard = self.tagged.discard
-        for crc,items_list in processed_items.items():
-            for item in items_list:
-                self_tagged_discard(item)
+        self.tagged.clear()
+        #by nie redefiniowac obiektu
+        _ = [self.tagged.add(item) for item in self.groups_tree.tag_has(self.MARK)]
+
 
         l_info('post-update %s',tree)
 
@@ -4131,8 +4192,6 @@ class Gui:
 
         self.calc_mark_stats_groups()
 
-        #self.folder_items_cache={}
-
         self.find_result=()
 
     @logwrapper
@@ -4145,7 +4204,8 @@ class Gui:
 
         self_folder_tree_set = self.folder_tree.set
 
-        new_list_names=[self_folder_tree_set(item,'file') for item in self.folder_tree.get_children()]
+        new_list_names=[self_folder_tree_set(item,'file') for item in self.current_folder_items] if self.current_folder_items else []
+        #self.folder_tree.get_children()
 
         if item_name in new_list_names:
             return new_list[new_list_names.index(item_name)]
@@ -4239,7 +4299,8 @@ class Gui:
             self.find_result=()
 
         if self.tree_folder_update(fullpath):
-            children=self.folder_tree.get_children()
+            children=self.current_folder_items
+            #self.folder_tree.get_children()
             res_list=[nodeid for nodeid in children if self.folder_tree.set(nodeid,'file')==sel]
             if res_list:
                 item=res_list[0]
