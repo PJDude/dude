@@ -323,6 +323,9 @@ class Gui:
         self.tagged_add=self.tagged.add
         self.tagged_discard=self.tagged.discard
 
+        self.current_folder_items_tagged_discard=self.current_folder_items_tagged.discard
+        self.current_folder_items_tagged_add=self.current_folder_items_tagged.add
+
         ####################################################################
         self.main = tk.Tk()
         self.main.title(f'Dude (DUplicates DEtector) {VER_TIMESTAMP}')
@@ -530,6 +533,9 @@ class Gui:
 
         self.folder_tree=ttk.Treeview(frame_folder,takefocus=True,selectmode='none')
 
+        self.folder_tree_configure = self.folder_tree.configure
+        self.folder_tree_delete = self.folder_tree.delete
+
         self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
 
         self.folder_tree['displaycolumns']=('file','size_h','instances_h','ctime_h')
@@ -556,7 +562,7 @@ class Gui:
 
         vsb2 = ttk.Scrollbar(frame_folder, orient='vertical', command=self.folder_tree.yview,takefocus=False)
         #,bg=self.bg_color
-        self.folder_tree.configure(yscrollcommand=vsb2.set)
+        self.folder_tree_configure(yscrollcommand=vsb2.set)
 
         vsb2.pack(side='right',fill='y',expand=0)
         self.folder_tree.pack(fill='both',expand=1,side='left')
@@ -1458,14 +1464,22 @@ class Gui:
                 self.status('Find Previous %s' % self.find_expression_prev)
 
     def tag_toggle_selected(self,tree, *items):
+        self_FILE=self.FILE
+        self_CRC=self.CRC
+        self_invert_mark=self.invert_mark
+
+        self_groups_tree_item=self.groups_tree.item
+        self_folder_tree_item=self.folder_tree.item
+        tree_set=tree.set
+
         for item in items:
-            if tree.set(item,'kind')==self.FILE:
-                self.invert_mark(item, self.groups_tree)
+            if tree_set(item,'kind')==self_FILE:
+                self_invert_mark(item, self.groups_tree)
                 try:
-                    self.folder_tree.item(item,tags=self.groups_tree.item(item)['tags'])
+                    self_folder_tree_item(item,tags=self_groups_tree_item(item)['tags'])
                 except Exception :
                     pass
-            elif tree.set(item,'kind')==self.CRC:
+            elif tree_set(item,'kind')==self_CRC:
                 self.tag_toggle_selected(tree, *tree.get_children(item) )
 
         self.calc_mark_stats_groups()
@@ -1904,7 +1918,7 @@ class Gui:
             if pathnr: #non crc node
                 self.sel_pathnr = pathnr
                 self.sel_path = path
-                self.sel_path_set(dude_core.scanned_paths[int(pathnr)]+self.sel_path)
+                self.sel_path_set(dude_core.scanned_paths[int(pathnr)]+path)
             else :
                 self.sel_pathnr = None
                 self.sel_path = None
@@ -3001,36 +3015,39 @@ class Gui:
         self.groups_tree.selection_remove(self.groups_tree.selection())
 
     def groups_tree_update(self,item):
-        self.groups_tree.see(self.sel_crc)
-        self.groups_tree.update()
+        self_groups_tree = self.groups_tree
 
-        self.groups_tree.selection_set(item)
-        self.groups_tree.see(item)
-        self.groups_tree.update()
+        self_groups_tree.see(self.sel_crc)
+        self_groups_tree.update()
+
+        self_groups_tree.selection_set(item)
+        self_groups_tree.see(item)
+        self_groups_tree.update()
 
     def tree_folder_update_none(self):
-        self.folder_tree.configure(takefocus=False)
+        self.folder_tree_configure(takefocus=False)
 
         if self.current_folder_items:
-            self.folder_tree.delete(*self.current_folder_items)
+            self.folder_tree_delete(*self.current_folder_items)
         #self.folder_tree.get_children()
 
         self.status_folder_size_configure(text='')
         self.status_folder_quant_configure(text='')
 
         self.status_path.configure(text='')
-        self.current_folder_items=()
-        self.current_folder_items_set=set()
+        self.current_folder_items.clear()
+
+        self.current_folder_items_tagged.clear()
 
     #self.folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
 
     current_folder_items=[]
-    current_folder_items_set=set()
+    current_folder_items_tagged=set()
 
     @block_actions_processing
     def tree_folder_update(self,arbitrary_path=None):
         ftree = self.folder_tree
-        ftree.configure(takefocus=False)
+        self.folder_tree_configure(takefocus=False)
 
         current_path=arbitrary_path if arbitrary_path else self.sel_path_full
 
@@ -3089,6 +3106,10 @@ class Gui:
         #dev_str = {dev:str(dev) for _,_,_,_,_,_,dev,_,_,_ in scan_dir_data}
 
         self_tagged=self.tagged
+        self_current_folder_items_tagged=self.current_folder_items_tagged
+        self_current_folder_items_tagged_add=self_current_folder_items_tagged.add
+        self_current_folder_items_tagged.clear()
+        current_folder_items_tagged_size=0
 
         for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_tuple[0]:
             if islink :
@@ -3179,7 +3200,12 @@ class Gui:
                         values = (file,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
                         #sort_val_func_res = sort_val_func(values[sort_index_local])
                         #folder_items_dict[iid] = (crc if show_full_crc else crc[:dude_core_crc_cut_len],values,'',NONE_ICON)
-                        keys_add((non_dir_code,sort_val_func(values[sort_index_local]),file_id,crc if show_full_crc else crc[:dude_core_crc_cut_len],values,self_MARK if file_id in self_tagged else '',NONE_ICON))
+                        in_tagged=bool(file_id in self_tagged)
+                        if in_tagged:
+                            self_current_folder_items_tagged_add(file_id)
+                            current_folder_items_tagged_size+=size_num
+
+                        keys_add((non_dir_code,sort_val_func(values[sort_index_local]),file_id,crc if show_full_crc else crc[:dude_core_crc_cut_len],values,self_MARK if in_tagged else '',NONE_ICON))
 
                 else:
                     item_rocognized=False
@@ -3226,22 +3252,23 @@ class Gui:
 
         ftree_insert=ftree.insert
 
-        #ftree.delete(*ftree.get_children())
-        if self.current_folder_items:
-            ftree.delete(*self.current_folder_items)
+        #self.folder_tree_delete(*ftree.get_children())
+        self_current_folder_items = self.current_folder_items
+        if self_current_folder_items:
+            self.folder_tree_delete(*self_current_folder_items)
 
-        self.current_folder_items=[]
+        self_current_folder_items.clear()
 
         if self.two_dots_condition():
-            self.current_folder_items.append(ftree_insert(parent="", index=0, iid='0UP' , text='', image='', values=('..','','',self.UPDIR,'',0,'',0,'',0,''),tags=self_DIR))
+            self_current_folder_items.append(ftree_insert(parent="", index=0, iid='0UP' , text='', image='', values=('..','','',self.UPDIR,'',0,'',0,'',0,''),tags=self_DIR))
 
         try:
             #KIND_INDEX==3
-            #self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self_MARK if filekind and (iid in self_tagged) else defaulttag,image=image) \
+            #self_current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=self_MARK if filekind and (iid in self_tagged) else defaulttag,image=image) \
             #    for (iid,filekind,text,values,defaulttag,image) in ( (iid,bool(folder_items_dict[iid][1][3]==self_FILE),*folder_items_dict[iid]) \
             #    for _,_,iid in sorted(keys,reverse=reverse) )]
 
-            self.current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=tag,image=image) for _,_,iid,text,values,tag,image in sorted(keys,reverse=reverse) ]
+            self_current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=tag,image=image) for _,_,iid,text,values,tag,image in sorted(keys,reverse=reverse) ]
 
         except Exception as e:
             self.status(str(e))
@@ -3258,11 +3285,14 @@ class Gui:
             except Exception:
                 pass
 
-        self.calc_mark_stats_folder()
+        #self.calc_mark_stats_folder()
+
+        self.status_folder_quant_configure(text=str(len(self_current_folder_items_tagged)))
+        self.status_folder_size_configure(text=core_bytes_to_str(current_folder_items_tagged_size))
 
         ftree.update()
 
-        ftree.configure(takefocus=True)
+        self.folder_tree_configure(takefocus=True)
 
         return True
 
@@ -3272,10 +3302,15 @@ class Gui:
         self_tagged = self.tagged
         self_FILE = self.FILE
         self_MARK = self.MARK
+        self.current_folder_items_tagged.clear()
+        self_current_folder_items_tagged_add=self.current_folder_items_tagged_add
         for item in self.current_folder_items:
             #cant unset other tags !
             if self_folder_tree_set(item,'kind')==self_FILE:
-                self_folder_tree_item( item,tags=self_MARK if item in self_tagged else'')
+                in_tagged=bool(item in self_tagged)
+                self_folder_tree_item( item,tags=self_MARK if in_tagged else'')
+                if in_tagged:
+                    self_current_folder_items_tagged_add(item)
 
     def calc_mark_stats_groups(self):
         self.status_all_quant_configure(text=str(len(self.tagged)))
@@ -3283,11 +3318,10 @@ class Gui:
         self.status_all_size_configure(text=core_bytes_to_str(sum([self_iid_to_size[iid] for iid in self.tagged])))
 
     def calc_mark_stats_folder(self):
-        self_iid_to_size = self.iid_to_size
-        marked_in_folder = [self_iid_to_size[iid] for iid in self.current_folder_items_set.intersection(self.tagged)]
+        self.status_folder_quant_configure(text=str(len(self.current_folder_items_tagged)))
 
-        self.status_folder_quant_configure(text=str(len(marked_in_folder)))
-        self.status_folder_size_configure(text=core_bytes_to_str(sum(marked_in_folder)))
+        self_iid_to_size = self.iid_to_size
+        self.status_folder_size_configure(text=core_bytes_to_str(sum(self_iid_to_size[iid] for iid in self.current_folder_items_tagged)))
 
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
         self_groups_tree = self.groups_tree
@@ -3299,7 +3333,7 @@ class Gui:
                 self_groups_tree.see(item)
                 self_groups_tree.focus(item)
                 self.groups_tree_sel_change(item)
-                self.groups_tree.update()
+                self_groups_tree.update()
 
     @block_actions_processing
     @gui_block
@@ -3361,18 +3395,23 @@ class Gui:
     def set_mark(self,item,tree):
         tree.item(item,tags=self.MARK)
         self.tagged_add(item)
+        if item in self.current_folder_items:
+            self.current_folder_items_tagged_add(item)
 
     def unset_mark(self,item,tree):
         tree.item(item,tags='')
         self.tagged_discard(item)
+        self.current_folder_items_tagged_discard(item)
 
     def invert_mark(self,item,tree):
         if tree.item(item)['tags']:
             tree.item(item,tags='')
             self.tagged_discard(item)
+            self.current_folder_items_tagged_discard(item)
         else:
             tree.item(item,tags=self.MARK)
             self.tagged_add(item)
+            self.current_folder_items_tagged_add(item)
 
     @block_actions_processing
     @gui_block
