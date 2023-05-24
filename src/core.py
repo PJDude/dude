@@ -781,7 +781,7 @@ class DudeCore:
 
     def write_csv(self,file_name):
         self.log.info('writing csv file: %s',file_name)
-        self_get_path = self.get_path
+        #self_get_path = self.get_path
 
         with open(file_name,'w') as csv_file:
             csv_file_write = csv_file.write
@@ -791,7 +791,12 @@ class DudeCore:
                     csv_file_write('%s,%s,\n' % (size,crc) )
                     for index_tuple in sorted(index_tuple_list,key= lambda x : x[5]):
                         #(pathnr,path,file_name,ctime,dev,inode)
-                        csv_file_write(',,%s\n' % self_get_path(index_tuple) )
+
+                        (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+                        full_path = self.scanned_paths[pathnr]+path
+                        #self_get_path(index_tuple)
+
+                        csv_file_write(',,%s\n' % full_path )
             self.log.info('#######################################################')
 
     def check_crc_pool_and_prune(self,size):
@@ -865,18 +870,18 @@ class DudeCore:
             return 'Error on hard linking:%s' % e
 
     def remove_from_data_pool(self,size,crc,index_tuple_list):
-        self_log_debug = self.log.debug
+        #self_log_debug = self.log.debug
+        self.log.info('remove_from_data_pool size:%s crc:%s tuples:%s',size,crc,index_tuple_list)
         self_files_of_size_of_crc = self.files_of_size_of_crc
         self_files_of_size_of_crc_size_crc_remove = self_files_of_size_of_crc[size][crc].remove
         for index_tuple in index_tuple_list:
-            self_log_debug('remove_from_data_pool:%s,%s,%s',size,crc,index_tuple)
             self_files_of_size_of_crc_size_crc_remove(index_tuple)
 
         self.check_crc_pool_and_prune(size)
 
-    def get_path(self,index_tuple):
-        (pathnr,path,file_name,ctime,dev,inode)=index_tuple
-        return self.scanned_paths[pathnr]+path
+    #def get_path(self,index_tuple):
+    #    (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+    #    return self.scanned_paths[pathnr]+path
 
     def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash=False):
         messages=set()
@@ -915,9 +920,8 @@ class DudeCore:
         (path_nr_keep,path_keep,file_keep,ctime_keep,dev_keep,inode_keep)=index_tuple_ref
 
         self_get_full_path_scanned = self.get_full_path_scanned
-        self_files_of_size_of_crc = self.files_of_size_of_crc
-        self_files_of_size_of_crc_size_crc = self_files_of_size_of_crc[size][crc]
-        self_files_of_size_of_crc_size_crc_remove = self_files_of_size_of_crc_size_crc.remove
+        self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
+        #self_files_of_size_of_crc_size_crc_remove = self_files_of_size_of_crc_size_crc.remove
 
         self_rename_file = self.rename_file
         self_delete_file = self.delete_file
@@ -953,9 +957,11 @@ class DudeCore:
                     self.log.error(message)
                     return message
 
-                self_files_of_size_of_crc_size_crc_remove(index_tuple)
+                #self_files_of_size_of_crc_size_crc_remove(index_tuple)
+                self.remove_from_data_pool(size,crc,[index_tuple])
         if not soft:
-            self_files_of_size_of_crc_size_crc_remove(index_tuple_ref)
+            #self_files_of_size_of_crc_size_crc_remove(index_tuple_ref)
+            self.remove_from_data_pool(size,crc,index_tuple_ref)
 
         self.check_crc_pool_and_prune(size)
 

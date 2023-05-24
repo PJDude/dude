@@ -60,6 +60,7 @@ from collections import defaultdict
 from threading import Thread
 import sys
 import logging
+from traceback import format_stack
 
 import core
 import console
@@ -213,6 +214,7 @@ class Gui:
                 self.status('block_actions_processing_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
                 self.info_dialog_on_main.show('INTERNAL ERROR block_actions_processing_wrapp',str(e))
                 l_error('block_actions_processing_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
                 res=None
 
             self.actions_processing=prev_active
@@ -236,6 +238,7 @@ class Gui:
                 self.status('gui_block_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
                 self.info_dialog_on_main.show('INTERNAL ERROR gui_block_wrapp',func.__name__ + '\n' + str(e))
                 l_error('gui_block_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
                 res=None
 
             self.menu_enable()
@@ -253,6 +256,7 @@ class Gui:
                 self.status('catched_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
                 self.info_dialog_on_main.show('INTERNAL ERROR catched_wrapp','%s %s' % (func.__name__,str(e)) )
                 l_error('catched_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
                 res=None
             return res
         return catched_wrapp
@@ -267,6 +271,7 @@ class Gui:
                 self.status('logwrapper_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
                 self.info_dialog_on_main.show('INTERNAL ERROR logwrapper_wrapp','%s %s' % (func.__name__,str(e)) )
                 l_error('logwrapper_wrapp:%s:%s:args:%s:kwargs: %s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
                 res=None
 
             l_info("logwrapper '%s' end. BENCHMARK TIME:%s",func.__name__,time()-start)
@@ -282,6 +287,7 @@ class Gui:
                 self.status('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s' % (func.__name__,e,args,kwargs) )
                 self.info_dialog_on_main.show('INTERNAL ERROR restore_status_line_wrapp',str(e))
                 l_error('restore_status_line_wrapp:%s:%s:args:%s:kwargs:%s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
                 res=None
             else:
                 self.status(prev)
@@ -1739,6 +1745,13 @@ class Gui:
                                 self.mark_in_group(self.unset_mark)
                         else:
                             self.mark_in_folder(self.unset_mark)
+                    elif key in ('d','D'):
+                        if tree==self.folder_tree:
+                            if shift_pressed:
+                                self.sel_dir(self.unset_mark)
+                            else:
+                                self.sel_dir(self.set_mark)
+
                     elif key in ('r','R'):
                         if tree==self.folder_tree:
 
@@ -1761,9 +1774,11 @@ class Gui:
                             if tree==self.groups_tree:
                                 self.action_on_path(dude_core.scanned_paths[index],self.unset_mark,ctrl_pressed)
                     elif key in ('KP_Divide','slash'):
-                        self.mark_subpath(self.set_mark,True)
+                        if tree==self.groups_tree:
+                            self.mark_subpath(self.set_mark,True)
                     elif key=='question':
-                        self.mark_subpath(self.unset_mark,True)
+                        if tree==self.groups_tree:
+                            self.mark_subpath(self.unset_mark,True)
                     elif key in ('f','F'):
                         self.finder_wrapper_show()
 
@@ -2207,6 +2222,7 @@ class Gui:
 
             self.tree_folder_update(self.sel_path_full)
 
+    @logwrapper
     def sel_dir(self,action):
         self.action_on_path(self.sel_full_path_to_file,action,True)
 
@@ -3029,7 +3045,6 @@ class Gui:
 
         if self.current_folder_items:
             self.folder_tree_delete(*self.current_folder_items)
-        #self.folder_tree.get_children()
 
         self.status_folder_size_configure(text='')
         self.status_folder_quant_configure(text='')
@@ -3415,7 +3430,10 @@ class Gui:
 
     @block_actions_processing
     @gui_block
+    @logwrapper
     def action_on_path(self,path_param,action,all_groups=True):
+        self.status('Un/Setting marking in subdirectory ...')
+
         if all_groups:
             crc_range = self.groups_tree.get_children()
         else :
@@ -3550,6 +3568,7 @@ class Gui:
 
         tree.focus_set()
 
+    @logwrapper
     def mark_subpath(self,action,all_groups=True):
         initialdir = self.last_dir if self.last_dir else self.cwd
         if path:=askdirectory(title='Select Directory',initialdir=initialdir):
@@ -3984,7 +4003,7 @@ class Gui:
         self_groups_tree_set = self.groups_tree.set
         self_get_index_tuple_groups_tree = self.get_index_tuple_groups_tree
 
-        dude_core_get_path = dude_core.get_path
+        #dude_core_get_path = dude_core.get_path
         dude_core_delete_file_wrapper = dude_core.delete_file_wrapper
         self_crc_node_update = self.crc_node_update
         self_empty_dirs_removal = self.empty_dirs_removal
@@ -4010,7 +4029,10 @@ class Gui:
                     counter+=1
                     index_tuple=self_get_index_tuple_groups_tree(item)
                     tuples_to_delete_add(index_tuple)
-                    directories_to_check_add(dude_core_get_path(index_tuple))
+
+                    (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+                    full_path = dude_core.scanned_paths[pathnr]+path
+                    directories_to_check_add(full_path)
                     if counter%128==0:
                         self_status('processing files %s ...' % counter)
 
@@ -4115,7 +4137,6 @@ class Gui:
 
         affected_crcs=processed_items.keys()
         #print('affected_crcs:',affected_crcs)
-
 
         self.status('checking remaining items...')
         remaining_items={}
@@ -4244,25 +4265,25 @@ class Gui:
         self_folder_tree_set = self.folder_tree.set
 
         new_list_names=[self_folder_tree_set(item,'file') for item in self.current_folder_items] if self.current_folder_items else []
-        #self.folder_tree.get_children()
 
         if item_name in new_list_names:
             return new_list[new_list_names.index(item_name)]
 
-        org_index=prev_list.index(item)
+        if item in prev_list:
+            org_index=prev_list.index(item)
 
-        new_list_len=len(new_list)
-        for i in range(new_list_len):
-            if (index_m_i:=org_index-i) >=0:
-                nearest = prev_list[index_m_i]
-                if nearest in new_list:
-                    return nearest
-            elif (index_p_i:=org_index+i) < new_list_len:
-                nearest = prev_list[index_p_i]
-                if nearest in new_list:
-                    return nearest
-            else:
-                return None
+            new_list_len=len(new_list)
+            for i in range(new_list_len):
+                if (index_m_i:=org_index-i) >=0:
+                    nearest = prev_list[index_m_i]
+                    if nearest in new_list:
+                        return nearest
+                elif (index_p_i:=org_index+i) < new_list_len:
+                    nearest = prev_list[index_p_i]
+                    if nearest in new_list:
+                        return nearest
+                else:
+                    return None
 
         return None
 
@@ -4274,20 +4295,22 @@ class Gui:
         if not new_list:
             return None
 
-        sel_index=prev_list.index(item)
+        if item in prev_list:
+            sel_index=prev_list.index(item)
 
-        new_list_len=len(new_list)
-        for i in range(new_list_len):
-            if (index_m_i:=sel_index-i) >=0:
-                nearest = prev_list[index_m_i]
-                if nearest in new_list:
-                    return nearest
-            elif (index_p_i:=sel_index+i) < new_list_len:
-                nearest = prev_list[index_p_i]
-                if nearest in new_list:
-                    return nearest
-            else:
-                return None
+            new_list_len=len(new_list)
+            for i in range(new_list_len):
+                if (index_m_i:=sel_index-i) >=0:
+                    nearest = prev_list[index_m_i]
+                    if nearest in new_list:
+                        return nearest
+                elif (index_p_i:=sel_index+i) < new_list_len:
+                    nearest = prev_list[index_p_i]
+                    if nearest in new_list:
+                        return nearest
+                else:
+                    return None
+
         return None
 
     @logwrapper
@@ -4339,7 +4362,6 @@ class Gui:
 
         if self.tree_folder_update(fullpath):
             children=self.current_folder_items
-            #self.folder_tree.get_children()
             res_list=[nodeid for nodeid in children if self.folder_tree.set(nodeid,'file')==sel]
             if res_list:
                 item=res_list[0]
@@ -4521,7 +4543,6 @@ if __name__ == "__main__":
 
             except Exception as e:
                 l_error(e)
-                self.status(str(e))
 
         log=os.path.abspath(p_args.log[0]) if p_args.log else LOG_DIR + sep + strftime('%Y_%m_%d_%H_%M_%S',localtime(time()) ) +'.txt'
         LOG_LEVEL = logging.DEBUG if p_args.debug else logging.INFO
