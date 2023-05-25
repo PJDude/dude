@@ -26,12 +26,11 @@
 #
 ####################################################################################
 
-import os
+from os import name as os_name
 
 import tkinter as tk
 from tkinter import ttk
 from tkinter import scrolledtext
-import time
 
 def set_geometry_by_parent(widget,parent):
     x_offset = int(parent.winfo_rootx()+0.5*(parent.winfo_width()-widget.winfo_width()))
@@ -400,10 +399,14 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
         self.mod_cmd(self.entry_val.get(),self.check_val.get())
 
     def prev(self):
+        self.widget.config(cursor="watch")
         self.prev_cmd(self.entry_val.get(),self.check_val.get())
+        self.widget.config(cursor="")
 
     def next(self):
+        self.widget.config(cursor="watch")
         self.next_cmd(self.entry_val.get(),self.check_val.get())
+        self.widget.config(cursor="")
 
     def show(self,title='',message='',initial='',checkbutton_text='',checkbutton_initial=False):
         self.focus_restore=False
@@ -415,6 +418,8 @@ class FindEntryDialog(CheckboxEntryDialogQuestion):
 class SFrame(tk.Frame):
     def __init__(self, parent,bg,width=200,height=100):
         super().__init__(parent,bg=bg)
+
+        self.windows = bool(os_name=='nt')
 
         self.canvas = tk.Canvas(self, bd=0, bg=bg,highlightcolor=bg,width=width,height=height,relief='flat')
         self.f = tk.Frame(self.canvas, bg=bg,takefocus=False)
@@ -444,7 +449,7 @@ class SFrame(tk.Frame):
         self.canvas.itemconfig(self.canvas_window, width = event.width)
 
     def wheel(self, event):
-        if os.name=='nt':
+        if self.windows:
             self.canvas.yview_scroll(int(-1 * (event.delta/120)), "units")
         else:
             if event.num == 4:
@@ -453,14 +458,14 @@ class SFrame(tk.Frame):
                 self.canvas.yview_scroll( 1, "units" )
 
     def on_enter(self, event):
-        if os.name=='nt':
+        if self.windows:
            self.canvas.bind_all("<MouseWheel>", self.wheel)
         else:
             self.canvas.bind_all("<Button-4>", self.wheel)
             self.canvas.bind_all("<Button-5>", self.wheel)
 
     def on_leave(self, event):
-        if os.name=='nt':
+        if self.windows:
             self.canvas.unbind_all("<MouseWheel>")
         else:
             self.canvas.unbind_all("<Button-4>")

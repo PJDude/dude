@@ -39,22 +39,25 @@ from time import localtime
 from time import time
 from hashlib import sha1
 
-import os
 from os import stat
 from os import scandir
 from os import sep
 from os import symlink
 from os import link
+from os import cpu_count
+from os import name as os_name
+from os import rename as os_rename
+from os import remove as os_remove
+
+from os.path import dirname
+from os.path import relpath
+from os.path import normpath
+from os.path import join as path_join
+from os.path import abspath as abspath
+from os.path import exists as path_exists
+from os.path import isdir as path_isdir
 
 from send2trash import send2trash
-
-core_send2trash = send2trash
-
-os_path = os.path
-os_path_dirname = os_path.dirname
-os_path_normpath = os_path.normpath
-os_rename = os.rename
-os_remove = os.remove
 
 def bytes_to_str(num):
     if num < 1024:
@@ -179,7 +182,7 @@ class DudeCore:
     def __init__(self,cache_dir,log_par,debug=False):
         self.cache_dir=cache_dir
         self.log=log_par
-        self.windows = bool(os.name=='nt')
+        self.windows = bool(os_name=='nt')
         self.debug=debug
 
         self.name_func = (lambda x : x.lower()) if self.windows else (lambda x : x)
@@ -187,10 +190,10 @@ class DudeCore:
         self.reset()
 
     def get_full_path_to_scan(self,pathnr,path,file_name):
-        return os_path.join(self.paths_to_scan[pathnr]+path,file_name)
+        return path_join(self.paths_to_scan[pathnr]+path,file_name)
 
     def get_full_path_scanned(self,pathnr,path,file_name):
-        return os_path.join(self.scanned_paths[pathnr]+path,file_name)
+        return path_join(self.scanned_paths[pathnr]+path,file_name)
 
     def set_paths_to_scan(self,paths):
         paths_len=len(paths)
@@ -198,10 +201,10 @@ class DudeCore:
         if self.windows:
             paths=[path.replace('/',chr(92)) + (chr(92) if path[-1]==':' else '') for path in paths ]
 
-        abspaths=[os_path_normpath(os_path.abspath(path)) for path in paths]
+        abspaths=[normpath(abspath(path)) for path in paths]
 
         for path in abspaths:
-            if not os_path.exists(path) or not os_path.isdir(path):
+            if not path_exists(path) or not path_isdir(path):
                 return  path + '\n\nnot a directory'
 
         abspaths_osnorm=[self.name_func(path) for path in abspaths]
@@ -322,7 +325,6 @@ class DudeCore:
             loop_set_add=loop_set.add
             loop_set_add(path_to_scan)
 
-            os_path_join=os_path.join
             loop_set_pop=loop_set.pop
             self_set_scan_dir=self.set_scan_dir
 
@@ -335,7 +337,7 @@ class DudeCore:
                     folder_counter=0
                     for file_name,is_link,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self_set_scan_dir(path,self_log_skipped=self_log_skipped,self_log_error=self_log_error)[0]:
                         if any_exclude_list:
-                            fullpath=os_path_join(path,file_name)
+                            fullpath=path_join(path,file_name)
                             if any({self_excl_fn(expr,fullpath) for expr in self_exclude_list}):
                                 if self_log_skipped:
                                     self_log_info('skipping by Exclude Mask:%s',fullpath)
@@ -346,7 +348,7 @@ class DudeCore:
                                 if self_log_skipped:
                                     self_log_info('skippping link: %s / %s',path,file_name)
                             elif isdir:
-                                loop_set_add(os_path_join(path,file_name))
+                                loop_set_add(path_join(path,file_name))
                             elif isfile:
                                 if mtime: #stat succeeded
                                     if nlink>1:
@@ -418,18 +420,16 @@ class DudeCore:
         self.crc_cache={}
         self_crc_cache=self.crc_cache
         for dev in self.devs:
-            #print('read:',dev,type(dev))
-            self_crc_cache[dev]={}
+            self_crc_cache_int_dev = self_crc_cache[dev]={}
             try:
                 self.log.info('reading cache:%s:device:%s',self.cache_dir,dev)
                 with open(sep.join([self.cache_dir,str(dev)]),'r',encoding='ASCII' ) as cfile:
                     while line:=cfile.readline() :
-                        #print('readline:',line)
                         inode,mtime,crc = line.rstrip('\n').split(' ')
                         if crc is None or crc=='None' or crc=='':
                             self.log.warning("crc_cache read error:%s,%s,%s",inode,mtime,crc)
                         else:
-                            self_crc_cache[int(dev)][(int(inode),int(mtime))]=crc
+                            self_crc_cache_int_dev[(int(inode),int(mtime))]=crc
             except Exception as e:
                 self.log.warning(e)
                 self_crc_cache[dev]={}
@@ -586,7 +586,7 @@ class DudeCore:
         thread_pool_need_checking=True
         alive_threads=0
 
-        max_threads = os.cpu_count()
+        max_threads = cpu_count()
         self_devs=self.devs
 
         self_debug = self.debug
@@ -757,10 +757,12 @@ class DudeCore:
         if self.files_of_size_of_crc[size][crc]:
             for pathnr,path,file_name,ctime,dev,inode in self.files_of_size_of_crc[size][crc]:
                 full_path=self_get_full_path_to_scan(pathnr,path,file_name)
+
                 problem=False
                 try:
                     stat_res = stat(full_path)
                 except Exception as e:
+                    self.log.error('check_group_files_state: %s',e)
                     res_problems_append('%s|RED' % e)
                     problem=True
                 else:
@@ -781,7 +783,6 @@ class DudeCore:
 
     def write_csv(self,file_name):
         self.log.info('writing csv file: %s',file_name)
-        #self_get_path = self.get_path
 
         with open(file_name,'w') as csv_file:
             csv_file_write = csv_file.write
@@ -790,22 +791,20 @@ class DudeCore:
                 for crc,index_tuple_list in crc_dict.items():
                     csv_file_write('%s,%s,\n' % (size,crc) )
                     for index_tuple in sorted(index_tuple_list,key= lambda x : x[5]):
-                        #(pathnr,path,file_name,ctime,dev,inode)
-
                         (pathnr,path,file_name,ctime,dev,inode)=index_tuple
                         full_path = self.scanned_paths[pathnr]+path
-                        #self_get_path(index_tuple)
 
                         csv_file_write(',,%s\n' % full_path )
             self.log.info('#######################################################')
 
     def check_crc_pool_and_prune(self,size):
-        for crc in list(self.files_of_size_of_crc[size]):
-            if len(self.files_of_size_of_crc[size][crc])<2 :
-                del self.files_of_size_of_crc[size][crc]
+        if size in self.files_of_size_of_crc:
+            for crc in list(self.files_of_size_of_crc[size]):
+                if len(self.files_of_size_of_crc[size][crc])<2 :
+                    del self.files_of_size_of_crc[size][crc]
 
-        if len(self.files_of_size_of_crc[size])==0 :
-            del self.files_of_size_of_crc[size]
+            if len(self.files_of_size_of_crc[size])==0 :
+                del self.files_of_size_of_crc[size]
 
     def calc_crc_min_len(self):
         self.info='CRC min length calculation ...'
@@ -850,9 +849,9 @@ class DudeCore:
         l_info('soft-linking %s<-%s (relative:%s)',src,dest,relative)
         try:
             if relative:
-                dest_dir = os_path_dirname(dest)
-                src_rel = os_path.relpath(src, dest_dir)
-                symlink(os_path_normpath(src_rel),os_path_normpath(dest))
+                dest_dir = dirname(dest)
+                src_rel = relpath(src, dest_dir)
+                symlink(normpath(src_rel),normpath(dest))
             else:
                 symlink(src,dest)
             return False
@@ -863,25 +862,30 @@ class DudeCore:
     def do_hard_link(self,src,dest,l_info):
         l_info('hard-linking %s<-%s',src,dest)
         try:
-            link(os_path_normpath(src),os_path_normpath(dest))
+            link(normpath(src),normpath(dest))
             return False
         except Exception as e:
             self.log.error(e)
             return 'Error on hard linking:%s' % e
 
     def remove_from_data_pool(self,size,crc,index_tuple_list):
-        #self_log_debug = self.log.debug
         self.log.info('remove_from_data_pool size:%s crc:%s tuples:%s',size,crc,index_tuple_list)
-        self_files_of_size_of_crc = self.files_of_size_of_crc
-        self_files_of_size_of_crc_size_crc_remove = self_files_of_size_of_crc[size][crc].remove
-        for index_tuple in index_tuple_list:
-            self_files_of_size_of_crc_size_crc_remove(index_tuple)
 
-        self.check_crc_pool_and_prune(size)
+        if size in self.files_of_size_of_crc:
+            if crc in self.files_of_size_of_crc[size]:
+                for index_tuple in index_tuple_list:
+                    try:
+                        self.files_of_size_of_crc[size][crc].remove(index_tuple)
+                    except Exception as e:
+                        self.log.error('  %s',e)
+                        self.log.error('  index_tuple: %s',index_tuple)
+                        self.log.error('  self.files_of_size_of_crc[%s][%s]:%s',size,crc,self.files_of_size_of_crc[size][crc])
+            else:
+                self.log.warning('remove_from_data_pool - crc already removed')
 
-    #def get_path(self,index_tuple):
-    #    (pathnr,path,file_name,ctime,dev,inode)=index_tuple
-    #    return self.scanned_paths[pathnr]+path
+            self.check_crc_pool_and_prune(size)
+        else:
+            self.log.warning('remove_from_data_pool - size already removed')
 
     def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash=False):
         messages=set()
@@ -916,12 +920,14 @@ class DudeCore:
     def link_wrapper(self,\
             soft,relative,size,crc,\
             index_tuple_ref,index_tuple_list):
+        l_info = self.log.info
+
+        l_info('link_wrapper:%s,%s,%s,%s,%s,%s',soft,relative,size,crc,index_tuple_ref,index_tuple_list)
 
         (path_nr_keep,path_keep,file_keep,ctime_keep,dev_keep,inode_keep)=index_tuple_ref
 
         self_get_full_path_scanned = self.get_full_path_scanned
         self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
-        #self_files_of_size_of_crc_size_crc_remove = self_files_of_size_of_crc_size_crc.remove
 
         self_rename_file = self.rename_file
         self_delete_file = self.delete_file
@@ -933,39 +939,47 @@ class DudeCore:
         if index_tuple_ref not in self_files_of_size_of_crc_size_crc:
             return 'link_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path_keep,index_tuple_ref)
 
-        l_info = self.log.info
+        res=[]
+        tuples_to_remove = set()
         for index_tuple in index_tuple_list:
             (pathnr,path,file_name,ctime,dev,inode)=index_tuple
             full_file_path=self_get_full_path_scanned(pathnr,path,file_name)
 
             if index_tuple not in self_files_of_size_of_crc_size_crc:
-                return 'link_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path,index_tuple)
+                res.append('link_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path,index_tuple))
+                break
 
             temp_file='%s.temp' % full_file_path
 
             rename_file_res1 = self_rename_file(full_file_path,temp_file,l_info)
 
             if rename_file_res1:
-                return rename_file_res1
+                res.append(rename_file_res1)
+                break
             else:
-
                 if linking_problem:=link_command(full_file_path):
                     rename_file_back_res = self_rename_file(temp_file,full_file_path,l_info)
-                    return ("%s\n%s" % (linking_problem,rename_file_back_res)) if rename_file_back_res else ("%s" % linking_problem)
+                    res.append(("%s\n%s" % (linking_problem,rename_file_back_res)) if rename_file_back_res else ("%s" % linking_problem))
+                    break
 
                 if message:=self_delete_file(temp_file,l_info):
                     self.log.error(message)
-                    return message
+                    res.append(message)
+                    break
 
-                #self_files_of_size_of_crc_size_crc_remove(index_tuple)
-                self.remove_from_data_pool(size,crc,[index_tuple])
-        if not soft:
-            #self_files_of_size_of_crc_size_crc_remove(index_tuple_ref)
-            self.remove_from_data_pool(size,crc,index_tuple_ref)
+                tuples_to_remove.add(index_tuple)
 
-        self.check_crc_pool_and_prune(size)
+                if not soft:
+                    tuples_to_remove.add(index_tuple_ref)
 
-        return ''
+        self.remove_from_data_pool(size,crc,tuples_to_remove)
+
+        l_info('link_wrapper done')
+
+        if res:
+            return '\n'.join(res)
+        else:
+            return ''
 
 ############################################################################################
 if __name__ == "__main__":
@@ -985,7 +999,7 @@ if __name__ == "__main__":
     core=DudeCore('./test/cache',logging)
 
     TEST_DIR='test/files'
-    if not os_path.exists(TEST_DIR):
+    if not path_exists(TEST_DIR):
         test.generate(TEST_DIR)
 
     core.set_paths_to_scan([TEST_DIR])
