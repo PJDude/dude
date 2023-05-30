@@ -1,8 +1,6 @@
+pyinstaller==5.11.0
+nuitka==1.6
 appdirs==1.4.4
 send2trash==1.8.2
 zstandard==0.21.0
 ordered-set==4.1.0
-nuitka==1.5.8
-pyinstaller==5.11.0
-
-pywin32; sys.platform == 'win32'

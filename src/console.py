@@ -30,7 +30,6 @@ import argparse
 import os
 import signal
 #from sys import exit
-from subprocess import Popen
 from subprocess import DEVNULL
 import pathlib
 import sys
@@ -70,18 +69,14 @@ def parse_args(ver):
 
     parser.add_argument('-bfo','--biggestfilesorder' ,action='store_true',help='biggest files order')
 
-    if os.name=='nt':
-        parser.add_argument('-nh','--nohide' ,action='store_true'         ,help='don\'t hide console window in gui mode')
-
     parser_help=parser.format_help().split('\n')
     help_parts=[parser_help[0]] + parser_help[7::]
 
     return parser.parse_args()
 
-GUI_MAIN_WIN_APP_NAME='dudegui.exe'
-
-#windows console problem case
+#windows console wrapper
 if __name__ == "__main__":
+    GUI_MAIN_WIN_APP_NAME='dude.exe'
     VER_TIMESTAMP = get_ver_timestamp()
 
     args=parse_args(VER_TIMESTAMP)
@@ -91,8 +86,8 @@ if __name__ == "__main__":
     if args.norun:
         command.append('--norun')
 
-    if args.bfo:
-        command.append('-bfo')
+    if args.biggestfilesorder:
+        command.append('--biggestfilesorder')
 
     if args.exclude:
         command.append('--exclude')
@@ -114,10 +109,7 @@ if __name__ == "__main__":
 
     if os.path.exists(GUI_MAIN_WIN_APP_NAME):
         try:
-            Popen(command,stdin=DEVNULL,stdout=DEVNULL,stderr=DEVNULL)
-            #, shell=False
-            #dont wait with open console for main process
-            os.kill(os.getppid(),signal.SIGTERM)
+            os.system("start %s" % ' '.join(command))
         except Exception as e_gui:
             print(e_gui)
             sys.exit()
