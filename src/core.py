@@ -254,33 +254,6 @@ class DudeCore:
     info_counter=0
     info_size_sum=0
 
-    def set_scan_dir(self,path,self_log_skipped,self_log_error):
-        try:
-            with scandir(path) as res:
-                entry_set=set()
-                entry_set_add=entry_set.add
-
-                for entry in res:
-                    is_link=entry.is_symlink()
-
-                    if is_link:
-                        entry_set_add( (entry.name,is_link,entry.is_dir(),entry.is_file(),None,None,None,None,None,None) )
-                    else:
-                        try:
-                            stat_res = stat(entry)
-                            entry_set_add( (entry.name,is_link,entry.is_dir(),entry.is_file(),stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino,stat_res.st_size,stat_res.st_nlink) )
-                        except Exception as e:
-                            if self_log_skipped:
-                                self_log_error('scandir(stat):%s error:%s is_link:%s',entry.name,e,is_link )
-                            continue
-                return (tuple(entry_set),None)
-
-        except Exception as e:
-            if self_log_skipped:
-                self_log_error('scandir: %s',e)
-
-            return (tuple([]),str(e))
-
     log_skipped = False
 
     scan_update_info_path_nr=None
@@ -306,7 +279,6 @@ class DudeCore:
 
         self_log_skipped = self.log_skipped
         self_log_error=self.log.error
-        self_log_info=self.log.info
 
         self_exclude_list=self.exclude_list
         any_exclude_list = bool(self_exclude_list)
@@ -315,6 +287,9 @@ class DudeCore:
         self.sum_size=0
         self.info_size_done_perc=0
         self.info_files_done_perc=0
+
+        self_log_info=self.log.info
+        skipping_action = lambda *args : self_log_info(*args) if self_log_skipped else None
 
         for path_to_scan in self.paths_to_scan:
             self.info_path_to_scan=path_to_scan
@@ -326,53 +301,60 @@ class DudeCore:
             loop_set_add(path_to_scan)
 
             loop_set_pop=loop_set.pop
-            self_set_scan_dir=self.set_scan_dir
 
             while loop_set:
+
+                path = loop_set_pop()
+                self.info_line=path
+
+                ##############################################
                 try:
-                    path = loop_set_pop()
-                    self.info_line=path
+                    with scandir(path) as res:
+                        folder_size=0
+                        folder_counter=0
 
-                    folder_size=0
-                    folder_counter=0
-                    for file_name,is_link,isdir,isfile,mtime,ctime,dev,inode,size,nlink in self_set_scan_dir(path,self_log_skipped=self_log_skipped,self_log_error=self_log_error)[0]:
-                        if any_exclude_list:
-                            fullpath=path_join(path,file_name)
-                            if any({self_excl_fn(expr,fullpath) for expr in self_exclude_list}):
-                                if self_log_skipped:
-                                    self_log_info('skipping by Exclude Mask:%s',fullpath)
-                                continue
+                        for entry in res:
+                            if self.abort_action:
+                                break
 
-                        try:
-                            if is_link :
-                                if self_log_skipped:
-                                    self_log_info('skippping link: %s / %s',path,file_name)
-                            elif isdir:
-                                loop_set_add(path_join(path,file_name))
-                            elif isfile:
-                                if mtime: #stat succeeded
-                                    if nlink>1:
-                                        if self_log_skipped:
-                                            self_log_info('scan skipp - hardlinks %s - %s,%s,%s',nlink,path_nr,path,file_name)
+                            if entry.is_symlink() :
+                                skipping_action('skippping link: %s / %s',path,entry.name)
+                            else:
+                                if any_exclude_list:
+                                    fullpath=path_join(path,entry.name)
+                                    if any({self_excl_fn(expr,fullpath) for expr in self_exclude_list}):
+                                        skipping_action('skipping by Exclude Mask:%s',fullpath)
+                                        continue
+
+                                if entry.is_dir():
+                                    loop_set_add(path_join(path,entry.name))
+                                elif entry.is_file():
+                                    try:
+                                        stat_res = stat(entry)
+                                    except Exception as e:
+                                        skipping_action('scandir(stat):%s error:%s',entry.name,e )
                                     else:
-                                        if size:
-                                            folder_size+=size
+                                        nlink = stat_res.st_nlink
+                                        if nlink>1:
+                                            skipping_action('scan skipp - hardlinks %s - %s,%s,%s',nlink,path_nr,path,entry.name)
+                                        else:
+                                            if size:=stat_res.st_size:
+                                                folder_size+=size
 
-                                            subpath=path.replace(path_to_scan,'')
-                                            self_scan_results_by_size[size].add( (path_nr,subpath,file_name,mtime,ctime,dev,inode) )
+                                                subpath=path.replace(path_to_scan,'')
+                                                self_scan_results_by_size[size].add( (path_nr,subpath,entry.name,stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino) )
 
-                                folder_counter+=1
+                                    folder_counter+=1
+                                else:
+                                    skipping_action('skipping another:%s',path)
 
-                                if self.abort_action:
-                                    break
+                        self.info_size_sum+=folder_size
+                        self.info_counter+=folder_counter
 
-                        except Exception as e:
-                            self.log.error(e)
-
-                    self.info_size_sum+=folder_size
-                    self.info_counter+=folder_counter
                 except Exception as e:
-                    self.log.error("scanning:'%s' - %s",path_to_scan,e)
+                    skipping_action('scandir %s: error:%s',path,e)
+
+                ##############################################
 
                 if self.abort_action:
                     break

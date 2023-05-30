@@ -26,6 +26,8 @@
 #
 ####################################################################################
 
+from send2trash import send2trash
+
 from fnmatch import fnmatch
 from shutil import rmtree
 
@@ -55,8 +57,6 @@ from os.path import join as path_join
 from os.path import isfile as path_isfile
 from os.path import split as path_split
 from os.path import exists as path_exists
-
-from send2trash import send2trash
 
 from platform import node
 from pathlib import Path
@@ -2385,6 +2385,9 @@ class Gui:
 
         self.update_scan_path_nr=False
 
+        dude_core.log_skipped = self.log_skipped_var.get()
+        self.log_skipped = self.log_skipped_var.get()
+
         scan_thread=Thread(target=dude_core.scan,daemon=True)
         scan_thread.start()
 
@@ -2417,9 +2420,6 @@ class Gui:
 
         wait_var=tk.BooleanVar()
         wait_var.set(False)
-
-        dude_core.log_skipped = self.log_skipped_var.get()
-        self.log_skipped = self.log_skipped_var.get()
 
         self_progress_dialog_on_scan_lab[2].configure(image='',text='')
 
@@ -3034,6 +3034,8 @@ class Gui:
     current_folder_items=[]
     current_folder_items_tagged=set()
 
+    folder_items=set()
+
     @block_actions_processing
     def tree_folder_update(self,arbitrary_path=None):
         ftree = self.folder_tree
@@ -3044,11 +3046,6 @@ class Gui:
         if not current_path:
             return False
 
-        scan_dir_tuple=dude_core.set_scan_dir(current_path,self_log_skipped = False,self_log_error=l_error)
-
-        if scan_dir_tuple[1]:
-            self.status(scan_dir_tuple[1])
-            return False
 
         show_full_crc=self.cfg.get_bool(CFG_KEY_FULL_CRC)
 
@@ -3058,8 +3055,7 @@ class Gui:
         i=0
         sort_val_func = int if is_numeric else lambda x : x
 
-        keys=set()
-        keys_add = keys.add
+        self_folder_items_add = self.folder_items.add
 
         self_idfunc=self.idfunc
 
@@ -3091,109 +3087,71 @@ class Gui:
         self_current_folder_items_tagged.clear()
         current_folder_items_tagged_size=0
 
-        for file,islink,isdir,isfile,mtime,ctime,dev,inode,size_num,nlink in scan_dir_tuple[0]:
-            if islink :
-                #presort_id = dir_code if isdir else non_dir_code
+        self.folder_items.clear()
 
-                #text = ''
-                #icon = DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON
-                #iid=('%sDL' % i) if isdir else ('%sFL' % i)
+        #############################################
+        try:
+            with scandir(current_path) as res:
+                for entry in res:
+                    is_link=entry.is_symlink()
+                    isdir = entry.is_dir()
 
-                #kind= self_DIRLINK if isdir else self_LINK
-                #defaulttag = self_DIR if isdir else self_LINK
-                #crc=''
-                #size='0'
-                #size_h=''
-                #ctime_str='0'
-                #ctime_h=''
-                #instances='1'
-                #instances_h=''
-                #values = (file,dev_str[dev],str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
-                values = (file,str(dev),str(inode),self_DIRLINK if isdir else self_LINK,'','0','','0','','1','')
-
-                keys_add((dir_code if isdir else non_dir_code,sort_val_func(values[sort_index_local]),('%sDL' % i) if isdir else ('%sFL' % i),'',values,self_DIR if isdir else self_LINK,DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON))
-
-                i+=1
-            elif isdir:
-                #presort_id = dir_code
-                #text = ''
-                #icon = FOLDER_ICON
-                #iid='%sD' % i
-
-                #kind= self_DIR
-                #defaulttag = self_DIR
-
-                #crc=''
-                #size='0'
-                #size_h=''
-                #ctime_str='0'
-                #ctime_h=''
-                #instances='1'
-                #instances_h=''
-
-                #values = (file,dev_str[dev],str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
-                values = (file,str(dev),str(inode),self_DIR,'','0','','0','','1','')
-
-                keys_add((dir_code,sort_val_func(values[sort_index_local]),'%sD' % i,'',values,self_DIR,FOLDER_ICON))
-
-                i+=1
-            elif isfile:
-                #presort_id = non_dir_code
-                file_id=self_idfunc(inode,dev)
-
-                ctime_h = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//1000000000)) #DE_NANO
-
-                size_h=local_core_bytes_to_str(size_num)
-
-                item_rocognized=True
-                if file_id in self_id2crc:
-                    crc,core_ctime=self_id2crc[file_id]
-
-                    if ctime != core_ctime:
-                        item_rocognized=False
+                    if is_link:
+                        values = (entry.name,'','',self_DIRLINK if isdir else self_LINK,'','0','','0','','1','')
+                        self_folder_items_add((dir_code if isdir else non_dir_code,sort_val_func(values[sort_index_local]),('%sDL' % i) if isdir else ('%sFL' % i),'',values,self_DIR if isdir else self_LINK,DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON))
+                        i+=1
                     else:
-                        #text = crc if show_full_crc else crc[:dude_core_crc_cut_len]
+                        try:
+                            stat_res = stat(entry)
+                        except Exception as e:
+                            self.status(str(e))
+                            continue
+                        else:
+                            dev,inode = stat_res.st_dev,stat_res.st_ino
+                            if isdir:
+                                values = (entry.name,str(dev),str(inode),self_DIR,'','0','','0','','1','')
+                                self_folder_items_add((dir_code,sort_val_func(values[sort_index_local]),'%sD' % i,'',values,self_DIR,FOLDER_ICON))
 
-                        #icon = NONE_ICON
-                        #iid=file_id
-                        #kind=self_FILE
-                        #instances_both = str(len(dude_core_files_of_size_of_crc[size_num][crc]))
-                        #instances_h=instances=str(instances_num)
-                        #defaulttag=''
+                                i+=1
+                            elif entry.is_file():
+                                ctime,size_num = stat_res.st_ctime_ns,stat_res.st_size
+                                file_id=self_idfunc(inode,dev)
 
-                        #values = (file,dev_str[dev],str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
-                        values = (file,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
-                        in_tagged=bool(file_id in self_tagged)
-                        if in_tagged:
-                            self_current_folder_items_tagged_add(file_id)
-                            current_folder_items_tagged_size+=size_num
+                                ctime_h = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//1000000000)) #DE_NANO
 
-                        keys_add((non_dir_code,sort_val_func(values[sort_index_local]),file_id,crc if show_full_crc else crc[:dude_core_crc_cut_len],values,self_MARK if in_tagged else '',NONE_ICON))
+                                size_h=local_core_bytes_to_str(size_num)
 
-                else:
-                    item_rocognized=False
+                                item_rocognized=True
+                                if file_id in self_id2crc:
+                                    crc,core_ctime=self_id2crc[file_id]
 
-                if not item_rocognized:
-                    #files without permissions -> nlink==0
-                    #text = '(%s)' % nlink if nlink>1 else ''
-                    #icon = HARDLINK_ICON if nlink>1 else NONE_ICON
-                    #iid='%sO' % i
-                    #crc=''
-                    #kind = self_SINGLEHARDLINKED if nlink>1 else self_SINGLE
-                    #defaulttag = self_SINGLE
+                                    if ctime != core_ctime:
+                                        item_rocognized=False
+                                    else:
+                                        values = (entry.name,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
+                                        in_tagged=bool(file_id in self_tagged)
+                                        if in_tagged:
+                                            self_current_folder_items_tagged_add(file_id)
+                                            current_folder_items_tagged_size+=size_num
 
-                    #instances='1'
-                    #instances_h=''
+                                        self_folder_items_add((non_dir_code,sort_val_func(values[sort_index_local]),file_id,crc if show_full_crc else crc[:dude_core_crc_cut_len],values,self_MARK if in_tagged else '',NONE_ICON))
+                                else:
+                                    item_rocognized=False
 
-                    #values = (file,dev_str[dev],str(inode),kind,crc,size,size_h,ctime_str,ctime_h,instances,instances_h)
-                    values = (file,str(dev),str(inode),self_SINGLEHARDLINKED if nlink>1 else self_SINGLE,'',str(size_num),size_h,str(ctime),ctime_h,'1','')
+                                if not item_rocognized:
+                                    nlink = stat_res.st_nlink
+                                    values = (entry.name,str(dev),str(inode),self_SINGLEHARDLINKED if nlink>1 else self_SINGLE,'',str(size_num),size_h,str(ctime),ctime_h,'1','')
 
-                    keys_add((non_dir_code,sort_val_func(values[sort_index_local]),'%sO' % i,'(%s)' % nlink if nlink>1 else '',values,self_SINGLE,HARDLINK_ICON if nlink>1 else NONE_ICON))
+                                    self_folder_items_add((non_dir_code,sort_val_func(values[sort_index_local]),'%sO' % i,'(%s)' % nlink if nlink>1 else '',values,self_SINGLE,HARDLINK_ICON if nlink>1 else NONE_ICON))
 
-                    i+=1
-            else:
-                l_error('what is it: %s:%s,%s,%s,%s ?',current_path,file,islink,isdir,isfile)
-                continue
+                                    i+=1
+                            else:
+                                l_error('another: %s:%s,%s ?',current_path,entry.name,is_link)
+                                continue
+
+        except Exception as e:
+            self.status(str(e))
+            return False
 
         ############################################################
 
@@ -3217,13 +3175,10 @@ class Gui:
             self_current_folder_items.append(ftree_insert(parent="", index=0, iid='0UP' , text='', image='', values=('..','','',self.UPDIR,'',0,'',0,'',0,''),tags=self_DIR))
 
         try:
-            self_current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=tag,image=image) for _,_,iid,text,values,tag,image in sorted(keys,reverse=reverse) ]
-
+            self_current_folder_items+=[ftree_insert(parent="", index='end', iid=iid , text=text, values=values,tags=tag,image=image) for _,_,iid,text,values,tag,image in sorted(self.folder_items,reverse=reverse) ]
         except Exception as e:
             self.status(str(e))
             l_error(e)
-
-        del keys
 
         self.current_folder_items_set=set(self.current_folder_items)
         if not arbitrary_path:
@@ -4412,14 +4367,6 @@ class Gui:
             l_error(e)
             self.status(str(e))
 
-if windows:
-    try:
-        import win32gui
-        import win32con
-    except Exception as e:
-        l_error(e)
-        self.status(str(e))
-
 if __name__ == "__main__":
     try:
 
@@ -4464,16 +4411,6 @@ if __name__ == "__main__":
 
         #dont mix device id for different hosts in portable mode
         CACHE_DIR = sep.join([CACHE_DIR_DIR,node()])
-
-        if not p_args.csv:
-            try:
-                foreground_window = win32gui.GetForegroundWindow() if windows and not p_args.nohide else None
-
-                if foreground_window:
-                    win32gui.ShowWindow(foreground_window, win32con.SW_HIDE)
-
-            except Exception as e:
-                l_error(e)
 
         log=abspath(p_args.log[0]) if p_args.log else LOG_DIR + sep + strftime('%Y_%m_%d_%H_%M_%S',localtime(time()) ) +'.txt'
         LOG_LEVEL = logging.DEBUG if p_args.debug else logging.INFO
@@ -4539,11 +4476,6 @@ if __name__ == "__main__":
 
         else:
             Gui(getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun,p_args.biggestfilesorder)
-
-            if foreground_window:
-                win32gui.ShowWindow(foreground_window, win32con.SW_SHOWDEFAULT)
-                win32gui.ShowWindow(foreground_window, win32con.SW_RESTORE)
-                win32gui.ShowWindow(foreground_window, win32con.SW_SHOW)
 
     except Exception as e_main:
         print(e_main)
