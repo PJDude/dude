@@ -7,6 +7,7 @@ on:
 permissions: read-all
 
 jobs:
+##########################################################################
   win-gen-version-build:
     runs-on: windows-latest
 
@@ -27,6 +28,7 @@ jobs:
     - name: install requirements
       run: pip install -r requirements.txt
 
+    #####################################
     - name: generate version number
       working-directory: ./scripts
       run: "version.gen.bat"
@@ -43,41 +45,55 @@ jobs:
       run: "icons.convert.bat"
       shell: cmd
 
+    #####################################
     - name: run nuitka
       working-directory: ./scripts
       run: "nuitka.run.bat"
       shell: cmd
 
-    - name: upload nuitka onefile
+    - name: upload nuitka onefile gui
       uses: actions/upload-artifact@v3
       with:
-        name: dude-nuitka-win-onefile
-        path: ./build-nuitka-win/dude.exe
+        name: nuitka-win-onefile-gui
+        path: ./build-nuitka-win/G/dude.exe
+
+    - name: upload nuitka onefile cmd
+      uses: actions/upload-artifact@v3
+      with:
+        name: nuitka-win-onefile-cmd
+        path: ./build-nuitka-win/C/dudecmd.exe
 
     - name: upload nuitka distro
       uses: actions/upload-artifact@v3
       with:
-        name: dude-nuitka-win-distro
+        name: nuitka-win-distro
         path: ./build-nuitka-win/dude.nuitka.win.zip
 
-
+    #####################################
     - name: run pyinstaller
       working-directory: ./scripts
       run: "pyinstaller.run.bat"
       shell: cmd
 
-    - name: upload pyinstaller onefile
+    - name: upload pyinstaller onefile gui
       uses: actions/upload-artifact@v3
       with:
-        name: dude-pyinstaller-win-onefile
-        path: ./build-pyinstaller-win/dude.exe
+        name: pyinstaller-win-onefile-gui
+        path: ./build-pyinstaller-win/O_G/dude.exe
+
+    - name: upload pyinstaller onefile cmd
+      uses: actions/upload-artifact@v3
+      with:
+        name: pyinstaller-win-onefile-cmd
+        path: ./build-pyinstaller-win/O_C/dudecmd.exe
 
     - name: upload pyinstaller distro
       uses: actions/upload-artifact@v3
       with:
-        name: dude-pyinstaller-win-distro
+        name: pyinstaller-win-distro
         path: ./build-pyinstaller-win/dude.pyinstaller.win.zip
 
+##########################################################################
   build-lin-release:
     permissions: write-all
     needs: [win-gen-version-build]
@@ -114,6 +130,7 @@ jobs:
       working-directory: ./scripts
       run: bash "icons.convert.sh"
 
+    #####################################
     - name: run nuitka
       working-directory: ./scripts
       run: bash "nuitka.run.sh"
@@ -130,7 +147,7 @@ jobs:
         name: dude-nuitka-lin-distro
         path: ./build-nuitka-lin/dude.nuitka.lin.zip
 
-
+    #####################################
     - name: run pyinstaller
       working-directory: ./scripts
       run: bash "pyinstaller.run.sh"
@@ -147,7 +164,7 @@ jobs:
         name: dude-pyinstaller-lin-distro
         path: ./build-pyinstaller-lin/dude.pyinstaller.lin.zip
 
-
+    #####################################
     - name: version read
       id: version
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
@@ -177,30 +194,43 @@ jobs:
         mv ./dude.pyinstaller.lin.zip ../dude.${{ steps.version.outputs.version }}.portable.linux.tgz
 
 
-    - name: download windows onefile nuitka
+    #####################################
+    - name: download windows onefile nuitka gui
       uses: actions/download-artifact@v3
       with:
-        name: dude-nuitka-win-onefile
+        name: nuitka-win-onefile-gui
+        path: ./
+
+    - name: download windows onefile nuitka cmd
+      uses: actions/download-artifact@v3
+      with:
+        name: nuitka-win-onefile-cmd
         path: ./
 
     - name: pack windows onefile nuitka
-      run: zip -9 -m dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip dude.exe
+      run: zip -9 -m dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip dude.exe dudecmd.exe
 
 
-    - name: download windows onefile pyinstaller
+    - name: download windows onefile pyinstaller gui
       uses: actions/download-artifact@v3
       with:
-        name: dude-pyinstaller-win-onefile
+        name: pyinstaller-win-onefile-gui
+        path: ./
+
+    - name: download windows onefile pyinstaller cmd
+      uses: actions/download-artifact@v3
+      with:
+        name: pyinstaller-win-onefile-cmd
         path: ./
 
     - name: pack windows onefile pyinstaller
-      run: zip -9 -m dude.${{ steps.version.outputs.version }}.portable.windows.onefile.zip dude.exe
+      run: zip -9 -m dude.${{ steps.version.outputs.version }}.portable.windows.onefile.zip dude.exe dudecmd.exe
 
 
     - name: download windows distro nuitka
       uses: actions/download-artifact@v3
       with:
-        name: dude-nuitka-win-distro
+        name: nuitka-win-distro
         path: ./
 
     - name: rename windows zip
@@ -209,13 +239,13 @@ jobs:
     - name: download windows distro pyinstaller
       uses: actions/download-artifact@v3
       with:
-        name: dude-pyinstaller-win-distro
+        name: pyinstaller-win-distro
         path: ./
 
     - name: rename windows zip
       run: mv ./dude.pyinstaller.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.zip
 
-
+    #####################################
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
       env:
