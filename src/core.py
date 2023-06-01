@@ -173,17 +173,17 @@ class DudeCore:
     def reset(self):
         self.scan_results_by_size=defaultdict(set)
         self.files_of_size_of_crc=defaultdict(lambda : defaultdict(set))
+        self.files_of_size_of_crc_items=self.files_of_size_of_crc.items
         self.devs=()
         self.crc_cut_len=40
         self.scanned_paths=[]
         self.exclude_list=[]
         self.biggest_files_order=False
 
-    def __init__(self,cache_dir,log_par,debug=False):
+    def __init__(self,cache_dir,log_par):
         self.cache_dir=cache_dir
         self.log=log_par
         self.windows = bool(os_name=='nt')
-        self.debug=debug
 
         self.name_func = (lambda x : x.lower()) if self.windows else (lambda x : x)
 
@@ -367,21 +367,21 @@ class DudeCore:
             self.reset()
             return False
 
-        self.devs=tuple(list({dev for size,data in self.scan_results_by_size.items() for pathnr,path,file_name,mtime,ctime,dev,inode in data}))
+        self.devs=tuple(list({dev for size,data in self_scan_results_by_size.items() for pathnr,path,file_name,mtime,ctime,dev,inode in data}))
 
         ######################################################################
         #inodes collision detection
         self.info='Inode collision detection'
         known_dev_inodes=defaultdict(int)
-        for size,data in self.scan_results_by_size.items():
+        for size,data in self_scan_results_by_size.items():
             for pathnr,path,file_name,mtime,ctime,dev,inode in data:
                 index=(dev,inode)
                 known_dev_inodes[index]+=1
 
         blacklisted_inodes = {index for index in known_dev_inodes if known_dev_inodes[index]>1}
 
-        for size in list(self.scan_results_by_size):
-            for pathnr,path,file_name,mtime,ctime,dev,inode in list(self.scan_results_by_size[size]):
+        for size in list(self_scan_results_by_size):
+            for pathnr,path,file_name,mtime,ctime,dev,inode in list(self_scan_results_by_size[size]):
                 index=(dev,inode)
                 if index in blacklisted_inodes:
                     this_index=(pathnr,path,file_name,mtime,ctime,dev,inode)
@@ -389,16 +389,21 @@ class DudeCore:
                     self.scan_results_by_size[size].remove(this_index)
 
         ######################################################################
-        for size in list(self.scan_results_by_size):
-            quant=len(self.scan_results_by_size[size])
+        self_scan_results_by_size = self.scan_results_by_size
+        sum_size = 0
+        for size in list(self_scan_results_by_size):
+            quant=len(self_scan_results_by_size[size])
             if quant==1 :
-                del self.scan_results_by_size[size]
+                del self_scan_results_by_size[size]
             else:
-                self.sum_size += quant*size
+                sum_size += quant*size
+
+        self.sum_size = sum_size
         ######################################################################
         return True
 
     def crc_cache_read(self):
+        self.info='Reading cache ...'
         self.crc_cache={}
         self_crc_cache=self.crc_cache
         for dev in self.devs:
@@ -468,7 +473,7 @@ class DudeCore:
         scan_results_sizes = list(self.scan_results_by_size)
 
         #########################################################################################################
-        self.info_line="Setting scan order ..."
+        self.info="Setting scan order ..."
 
         scan_results_sizes.sort(reverse=True)
 
@@ -510,7 +515,7 @@ class DudeCore:
 
         #########################################################################################################
 
-        self.info_line="Using cached CRC data ..."
+        self.info="Using cached CRC data ..."
         self.log.info('biggest files order: %s',self.biggest_files_order)
         self.log.info('using cache')
 
@@ -541,6 +546,7 @@ class DudeCore:
                 crc_core[dev].source.append( (fullpath,size) )
                 crc_core[dev].source_other_data.append( (pathnr,path,file_name,mtime,ctime,inode) )
 
+        self.info=''
         self.log.info('using cache done.')
         #########################################################################################################
         self.scan_results_by_size.clear()
@@ -554,8 +560,6 @@ class DudeCore:
         last_time_results_check = 0
         last_time_threads_check = 0
 
-        info=''
-
         prev_line_info={}
         prev_line_show_same_max={}
 
@@ -563,16 +567,14 @@ class DudeCore:
             prev_line_info[dev]=''
             prev_line_show_same_max[dev]=0
 
-        self.info_line="CRC calculation ..."
-
         thread_pool_need_checking=True
         alive_threads=0
 
         max_threads = cpu_count()
         self_devs=self.devs
 
-        self_debug = self.debug
-        self_files_of_size_of_crc_items = self.files_of_size_of_crc.items
+        self_files_of_size_of_crc = self.files_of_size_of_crc
+        self_files_of_size_of_crc_items = self.files_of_size_of_crc_items
 
         self_sum_size = self.sum_size
         while True:
@@ -586,14 +588,14 @@ class DudeCore:
             # threads starting/finishing
             alive_threads=len({dev for dev in self_devs if crc_core[dev].thread_is_alive()})
 
-            any_thread_started=False
+            no_thread_started=True
             if thread_pool_need_checking:
                 if alive_threads<max_threads:
                     for dev in self_devs:
                         crc_core_dev = crc_core[dev]
                         if not crc_core_dev.started and not crc_core_dev.thread_is_alive():
                             crc_core_dev.start()
-                            any_thread_started=True
+                            no_thread_started=False
                             break
 
                 all_started=True
@@ -607,7 +609,7 @@ class DudeCore:
             ########################################################################
             # info
             now=time()
-            if not self.abort_action and now-last_time_info_update>0.1:
+            if not self.abort_action and now-last_time_info_update>0.15:
                 last_time_info_update=now
 
                 #######################################################
@@ -618,79 +620,43 @@ class DudeCore:
                 self.info_files_done = files_done_cached + sum([crc_core[dev].files_done for dev in self_devs])
                 self.info_files_done_perc = 100*self.info_files_done/self.info_total
 
-                if self_debug:
-                    self.info_threads=str(alive_threads)
-
-                    #######################################################
-                    #speed
-                    measures_pool=[(pool_time,FSize) for (pool_time,FSize) in measures_pool if (now-pool_time)<3] + [(now,self.info_size_done)]
-
-                    first=measures_pool[0]
-                    if last_period_time_diff := now - first[0]:
-                        last_period_size_sum  = self.info_size_done - first[1]
-                        self.info_speed=int(last_period_size_sum/last_period_time_diff)
-
-                    #######################################################
-                    #status line info
-
-                    line_info_list=[]
-                    for dev in self_devs:
-                        #size,file_name
-                        crc_core_dev = crc_core[dev]
-                        if crc_core_dev.progress_info and crc_core_dev.file_info:
-                            curr_line_info_file_size,curr_line_info_file_name=crc_core_dev.file_info
-
-                            if curr_line_info_file_size==prev_line_info[dev]:
-                                if now-prev_line_show_same_max[dev]>1:
-                                    line_info_list.append( (curr_line_info_file_size,str(curr_line_info_file_name) + ' [' + bytes_to_str(crc_core_dev.progress_info) + '/' + bytes_to_str(curr_line_info_file_size) + ']') )
-                            else:
-                                prev_line_show_same_max[dev]=now
-                                prev_line_info[dev]=curr_line_info_file_size
-
-                    self.info_line = '    '.join([elem[1] for elem in sorted(line_info_list,key=lambda x : x[0],reverse=True)])
-
-                #######################################################
-                #found
-                if now-last_time_results_check>2 and not self.abort_action:
+                if now-last_time_results_check>2:
                     last_time_results_check=now
 
-                    crc_temp_dict=defaultdict(int)
+                    crc_to_combo=defaultdict(set)
+
                     for dev in self_devs:
-                        for crc in crc_core[dev].results:
+                        for (fullpath,size),crc in zip(crc_core[dev].source,crc_core[dev].results):
                             if crc:
-                                crc_temp_dict[crc]+=1
+                                crc_to_combo[crc].add( (size,dirname(fullpath)) )
 
                     for size,size_dict in self_files_of_size_of_crc_items():
                         for crc,crc_dict in size_dict.items():
-                            for file in crc_dict:
-                                crc_temp_dict[crc]+=1
+                            for pathnr,path,file_name,_,_,_ in crc_dict:
+                                dirpath =self.paths_to_scan[pathnr]+path
+                                crc_to_combo[crc].add( (size,dirpath) )
 
                     temp_info_groups=0
-                    for crc,crc_inst in crc_temp_dict.items():
-                        if crc_inst>1:
+                    temp_info_dupe_space=0
+                    temp_info_folders_set=set()
+
+                    for crc,crc_combo in crc_to_combo.items():
+                        len_crc_combo = len(crc_combo)
+                        if len_crc_combo>1:
                             temp_info_groups+=1
-
-                    #temp_info_groups=sum([1 for crc,crc_inst in crc_temp_dict.items() if crc_inst>1 ])
-
-                    #temp_info_folders=set()
-                    #temp_info_dupe_space=0
-
-                    #for size,size_dict in self.files_of_size_of_crc.items():
-                    #    for crc_dict in size_dict.values():
-                    #        if len(crc_dict)>1:
-                    #            temp_info_groups+=1
-                    #            for pathnr,path,file_name,ctime,dev,inode in crc_dict:
-                    #                temp_info_dupe_space+=size
-                    #                temp_info_folders.add((pathnr,path))
+                            for size,dirpath in crc_combo:
+                                temp_info_dupe_space+=size
+                                temp_info_folders_set.add(dirpath)
 
                     self.info_found_groups=temp_info_groups
-                    #self.info_found_folders=len(temp_info_folders)
-                    #self.info_found_dupe_space=temp_info_dupe_space
-            elif alive_threads==0 and not any_thread_started:
-                self.info='breaking ...'
+                    self.info_found_dupe_space=temp_info_dupe_space
+                    self.info_found_folders=len(temp_info_folders_set)
+                    temp_info_folders_set.clear()
+
+            elif alive_threads==0 and no_thread_started:
                 break
             else:
-                sleep(0.01)
+                sleep(0.02)
 
         self.can_abort=False
         ########################################################################
@@ -706,7 +672,7 @@ class DudeCore:
                 if crc:
                     index_tuple=(pathnr,path,file_name,ctime,dev,inode)
 
-                    self.files_of_size_of_crc[size][crc].add( index_tuple )
+                    self_files_of_size_of_crc[size][crc].add( index_tuple )
 
                     cache_key=(inode,mtime)
                     self.crc_cache[dev][cache_key]=crc
@@ -723,7 +689,7 @@ class DudeCore:
         self.crc_cache_write()
 
         end=time()
-        self.log.debug('total time = %s',end-start)
+        self.log.info('total time = %s',end-start)
 
         self.calc_crc_min_len()
 
@@ -769,7 +735,7 @@ class DudeCore:
         with open(file_name,'w') as csv_file:
             csv_file_write = csv_file.write
             csv_file_write('#size,crc,filepath\n#no checking if the path contains a comma\n')
-            for size,crc_dict in self.files_of_size_of_crc.items():
+            for size,crc_dict in self.files_of_size_of_crc_items():
                 for crc,index_tuple_list in crc_dict.items():
                     csv_file_write('%s,%s,\n' % (size,crc) )
                     for index_tuple in sorted(index_tuple_list,key= lambda x : x[5]):
@@ -790,7 +756,7 @@ class DudeCore:
 
     def calc_crc_min_len(self):
         self.info='CRC min length calculation ...'
-        all_crcs_len=len(all_crcs:={crc for size,size_dict in self.files_of_size_of_crc.items() for crc in size_dict})
+        all_crcs_len=len(all_crcs:={crc for size,size_dict in self.files_of_size_of_crc_items() for crc in size_dict})
 
         len_temp=4
         while len({crc[0:len_temp] for crc in all_crcs})!=all_crcs_len:
