@@ -55,7 +55,6 @@ def parse_args(ver):
 
     parser.add_argument('-ad','--appdirs',action='store_true',help="don't write files in portable mode (folder \"dude.data\" in the executable directory). Use platform specific folders provided by \"appdirs\" module.")
     parser.add_argument('-l','--log' ,nargs=1,help='specify log file')
-    parser.add_argument('-d','--debug' ,action='store_true'         ,help='set debug logging level')
 
     exclude_group = parser.add_mutually_exclusive_group()
     exclude_group.add_argument('-e','--exclude',nargs='*'          ,help='exclude expressions')
@@ -100,9 +99,6 @@ if __name__ == "__main__":
     if args.log:
         command.append('--log')
         command.append(args.log)
-
-    if args.debug:
-        command.append('--debug')
 
     if args.paths:
         command.extend(args.paths)
