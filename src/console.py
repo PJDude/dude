@@ -66,8 +66,6 @@ def parse_args(ver):
     c_help='do not run the gui. run the scan and save the result to the specified csv file. Implies -nh' if os.name=='nt' else 'do not run the gui. run the scan and save the result to the specified csv file.'
     run_mode_group.add_argument('-c','--csv' ,nargs=1,help=c_help)
 
-    parser.add_argument('-bfo','--biggestfilesorder' ,action='store_true',help='biggest files order')
-
     parser_help=parser.format_help().split('\n')
     help_parts=[parser_help[0]] + parser_help[7::]
 
@@ -84,9 +82,6 @@ if __name__ == "__main__":
 
     if args.norun:
         command.append('--norun')
-
-    if args.biggestfilesorder:
-        command.append('--biggestfilesorder')
 
     if args.exclude:
         command.append('--exclude')

@@ -90,13 +90,13 @@ class CRCThreadedCalc:
         self.abort_action=False
         self.started=False
         self.thread = Thread(target=self.calc,daemon=True)
-        self.log.info('CRCThreadedCalc initialized')
+        self.log.info('CRCThreadedCalc %s initialized',self)
         self.size_done = 0
         self.files_done = 0
         self.thread_is_alive = self.thread.is_alive
 
     def __del__(self):
-        self.log.info("CRCThreadedCalc gets destroyed")
+        self.log.info("CRCThreadedCalc %s gets destroyed",self)
 
     def abort(self):
         self.abort_action=True
@@ -157,11 +157,11 @@ class CRCThreadedCalc:
             self.files_done += 1
 
     def start(self):
-        self.log.info('CRCThreadedCalc start')
+        self.log.info('CRCThreadedCalc %s start',self)
         return self.thread.start()
 
     def join(self):
-        self.log.info('CRCThreadedCalc join')
+        self.log.info('CRCThreadedCalc %s join',self)
         self.thread.join()
 
 class DudeCore:
@@ -178,7 +178,6 @@ class DudeCore:
         self.crc_cut_len=40
         self.scanned_paths=[]
         self.exclude_list=[]
-        self.biggest_files_order=False
 
     def __init__(self,cache_dir,log_par):
         self.cache_dir=cache_dir
@@ -296,15 +295,14 @@ class DudeCore:
             self.info_path_nr=path_nr
             self.scan_update_info_path_nr(path_nr)
 
-            loop_set=set()
-            loop_set_add=loop_set.add
-            loop_set_add(path_to_scan)
+            loop_list=[]
+            loop_list_append=loop_list.append
+            loop_list_append(path_to_scan)
 
-            loop_set_pop=loop_set.pop
+            loop_list_pop=loop_list.pop
 
-            while loop_set:
-
-                path = loop_set_pop()
+            while loop_list:
+                path = loop_list_pop()
                 self.info_line=path
 
                 ##############################################
@@ -327,7 +325,7 @@ class DudeCore:
                                         continue
 
                                 if entry.is_dir():
-                                    loop_set_add(path_join(path,entry.name))
+                                    loop_list_append(path_join(path,entry.name))
                                 elif entry.is_file():
                                     try:
                                         stat_res = stat(entry)
@@ -380,16 +378,16 @@ class DudeCore:
 
         blacklisted_inodes = {index for index in known_dev_inodes if known_dev_inodes[index]>1}
 
+        #self_scan_results_by_size = self.scan_results_by_size
         for size in list(self_scan_results_by_size):
             for pathnr,path,file_name,mtime,ctime,dev,inode in list(self_scan_results_by_size[size]):
                 index=(dev,inode)
                 if index in blacklisted_inodes:
                     this_index=(pathnr,path,file_name,mtime,ctime,dev,inode)
                     self.log.warning('ignoring conflicting inode entry: %s',this_index)
-                    self.scan_results_by_size[size].remove(this_index)
+                    self_scan_results_by_size[size].remove(this_index)
 
         ######################################################################
-        self_scan_results_by_size = self.scan_results_by_size
         sum_size = 0
         for size in list(self_scan_results_by_size):
             quant=len(self_scan_results_by_size[size])
@@ -460,7 +458,9 @@ class DudeCore:
         self.info_found_dupe_space=0
         self.info_speed=0
 
-        self.info_total = len([ 1 for size in self.scan_results_by_size for pathnr,path,file_name,mtime,ctime,dev,inode in self.scan_results_by_size[size] ])
+        self_scan_results_by_size = self.scan_results_by_size
+
+        self.info_total = len([ 1 for size in self_scan_results_by_size for pathnr,path,file_name,mtime,ctime,dev,inode in self_scan_results_by_size[size] ])
 
         start = time()
 
@@ -470,66 +470,69 @@ class DudeCore:
             self.log.info('...%s',dev)
             crc_core[dev]=CRCThreadedCalc(self.log)
 
-        scan_results_sizes = list(self.scan_results_by_size)
+        scan_results_sizes = list(self_scan_results_by_size)
 
         #########################################################################################################
-        self.info="Setting scan order ..."
 
         scan_results_sizes.sort(reverse=True)
+        #########################################################################################################
 
+        self.info="Preparing optimal calculation order ..."
+        folders_by_biggest_files_in_order=[]
+        folders_by_biggest_files_in_order_append = folders_by_biggest_files_in_order.append
+        folders_by_biggest_files_in_order_set=set()
+        folders_by_biggest_files_in_order_set_add = folders_by_biggest_files_in_order_set.add
+        folder_to_sizes=defaultdict(set)
+
+        for size in scan_results_sizes:
+            for pathnr,path,_,_,_,_,_ in self_scan_results_by_size[size]:
+                index = (pathnr,path)
+                folder_to_sizes[index].add(size)
+                if index not in folders_by_biggest_files_in_order_set:
+                    folders_by_biggest_files_in_order_append(index)
+                    folders_by_biggest_files_in_order_set_add(index)
+
+        folders_by_biggest_files_in_order_set.clear()
+
+        best_sizes=[]
+        best_sizes_append = best_sizes.append
+        best_sizes_set=set()
+        best_sizes_set_add = best_sizes_set.add
+
+        for index in folders_by_biggest_files_in_order:
+            for size in sorted(folder_to_sizes[index],reverse=True):
+                if size not in best_sizes_set:
+                    best_sizes_append(size)
+                    best_sizes_set_add(size)
+
+        best_sizes_set.clear()
+        folder_to_sizes.clear()
+
+        #########################################################################################################
+
+        self.info="Initializing data structures ..."
         #strange initialization affecting tree order and cleaning time ....
         for size in scan_results_sizes:
             self.files_of_size_of_crc[size]=defaultdict(set)
 
-        if not self.biggest_files_order:
-            folder_sizes_sum=defaultdict(int)
-            folder_sizes=defaultdict(set)
-
-            for size in scan_results_sizes:
-                if self.abort_action:
-                    break
-
-                for pathnr,path,file_name,mtime,ctime,dev,inode in self.scan_results_by_size[size]:
-                    if self.abort_action:
-                        break
-
-                    index = (pathnr,path)
-                    folder_sizes_sum[index]+=size
-                    folder_sizes[index].add(size)
-
-            folder_rank=[(size_sum,pathnr,path) for ((pathnr,path),size_sum) in folder_sizes_sum.items()]
-
-            sizes_rank=[]
-            size_in_rank=set()
-
-            size_in_rank_add=size_in_rank.add
-            sizes_rank_append=sizes_rank.append
-            for size_sum,pathnr,path in sorted(folder_rank,key = lambda x : x[1]):
-                index = (pathnr,path)
-                for size in sorted(folder_sizes[index],reverse = True):
-                    if size not in size_in_rank:
-                        size_in_rank_add(size)
-                        sizes_rank_append(size)
-
-            size_in_rank.clear()
+        sto_by_self_sum_size = 100.0/self.sum_size
+        sto_by_self_info_total = 100.0/self.info_total
 
         #########################################################################################################
 
         self.info="Using cached CRC data ..."
-        self.log.info('biggest files order: %s',self.biggest_files_order)
         self.log.info('using cache')
 
-        for size in (scan_results_sizes if self.biggest_files_order else sizes_rank):
+        for size in best_sizes:
             if self.abort_action:
                 break
 
-            for pathnr,path,file_name,mtime,ctime,dev,inode in self.scan_results_by_size[size]:
+            for pathnr,path,file_name,mtime,ctime,dev,inode in self_scan_results_by_size[size]:
                 if self.abort_action:
                     break
 
                 self_crc_cache_dev=self.crc_cache[dev]
 
-                #print('cc:',inode,mtime,type(inode),type(mtime),type(dev),self_crc_cache_dev)
                 cache_key=(inode,mtime)
                 self_files_of_size_of_crc_size=self.files_of_size_of_crc[size]
                 if cache_key in self_crc_cache_dev:
@@ -539,6 +542,10 @@ class DudeCore:
 
                         index_tuple=(pathnr,path,file_name,ctime,dev,inode)
                         self_files_of_size_of_crc_size[crc].add( index_tuple )
+
+                        self.info_size_done_perc = sto_by_self_sum_size*self.info_size_done
+                        self.info_files_done_perc = sto_by_self_info_total*self.info_files_done
+
                         continue
 
                 fullpath=self.get_full_path_to_scan(pathnr,path,file_name)
@@ -549,7 +556,7 @@ class DudeCore:
         self.info=''
         self.log.info('using cache done.')
         #########################################################################################################
-        self.scan_results_by_size.clear()
+        self_scan_results_by_size.clear()
 
         size_done_cached = self.info_size_done
         files_done_cached = self.info_files_done
@@ -576,7 +583,6 @@ class DudeCore:
         self_files_of_size_of_crc = self.files_of_size_of_crc
         self_files_of_size_of_crc_items = self.files_of_size_of_crc_items
 
-        self_sum_size = self.sum_size
         while True:
             ########################################################################
             #propagate abort
@@ -615,10 +621,10 @@ class DudeCore:
                 #######################################################
                 #sums info
                 self.info_size_done = size_done_cached + sum([crc_core[dev].size_done + crc_core[dev].progress_info for dev in self_devs])
-                self.info_size_done_perc = 100*self.info_size_done/self_sum_size
+                self.info_size_done_perc = sto_by_self_sum_size*self.info_size_done
 
                 self.info_files_done = files_done_cached + sum([crc_core[dev].files_done for dev in self_devs])
-                self.info_files_done_perc = 100*self.info_files_done/self.info_total
+                self.info_files_done_perc = sto_by_self_info_total*self.info_files_done
 
                 if now-last_time_results_check>2:
                     last_time_results_check=now
@@ -952,8 +958,6 @@ if __name__ == "__main__":
 
     core.set_paths_to_scan([TEST_DIR])
     core.set_exclude_masks(False,[])
-
-    core.biggest_files_order=False
 
     scan_thread=Thread(target=core.scan,daemon=True)
     scan_thread.start()
