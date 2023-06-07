@@ -357,7 +357,7 @@ class Gui:
 
         signal(SIGINT, lambda a, k : self.handle_sigint())
 
-        self.two_dots_condition = lambda : (bool(self.sel_path_full.split(sep)[1]!='') if self.sel_path_full else False) if windows else bool(self.sel_path_full!='/')
+        self.two_dots_condition = lambda path : Path(path)!=Path(path).parent if path else False
 
         self.tagged_add=self.tagged.add
         self.tagged_discard=self.tagged.discard
@@ -1114,24 +1114,28 @@ class Gui:
 
         #self_folder_tree['columns']=('file','dev','inode','kind','crc','size','size_h','ctime','ctime_h','instances','instances_h')
         self.REAL_SORT_COLUMN_INDEX={}
-        self.REAL_SORT_COLUMN_INDEX['path'] = 0
-        self.REAL_SORT_COLUMN_INDEX['file'] = 1
-        self.REAL_SORT_COLUMN_INDEX['size_h'] = 6
-        self.REAL_SORT_COLUMN_INDEX['ctime_h'] = 8
-        self.REAL_SORT_COLUMN_INDEX['instances_h'] = 10
+        self_REAL_SORT_COLUMN_INDEX = self.REAL_SORT_COLUMN_INDEX
+
+        self_REAL_SORT_COLUMN_INDEX['path'] = 0
+        self_REAL_SORT_COLUMN_INDEX['file'] = 1
+        self_REAL_SORT_COLUMN_INDEX['size_h'] = 6
+        self_REAL_SORT_COLUMN_INDEX['ctime_h'] = 8
+        self_REAL_SORT_COLUMN_INDEX['instances_h'] = 10
 
         self.REAL_SORT_COLUMN_IS_NUMERIC={}
-        self.REAL_SORT_COLUMN_IS_NUMERIC['path'] = False
-        self.REAL_SORT_COLUMN_IS_NUMERIC['file'] = False
-        self.REAL_SORT_COLUMN_IS_NUMERIC['size_h'] = True
-        self.REAL_SORT_COLUMN_IS_NUMERIC['ctime_h'] = True
-        self.REAL_SORT_COLUMN_IS_NUMERIC['instances_h'] = True
+        self_REAL_SORT_COLUMN_IS_NUMERIC = self.REAL_SORT_COLUMN_IS_NUMERIC
+
+        self_REAL_SORT_COLUMN_IS_NUMERIC['path'] = False
+        self_REAL_SORT_COLUMN_IS_NUMERIC['file'] = False
+        self_REAL_SORT_COLUMN_IS_NUMERIC['size_h'] = True
+        self_REAL_SORT_COLUMN_IS_NUMERIC['ctime_h'] = True
+        self_REAL_SORT_COLUMN_IS_NUMERIC['instances_h'] = True
 
         self.column_sort_last_params={}
         #colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code
 
-        self.column_sort_last_params[self_groups_tree]=self.column_groups_sort_params_default=('size_h',self.REAL_SORT_COLUMN_INDEX['size_h'],self.REAL_SORT_COLUMN_IS_NUMERIC['size_h'],1,2,1,0)
-        self.column_sort_last_params[self_folder_tree]=('file',self.REAL_SORT_COLUMN_INDEX['file'],self.REAL_SORT_COLUMN_IS_NUMERIC['file'],0,0,1,2)
+        self.column_sort_last_params[self_groups_tree]=self.column_groups_sort_params_default=('size_h',self_REAL_SORT_COLUMN_INDEX['size_h'],self_REAL_SORT_COLUMN_IS_NUMERIC['size_h'],1,2,1,0)
+        self.column_sort_last_params[self_folder_tree]=('file',self_REAL_SORT_COLUMN_INDEX['file'],self_REAL_SORT_COLUMN_IS_NUMERIC['file'],0,0,1,2)
 
         self.groups_show()
 
@@ -1323,21 +1327,21 @@ class Gui:
         self.tooltip_withdraw()
 
     status_prev_text='-'
-    status_prev_image='-'
 
     def status_main(self,text='',image='',do_log=True):
         if text != self.status_prev_text:
+
             self.status_prev_text=text
-            if image == self.status_prev_image:
-                self.status_line_lab_configure(text=text)
-            else:
-                self.status_line_lab_configure(text=text,image=image,compound='left')
-                self.status_prev_image=text
-                if do_log and text:
-                    l_info('STATUS:%s',text)
+            self.status_line_lab_configure(text=text,image=image,compound='left')
+
+            if do_log and text:
+                l_info('STATUS:%s',text)
             self.status_line_lab_update()
 
-    status=status_main
+    def status_main_win(self,text='',image='',do_log=True):
+        self.status_main(text.replace('\\\\',chr(92)).replace('\\\\',chr(92)),image,do_log)
+
+    status=status_main_win if windows else status_main
 
     menu_state_stack=[]
     menu_state_stack_pop = menu_state_stack.pop
@@ -1893,7 +1897,7 @@ class Gui:
 
     def go_to_parent_dir(self):
         if self.sel_path_full :
-            if self.two_dots_condition():
+            if self.two_dots_condition(self.sel_path_full):
                 self.tree_semi_focus(self.folder_tree)
                 head,tail=path_split(self.sel_path_full)
                 self.enter_dir(normpath(str(Path(self.sel_path_full).parent.absolute())),tail)
@@ -2052,27 +2056,32 @@ class Gui:
         self.set_full_path_to_file()
 
         if kind==self.FILE:
-            if change_status_line: self.status()
+            if change_status_line: self.status('',do_log=False)
             self.groups_tree_update(item)
         else:
-            if kind==self.UPDIR:
-                if change_status_line: self.status('parent directory',do_log=False)
-            elif kind==self.SINGLE:
-                if change_status_line: self.status('',do_log=False)
-            elif kind==self.DIR:
-                if change_status_line: self.status('subdirectory',do_log=False)
-            elif kind==self.LINK:
-                if change_status_line:
+            if change_status_line:
+                if kind==self.LINK:
                     self.status(readlink(self.sel_full_path_to_file),self.icon_softlink_target ,do_log=False)
                     #if windows:
                     #    dont work either
                     #    self.status(os.path.realpath(self.sel_full_path_to_file),self.icon_softlink_target ,do_log=False)
                     #else:
 
-            elif kind==self.SINGLEHARDLINKED:
-                if change_status_line: self.status('file with hardlinks',do_log=False)
-            elif kind==self.DIRLINK:
-                if change_status_line: self.status(readlink(self.sel_full_path_to_file),self.icon_softlink_dir_target ,do_log=False)
+                elif kind==self.SINGLEHARDLINKED:
+                    self.status('file with hardlinks',do_log=False)
+                elif kind==self.DIRLINK:
+                    self.status(readlink(self.sel_full_path_to_file),self.icon_softlink_dir_target ,do_log=False)
+                else:
+                    self.status('',do_log=False)
+
+                #elif kind==self.UPDIR:
+                    #if change_status_line: self.status('parent directory',do_log=False)
+                    #self.status('',do_log=False)
+                #elif kind==self.SINGLE:
+                #    if change_status_line: self.status('',do_log=False)
+                #elif kind==self.DIR:
+                    #if change_status_line: self.status("subdirectory: '%s'" % self.sel_file,do_log=False)
+                #    self.status('',do_log=False)
 
             self.groups_tree_update_none()
 
@@ -2109,7 +2118,7 @@ class Gui:
         file_actions_state=('disabled',item_actions_state)[self.sel_kind in (self.FILE,self.SINGLE,self.SINGLEHARDLINKED) ]
         file_or_dir_actions_state=('disabled',item_actions_state)[self.sel_kind in (self.FILE,self.SINGLE,self.SINGLEHARDLINKED,self.DIR,self.DIRLINK,self.UPDIR,self.CRC) ]
 
-        parent_dir_state = ('disabled','normal')[self.two_dots_condition() and self.sel_kind!=self.CRC]
+        parent_dir_state = ('disabled','normal')[self.two_dots_condition(self.sel_path_full) and self.sel_kind!=self.CRC]
 
         if tree==self.groups_tree:
             c_local = Menu(pop,tearoff=0,bg=self.bg_color)
@@ -2376,6 +2385,9 @@ class Gui:
 
         tree_move = tree.move
         _ = {tree_move(item, parent_item, index) for index,(val_tuple,item) in enumerate(sorted(tlist,reverse=reverse,key=lambda x: x[0]) ) }
+
+        if lower_tree:
+            self.current_folder_items = tree.get_children()
 
     @restore_status_line
     @block_actions_processing
@@ -2731,7 +2743,7 @@ class Gui:
 
         self_progress_dialog_on_scan.widget.config(cursor="")
         self_progress_dialog_on_scan.hide(True)
-        self.status=self.status_main
+        self.status=self.status_main_win if windows else self.status_main
 
         if self.action_abort:
             self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
@@ -2957,7 +2969,7 @@ class Gui:
         self.status('Precalculating data...')
         self_groups_tree_get_children = self.groups_tree_get_children
 
-        self.status_groups_configure(text=str(len(self_groups_tree_get_children())),image=self.ico['warning' if self.cfg.get_bool(CFG_KEY_CROSS_MODE) else 'empty'],compound='right',width=80)
+        self.status_groups_configure(text=str(len(self_groups_tree_get_children())),image=self.ico['warning' if self.cfg.get_bool(CFG_KEY_CROSS_MODE) else 'empty'],compound='right',width=80,anchor='w')
 
         path_stat_size={}
         path_stat_size_get=path_stat_size.get
@@ -3148,7 +3160,7 @@ class Gui:
         self.status_folder_quant_configure(text='')
 
         self.status_path.configure(text='')
-        self.current_folder_items.clear()
+        self.current_folder_items=()
 
         self.current_folder_items_tagged.clear()
 
@@ -3210,9 +3222,9 @@ class Gui:
         self.folder_items.clear()
         self_folder_items_add = self.folder_items.add
 
-        if self.two_dots_condition():
+        if self.two_dots_condition(current_path):
             values=('..','','',self.UPDIR,'',0,'',0,'',0,'')
-            self_folder_items_add((dir_code,sort_val_func(values[sort_index_local]),'0UP','',values,self_DIR,''))
+            self_folder_items_add((updir_code,sort_val_func(values[sort_index_local]),'0UP','',values,self_DIR,''))
 
         #############################################
         try:
@@ -3293,15 +3305,13 @@ class Gui:
         self_current_folder_items = self.current_folder_items
         if self_current_folder_items:
             self.folder_tree_delete(*self_current_folder_items)
-            self_current_folder_items.clear()
 
         try:
-            self.current_folder_items=[ftree_insert('','end',iid, text=text, values=values,tags=tag,image=image) for _,_,iid,text,values,tag,image in sorted(self.folder_items,reverse=reverse,key=lambda x : (x[0:3]) ) ]
+            self.current_folder_items=tuple([ftree_insert('','end',iid, text=text, values=values,tags=tag,image=image) for _,_,iid,text,values,tag,image in sorted(self.folder_items,reverse=reverse,key=lambda x : (x[0:3]) ) ])
         except Exception as e:
             self.status(str(e))
             l_error(e)
 
-        #self.current_folder_items_set=set(self.current_folder_items)
         if not arbitrary_path:
             try:
                 ftree.selection_set(self.sel_item)
@@ -4003,6 +4013,7 @@ class Gui:
 
         to_trash=self.cfg.get_bool(CFG_SEND_TO_TRASH)
         abort_on_error=self.cfg.get_bool(CFG_ABORT_ON_ERROR)
+        erase_empty_dirs=self.cfg.get_bool(CFG_ERASE_EMPTY_DIRS)
 
         self_groups_tree_set = self.groups_tree_set
         self_get_index_tuple_groups_tree = self.get_index_tuple_groups_tree
@@ -4033,8 +4044,10 @@ class Gui:
                     tuples_to_delete_add(index_tuple)
 
                     (pathnr,path,file_name,ctime,dev,inode)=index_tuple
-                    full_path = dude_core.scanned_paths[pathnr]+path
-                    directories_to_check_add(full_path)
+
+                    if erase_empty_dirs:
+                        full_path = dude_core.scanned_paths[pathnr]+path
+                        directories_to_check_add(full_path)
                     if counter%128==0:
                         self_status('processing files %s ...' % counter)
 
@@ -4049,7 +4062,7 @@ class Gui:
             for crc in processed_items:
                 self_crc_node_update(crc)
 
-            if self.cfg.get_bool(CFG_ERASE_EMPTY_DIRS):
+            if erase_empty_dirs:
                 directories_to_check_list=list(directories_to_check)
                 directories_to_check_list.sort(key=lambda d : (len(str(d).split(sep)),d),reverse=True )
 
@@ -4389,7 +4402,6 @@ class Gui:
 
         return "break"
 
-    @logwrapper
     def tree_action(self,tree,item,alt_pressed=False):
         if alt_pressed:
             self.open_folder()
@@ -4432,7 +4444,6 @@ class Gui:
 
     @logwrapper
     def open_file(self):
-
         if self.sel_path_full and self.sel_file:
             file_to_open = sep.join([self.sel_path_full,self.sel_file])
 
