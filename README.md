@@ -15,9 +15,10 @@ GUI utility for finding duplicated files, delete or link them to save space.
 ## Why another anti-duplicate application ?
 - Because you need to see the context of removed files, and use such application clearly,safely and easily.
 
-## Dude GUI
-#### usage example:
+#### GUI usage example:
 ![image info](./info/dude.gif)
+#### starting the scan after entering the CLI start parameters example:
+![image info](./info/cmd.gif)
 #### settings  dialog:
 ![image info](./info/settings.png)
 
