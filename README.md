@@ -8,15 +8,18 @@ GUI utility for finding duplicated files, delete or link them to save space.
   - duplicates groups
   - directory of selected file
 - Two stage processing
-  - marking of files with multiple criteria
-  - taking action on marked files
-- Command Line parameters for integration with favorite file manager (e.g. Double Commander)
+  - interactive marking of files with multiple criteria
+  - taking action on marked files (Move to Trash/Recycle Bin, delete, hard-link or soft-link)
+- Command Line parameters for integration with favorite file manager (e.g. Double Commander) and immediate start of scanning
 
 ## Why another anti-duplicate application ?
 - Because you need to see the context of removed files, and use such application clearly,safely and easily.
 
-## Dude GUI (gif not up to date):
+## Dude GUI
+#### usage example:
 ![image info](./info/dude.gif)
+#### settings  dialog:
+![image info](./info/settings.png)
 
 ## Download:
 The portable executable for Linux and   Windows can be downloaded from the Releases site:
@@ -24,9 +27,12 @@ The portable executable for Linux and   Windows can be downloaded from the Relea
 https://github.com/PJDude/dude/releases   
 
 main distributions:  
+
 **dude.**{version}**.portable.linux.tgz**  
 **dude.**{version}**.portable.windows.zip**  
-contain portable executables with necessary libraries made by [PyInstaller](https://pyinstaller.org/en/stable). Files with **.onefile** postfix contain self-extracting single-file distributions. They are more handy but start a little slower than main distributions (need of unpacking to temporary folder).Onefile distribution also may cause more false positive anti virus alerts (see below). **auxiliary** distributions are made by [Nuitka](https://github.com/Nuitka/Nuitka) for test purposes and may be nonoperational at current stage.
+contain portable executables with necessary libraries made by [PyInstaller](https://pyinstaller.org/en/stable). Files with **.onefile** postfix contain self-extracting single-file distributions. They are more handy but start a little slower than main distributions (need of unpacking to temporary folder). Onefile distribution also may cause more false positive anti virus alerts (see below).
+
+**auxiliary** distributions contain compiled executable binaries made by [Nuitka](https://github.com/Nuitka/Nuitka). At current stage no significant performance gain is observed with comparison to main distribution (interfacing with Tkinter is probably a bottleneck).
 
 
 ## SOFTPEDIA review:
@@ -44,7 +50,7 @@ https://www.majorgeeks.com/files/details/dude_(duplicates_detector).html
 - Use keyboard shortcuts. All are described in the context menus of the main panels. As a general rule, actions with **Ctrl** key apply to all files/groups, without **Ctrl** work locally. Start by utilizing just **Tab**, **arrows**, **F5**, **space**, and **Delete**.
 - Sometimes it is more efficient to operate on entire folders than on CRC groups, so don't ignore lower panel, use **Tab** and **F5** (**F6**)
 - Narrow down the scanning area, exclude from scanning unnecessary folders (e.g. Windows system folder which is full of duplicates), you can always add multiple (up to 8) independent scan paths
-- Unzip the portable executable somewhere on your **PATH**, than **dude** command will be available everywhere
+- Modify on your **PATH** environmental variable to to point to the **Dude** binary for more convenient and faster command line operation
 - The performance of the scanning process (or of any other software that requires frequent or extensive access to files in general) may be degraded by the **atime** attribute of the scanned file system. Disabling it on Linux file systems may be done usually by applying the **noatime** attribute in **fstab**, on Windows/NTFS it is the **disablelastaccess** option available with the **fsutil** command or by modifying the registry.
 
 ## Supported platforms:
@@ -76,13 +82,14 @@ dude --help
 
 ## Technical information
 - Scanning process analyzes selected paths and groups files with the same size. **Dude** compare files by calculated **SHA1** hash of file content. CRC calculation is done in separate threads for every identified device (drive). Number of active threads is limited by available CPU cores. Aborting of CRC calculation gives only partial results - not all files may be identified as duplicates. Restarted scanning process will use cached data. The CRC is always calculated based on the entire contents of the file.
-- scanning (CRC calculation to be precise) is done in **specific order**, that try to identify duplicates in most promising folders. In case of huge filesystems, when scan is aborted, partial results are more useful then. Its is possible to change order of scanning to simple order from the largest files to the smallest files by command line or gui option.
+- scanning (CRC calculation to be precise) is done in **specific order**, that try to identify duplicates in folders with biggest potential duplicates. In case of huge filesystems, when scan is aborted, partial results are more useful then.
 - Calculated CRC is stored in **internal cache** which allows re-use it in future operation and speedup of searching of duplicates (e.g. with different set of search paths). Key of cache database is pair of inode of file and file modification time stored separately for every device-id, so any file modification or displacement will result in invalidation of obsolete data and recalculation of CRC.
-- Marking files does not cause any filesystem change. Any file deletion or linking needs confirmation and is logged.
+- Scanning or marking files does not cause any filesystem change. Any file deletion or linking needs confirmation and is logged.
 - Just before files processing, state of files (ctime) is compared with stored data. In case of inconsistency (state of files was changed somehow during operation between scanning/CRC calculation and files processing) action is aborted and data invalidated.
-- **Dude** is written in **python3** with **Tkinter** and packed with [PyInstaller](https://pyinstaller.org/en/stable) to portable distribution. Auxiliary distro is packed by **[Nuitka](https://github.com/Nuitka/Nuitka). GitHub build for linux platform is done in **ubuntu-20.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**pyinstaller.run.sh**) or run python script (**dude.py**)
-- **Dude** for windows hides the console when starting the GUI. To keep the console untouched, use the --nohide parameter.
-- **Dude** Windows distribution causes some anti-virus false positives. The problem is well known for both PyInstaller and Nuitka.
+- **Dude** is written in **python3** with **Tkinter** and packed with [PyInstaller](https://pyinstaller.org/en/stable) to portable distribution. Auxiliary distro is packed by **[Nuitka](https://github.com/Nuitka/Nuitka)**. GitHub release build for linux platform is done in **ubuntu-20.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**pyinstaller.run.sh**) or run python script (**dude.py**)
+- **Dude** for **windows** is build as two binary executables: **dude.exe** and **dudecmd.exe**. They should be saved in the same path. **dudecmd.exe** is basically only to respond to the console to --help parameter or for passing command line parameters (if correct) to **dude.exe**. **dude.exe** will also accept parameters but will not respond to the console. **dudecmd.exe** will leave windows command line window open for time of operation.
+
+- **Dude** Windows distribution causes some anti-virus false positives. The problem is well known for both [PyInstaller](https://pyinstaller.org/en/stable) and **[Nuitka](https://github.com/Nuitka/Nuitka)** especially for **onefile** distributions.
 - ***Soft links*** to **directories** are skipped during the scanning process. ***Soft links*** to **files** are ignored during scanning. Both appear in the bottom "folders" pane.
 - ***Hard links*** (files with stat.st_nlink>1) currently are ignored during the scanning process and will not be identified as duplicates (within the same inode obviously, as with other inodes). No action can be performed on them. They will only appear in the bottom "folders" pane. This may change in the future versions.
 - the "delete" action moves files to **Recycle Bin / Trash** or deletes them permanently according to option settings.
