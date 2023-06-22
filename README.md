@@ -3,27 +3,32 @@
 GUI utility for finding duplicated files, delete or link them to save space.
 
 ## Features:
-- Scanning for duplicated files
-- Two synchronized panels
+- Scanning for duplicate files in **multiple designated folders** (up to 8). Optional "Cross paths" mode
+- Optional **command line parameters** to start scanning immediately or integrate **Dude** with your favorite file manager
+- Two **synchronized** panels
   - duplicates groups
   - directory of selected file
 - Two stage processing
   - interactive marking of files with multiple criteria
   - taking action on marked files (Move to Trash/Recycle Bin, delete, hard-link or soft-link)
-- Command Line parameters for integration with favorite file manager (e.g. Double Commander) and immediate start of scanning
+- support for **regular expressions** or simplified (wildcards) syntax
+- searching for duplicates based on the **hash** of the file content. Different filenames or extensions do not affect the search results
+- support for **Linux** and **Windows**
 
 ## Why another anti-duplicate application ?
 - Because you need to see the context of removed files, and use such application clearly,safely and easily.
 
+## Screenshots:
+
 #### GUI usage example:
 ![image info](./info/dude.gif)
-#### starting the scan after entering the CLI start parameters example:
+#### immediate scanning with CLI parameters example:
 ![image info](./info/cmd.gif)
 #### settings  dialog:
 ![image info](./info/settings.png)
 
 ## Download:
-The portable executable for Linux and   Windows can be downloaded from the Releases site:
+The portable executable for **Linux** and **Windows** can be downloaded from the Releases site:
 
 https://github.com/PJDude/dude/releases   
 
