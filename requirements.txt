@@ -1,5 +1,5 @@
-pyinstaller==5.12.0
-nuitka==1.6.4
+pyinstaller==5.13.0
+nuitka==1.6.6
 appdirs==1.4.4
 send2trash==1.8.2
 zstandard==0.21.0
