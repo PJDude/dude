@@ -293,7 +293,9 @@ class DudeCore:
         for path_to_scan in self.paths_to_scan:
             self.info_path_to_scan=path_to_scan
             self.info_path_nr=path_nr
-            self.scan_update_info_path_nr(path_nr)
+
+            if self.scan_update_info_path_nr:
+                self.scan_update_info_path_nr(path_nr)
 
             loop_list=[]
             loop_list_append=loop_list.append
@@ -968,14 +970,15 @@ if __name__ == "__main__":
 
     scan_thread.join()
 
-    scan_thread=Thread(target=core.crc_calc,daemon=True)
-    scan_thread.start()
+    if core.sum_size:
+        scan_thread=Thread(target=core.crc_calc,daemon=True)
+        scan_thread.start()
 
-    while scan_thread.is_alive():
-        print(f'crc_calc...{core.info_files_done}/{core.info_total}                 ',end='\r')
-        sleep(0.04)
+        while scan_thread.is_alive():
+            print(f'crc_calc...{core.info_files_done}/{core.info_total}                 ',end='\r')
+            sleep(0.04)
 
-    scan_thread.join()
+        scan_thread.join()
 
     print('')
     print('Done')
