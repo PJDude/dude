@@ -3929,13 +3929,15 @@ class Gui:
         self_groups_tree_set = self.groups_tree_set
         self_item_full_path = self.item_full_path
 
+        size_sum=0
         for crc in processed_items:
             message_append('')
+            size=int(self_groups_tree_set(crc,'size'))
             if cfg_show_crc_size:
-                size=int(self_groups_tree_set(crc,'size'))
                 message_append('CRC:' + crc + ' size:' + core_bytes_to_str(size) + '|GRAY')
 
             for item in processed_items[crc]:
+                size_sum += size
                 message_append((self_item_full_path(item) if show_full_path else self_groups_tree_set(item,'file')) + '|RED' )
 
             if action==SOFTLINK:
@@ -3944,18 +3946,19 @@ class Gui:
                     if cfg_show_links_targets:
                         message_append('-> %s' % (self_item_full_path(item) if show_full_path else self_groups_tree_set(item,'file')) )
 
+        size_info = "Processed files size sum : " + core_bytes_to_str(size_sum) + "\n"
         if action==DELETE:
-            trash_info =     "\n\nSend to Trash          : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No")
-            erase_empty_dirs = "\nErase empty directories: " + ('Yes' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
-            self.text_ask_dialog.show('Delete marked files ?','Scope: ' + scope_title + trash_info + erase_empty_dirs + '\n' + '\n'.join(message))
+            trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No")
+            erase_empty_dirs = "\nErase empty directories  : " + ('Yes' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
+            self.text_ask_dialog.show('Delete marked files ?','Scope: ' + scope_title + trash_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
             if not self.text_ask_dialog.res_bool:
                 return True
         elif action==SOFTLINK:
-            self.text_ask_dialog.show('Soft-Link marked files to first unmarked file in group ?','Scope: ' + scope_title +'\n'+'\n'.join(message))
+            self.text_ask_dialog.show('Soft-Link marked files to first unmarked file in group ?','Scope: ' + scope_title + '\n\n' + size_info + '\n'+'\n'.join(message))
             if not self.text_ask_dialog.res_bool:
                 return True
         elif action==HARDLINK:
-            self.text_ask_dialog.show('Hard-Link marked files together in groups ?','Scope: ' + scope_title +'\n'+'\n'.join(message))
+            self.text_ask_dialog.show('Hard-Link marked files together in groups ?','Scope: ' + scope_title + '\n\n' + size_info +'\n'+'\n'.join(message))
             if not self.text_ask_dialog.res_bool:
                 return True
 
