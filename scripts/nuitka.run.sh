@@ -14,9 +14,9 @@ mkdir ../$outdir
 
 echo running-nuitka
 
-python -m nuitka --version > distro.info.txt
+python3 -m nuitka --version > distro.info.txt
 
-CCFLAGS='-Ofast -static' python -m nuitka --file-reference-choice=runtime --follow-imports --follow-stdlib --onefile --show-scons --show-progress --show-modules --assume-yes-for-downloads --linux-icon=./icon.ico --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude --output-dir=../$outdir --lto=yes ./dude.py
+CCFLAGS='-Ofast -static' python3 -m nuitka --file-reference-choice=runtime --follow-imports --follow-stdlib --onefile --show-scons --show-progress --show-modules --assume-yes-for-downloads --linux-icon=./icon.ico --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude --output-dir=../$outdir --lto=yes ./dude.py
 
 mv ./dude ../$outdir/dude
 
