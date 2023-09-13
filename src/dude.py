@@ -477,6 +477,8 @@ class Gui:
         self_main.config(menu=self.menubar)
         #######################################################################
 
+        self.tooltip_message={}
+
         self.menubar_config = self.menubar.config
         self.menubar_cget = self.menubar.cget
 
@@ -1159,8 +1161,6 @@ class Gui:
         self_folder_tree.bind("<Leave>", lambda event : self.widget_leave())
 
         #######################################################################
-
-        self.tooltip_message={}
 
         if paths_to_add:
             if len(paths_to_add)>self.MAX_PATHS:
