@@ -84,7 +84,7 @@ jobs:
       with:
         name: pyinstaller-win-onefile-gui
         path: ./build-pyinstaller-win/O_G/dude.exe
-        if-no-files-found: errorif-no-files-found: error
+        if-no-files-found: error
 
     - name: upload pyinstaller onefile cmd
       uses: actions/upload-artifact@v3
