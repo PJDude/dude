@@ -39,6 +39,7 @@ jobs:
       with:
         name: version
         path: ./src/version.txt
+        if-no-files-found: error
 
     - name: convert icons to python source
       working-directory: ./scripts
@@ -56,18 +57,21 @@ jobs:
       with:
         name: nuitka-win-onefile-gui
         path: ./build-nuitka-win/G/dude.exe
+        if-no-files-found: error
 
     - name: upload nuitka onefile cmd
       uses: actions/upload-artifact@v3
       with:
         name: nuitka-win-onefile-cmd
         path: ./build-nuitka-win/C/dudecmd.exe
+        if-no-files-found: error
 
     - name: upload nuitka distro
       uses: actions/upload-artifact@v3
       with:
         name: nuitka-win-distro
         path: ./build-nuitka-win/dude.nuitka.win.zip
+        if-no-files-found: error
 
     #####################################
     - name: run pyinstaller
@@ -80,18 +84,21 @@ jobs:
       with:
         name: pyinstaller-win-onefile-gui
         path: ./build-pyinstaller-win/O_G/dude.exe
+        if-no-files-found: errorif-no-files-found: error
 
     - name: upload pyinstaller onefile cmd
       uses: actions/upload-artifact@v3
       with:
         name: pyinstaller-win-onefile-cmd
         path: ./build-pyinstaller-win/O_C/dudecmd.exe
+        if-no-files-found: error
 
     - name: upload pyinstaller distro
       uses: actions/upload-artifact@v3
       with:
         name: pyinstaller-win-distro
         path: ./build-pyinstaller-win/dude.pyinstaller.win.zip
+        if-no-files-found: error
 
 ##########################################################################
   build-lin-release:
@@ -106,7 +113,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: "3.11"
         cache: 'pip'
         check-latest: true
 
@@ -125,7 +132,6 @@ jobs:
         name: version
         path: ./src
 
-
     - name: convert icons to python source
       working-directory: ./scripts
       run: bash "icons.convert.sh"
@@ -140,12 +146,14 @@ jobs:
       with:
         name: dude-nuitka-lin-onefile
         path: ./build-nuitka-lin/dude
+        if-no-files-found: error
 
     - name: upload nuitka distro
       uses: actions/upload-artifact@v3
       with:
         name: dude-nuitka-lin-distro
         path: ./build-nuitka-lin/dude.nuitka.lin.zip
+        if-no-files-found: error
 
     #####################################
     - name: run pyinstaller
@@ -157,12 +165,14 @@ jobs:
       with:
         name: dude-pyinstaller-lin-onefile
         path: ./build-pyinstaller-lin/dude
+        if-no-files-found: error
 
     - name: upload pyinstaller distro
       uses: actions/upload-artifact@v3
       with:
         name: dude-pyinstaller-lin-distro
         path: ./build-pyinstaller-lin/dude.pyinstaller.lin.zip
+        if-no-files-found: error
 
     #####################################
     - name: version read
