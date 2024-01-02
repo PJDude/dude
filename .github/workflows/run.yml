@@ -47,31 +47,31 @@ jobs:
       shell: cmd
 
     #####################################
-    - name: run nuitka
-      working-directory: ./scripts
-      run: "nuitka.run.bat"
-      shell: cmd
+    #- name: run nuitka
+    #  working-directory: ./scripts
+    #  run: "nuitka.run.bat"
+    #  shell: cmd
 
-    - name: upload nuitka onefile gui
-      uses: actions/upload-artifact@v3
-      with:
-        name: nuitka-win-onefile-gui
-        path: ./build-nuitka-win/G/dude.exe
-        if-no-files-found: error
+    #- name: upload nuitka onefile gui
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: nuitka-win-onefile-gui
+    #    path: ./build-nuitka-win/G/dude.exe
+    #    if-no-files-found: error
 
-    - name: upload nuitka onefile cmd
-      uses: actions/upload-artifact@v3
-      with:
-        name: nuitka-win-onefile-cmd
-        path: ./build-nuitka-win/C/dudecmd.exe
-        if-no-files-found: error
+    #- name: upload nuitka onefile cmd
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: nuitka-win-onefile-cmd
+    #    path: ./build-nuitka-win/C/dudecmd.exe
+    #    if-no-files-found: error
 
-    - name: upload nuitka distro
-      uses: actions/upload-artifact@v3
-      with:
-        name: nuitka-win-distro
-        path: ./build-nuitka-win/dude.nuitka.win.zip
-        if-no-files-found: error
+    #- name: upload nuitka distro
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: nuitka-win-distro
+    #    path: ./build-nuitka-win/dude.nuitka.win.zip
+    #    if-no-files-found: error
 
     #####################################
     - name: run pyinstaller
@@ -79,19 +79,19 @@ jobs:
       run: "pyinstaller.run.bat"
       shell: cmd
 
-    - name: upload pyinstaller onefile gui
-      uses: actions/upload-artifact@v3
-      with:
-        name: pyinstaller-win-onefile-gui
-        path: ./build-pyinstaller-win/O_G/dude.exe
-        if-no-files-found: error
+    #- name: upload pyinstaller onefile gui
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: pyinstaller-win-onefile-gui
+    #    path: ./build-pyinstaller-win/O_G/dude.exe
+    #    if-no-files-found: error
 
-    - name: upload pyinstaller onefile cmd
-      uses: actions/upload-artifact@v3
-      with:
-        name: pyinstaller-win-onefile-cmd
-        path: ./build-pyinstaller-win/O_C/dudecmd.exe
-        if-no-files-found: error
+    #- name: upload pyinstaller onefile cmd
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: pyinstaller-win-onefile-cmd
+    #    path: ./build-pyinstaller-win/O_C/dudecmd.exe
+    #    if-no-files-found: error
 
     - name: upload pyinstaller distro
       uses: actions/upload-artifact@v3
@@ -137,35 +137,35 @@ jobs:
       run: bash "icons.convert.sh"
 
     #####################################
-    - name: run nuitka
-      working-directory: ./scripts
-      run: bash "nuitka.run.sh"
+    #- name: run nuitka
+    #  working-directory: ./scripts
+    #  run: bash "nuitka.run.sh"
 
-    - name: upload nuitka onefile
-      uses: actions/upload-artifact@v3
-      with:
-        name: dude-nuitka-lin-onefile
-        path: ./build-nuitka-lin/dude
-        if-no-files-found: error
+    #- name: upload nuitka onefile
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: dude-nuitka-lin-onefile
+    #    path: ./build-nuitka-lin/dude
+    #    if-no-files-found: error
 
-    - name: upload nuitka distro
-      uses: actions/upload-artifact@v3
-      with:
-        name: dude-nuitka-lin-distro
-        path: ./build-nuitka-lin/dude.nuitka.lin.zip
-        if-no-files-found: error
+    #- name: upload nuitka distro
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: dude-nuitka-lin-distro
+    #    path: ./build-nuitka-lin/dude.nuitka.lin.zip
+    #    if-no-files-found: error
 
     #####################################
     - name: run pyinstaller
       working-directory: ./scripts
       run: bash "pyinstaller.run.sh"
 
-    - name: upload pyinstaller onefile
-      uses: actions/upload-artifact@v3
-      with:
-        name: dude-pyinstaller-lin-onefile
-        path: ./build-pyinstaller-lin/dude
-        if-no-files-found: error
+    #- name: upload pyinstaller onefile
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: dude-pyinstaller-lin-onefile
+    #    path: ./build-pyinstaller-lin/dude
+    #    if-no-files-found: error
 
     - name: upload pyinstaller distro
       uses: actions/upload-artifact@v3
@@ -179,24 +179,24 @@ jobs:
       id: version
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
-    - name: pack linux onefile nuitka
-      run: |
-        cd ./build-nuitka-lin
-        chmod 777 ./dude
-        tar -czvf ../dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz dude
-        rm ./dude
+    #- name: pack linux onefile nuitka
+    #  run: |
+    #    cd ./build-nuitka-lin
+    #    chmod 777 ./dude
+    #    tar -czvf ../dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz dude
+    #    rm ./dude
 
-    - name: move linux distro nuitka
-      run: |
-        cd ./build-nuitka-lin
-        mv ./dude.nuitka.lin.zip ../dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
+    #- name: move linux distro nuitka
+    #  run: |
+    #    cd ./build-nuitka-lin
+    #    mv ./dude.nuitka.lin.zip ../dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
 
-    - name: pack linux onefile pyinstaller
-      run: |
-        cd ./build-pyinstaller-lin
-        chmod 777 ./dude
-        tar -czvf ../dude.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz dude
-        rm ./dude
+    #- name: pack linux onefile pyinstaller
+    #  run: |
+    #    cd ./build-pyinstaller-lin
+    #    chmod 777 ./dude
+    #    tar -czvf ../dude.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz dude
+    #    rm ./dude
 
     - name: move linux distro pyinstaller
       run: |
@@ -205,46 +205,44 @@ jobs:
 
 
     #####################################
-    - name: download windows onefile nuitka gui
-      uses: actions/download-artifact@v3
-      with:
-        name: nuitka-win-onefile-gui
-        path: ./
+    #- name: download windows onefile nuitka gui
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: nuitka-win-onefile-gui
+    #    path: ./
 
-    - name: download windows onefile nuitka cmd
-      uses: actions/download-artifact@v3
-      with:
-        name: nuitka-win-onefile-cmd
-        path: ./
+    #- name: download windows onefile nuitka cmd
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: nuitka-win-onefile-cmd
+    #    path: ./
 
-    - name: pack windows onefile nuitka
-      run: zip -9 -m dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip dude.exe dudecmd.exe
+    #- name: pack windows onefile nuitka
+    #  run: zip -9 -m dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip dude.exe dudecmd.exe
 
+    #- name: download windows onefile pyinstaller gui
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: pyinstaller-win-onefile-gui
+    #    path: ./
 
-    - name: download windows onefile pyinstaller gui
-      uses: actions/download-artifact@v3
-      with:
-        name: pyinstaller-win-onefile-gui
-        path: ./
+    #- name: download windows onefile pyinstaller cmd
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: pyinstaller-win-onefile-cmd
+    #    path: ./
 
-    - name: download windows onefile pyinstaller cmd
-      uses: actions/download-artifact@v3
-      with:
-        name: pyinstaller-win-onefile-cmd
-        path: ./
+    #- name: pack windows onefile pyinstaller
+    #  run: zip -9 -m dude.${{ steps.version.outputs.version }}.portable.windows.onefile.zip dude.exe dudecmd.exe
 
-    - name: pack windows onefile pyinstaller
-      run: zip -9 -m dude.${{ steps.version.outputs.version }}.portable.windows.onefile.zip dude.exe dudecmd.exe
+    #- name: download windows distro nuitka
+    #  uses: actions/download-artifact@v3
+    #  with:
+    #    name: nuitka-win-distro
+    #    path: ./
 
-
-    - name: download windows distro nuitka
-      uses: actions/download-artifact@v3
-      with:
-        name: nuitka-win-distro
-        path: ./
-
-    - name: rename windows zip
-      run: mv ./dude.nuitka.win.zip ./dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+    #- name: rename windows zip
+    #  run: mv ./dude.nuitka.win.zip ./dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
 
     - name: download windows distro pyinstaller
       uses: actions/download-artifact@v3
@@ -267,10 +265,5 @@ jobs:
         prerelease: true
         files: |
             dude.${{ steps.version.outputs.version }}.portable.linux.tgz
-            dude.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz
             dude.${{ steps.version.outputs.version }}.portable.windows.zip
-            dude.${{ steps.version.outputs.version }}.portable.windows.onefile.zip
-            dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.onefile.tgz
-            dude_auxiliary.${{ steps.version.outputs.version }}.portable.linux.nuitka.tgz
-            dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.onefile.zip
-            dude_auxiliary.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+
