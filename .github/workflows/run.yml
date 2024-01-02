@@ -113,7 +113,7 @@ jobs:
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
     - name: rename linux distro
-      run: mv ./build-pyinstaller/dude.lin.zip ../dude.${{ steps.version.outputs.version }}.portable.linux.zip
+      run: mv ./build-pyinstaller/dude.lin.zip ./dude.${{ steps.version.outputs.version }}.portable.linux.zip
 
     #####################################
     - name: download windows distro
