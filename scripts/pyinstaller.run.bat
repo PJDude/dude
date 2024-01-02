@@ -31,4 +31,4 @@ move %OUTDIR%\dudecmd\dudecmd.exe %OUTDIR%\dude
 
 @echo.
 @echo packing
-powershell Compress-Archive %OUTDIR_G%\dude %OUTDIR%\dude.pyinstaller.win.zip
+powershell Compress-Archive %OUTDIR%\dude %OUTDIR%\dude.win.zip
