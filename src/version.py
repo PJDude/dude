@@ -49,8 +49,14 @@ mins_rest=time_diff_mins-time_diff_days*DAYS_MINS
 time_diff_days_str=str(time_diff_days).zfill(4)
 mins_rest_by2_str=str(round(mins_rest/2)).zfill(3)
 
-version='v%s.%s.%s' % (MAIN_VERSION,time_diff_days_str,mins_rest_by2_str)
+ver_num = '%s.%s.%s' % (MAIN_VERSION,time_diff_days_str,mins_rest_by2_str)
+version='v%s' % ver_num
 with open(VERSION_FILE,'w' ) as f:
     f.write(version)
+
+for template,result in (('version.pi.template.dude.txt','version.pi.dude.txt'),('version.pi.template.dudecmd.txt','version.pi.dudecmd.txt')):
+    with open(template,'r' ) as fr:
+        with open(result,'w' ) as f:
+            f.write(fr.read().replace('VER_TO_REPLACE',ver_num))
 
 print(version)
