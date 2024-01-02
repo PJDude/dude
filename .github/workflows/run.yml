@@ -52,11 +52,11 @@ jobs:
       run: "pyinstaller.run.bat"
       shell: cmd
 
-    - name: upload pyinstaller distro
+    - name: upload win distro
       uses: actions/upload-artifact@v3
       with:
-        name: pyinstaller-win-distro
-        path: ./build-pyinstaller-win/dude.pyinstaller.win.zip
+        name: pyinstaller-win
+        path: ./build-pyinstaller-win/dude.win.zip
         if-no-files-found: error
 
 ##########################################################################
@@ -100,11 +100,11 @@ jobs:
       working-directory: ./scripts
       run: bash "pyinstaller.run.sh"
 
-    - name: upload pyinstaller distro
+    - name: upload lin distro
       uses: actions/upload-artifact@v3
       with:
-        name: dude-pyinstaller-lin-distro
-        path: ./build-pyinstaller-lin/dude.pyinstaller.lin.zip
+        name: pyinstaller-lin
+        path: ./build-pyinstaller-lin/dude.lin.zip
         if-no-files-found: error
 
     #####################################
@@ -112,19 +112,18 @@ jobs:
       id: version
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
-    - name: move linux distro pyinstaller
-      run: |
-        cd ./build-pyinstaller-lin
-        mv ./dude.pyinstaller.lin.zip ../dude.${{ steps.version.outputs.version }}.portable.linux.zip
+    - name: rename linux distro
+      run: run: mv ./build-pyinstaller/dude.lin.zip ../dude.${{ steps.version.outputs.version }}.portable.linux.zip
 
-    - name: download windows distro pyinstaller
+    #####################################
+    - name: download windows distro
       uses: actions/download-artifact@v3
       with:
-        name: pyinstaller-win-distro
+        name: pyinstaller-win
         path: ./
 
-    - name: rename windows zip
-      run: mv ./dude.pyinstaller.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.zip
+    - name: rename windows distro
+      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.zip
 
     #####################################
     - name: Create GitHub release

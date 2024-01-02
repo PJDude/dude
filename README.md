@@ -28,17 +28,9 @@ GUI utility for finding duplicated files, delete or link them to save space.
 ![image info](./info/settings.png)
 
 ## Download:
-The portable executable for **Linux** and **Windows** can be downloaded from the Releases site:
+Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the Releases site:
 
 https://github.com/PJDude/dude/releases   
-
-main distributions:  
-
-**dude.**{version}**.portable.linux.tgz**  
-**dude.**{version}**.portable.windows.zip**  
-contain portable executables with necessary libraries made by [PyInstaller](https://pyinstaller.org/en/stable). Files with **.onefile** postfix contain self-extracting single-file distributions. They are more handy but start a little slower than main distributions (need of unpacking to temporary folder). Onefile distribution also may cause more false positive anti virus alerts (see below).
-
-**auxiliary** distributions contain compiled executable binaries made by [Nuitka](https://github.com/Nuitka/Nuitka). At current stage no significant performance gain is observed with comparison to main distribution (interfacing with Tkinter is probably a bottleneck).
 
 
 ## SOFTPEDIA review:
@@ -92,10 +84,9 @@ dude --help
 - Calculated CRC is stored in **internal cache** which allows re-use it in future operation and speedup of searching of duplicates (e.g. with different set of search paths). Key of cache database is pair of inode of file and file modification time stored separately for every device-id, so any file modification or displacement will result in invalidation of obsolete data and recalculation of CRC.
 - Scanning or marking files does not cause any filesystem change. Any file deletion or linking needs confirmation and is logged.
 - Just before files processing, state of files (ctime) is compared with stored data. In case of inconsistency (state of files was changed somehow during operation between scanning/CRC calculation and files processing) action is aborted and data invalidated.
-- **Dude** is written in **python3** with **Tkinter** and packed with [PyInstaller](https://pyinstaller.org/en/stable) to portable distribution. Auxiliary distro is packed by [Nuitka](https://github.com/Nuitka/Nuitka). GitHub release build for linux platform is done in **ubuntu-20.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**pyinstaller.run.sh**) or run python script (**dude.py**)
+- **Dude** is written in **python3** with **Tkinter** and packed with [PyInstaller](https://pyinstaller.org/en/stable) to portable distribution. GitHub release build for linux platform is done in **ubuntu-20.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**pyinstaller.run.sh**) or run python script (**dude.py**)
 - **Dude** for **windows** is build as two binary executables: **dude.exe** and **dudecmd.exe**. They should be saved in the same path. **dudecmd.exe** is basically only to respond to the console to --help parameter or for passing command line parameters (if correct) to **dude.exe**. **dude.exe** will also accept parameters but will not respond to the console. **dudecmd.exe** will leave windows command line window open for time of operation.
 
-- **Dude** Windows distribution causes some anti-virus false positives. The problem is well known for both [PyInstaller](https://pyinstaller.org/en/stable) and [Nuitka](https://github.com/Nuitka/Nuitka) especially for **onefile** distributions.
 - ***Soft links*** to **directories** are skipped during the scanning process. ***Soft links*** to **files** are ignored during scanning. Both appear in the bottom "folders" pane.
 - ***Hard links*** (files with stat.st_nlink>1) currently are ignored during the scanning process and will not be identified as duplicates (within the same inode obviously, as with other inodes). No action can be performed on them. They will only appear in the bottom "folders" pane. This may change in the future versions.
 - the "delete" action moves files to **Recycle Bin / Trash** or deletes them permanently according to option settings.
