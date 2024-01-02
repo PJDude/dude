@@ -15,7 +15,7 @@ mkdir ../$outdir
 echo running-pyinstaller
 
 echo python:`python --version` >> distro.info.txt
-echo pyinstaller:`pyinstaller --version` > distro.info.txt
+echo pyinstaller:`pyinstaller --version` >> distro.info.txt
 
 pyinstaller --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --icon=icon.ico --distpath=../$outdir/ ./dude.py
 cd ../$outdir/

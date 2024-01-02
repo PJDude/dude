@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2022-2023 Piotr Jochymek
+#  Copyright (c) 2022-2024 Piotr Jochymek
 #
 #  MIT License
 #
@@ -48,7 +48,7 @@ def parse_args(ver):
     parser = argparse.ArgumentParser(
             formatter_class=argparse.RawTextHelpFormatter,
             prog = 'dude.exe' if (os.name=='nt') else 'dude',
-            description = f"dude version {ver}\nCopyright (c) 2022-2023 Piotr Jochymek\n\nhttps://github.com/PJDude/dude",
+            description = f"dude version {ver}\nCopyright (c) 2022-2024 Piotr Jochymek\n\nhttps://github.com/PJDude/dude",
             )
 
     parser.add_argument('paths',nargs='*',help='path to scan')
