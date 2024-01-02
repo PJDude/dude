@@ -2,7 +2,7 @@ name: win_lin_release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main","devel" ]
 
 permissions: read-all
 
@@ -18,7 +18,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: "3.12"
         cache: 'pip'
         check-latest: true
 
@@ -113,7 +113,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: "3.12"
         cache: 'pip'
         check-latest: true
 
@@ -263,8 +263,8 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Release ${{ steps.version.outputs.version }}
-        draft: false
-        prerelease: false
+        draft: true
+        prerelease: true
         files: |
             dude.${{ steps.version.outputs.version }}.portable.linux.tgz
             dude.${{ steps.version.outputs.version }}.portable.linux.onefile.tgz
