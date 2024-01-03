@@ -33,29 +33,12 @@ from pathlib import Path
 from fnmatch import fnmatch
 from re import search
 
-from time import sleep
-from time import strftime
-from time import localtime
-from time import time
+from time import sleep,strftime,localtime,time
 from hashlib import sha1
 
-from os import stat
-from os import scandir
-from os import sep
-from os import symlink
-from os import link
-from os import cpu_count
-from os import name as os_name
-from os import rename as os_rename
-from os import remove as os_remove
+from os import stat,scandir,sep,symlink,link,cpu_count,name as os_name,rename as os_rename,remove as os_remove
 
-from os.path import dirname
-from os.path import relpath
-from os.path import normpath
-from os.path import join as path_join
-from os.path import abspath as abspath
-from os.path import exists as path_exists
-from os.path import isdir as path_isdir
+from os.path import dirname,relpath,normpath,join as path_join,abspath as abspath,exists as path_exists,isdir as path_isdir
 
 from send2trash import send2trash
 

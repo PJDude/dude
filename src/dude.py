@@ -31,64 +31,32 @@ from send2trash import send2trash
 from fnmatch import fnmatch
 from shutil import rmtree
 
-from time import sleep
-from time import strftime
-from time import localtime
-from time import time
+from time import sleep,strftime,localtime,time
 
-from os import sep
-from os import stat
-from os import scandir
-from os import readlink
-from os import rmdir
-from os import system
-from os import getcwd
-from os import name as os_name
+from os import sep,stat,scandir,readlink,rmdir,system,getcwd,name as os_name
+from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect
 
 windows = bool(os_name=='nt')
 
 if windows:
     from os import startfile
 
-from os.path import abspath
-from os.path import normpath
-from os.path import dirname
-from os.path import join as path_join
-from os.path import isfile as path_isfile
-from os.path import split as path_split
-from os.path import exists as path_exists
+from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,split as path_split,exists as path_exists
 
 from platform import node
 from pathlib import Path
 from re import search
 
-from signal import signal
-from signal import SIGINT
+from signal import signal,SIGINT
 
 from configparser import ConfigParser
 from subprocess import Popen
 
-from tkinter import Tk
-from tkinter import Toplevel
-from tkinter import PhotoImage
-from tkinter import Menu
-from tkinter import PanedWindow
-from tkinter import Label
-from tkinter import LabelFrame
-from tkinter import Frame
-from tkinter import StringVar
-from tkinter import BooleanVar
+from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar
 
-from tkinter.ttk import Checkbutton
-from tkinter.ttk import Treeview
-from tkinter.ttk import Scrollbar
-from tkinter.ttk import Button
-from tkinter.ttk import Entry
-from tkinter.ttk import Combobox
-from tkinter.ttk import Style
+from tkinter.ttk import Checkbutton,Treeview,Scrollbar,Button,Entry,Combobox,Style
 
-from tkinter.filedialog import askdirectory
-from tkinter.filedialog import asksaveasfilename
+from tkinter.filedialog import askdirectory,asksaveasfilename
 
 from collections import defaultdict
 from threading import Thread
@@ -239,6 +207,10 @@ class Gui:
 
     def block_actions_processing(func):
         def block_actions_processing_wrapp(self,*args,**kwargs):
+            if self.actions_processing:
+                gc_disable()
+                gc_collect()
+
             prev_active=self.actions_processing
             self.actions_processing=False
             try:
@@ -251,6 +223,9 @@ class Gui:
                 res=None
 
             self.actions_processing=prev_active
+            if self.actions_processing:
+                gc_collect()
+                gc_enable()
 
             return res
         return block_actions_processing_wrapp
@@ -346,6 +321,8 @@ class Gui:
         self.action_abort=True
 
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None):
+        gc_disable()
+
         self.cwd=cwd
         self.last_dir=self.cwd
 
@@ -608,11 +585,11 @@ class Gui:
         self_main_unbind_class('Treeview', '<<TreeviewClose>>')
         self_main_unbind_class('Treeview', '<<TreeviewOpen>>')
 
-        vsb1 = Scrollbar(frame_groups, orient='vertical', command=self_groups_tree.yview,takefocus=False)
+        self.vsb1 = Scrollbar(frame_groups, orient='vertical', command=self_groups_tree.yview,takefocus=False)
 
-        self_groups_tree.configure(yscrollcommand=vsb1.set)
+        self_groups_tree.configure(yscrollcommand=self.vsb1_set)
 
-        vsb1.pack(side='right',fill='y',expand=0)
+        self.vsb1.pack(side='right',fill='y',expand=0)
         self_groups_tree.pack(fill='both',expand=1, side='left')
 
         self_groups_tree.bind('<Double-Button-1>', self.double_left_button)
@@ -656,11 +633,11 @@ class Gui:
 
         self_folder_tree_heading('file', text='File \u25B2')
 
-        vsb2 = Scrollbar(frame_folder, orient='vertical', command=self_folder_tree.yview,takefocus=False)
+        self.vsb2 = Scrollbar(frame_folder, orient='vertical', command=self_folder_tree.yview,takefocus=False)
         #,bg=self.bg_color
-        self.folder_tree_configure(yscrollcommand=vsb2.set)
+        self.folder_tree_configure(yscrollcommand=self.vsb2_set)
 
-        vsb2.pack(side='right',fill='y',expand=0)
+        self.vsb2.pack(side='right',fill='y',expand=0)
         self_folder_tree.pack(fill='both',expand=1,side='left')
 
         self_folder_tree.bind('<Double-Button-1>', self.double_left_button)
@@ -1192,8 +1169,25 @@ class Gui:
 
         self.tree_semi_focus(self_groups_tree)
 
+        gc_collect()
+        gc_enable()
+
         self_main.mainloop()
         #######################################################################
+
+    def vsb1_set(self,v1,v2):
+        if v1=='0.0' and v2=='1.0':
+            self.vsb1.pack_forget()
+        else:
+            self.vsb1.set(v1,v2)
+            self.vsb1.pack(side="right", fill="y")
+
+    def vsb2_set(self,v1,v2):
+        if v1=='0.0' and v2=='1.0':
+            self.vsb2.pack_forget()
+        else:
+            self.vsb2.set(v1,v2)
+            self.vsb2.pack(side="right", fill="y")
 
     def unpost(self):
         self.hide_tooltip()
