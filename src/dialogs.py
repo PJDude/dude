@@ -56,7 +56,7 @@ class GenericDialog:
 
         self.focus=None
 
-        self.widget.iconphoto(False, self.icon)
+        self.widget.iconphoto(True, *icon)
 
         self.widget.title(title)
         self.widget.bind('<Escape>', lambda event : self.hide() )
@@ -136,7 +136,7 @@ class GenericDialog:
 
         #windows re-show workaround
         try:
-            self.widget.iconphoto(False, self.icon)
+            self.widget.iconphoto(True, *self.icon)
         except Exception as e:
             print(e)
 

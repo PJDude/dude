@@ -376,7 +376,12 @@ class Gui:
         self.icon_softlink_target=self_ico['softlink_target']
         self.icon_softlink_dir_target=self_ico['softlink_dir_target']
 
-        self_main.iconphoto(False, self_ico['dude'])
+        self.ico_dude = self_ico['dude']
+        self.ico_dude_small = self_ico['dude_small']
+
+        self.main_icon_tuple = (self.ico_dude,self.ico_dude_small)
+
+        self_main.iconphoto(True, *self.main_icon_tuple)
 
         self.MARK='M'
         self.UPDIR='0'
@@ -726,7 +731,7 @@ class Gui:
                 self.menu_enable()
                 self.menubar_config(cursor="")
 
-        self.scan_dialog=dialogs.GenericDialog(self_main,self_ico['dude'],self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
+        self.scan_dialog=dialogs.GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
 
         self.log_skipped_var=BooleanVar()
         self.log_skipped_var.set(False)
@@ -816,7 +821,7 @@ class Gui:
 
         #######################################################################
         #Settings Dialog
-        self.settings_dialog=dialogs.GenericDialog(self_main,self_ico['dude'],self.bg_color,'Settings',pre_show=pre_show_settings,post_close=post_close)
+        self.settings_dialog=dialogs.GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=pre_show_settings,post_close=post_close)
 
         self.show_full_crc = BooleanVar()
         self.show_full_paths = BooleanVar()
@@ -931,37 +936,37 @@ class Gui:
         self.settings_dialog.area_main.grid_columnconfigure(0, weight=1)
 
         #######################################################################
-        self.info_dialog_on_main = dialogs.LabelDialog(self_main,self_ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_ask_dialog = dialogs.TextDialogQuestion(self_main,self_ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close,image=self_ico['warning'])
-        self.text_info_dialog = dialogs.TextDialogInfo(self_main,self_ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self_ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self_ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_main = dialogs.LabelDialog(self_main,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.text_ask_dialog = dialogs.TextDialogQuestion(self_main,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close,image=self_ico['warning'])
+        self.text_info_dialog = dialogs.TextDialogInfo(self_main,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
 
-        self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self_ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
         self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
         self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
         self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
-        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_groups_tree,self_ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.mark_dialog_on_folder = dialogs.CheckboxEntryDialogQuestion(self_folder_tree,self_ico['dude'],self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_groups_tree,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
+        self.mark_dialog_on_folder = dialogs.CheckboxEntryDialogQuestion(self_folder_tree,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
 
         self.info_dialog_on_mark={}
 
-        self.info_dialog_on_mark[self_groups_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self_ico['dude'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
-        self.info_dialog_on_mark[self_folder_tree] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self_ico['dude'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_mark[self_groups_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_mark[self_folder_tree] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
 
-        self.find_dialog_on_groups = dialogs.FindEntryDialog(self_groups_tree,self_ico['dude'],self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
-        self.find_dialog_on_folder = dialogs.FindEntryDialog(self_folder_tree,self_ico['dude'],self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        self.find_dialog_on_groups = dialogs.FindEntryDialog(self_groups_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
+        self.find_dialog_on_folder = dialogs.FindEntryDialog(self_folder_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
 
         self.info_dialog_on_find={}
 
-        self.info_dialog_on_find[self_groups_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self_ico['dude'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
-        self.info_dialog_on_find[self_folder_tree] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self_ico['dude'],self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_find[self_groups_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_find[self_folder_tree] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
 
        #######################################################################
         #About Dialog
-        self.aboout_dialog=dialogs.GenericDialog(self_main,self_ico['dude'],self.bg_color,'',pre_show=pre_show,post_close=post_close)
+        self.aboout_dialog=dialogs.GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'',pre_show=pre_show,post_close=post_close)
 
         frame1 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
@@ -1003,7 +1008,7 @@ class Gui:
                 l_error(exception_2)
                 self.exit()
 
-        self.license_dialog=dialogs.GenericDialog(self_main,self_ico['license'],self.bg_color,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
+        self.license_dialog=dialogs.GenericDialog(self_main,(self_ico['license'],self_ico['license']),self.bg_color,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
 
         frame1 = LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
         frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
