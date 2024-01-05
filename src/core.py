@@ -61,6 +61,9 @@ def bytes_to_str(num):
 
     return "BIG"
 
+def fnumber(num):
+    return str(format(num,',d').replace(',',' '))
+
 class CRCThreadedCalc:
     def __init__(self,log):
         self.log=log
@@ -958,7 +961,7 @@ if __name__ == "__main__":
         scan_thread.start()
 
         while scan_thread.is_alive():
-            print(f'crc_calc...{core.info_files_done}/{core.info_total}                 ',end='\r')
+            print(f'crc_calc...{fnumber(core.info_files_done)}/{fnumber(core.info_total)}                 ',end='\r')
             sleep(0.04)
 
         scan_thread.join()

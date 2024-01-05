@@ -31,7 +31,7 @@ from send2trash import send2trash
 from fnmatch import fnmatch
 from shutil import rmtree
 
-from time import sleep,strftime,localtime,time
+from time import sleep,strftime,localtime,time,perf_counter
 
 from os import sep,stat,scandir,readlink,rmdir,system,getcwd,name as os_name
 from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect
@@ -65,7 +65,7 @@ from traceback import format_stack
 import sys
 import logging
 
-import core
+from core import *
 import console
 import dialogs
 
@@ -78,7 +78,7 @@ l_error = logging.error
 
 #log_levels={logging.DEBUG:'DEBUG',logging.INFO:'INFO'}
 
-core_bytes_to_str=core.bytes_to_str
+#core_bytes_to_str=core.bytes_to_str
 
 ###########################################################################################################################################
 
@@ -207,9 +207,9 @@ class Gui:
 
     def block_actions_processing(func):
         def block_actions_processing_wrapp(self,*args,**kwargs):
-            if self.actions_processing:
-                gc_disable()
-                gc_collect()
+            #if self.actions_processing:
+                #gc_disable()
+                #gc_collect()
 
             prev_active=self.actions_processing
             self.actions_processing=False
@@ -223,9 +223,9 @@ class Gui:
                 res=None
 
             self.actions_processing=prev_active
-            if self.actions_processing:
-                gc_collect()
-                gc_enable()
+            #if self.actions_processing:
+                #gc_collect()
+                #gc_enable()
 
             return res
         return block_actions_processing_wrapp
@@ -379,6 +379,11 @@ class Gui:
         self.ico_dude = self_ico['dude']
         self.ico_dude_small = self_ico['dude_small']
 
+        self.ico_folder = self_ico['folder']
+        self.ico_hardlink = self_ico['hardlink']
+        self.ico_softlink = self_ico['softlink']
+        self.ico_softlink_dir = self_ico['softlink_dir']
+
         self.main_icon_tuple = (self.ico_dude,self.ico_dude_small)
 
         self_main.iconphoto(True, *self.main_icon_tuple)
@@ -458,6 +463,9 @@ class Gui:
         self.menubar = Menu(self_main,bg=self.bg_color)
         self_main.config(menu=self.menubar)
         #######################################################################
+
+        self.my_next_dict={}
+        self.my_prev_dict={}
 
         self.tooltip_message={}
 
@@ -710,17 +718,21 @@ class Gui:
         self.popup_folder.bind("<FocusOut>",lambda event : self.popup_folder_unpost() )
 
         self_main_bind("<FocusOut>",lambda event : self.unpost() )
+        self_main_bind("<FocusIn>",lambda event : self.focusin() )
 
         #######################################################################
         #scan dialog
 
-        def pre_show(on_main_window_dialog=True):
+        def pre_show(on_main_window_dialog=True,new_widget=None):
             self.menubar_unpost()
             self.hide_tooltip()
             self.popup_groups_unpost()
             self.popup_folder_unpost()
 
             if on_main_window_dialog:
+                if new_widget:
+                    self.main_locked_by_child=new_widget
+
                 self.actions_processing=False
                 self.menu_disable()
                 self.menubar_config(cursor="watch")
@@ -814,10 +826,10 @@ class Gui:
 
         self.scan_dialog.focus=self.scan_cancel_button
 
-        def pre_show_settings():
+        def pre_show_settings(on_main_window_dialog=True,new_widget=None):
             _ = {var.set(self.cfg_get_bool(key)) for var,key in self.settings}
             _ = {var.set(self.cfg.get(key)) for var,key in self.settings_str}
-            return pre_show()
+            return pre_show(on_main_window_dialog=on_main_window_dialog,new_widget=new_widget)
 
         #######################################################################
         #Settings Dialog
@@ -953,16 +965,16 @@ class Gui:
 
         self.info_dialog_on_mark={}
 
-        self.info_dialog_on_mark[self_groups_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
-        self.info_dialog_on_mark[self_folder_tree] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_mark[self_groups_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(False))
+        self.info_dialog_on_mark[self_folder_tree] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(False))
 
         self.find_dialog_on_groups = dialogs.FindEntryDialog(self_groups_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
         self.find_dialog_on_folder = dialogs.FindEntryDialog(self_folder_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
 
         self.info_dialog_on_find={}
 
-        self.info_dialog_on_find[self_groups_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
-        self.info_dialog_on_find[self_folder_tree] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda : pre_show(False),post_close=lambda : post_close(False))
+        self.info_dialog_on_find[self_groups_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(False))
+        self.info_dialog_on_find[self_folder_tree] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(False))
 
        #######################################################################
         #About Dialog
@@ -1193,6 +1205,11 @@ class Gui:
         else:
             self.vsb2.set(v1,v2)
             self.vsb2.pack(side="right", fill="y")
+
+    def focusin(self):
+        #print('focusin')
+        if self.main_locked_by_child:
+            self.main_locked_by_child.focus_set()
 
     def unpost(self):
         self.hide_tooltip()
@@ -1604,17 +1621,14 @@ class Gui:
         current_item=self.sel_item
         self_sel_item = self.sel_item
 
-        self_my_next = self.my_next
-        self_my_prev = self.my_prev
-
         tree_set = tree.set
 
         self_CRC = self.CRC
 
-        move_func = lambda item : (self_my_next(tree,item) if direction==1 else self_my_prev(tree,item))
+        move_dict = self.my_next_dict[tree] if direction==1 else self.my_prev_dict[tree]
 
         while current_item:
-            current_item = move_func(current_item)
+            current_item = move_dict[current_item]
             if tree_set(current_item,'kind')==self_CRC:
                 self.crc_select_and_focus(current_item)
                 self.status(status,do_log=False)
@@ -1633,17 +1647,14 @@ class Gui:
         current_item = self.sel_item
         self_sel_item = self.sel_item
 
-        self_my_next = self.my_next
-        self_my_prev = self.my_prev
-
         tree_set = tree.set
 
         self_FILE = self.FILE
 
-        move_func = lambda item : (self_my_next(tree,item) if direction==1 else self_my_prev(tree,item))
+        move_dict = self.my_next_dict[tree] if direction==1 else self.my_prev_dict[tree]
 
         while current_item:
-            current_item = move_func(current_item)
+            current_item = move_dict[current_item]
 
             if tree_set(current_item,'kind')==self_FILE:
                 tree.selection_set(current_item)
@@ -1672,43 +1683,24 @@ class Gui:
                 self.folder_tree_sel_change(next_item)
                 self.folder_tree.update()
 
-    def my_next(self,tree,item):
-        if children := tree.get_children(item):
-            next_item=children[0]
-        else:
-            next_item=tree.next(item)
+    def create_my_next_dict(self,tree):
+        my_next_dict = self.my_next_dict[tree]={}
+        my_prev_dict = self.my_prev_dict[tree]={}
+        prev2,prev1 = None,None
 
-        if not next_item:
-            next_item = tree.next(tree.parent(item))
+        tree_get_children = tree.get_children
 
-        if not next_item:
-            try:
-                next_item=tree.get_children()[0]
-            except:
-                return None
+        if top_nodes := tree_get_children():
+            first=top_nodes[0]
+            for top_node in top_nodes:
+                prev2,prev1 = prev1,top_node
+                my_next_dict[prev2],my_prev_dict[prev1] = prev1,prev2
 
-        return next_item
+                for subnode in tree_get_children(top_node):
+                    prev2,prev1 = prev1,subnode
+                    my_next_dict[prev2],my_prev_dict[prev1] = prev1,prev2
 
-    def my_prev(self,tree,item):
-        prev_item=tree.prev(item)
-
-        if prev_item:
-            if prev_children := tree.get_children(prev_item):
-                prev_item = prev_children[-1]
-        else:
-            prev_item = tree.parent(item)
-
-        if not prev_item:
-            try:
-                last_parent=tree.get_children()[-1]
-            except :
-                return None
-
-            if last_parent_children := tree.get_children(last_parent):
-                prev_item=last_parent_children[-1]
-            else:
-                prev_item=last_parent
-        return prev_item
+            my_next_dict[prev1],my_prev_dict[first] = first,prev1
 
     def key_press(self,event):
         if self.actions_processing:
@@ -1726,17 +1718,20 @@ class Gui:
                 #state=event.state
 
                 if key in ("Up","Down"):
-                    new_item = self.my_next(tree,item) if key=='Down' else self.my_prev(tree,item)
+                    #new_item = self.my_next(tree,item) if key=='Down' else self.my_prev(tree,item)
+                    new_item = self.my_next_dict[tree][item] if key=='Down' else self.my_prev_dict[tree][item]
 
                     if new_item:
                         tree.focus(new_item)
+                        #tree.selection_set(tree.focus())
+                        tree.selection_set(new_item)
                         tree.see(new_item)
-                        tree.selection_set(tree.focus())
 
                         if tree==self.groups_tree:
                             self.groups_tree_sel_change(new_item)
                         else:
                             self.folder_tree_sel_change(new_item)
+
                 elif key in ("Prior","Next"):
                     if tree==self.groups_tree:
                         self.goto_next_prev_crc(self.KEY_DIRECTION[key])
@@ -1958,9 +1953,10 @@ class Gui:
                 if toggle:
                     self.tag_toggle_selected(tree,item)
                 #prevents processing of expanding nodes
-                return "break"
+                #return "break"
 
-        return None
+        #return None
+        return "break"
 
     def tree_semi_focus(self,tree):
         item=None
@@ -2010,30 +2006,41 @@ class Gui:
     def sel_path_set(self,path):
         if self.sel_path_full != path:
             self.sel_path_full = path
+            #print('self.sel_path_full')
             self.status_path_configure(text=self.sel_path_full)
 
             self.dominant_groups_folder={0:-1,1:-1}
 
     @catched
     def groups_tree_sel_change(self,item,force=False,change_status_line=True):
+        t0=perf_counter()
         self.sel_item = item
 
         if change_status_line :
             self.status()
 
-        self_groups_tree_set_item=lambda x : self.groups_tree_set(item,x)
+        #self_groups_tree_set_item=lambda x : self.groups_tree_set(item,x)
 
-        self.sel_file = self_groups_tree_set_item('file')
+        kind,crc,file,path,pathnr_int = self.groups_tree_mirror[item]
+        if pathnr_int!=None:
+            pathnr = str(pathnr_int)
+        else:
+            pathnr = None
+        #print('self.groups_tree_mirror[item]',self.groups_tree_mirror[item])
 
-        new_crc = self_groups_tree_set_item('crc')
-        if self.sel_crc != new_crc:
-            self.sel_crc = new_crc
+        #self.sel_file = self_groups_tree_set_item('file')
+        self.sel_file = file
+
+        #crc = self_groups_tree_set_item('crc')
+        if self.sel_crc != crc:
+            self.sel_crc = crc
 
             self.dominant_groups_index={0:-1,1:-1}
 
-        path=self_groups_tree_set_item('path')
-        pathnr = self_groups_tree_set_item('pathnr')
-        if path!=self.sel_path or pathnr!=self.sel_pathnr or force:
+        #pathnr = self_groups_tree_set_item('pathnr')
+        #path=self_groups_tree_set_item('path')
+
+        if path!=self.sel_path or force or pathnr!=self.sel_pathnr:
             if self.find_tree_index==1:
                 self.find_result=()
 
@@ -2047,11 +2054,19 @@ class Gui:
                 self.sel_path_set(None)
             self.set_full_path_to_file()
 
-        self.sel_kind = self_groups_tree_set_item('kind')
+        #self.sel_kind = self_groups_tree_set_item('kind')
+        #print(type(kind),kind,type(self.FILE),self.FILE)
+        self.sel_kind = kind
+
+        t1a=perf_counter()
+
         if self.sel_kind==self.FILE:
             self.tree_folder_update()
         else:
             self.tree_folder_update_none()
+
+        t1=perf_counter()
+        #print(f'groups_tree_sel_change\t{t1a-t0}\t{t1-t1a}')
 
     @catched
     def folder_tree_sel_change(self,item,change_status_line=True):
@@ -2412,6 +2427,7 @@ class Gui:
             self_tree_sort_item(tree,None,True)
 
         tree.update()
+        self.create_my_next_dict(tree)
 
     def column_sort_set_arrow(self, tree):
         colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
@@ -2556,11 +2572,11 @@ class Gui:
         self_hg_ico = self.hg_ico
         len_self_hg_ico = len(self_hg_ico)
 
-        local_core_bytes_to_str = core_bytes_to_str
+        local_bytes_to_str = bytes_to_str
 
         while scan_thread_is_alive():
-            new_data[3]=local_core_bytes_to_str(dude_core.info_size_sum)
-            new_data[4]='%s files' % dude_core.info_counter
+            new_data[3]=local_bytes_to_str(dude_core.info_size_sum)
+            new_data[4]='%s files' % fnumber(dude_core.info_counter)
 
             anything_changed=False
             for i in (3,4):
@@ -2640,13 +2656,14 @@ class Gui:
         self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
         self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
-        core_bytes_to_str_dude_core_sum_size = local_core_bytes_to_str(dude_core.sum_size)
+        bytes_to_str_dude_core_sum_size = local_bytes_to_str(dude_core.sum_size)
 
         self_main_after = self.main.after
         wait_var_get = wait_var.get
         wait_var_set = wait_var.set
         self_main_wait_variable = self.main.wait_variable
 
+        #fnumber_dude_core_info_total = fnumber(dude_core.info_total)
         while crc_thread_is_alive():
             anything_changed=False
 
@@ -2655,7 +2672,7 @@ class Gui:
                 prev_progress_size=size_progress_info
 
                 self_progress_dialog_on_scan_progr1var_set(size_progress_info)
-                self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_core_bytes_to_str(dude_core.info_size_done),core_bytes_to_str_dude_core_sum_size))
+                self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_bytes_to_str(dude_core.info_size_done),bytes_to_str_dude_core_sum_size))
                 anything_changed=True
 
             quant_progress_info=dude_core.info_files_done_perc
@@ -2663,15 +2680,15 @@ class Gui:
                 prev_progress_quant=quant_progress_info
 
                 self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
-                self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (dude_core.info_files_done,dude_core.info_total))
+                self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (fnumber(dude_core.info_files_done),fnumber(dude_core.info_total)))
                 anything_changed=True
 
             if anything_changed:
                 if dude_core.info_found_groups:
                     #new_data[1]='Results'
-                    new_data[2]='CRC groups: %s' % dude_core.info_found_groups
-                    new_data[3]='space: %s' % local_core_bytes_to_str(dude_core.info_found_dupe_space)
-                    new_data[4]='folders: %s' % dude_core.info_found_folders
+                    new_data[2]='CRC groups: %s' % fnumber(dude_core.info_found_groups)
+                    new_data[3]='space: %s' % local_bytes_to_str(dude_core.info_found_dupe_space)
+                    new_data[4]='folders: %s' % fnumber(dude_core.info_found_folders)
 
                     for i in (2,3,4):
                         if new_data[i] != prev_data[i]:
@@ -3062,11 +3079,13 @@ class Gui:
         self_CRC = self.CRC
         self_FILE = self.FILE
 
-        local_core_bytes_to_str = core_bytes_to_str
+        local_bytes_to_str = bytes_to_str
         self_icon_nr=self.icon_nr
 
+        groups_tree_mirror = self.groups_tree_mirror = {}
+
         for size,size_dict in dude_core.files_of_size_of_crc_items() :
-            size_h = local_core_bytes_to_str(size)
+            size_h = local_bytes_to_str(size)
             size_str = str(size)
             if not sizes_counter%128:
                 self_status('Rendering data... (%s)' % size_h,do_log=False)
@@ -3078,22 +3097,29 @@ class Gui:
                     if not is_cross_group:
                         continue
 
+                #tree_mirror_crcs.append(crc)
                 self_active_crcs_add(crc)
 
                 #self_groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
                 instances_str=str(len(crc_dict))
                 crc_item=self_groups_tree_insert('','end',crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',self_CRC),tags=self_CRC,open=True,text= crc if show_full_crc else crc[:dude_core_crc_cut_len])
 
+                #kind,crc,file,path,pathnr
+                groups_tree_mirror[crc_item]=(self_CRC,crc,None,None,None)
+
                 for pathnr,path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
                     iid=self_idfunc(inode,dev)
                     self_iid_to_size[iid]=size
 
-                    self_groups_tree_insert(crc_item,'end',iid, values=(\
+                    file_item = self_groups_tree_insert(crc_item,'end',iid, values=(\
                             str(pathnr),path,file,size_str,\
                             '',\
                             str(ctime),str(dev),str(inode),crc,\
                             '','',\
                             strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//1000000000)),self_FILE),tags='',text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
+
+                    #kind,crc,file,path,pathnr
+                    groups_tree_mirror[file_item]=(self_FILE,crc,file,path,pathnr)
 
         self.data_precalc()
 
@@ -3102,6 +3128,7 @@ class Gui:
             self.column_sort(self_groups_tree)
         else:
             self.column_sort_set_arrow(self_groups_tree)
+            self.create_my_next_dict(self_groups_tree)
 
         self.initial_focus()
         self.calc_mark_stats_groups()
@@ -3169,13 +3196,10 @@ class Gui:
 
         self.current_folder_items_tagged_clear()
 
-
-    folder_items=set()
-    folder_items_clear=folder_items.clear
-    folder_items_add=folder_items.add
-
     @block_actions_processing
     def tree_folder_update(self,arbitrary_path=None):
+        #t0=perf_counter()
+
         ftree = self.folder_tree
         self.folder_tree_configure(takefocus=False)
 
@@ -3198,13 +3222,11 @@ class Gui:
         dude_core_crc_cut_len=dude_core.crc_cut_len
         dude_core_files_of_size_of_crc=dude_core.files_of_size_of_crc
 
-        self_ico = self.ico
-
         NONE_ICON=''
-        FOLDER_ICON=self_ico['folder']
-        HARDLINK_ICON=self_ico['hardlink']
-        FILE_SOFT_LINK_ICON=self_ico['softlink']
-        DIR_SOFT_LINK_ICON=self_ico['softlink_dir']
+        FOLDER_ICON=self.ico_folder
+        HARDLINK_ICON=self.ico_hardlink
+        FILE_SOFT_LINK_ICON=self.ico_softlink
+        DIR_SOFT_LINK_ICON=self.ico_softlink_dir
 
         self_DIRLINK = self.DIRLINK
         self_LINK = self.LINK
@@ -3214,7 +3236,7 @@ class Gui:
         self_FILE = self.FILE
         self_MARK = self.MARK
 
-        local_core_bytes_to_str = core_bytes_to_str
+        local_bytes_to_str = bytes_to_str
 
         self_tagged=self.tagged
         self_current_folder_items_tagged=self.current_folder_items_tagged
@@ -3222,23 +3244,22 @@ class Gui:
         self_current_folder_items_tagged.clear()
         current_folder_items_tagged_size=0
 
-        self.folder_items_clear()
-        self_folder_items_add = self.folder_items_add
+        folder_items=set()
+        folder_items_add=folder_items.add
 
         if self.two_dots_condition(current_path):
             values=('..','','',self.UPDIR,'',0,'',0,'',0,'')
-            self_folder_items_add((updir_code,sort_val_func(values[sort_index_local]),'0UP','',values,self_DIR,''))
+            folder_items_add((updir_code,sort_val_func(values[sort_index_local]),'0UP','',values,self_DIR,''))
 
         #############################################
         try:
             with scandir(current_path) as res:
                 for entry in res:
-                    is_link=entry.is_symlink()
-                    isdir = entry.is_dir()
+                    name,isdir,is_link=entry.name,entry.is_dir(),entry.is_symlink()
 
                     if is_link:
-                        values = (entry.name,'','',self_DIRLINK if isdir else self_LINK,'','0','','0','','1','')
-                        self_folder_items_add((dir_code if isdir else non_dir_code,sort_val_func(values[sort_index_local]),('%sDL' % i) if isdir else ('%sFL' % i),'',values,self_DIR if isdir else self_LINK,DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON))
+                        values = (name,'','',self_DIRLINK if isdir else self_LINK,'','0','','0','','1','')
+                        folder_items_add((dir_code if isdir else non_dir_code,sort_val_func(values[sort_index_local]),('%sDL' % i) if isdir else ('%sFL' % i),'',values,self_DIR if isdir else self_LINK,DIR_SOFT_LINK_ICON if isdir else FILE_SOFT_LINK_ICON))
                         i+=1
                     else:
                         try:
@@ -3249,8 +3270,8 @@ class Gui:
                         else:
                             dev,inode = stat_res.st_dev,stat_res.st_ino
                             if isdir:
-                                values = (entry.name,str(dev),str(inode),self_DIR,'','0','','0','','1','')
-                                self_folder_items_add((dir_code,sort_val_func(values[sort_index_local]),'%sD' % i,'',values,self_DIR,FOLDER_ICON))
+                                values = (name,str(dev),str(inode),self_DIR,'','0','','0','','1','')
+                                folder_items_add((dir_code,sort_val_func(values[sort_index_local]),'%sD' % i,'',values,self_DIR,FOLDER_ICON))
 
                                 i+=1
                             elif entry.is_file():
@@ -3259,7 +3280,7 @@ class Gui:
 
                                 ctime_h = strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//1000000000)) #DE_NANO
 
-                                size_h=local_core_bytes_to_str(size_num)
+                                size_h=local_bytes_to_str(size_num)
 
                                 item_rocognized=True
                                 if file_id in self_id2crc:
@@ -3268,25 +3289,25 @@ class Gui:
                                     if ctime != core_ctime:
                                         item_rocognized=False
                                     else:
-                                        values = (entry.name,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
+                                        values = (name,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
                                         in_tagged=bool(file_id in self_tagged)
                                         if in_tagged:
                                             self_current_folder_items_tagged_add(file_id)
                                             current_folder_items_tagged_size+=size_num
 
-                                        self_folder_items_add((non_dir_code,sort_val_func(values[sort_index_local]),file_id,crc if show_full_crc else crc[:dude_core_crc_cut_len],values,self_MARK if in_tagged else '',NONE_ICON))
+                                        folder_items_add((non_dir_code,sort_val_func(values[sort_index_local]),file_id,crc if show_full_crc else crc[:dude_core_crc_cut_len],values,self_MARK if in_tagged else '',NONE_ICON))
                                 else:
                                     item_rocognized=False
 
                                 if not item_rocognized:
                                     nlink = stat_res.st_nlink
-                                    values = (entry.name,str(dev),str(inode),self_SINGLEHARDLINKED if nlink>1 else self_SINGLE,'',str(size_num),size_h,str(ctime),ctime_h,'1','')
+                                    values = (name,str(dev),str(inode),self_SINGLEHARDLINKED if nlink>1 else self_SINGLE,'',str(size_num),size_h,str(ctime),ctime_h,'1','')
 
-                                    self_folder_items_add((non_dir_code,sort_val_func(values[sort_index_local]),'%sO' % i,'(%s)' % nlink if nlink>1 else '',values,self_SINGLE,HARDLINK_ICON if nlink>1 else NONE_ICON))
+                                    folder_items_add((non_dir_code,sort_val_func(values[sort_index_local]),'%sO' % i,'(%s)' % nlink if nlink>1 else '',values,self_SINGLE,HARDLINK_ICON if nlink>1 else NONE_ICON))
 
                                     i+=1
                             else:
-                                l_error('another: %s:%s,%s ?',current_path,entry.name,is_link)
+                                l_error('another: %s:%s,%s ?',current_path,name,is_link)
                                 continue
 
         except Exception as e:
@@ -3296,22 +3317,18 @@ class Gui:
         ############################################################
 
         if arbitrary_path:
-            self.sel_pathnr = None
-            self.sel_file = None
-            self.sel_crc = None
-            self.sel_item = None
-            self.sel_kind = None
-            self.sel_tree=ftree
+            self.sel_tree,self.sel_pathnr,self.sel_file,self.sel_crc,self.sel_item,self.sel_kind = ftree,None,None,None,None,None
+
             self.sel_path_set(str(Path(arbitrary_path)))
 
         ftree_insert=ftree.insert
 
-        self_current_folder_items = self.current_folder_items
-        if self_current_folder_items:
+        if self_current_folder_items := self.current_folder_items:
             self.folder_tree_delete(*self_current_folder_items)
 
+        #t1=perf_counter()
         try:
-            self.current_folder_items=tuple([ftree_insert('','end',iid, text=text, values=values,tags=tag,image=image) for _,_,iid,text,values,tag,image in sorted(self.folder_items,reverse=reverse,key=lambda x : (x[0:3]) ) ])
+            self.current_folder_items=tuple( (ftree_insert('','end',iid, text=text, values=values,tags=tag,image=image) for _,_,iid,text,values,tag,image in sorted(folder_items,reverse=reverse,key=lambda x : (x[0:3]) ) ))
         except Exception as e:
             self.status(str(e))
             l_error(e)
@@ -3324,11 +3341,21 @@ class Gui:
                 pass
 
         self.status_folder_quant_configure(text=str(len(self_current_folder_items_tagged)))
-        self.status_folder_size_configure(text=core_bytes_to_str(current_folder_items_tagged_size))
+        self.status_folder_size_configure(text=bytes_to_str(current_folder_items_tagged_size))
 
         ftree.update()
 
+        #t2=perf_counter()
+
+        folder_items_len = len(folder_items)
+
+        #fact1 = format((t1-t0)/folder_items_len, '.10f')
+        #fact2 = format((t2-t1)/folder_items_len, '.10f')
+        #print(f'tree_folder_update:{t1-t0}\t{fact1}\t{fact2}\titems:{folder_items_len}')
+
         self.folder_tree_configure(takefocus=True)
+
+        self.create_my_next_dict(ftree)
 
         return True
 
@@ -3351,13 +3378,13 @@ class Gui:
     def calc_mark_stats_groups(self):
         self.status_all_quant_configure(text=str(len(self.tagged)))
         self_iid_to_size=self.iid_to_size
-        self.status_all_size_configure(text=core_bytes_to_str(sum([self_iid_to_size[iid] for iid in self.tagged])))
+        self.status_all_size_configure(text=bytes_to_str(sum([self_iid_to_size[iid] for iid in self.tagged])))
 
     def calc_mark_stats_folder(self):
         self.status_folder_quant_configure(text=str(len(self.current_folder_items_tagged)))
 
         self_iid_to_size = self.iid_to_size
-        self.status_folder_size_configure(text=core_bytes_to_str(sum(self_iid_to_size[iid] for iid in self.current_folder_items_tagged)))
+        self.status_folder_size_configure(text=bytes_to_str(sum(self_iid_to_size[iid] for iid in self.current_folder_items_tagged)))
 
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
         self_groups_tree = self.groups_tree
@@ -3590,7 +3617,7 @@ class Gui:
     @logwrapper
     def mark_subpath(self,action,all_groups=True):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if path:=askdirectory(title='Select Directory',initialdir=initialdir):
+        if path:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.main):
             self.last_dir = path
             self.action_on_path(path,action,all_groups)
 
@@ -3611,19 +3638,21 @@ class Gui:
 
         tree_set = tree.set
         tree_tag_has = tree.tag_has
-        self_my_next = self.my_next
-        self_my_prev = self.my_prev
+        #self_my_next = self.my_next_dict[tree]
+        #self_my_prev = self.my_prev_dict[tree]
+
+        next_dict = self.my_next_dict[tree] if direction==1 else self.my_prev_dict[tree]
 
         self_MARK = self.MARK
 
         while current_item:
-            current_item = self_my_next(tree,current_item) if direction==1 else self_my_prev(tree,current_item)
+            #current_item = self_my_next[current_item] if direction==1 else self_my_prev[current_item]
+            current_item = next_dict[current_item]
 
             tag_has = tree_tag_has(self_MARK,current_item)
 
             if (tag_has and not go_to_no_mark) or (go_to_no_mark and not tag_has and tree_set(current_item,'kind')!=self.CRC):
                 tree.focus(current_item)
-                tree.see(current_item)
                 tree.selection_set(current_item)
 
                 if tree==self.groups_tree:
@@ -3632,6 +3661,8 @@ class Gui:
                     self.folder_tree_sel_change(current_item)
 
                 self.status(status,do_log=False)
+
+                tree.see(current_item)
                 break
 
             if current_item==self_sel_item:
@@ -3659,7 +3690,7 @@ class Gui:
                 self.crc_select_and_focus(biggest_crc,True)
 
                 self.dominant_groups_index[size_flag] = int(temp)
-                info = core_bytes_to_str(biggest_crc_size_sum) if size_flag else str(biggest_crc_size_sum)
+                info = bytes_to_str(biggest_crc_size_sum) if size_flag else str(biggest_crc_size_sum)
                 self.status(f'Dominant (index:{working_index}) group ({self.BY_WHAT[size_flag]}: {info})',image=self.ico['dominant_size' if size_flag else 'dominant_quant'])
 
     @block_actions_processing
@@ -3699,7 +3730,7 @@ class Gui:
             self.groups_tree_update(item)
 
             self.dominant_groups_folder[size_flag] = int(temp)
-            info = core_bytes_to_str(num) if size_flag else str(num)
+            info = bytes_to_str(num) if size_flag else str(num)
             self.status(f'Dominant (index:{working_index}) folder ({self.BY_WHAT[size_flag]}: {info})',image=self.ico['dominant_size' if size_flag else 'dominant_quant'])
 
     def item_full_path(self,item):
@@ -3933,7 +3964,7 @@ class Gui:
             message_append('')
             size=int(self_groups_tree_set(crc,'size'))
             if cfg_show_crc_size:
-                message_append('CRC:' + crc + ' size:' + core_bytes_to_str(size) + '|GRAY')
+                message_append('CRC:' + crc + ' size:' + bytes_to_str(size) + '|GRAY')
 
             for item in processed_items[crc]:
                 size_sum += size
@@ -3945,7 +3976,7 @@ class Gui:
                     if cfg_show_links_targets:
                         message_append('-> %s' % (self_item_full_path(item) if show_full_path else self_groups_tree_set(item,'file')) )
 
-        size_info = "Processed files size sum : " + core_bytes_to_str(size_sum) + "\n"
+        size_info = "Processed files size sum : " + bytes_to_str(size_sum) + "\n"
         if action==DELETE:
             trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No")
             erase_empty_dirs = "\nErase empty directories  : " + ('Yes' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
@@ -4343,7 +4374,7 @@ class Gui:
 
     @logwrapper
     def csv_save(self):
-        if csv_file := asksaveasfilename(initialfile = 'DUDE_scan.csv',defaultextension=".csv",filetypes=[("All Files","*.*"),("CSV Files","*.csv")]):
+        if csv_file := asksaveasfilename(parent=self.main,initialfile = 'DUDE_scan.csv',defaultextension=".csv",filetypes=[("All Files","*.*"),("CSV Files","*.csv")]):
 
             self.status('saving CSV file "%s" ...' % str(csv_file))
             dude_core.write_csv(str(csv_file))
@@ -4574,7 +4605,7 @@ if __name__ == "__main__":
         else:
             l_info('distro info:\n%s',distro_info)
 
-        dude_core = core.DudeCore(CACHE_DIR,logging)
+        dude_core = DudeCore(CACHE_DIR,logging)
 
         if p_args.csv:
             signal(SIGINT, lambda a, k : dude_core.handle_sigint())
@@ -4605,7 +4636,7 @@ if __name__ == "__main__":
             run_crc_thread.start()
 
             while run_crc_thread.is_alive():
-                print(f'crc_calc...{dude_core.info_files_done}/{dude_core.info_total}                 ',end='\r')
+                print(f'crc_calc...{fnumber(dude_core.info_files_done)}/{fnumber(dude_core.info_total)}                 ',end='\r')
                 sleep(0.04)
 
             run_crc_thread.join()
