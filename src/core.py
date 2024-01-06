@@ -40,6 +40,9 @@ from os import stat,scandir,sep,symlink,link,cpu_count,name as os_name,rename as
 
 from os.path import dirname,relpath,normpath,join as path_join,abspath as abspath,exists as path_exists,isdir as path_isdir
 
+from pickle import dumps,loads
+from zstandard import ZstdCompressor,ZstdDecompressor
+
 from send2trash import send2trash
 
 def bytes_to_str(num):
@@ -394,32 +397,33 @@ class DudeCore:
         self_crc_cache=self.crc_cache
         for dev in self.devs:
             self_crc_cache_int_dev = self_crc_cache[dev]={}
+
+            self.log.info('reading cache:%s:device:%s',self.cache_dir,dev)
             try:
-                self.log.info('reading cache:%s:device:%s',self.cache_dir,dev)
-                with open(sep.join([self.cache_dir,str(dev)]),'r',encoding='ASCII' ) as cfile:
-                    while line:=cfile.readline() :
-                        inode,mtime,crc = line.rstrip('\n').split(' ')
-                        if crc is None or crc=='None' or crc=='':
-                            self.log.warning("crc_cache read error:%s,%s,%s",inode,mtime,crc)
-                        else:
-                            self_crc_cache_int_dev[(int(inode),int(mtime))]=crc
-            except Exception as e:
-                self.log.warning(e)
-                self_crc_cache[dev]={}
+                with open(sep.join([self.cache_dir,f'{dev}.dat']), "rb") as dat_file:
+                    self.crc_cache[dev] = loads(ZstdDecompressor().decompress(dat_file.read()))
+            except Exception as e1:
+                self.log.warning(e1)
+            else:
+                self.log.info(f'cache loaded for dev: {dev}')
         self.info=''
 
     def crc_cache_write(self):
         self.info='Writing cache ...'
 
         Path(self.cache_dir).mkdir(parents=True,exist_ok=True)
-        for (dev,val_dict) in self.crc_cache.items():
 
-            self.log.info('writing cache:%s:device:%s',self.cache_dir,dev)
-            with open(sep.join([self.cache_dir,str(dev)]),'w',encoding='ASCII') as cfile:
-                for (inode,mtime),crc in sorted(val_dict.items()):
-                    cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
+        for (dev,val_dict) in self.crc_cache.items():
+            try:
+                self.log.info(f'writing cache for dev: {dev}')
+                with open(sep.join([self.cache_dir,f'{dev}.dat']), "wb") as dat_file:
+                    dat_file.write(ZstdCompressor(level=9,threads=-1).compress(dumps(val_dict)))
+                    self.log.info(f'writing cache for dev: {dev} done.')
+            except Exception as e:
+                self.log.error(f'writing cache for dev: {dev} error: {e}.')
 
         del self.crc_cache
+
         self.info=''
 
     info_size_done=0
