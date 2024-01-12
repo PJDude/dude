@@ -2987,7 +2987,7 @@ class Gui:
         self.status('Precalculating data...')
         self_groups_tree_get_children = self.groups_tree_get_children
 
-        self.status_groups_configure(text=str(len(self_groups_tree_get_children())),image=self.ico['warning' if self.cfg_get_bool(CFG_KEY_CROSS_MODE) else 'empty'],compound='right',width=80,anchor='w')
+        self.status_groups_configure(text=fnumber(len(self_groups_tree_get_children())),image=self.ico['warning' if self.cfg_get_bool(CFG_KEY_CROSS_MODE) else 'empty'],compound='right',width=80,anchor='w')
 
         path_stat_size={}
         path_stat_size_get=path_stat_size.get
