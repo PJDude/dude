@@ -349,6 +349,9 @@ class TextDialogInfo(GenericDialog):
         self.text.configure(yscrollcommand=self.text_vsb_set)
 
         ############################################
+        self.text.tag_configure('RED', foreground='red')
+        self.text.tag_configure('GRAY', foreground='gray')
+
         self.text.tag_configure('found', background='yellow')
         self.text.tag_configure('found_sel', background='orange')
 
@@ -488,7 +491,13 @@ class TextDialogInfo(GenericDialog):
         self_text = self.text
         self_text.configure(state='normal')
         self_text.delete('1.0', 'end')
-        self_text.insert('end',message)
+
+        for line in message.split('\n'):
+            line_splitted=line.split('|')
+            tag=line_splitted[1] if len(line_splitted)>1 else None
+
+            self.text.insert('end', line_splitted[0] + "\n", tag)
+
         self_text.configure(state='disabled')
 
         self.copy_button.configure(state='normal')

@@ -219,7 +219,7 @@ class Gui:
                 self.status('block_actions_processing_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
                 l_error('block_actions_processing_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
                 l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR block_actions_processing_wrapp',str(e))
+                self.get_info_dialog_on_main().show('INTERNAL ERROR block_actions_processing_wrapp',str(e))
                 res=None
 
             self.actions_processing=prev_active
@@ -247,7 +247,7 @@ class Gui:
                 self.status('gui_block_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
                 l_error('gui_block_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
                 l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR gui_block_wrapp',func.__name__ + '\n' + str(e))
+                self.get_info_dialog_on_main().show('INTERNAL ERROR gui_block_wrapp',func.__name__ + '\n' + str(e))
                 res=None
 
             self.menu_enable()
@@ -265,7 +265,7 @@ class Gui:
                 self.status('catched_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
                 l_error('catched_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
                 l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR catched_wrapp','%s %s' % (func.__name__,str(e)) )
+                self.get_info_dialog_on_main().show('INTERNAL ERROR catched_wrapp','%s %s' % (func.__name__,str(e)) )
                 res=None
             return res
         return catched_wrapp
@@ -280,7 +280,7 @@ class Gui:
                 self.status('logwrapper_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
                 l_error('logwrapper_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
                 l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR logwrapper_wrapp','%s %s' % (func.__name__,str(e)) )
+                self.get_info_dialog_on_main().show('INTERNAL ERROR logwrapper_wrapp','%s %s' % (func.__name__,str(e)) )
                 res=None
 
             l_info("logwrapper '%s' end. BENCHMARK TIME:%s",func.__name__,time()-start)
@@ -297,7 +297,7 @@ class Gui:
                 self.status('restore_status_line_wrapp:%s:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
                 l_error('restore_status_line_wrapp:%s:%s args:%s kwargs:%s',func.__name__,e,args,kwargs)
                 l_error(''.join(format_stack()))
-                self.info_dialog_on_main.show('INTERNAL ERROR restore_status_line_wrapp',str(e))
+                self.get_info_dialog_on_main().show('INTERNAL ERROR restore_status_line_wrapp',str(e))
                 res=None
             else:
                 self.status(prev)
@@ -400,8 +400,8 @@ class Gui:
 
         self_main_bind = self_main.bind
 
-        self_main_bind('<KeyPress-F2>', lambda event : self.settings_dialog.show())
-        self_main_bind('<KeyPress-F1>', lambda event : self.aboout_dialog.show())
+        self_main_bind('<KeyPress-F2>', lambda event : self.get_settings_dialog().show())
+        self_main_bind('<KeyPress-F1>', lambda event : self.get_about_dialog().show())
         self_main_bind('<KeyPress-s>', lambda event : self.scan_dialog_show())
         self_main_bind('<KeyPress-S>', lambda event : self.scan_dialog_show())
 
@@ -518,6 +518,7 @@ class Gui:
         self.status_path.bind("<Leave>", lambda event : self.widget_leave())
 
         self.status_path_configure=self.status_path.configure
+        ###############################################################################
 
         (status_frame_folder := Frame(frame_folder,bg=self.bg_color)).pack(side='bottom',fill='both')
 
@@ -624,8 +625,7 @@ class Gui:
         self_folder_tree_column = self_folder_tree.column
 
         self_folder_tree_column('#0', width=120, minwidth=100, stretch='no')
-
-        self_folder_tree_column('file', width=200, minwidth=100, stretch='yes')
+        self_folder_tree_column('file', width=100, minwidth=10, stretch='yes')
         self_folder_tree_column('size_h', width=80, minwidth=80, stretch='no')
         self_folder_tree_column('instances_h', width=80, minwidth=80, stretch='no')
         self_folder_tree_column('ctime_h', width=150, minwidth=100, stretch='no')
@@ -720,30 +720,19 @@ class Gui:
         self_main_bind("<FocusOut>",lambda event : self.unpost() )
         self_main_bind("<FocusIn>",lambda event : self.focusin() )
 
+        self.groups_tree.bind("<FocusOut>",self.groups_tree_focus_out )
+        self.folder_tree.bind("<FocusOut>",self.folder_tree_focus_out )
+
+        self.groups_tree.bind("<FocusIn>",self.groups_tree_focus_in )
+        self.folder_tree.bind("<FocusIn>",self.folder_tree_focus_in )
+
+        self.selected={}
+        self.selected[self.groups_tree]=None
+        self.selected[self.folder_tree]=None
         #######################################################################
         #scan dialog
 
-        def pre_show(on_main_window_dialog=True,new_widget=None):
-            self.menubar_unpost()
-            self.hide_tooltip()
-            self.popup_groups_unpost()
-            self.popup_folder_unpost()
-
-            if on_main_window_dialog:
-                if new_widget:
-                    self.main_locked_by_child=new_widget
-
-                self.actions_processing=False
-                self.menu_disable()
-                self.menubar_config(cursor="watch")
-
-        def post_close(on_main_window_dialog=True):
-            if on_main_window_dialog:
-                self.actions_processing=True
-                self.menu_enable()
-                self.menubar_config(cursor="")
-
-        self.scan_dialog=dialogs.GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'Scan',pre_show=pre_show,post_close=post_close)
+        self.scan_dialog=dialogs.GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'Scan',pre_show=self.pre_show,post_close=self.post_close)
 
         self.log_skipped_var=BooleanVar()
         self.log_skipped_var.set(False)
@@ -826,208 +815,10 @@ class Gui:
 
         self.scan_dialog.focus=self.scan_cancel_button
 
-        def pre_show_settings(on_main_window_dialog=True,new_widget=None):
-            _ = {var.set(self.cfg_get_bool(key)) for var,key in self.settings}
-            _ = {var.set(self.cfg.get(key)) for var,key in self.settings_str}
-            return pre_show(on_main_window_dialog=on_main_window_dialog,new_widget=new_widget)
-
         #######################################################################
-        #Settings Dialog
-        self.settings_dialog=dialogs.GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=pre_show_settings,post_close=post_close)
-
-        self.show_full_crc = BooleanVar()
-        self.show_full_paths = BooleanVar()
-        self.cross_mode = BooleanVar()
-
-        self.create_relative_symlinks = BooleanVar()
-        self.erase_empty_directories = BooleanVar()
-        self.abort_on_error = BooleanVar()
-        self.send_to_trash = BooleanVar()
-
-        self.allow_delete_all = BooleanVar()
-        self.skip_incorrect_groups = BooleanVar()
-        self.allow_delete_non_duplicates = BooleanVar()
-
-        self.confirm_show_crc_and_size = BooleanVar()
-
-        self.confirm_show_links_targets = BooleanVar()
-        self.file_open_wrapper = StringVar()
-        self.folders_open_wrapper = StringVar()
-        self.folders_open_wrapper_params = StringVar()
-
-        self.settings = [
-            (self.show_full_crc,CFG_KEY_FULL_CRC),
-            (self.show_full_paths,CFG_KEY_FULL_PATHS),
-            (self.cross_mode,CFG_KEY_CROSS_MODE),
-            (self.create_relative_symlinks,CFG_KEY_REL_SYMLINKS),
-            (self.erase_empty_directories,CFG_ERASE_EMPTY_DIRS),
-            (self.abort_on_error,CFG_ABORT_ON_ERROR),
-            (self.send_to_trash,CFG_SEND_TO_TRASH),
-            (self.confirm_show_crc_and_size,CFG_CONFIRM_SHOW_CRCSIZE),
-            (self.confirm_show_links_targets,CFG_CONFIRM_SHOW_LINKSTARGETS),
-            (self.allow_delete_all,CFG_ALLOW_DELETE_ALL),
-            (self.skip_incorrect_groups,CFG_SKIP_INCORRECT_GROUPS),
-            (self.allow_delete_non_duplicates,CFG_ALLOW_DELETE_NON_DUPLICATES)
-        ]
-        self.settings_str = [
-            (self.file_open_wrapper,CFG_KEY_WRAPPER_FILE),
-            (self.folders_open_wrapper,CFG_KEY_WRAPPER_FOLDERS),
-            (self.folders_open_wrapper_params,CFG_KEY_WRAPPER_FOLDERS_PARAMS)
-        ]
-
-        row = 0
-        label_frame=LabelFrame(self.settings_dialog.area_main, text="Main panels",borderwidth=2,bg=self.bg_color)
-        label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
-
-        (cb_1:=Checkbutton(label_frame, text = 'Show full CRC', variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-        cb_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'If disabled, shortest necessary prefix of full CRC wil be shown'))
-        cb_1.bind("<Leave>", lambda event : self.widget_leave())
-
-        (cb_2:=Checkbutton(label_frame, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-        cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips'))
-        cb_2.bind("<Leave>", lambda event : self.widget_leave())
-
-        (cb_3:=Checkbutton(label_frame, text = '"Cross paths" mode', variable=self.cross_mode)).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-        cb_3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Ignore (hide) CRC groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease'))
-        cb_3.bind("<Leave>", lambda event : self.widget_leave())
-
-        label_frame=LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
-        label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
-
-        (cb_3:=Checkbutton(label_frame, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-        cb_3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
-        cb_3.bind("<Leave>", lambda event : self.widget_leave())
-
-        (cb_4:=Checkbutton(label_frame, text = 'Allow deletion of all copies', variable=self.allow_delete_all,image=self_ico['warning'],compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-        cb_4.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
-        cb_4.bind("<Leave>", lambda event : self.widget_leave())
-
-        Checkbutton(label_frame, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-        Checkbutton(label_frame, text = 'Show CRC and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
-
-        label_frame=LabelFrame(self.settings_dialog.area_main, text="Processing",borderwidth=2,bg=self.bg_color)
-        label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
-
-        Checkbutton(label_frame, text = 'Create relative symbolic links', variable=self.create_relative_symlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-        Checkbutton(label_frame, text = 'Send Files to %s instead of deleting them' % ('Recycle Bin' if windows else 'Trash'), variable=self.send_to_trash ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-        Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-        Checkbutton(label_frame, text = 'Abort on first error', variable=self.abort_on_error).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
-
-        #Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.allow_delete_non_duplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2)
-
-        label_frame=LabelFrame(self.settings_dialog.area_main, text="Opening wrappers",borderwidth=2,bg=self.bg_color)
-        label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
-
-        Label(label_frame,text='parameters #',bg=self.bg_color,anchor='n').grid(row=0, column=2,sticky='news')
-
-        Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
-        (en_1:=Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
-        en_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.'))
-        en_1.bind("<Leave>", lambda event : self.widget_leave())
-
-        Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=2, column=0,sticky='news')
-        (en_2:=Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=2, column=1,sticky='news',padx=3,pady=2)
-        en_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.'))
-        en_2.bind("<Leave>", lambda event : self.widget_leave())
-        (cb_2:=Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly')).grid(row=2, column=2,sticky='ew',padx=3)
-        cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on crc groups\ndefault is 2'))
-        cb_2.bind("<Leave>", lambda event : self.widget_leave())
-
-        label_frame.grid_columnconfigure(1, weight=1)
-
-        bfr=Frame(self.settings_dialog.area_main,bg=self.bg_color)
-        self.settings_dialog.area_main.grid_rowconfigure(row, weight=1); row+=1
-
-        bfr.grid(row=row,column=0) ; row+=1
-
-        Button(bfr, text='Set defaults',width=14, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
-        Button(bfr, text='OK', width=14, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5)
-        self.cancel_button=Button(bfr, text='Cancel', width=14 ,command=self.settings_dialog.hide )
-        self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
-
-        self.settings_dialog.area_main.grid_columnconfigure(0, weight=1)
-
-        #######################################################################
-        self.info_dialog_on_main = dialogs.LabelDialog(self_main,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.text_ask_dialog = dialogs.TextDialogQuestion(self_main,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close,image=self_ico['warning'])
-        self.text_info_dialog = dialogs.TextDialogInfo(self_main,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
-
-        self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
-
-        self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
-        self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
-
-        self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self_groups_tree,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
-        self.mark_dialog_on_folder = dialogs.CheckboxEntryDialogQuestion(self_folder_tree,self.main_icon_tuple,self.bg_color,pre_show=pre_show,post_close=post_close)
 
         self.info_dialog_on_mark={}
-
-        self.info_dialog_on_mark[self_groups_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(False))
-        self.info_dialog_on_mark[self_folder_tree] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(False))
-
-        self.find_dialog_on_groups = dialogs.FindEntryDialog(self_groups_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
-        self.find_dialog_on_folder = dialogs.FindEntryDialog(self_folder_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=pre_show,post_close=post_close)
-
         self.info_dialog_on_find={}
-
-        self.info_dialog_on_find[self_groups_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(False))
-        self.info_dialog_on_find[self_folder_tree] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : post_close(False))
-
-       #######################################################################
-        #About Dialog
-        self.aboout_dialog=dialogs.GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'',pre_show=pre_show,post_close=post_close)
-
-        frame1 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
-        frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
-        self.aboout_dialog.area_main.grid_rowconfigure(1, weight=1)
-
-        text= f'\n\nDUDE (DUplicates DEtector) {VER_TIMESTAMP}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n'
-
-        Label(frame1,text=text,bg=self.bg_color,justify='center').pack(expand=1,fill='both')
-
-        frame2 = LabelFrame(self.aboout_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
-        frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
-        lab2_text=  'LOGS DIRECTORY     :  ' + LOG_DIR + '\n' + \
-                    'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n' + \
-                    'CACHE DIRECTORY    :  ' + CACHE_DIR + '\n\n' + \
-                    'Current log file   :  ' + log
-
-        #'LOGGING LEVEL      :  ' + log_levels[LOG_LEVEL] + '\n\n' + \
-
-        lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='left')
-        lab_courier.pack(expand=1,fill='both')
-
-        try:
-            lab_courier.configure(font=('Courier', 10))
-        except:
-            try:
-                lab_courier.configure(font=('TkFixedFont', 10))
-            except:
-                pass
-
-        #######################################################################
-        #License Dialog
-        try:
-            self.license=Path(path_join(DUDE_DIR,'LICENSE')).read_text(encoding='ASCII')
-        except Exception as exception_1:
-            l_error(exception_1)
-            try:
-                self.license=Path(path_join(dirname(DUDE_DIR),'LICENSE')).read_text(encoding='ASCII')
-            except Exception as exception_2:
-                l_error(exception_2)
-                self.exit()
-
-        self.license_dialog=dialogs.GenericDialog(self_main,(self_ico['license'],self_ico['license']),self.bg_color,'',pre_show=pre_show,post_close=post_close,min_width=800,min_height=520)
-
-        frame1 = LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
-        frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
-        self.license_dialog.area_main.grid_rowconfigure(0, weight=1)
-
-        lab_courier=Label(frame1,text=self.license,bg=self.bg_color,justify='center')
-        lab_courier.pack(expand=1,fill='both')
 
         try:
             lab_courier.configure(font=('Courier', 10))
@@ -1048,7 +839,7 @@ class Gui:
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
                 self_file_cascade_add_command(label = 'Scan ...',command = self.scan_dialog_show, accelerator="S",image = self_ico['scan'],compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Settings ...',command=self.settings_dialog.show, accelerator="F2",image = self_ico['settings'],compound='left')
+                self_file_cascade_add_command(label = 'Settings ...',command=lambda : self.get_settings_dialog().show(), accelerator="F2",image = self_ico['settings'],compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self_ico['empty'],compound='left')
                 self_file_cascade_add_separator()
@@ -1096,8 +887,8 @@ class Gui:
                 self_help_cascade_add_command = self.help_cascade.add_command
                 self_help_cascade_add_separator = self.help_cascade.add_separator
 
-                self_help_cascade_add_command(label = 'About',command=self.aboout_dialog.show,accelerator="F1", image = self_ico['about'],compound='left')
-                self_help_cascade_add_command(label = 'License',command=self.license_dialog.show, image = self_ico['license'],compound='left')
+                self_help_cascade_add_command(label = 'About',command=lambda : self.get_about_dialog().show(),accelerator="F1", image = self_ico['about'],compound='left')
+                self_help_cascade_add_command(label = 'License',command=lambda : self.get_license_dialog().show(), image = self_ico['license'],compound='left')
                 self_help_cascade_add_separator()
                 self_help_cascade_add_command(label = 'Open current Log',command=self.show_log, image = self_ico['log'],compound='left')
                 self_help_cascade_add_command(label = 'Open logs directory',command=self.show_logs_dir, image = self_ico['logs'],compound='left')
@@ -1182,29 +973,488 @@ class Gui:
 
         self.scan_dialog_show(run_scan_condition)
 
-        self.actions_processing=True
-
-        self.tree_semi_focus(self_groups_tree)
+        self_groups_tree.focus_set()
 
         gc_collect()
         gc_enable()
 
+        self.actions_processing=True
+
         self_main.mainloop()
         #######################################################################
+
+    def pre_show(self,on_main_window_dialog=True,new_widget=None):
+        self.menubar_unpost()
+        self.hide_tooltip()
+        self.popup_groups_unpost()
+        self.popup_folder_unpost()
+
+        if on_main_window_dialog:
+            if new_widget:
+                self.main_locked_by_child=new_widget
+
+            self.actions_processing=False
+            self.menu_disable()
+            self.menubar_config(cursor="watch")
+
+    def post_close(self,on_main_window_dialog=True):
+        if on_main_window_dialog:
+            self.actions_processing=True
+            self.menu_enable()
+            self.menubar_config(cursor="")
+
+    def pre_show_settings(self,on_main_window_dialog=True,new_widget=None):
+            _ = {var.set(self.cfg_get_bool(key)) for var,key in self.settings}
+            _ = {var.set(self.cfg.get(key)) for var,key in self.settings_str}
+            return self.pre_show(on_main_window_dialog=on_main_window_dialog,new_widget=new_widget)
+
+    #######################################################################
+    settings_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_settings_dialog(self):
+        if not self.settings_dialog_created:
+            self.status("Creating dialog ...")
+
+            self.settings_dialog=dialogs.GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show_settings,post_close=self.post_close)
+
+            self.show_full_crc = BooleanVar()
+            self.show_full_paths = BooleanVar()
+            self.cross_mode = BooleanVar()
+
+            self.create_relative_symlinks = BooleanVar()
+            self.erase_empty_directories = BooleanVar()
+            self.abort_on_error = BooleanVar()
+            self.send_to_trash = BooleanVar()
+
+            self.allow_delete_all = BooleanVar()
+            self.skip_incorrect_groups = BooleanVar()
+            self.allow_delete_non_duplicates = BooleanVar()
+
+            self.confirm_show_crc_and_size = BooleanVar()
+
+            self.confirm_show_links_targets = BooleanVar()
+            self.file_open_wrapper = StringVar()
+            self.folders_open_wrapper = StringVar()
+            self.folders_open_wrapper_params = StringVar()
+
+            self.settings = [
+                (self.show_full_crc,CFG_KEY_FULL_CRC),
+                (self.show_full_paths,CFG_KEY_FULL_PATHS),
+                (self.cross_mode,CFG_KEY_CROSS_MODE),
+                (self.create_relative_symlinks,CFG_KEY_REL_SYMLINKS),
+                (self.erase_empty_directories,CFG_ERASE_EMPTY_DIRS),
+                (self.abort_on_error,CFG_ABORT_ON_ERROR),
+                (self.send_to_trash,CFG_SEND_TO_TRASH),
+                (self.confirm_show_crc_and_size,CFG_CONFIRM_SHOW_CRCSIZE),
+                (self.confirm_show_links_targets,CFG_CONFIRM_SHOW_LINKSTARGETS),
+                (self.allow_delete_all,CFG_ALLOW_DELETE_ALL),
+                (self.skip_incorrect_groups,CFG_SKIP_INCORRECT_GROUPS),
+                (self.allow_delete_non_duplicates,CFG_ALLOW_DELETE_NON_DUPLICATES)
+            ]
+            self.settings_str = [
+                (self.file_open_wrapper,CFG_KEY_WRAPPER_FILE),
+                (self.folders_open_wrapper,CFG_KEY_WRAPPER_FOLDERS),
+                (self.folders_open_wrapper_params,CFG_KEY_WRAPPER_FOLDERS_PARAMS)
+            ]
+
+            row = 0
+            label_frame=LabelFrame(self.settings_dialog.area_main, text="Main panels",borderwidth=2,bg=self.bg_color)
+            label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
+
+            (cb_1:=Checkbutton(label_frame, text = 'Show full CRC', variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            cb_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'If disabled, shortest necessary prefix of full CRC wil be shown'))
+            cb_1.bind("<Leave>", lambda event : self.widget_leave())
+
+            (cb_2:=Checkbutton(label_frame, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+            cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips'))
+            cb_2.bind("<Leave>", lambda event : self.widget_leave())
+
+            (cb_3:=Checkbutton(label_frame, text = '"Cross paths" mode', variable=self.cross_mode)).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            cb_3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Ignore (hide) CRC groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease'))
+            cb_3.bind("<Leave>", lambda event : self.widget_leave())
+
+            label_frame=LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
+            label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
+
+            (cb_3:=Checkbutton(label_frame, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            cb_3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
+            cb_3.bind("<Leave>", lambda event : self.widget_leave())
+
+            (cb_4:=Checkbutton(label_frame, text = 'Allow deletion of all copies', variable=self.allow_delete_all,image=self.ico['warning'],compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+            cb_4.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
+            cb_4.bind("<Leave>", lambda event : self.widget_leave())
+
+            Checkbutton(label_frame, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = 'Show CRC and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+
+            label_frame=LabelFrame(self.settings_dialog.area_main, text="Processing",borderwidth=2,bg=self.bg_color)
+            label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
+
+            Checkbutton(label_frame, text = 'Create relative symbolic links', variable=self.create_relative_symlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = 'Send Files to %s instead of deleting them' % ('Recycle Bin' if windows else 'Trash'), variable=self.send_to_trash ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = 'Abort on first error', variable=self.abort_on_error).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+
+            #Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.allow_delete_non_duplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2)
+
+            label_frame=LabelFrame(self.settings_dialog.area_main, text="Opening wrappers",borderwidth=2,bg=self.bg_color)
+            label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
+
+            Label(label_frame,text='parameters #',bg=self.bg_color,anchor='n').grid(row=0, column=2,sticky='news')
+
+            Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
+            (en_1:=Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
+            en_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.'))
+            en_1.bind("<Leave>", lambda event : self.widget_leave())
+
+            Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=2, column=0,sticky='news')
+            (en_2:=Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=2, column=1,sticky='news',padx=3,pady=2)
+            en_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.'))
+            en_2.bind("<Leave>", lambda event : self.widget_leave())
+            (cb_2:=Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly')).grid(row=2, column=2,sticky='ew',padx=3)
+            cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on crc groups\ndefault is 2'))
+            cb_2.bind("<Leave>", lambda event : self.widget_leave())
+
+            label_frame.grid_columnconfigure(1, weight=1)
+
+            bfr=Frame(self.settings_dialog.area_main,bg=self.bg_color)
+            self.settings_dialog.area_main.grid_rowconfigure(row, weight=1); row+=1
+
+            bfr.grid(row=row,column=0) ; row+=1
+
+            Button(bfr, text='Set defaults',width=14, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(bfr, text='OK', width=14, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5)
+            self.cancel_button=Button(bfr, text='Cancel', width=14 ,command=self.settings_dialog.hide )
+            self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
+
+            self.settings_dialog.area_main.grid_columnconfigure(0, weight=1)
+
+            self.settings_dialog_created = True
+
+        return self.settings_dialog
+
+
+    info_dialog_on_main_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_info_dialog_on_main(self):
+        if not self.info_dialog_on_main_created:
+            self.status("Creating dialog ...")
+
+            self.info_dialog_on_main = dialogs.LabelDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.info_dialog_on_main_created = True
+
+        return self.info_dialog_on_main
+
+    text_ask_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_text_ask_dialog(self):
+        if not self.text_ask_dialog_created:
+            self.status("Creating dialog ...")
+
+            self.text_ask_dialog = dialogs.TextDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico['warning'])
+
+            self.text_ask_dialog_created = True
+
+        return self.text_ask_dialog
+
+    text_info_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_text_info_dialog(self):
+        if not self.text_info_dialog_created:
+            self.status("Creating dialog ...")
+
+            self.text_info_dialog = dialogs.TextDialogInfo(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.text_info_dialog_created = True
+
+        return self.text_info_dialog
+
+    info_dialog_on_scan_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_info_dialog_on_scan(self):
+        if not self.info_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.info_dialog_on_scan_created = True
+
+        return self.info_dialog_on_scan
+
+    exclude_dialog_on_scan_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_exclude_dialog_on_scan(self):
+        if not self.exclude_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.exclude_dialog_on_scan_created = True
+
+        return self.exclude_dialog_on_scan
+
+
+    progress_dialog_on_scan_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_progress_dialog_on_scan(self):
+        if not self.progress_dialog_on_scan_created:
+            self.status("Creating dialog ...")
+
+            self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
+
+            self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
+            self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
+
+
+            self.progress_dialog_on_scan_created = True
+
+        return self.progress_dialog_on_scan
+
+
+    mark_dialog_on_groups_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_mark_dialog_on_groups(self):
+        if not self.mark_dialog_on_groups_created:
+            self.status("Creating dialog ...")
+
+            self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self.groups_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.mark_dialog_on_groups_created = True
+
+            self.get_info_dialog_on_mark_groups()
+
+        return self.mark_dialog_on_groups
+
+    mark_dialog_on_folder_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_mark_dialog_on_folder(self):
+        if not self.mark_dialog_on_folder_created:
+            self.status("Creating dialog ...")
+
+            self.mark_dialog_on_folder = dialogs.CheckboxEntryDialogQuestion(self.folder_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.mark_dialog_on_folder_created = True
+
+            self.get_info_dialog_on_mark_folder()
+
+        return self.mark_dialog_on_folder
+
+    info_dialog_on_mark_groups_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_info_dialog_on_mark_groups(self):
+        if not self.info_dialog_on_mark_groups_created:
+            self.status("Creating dialog ...")
+
+            self.info_dialog_on_mark[self.groups_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
+
+            self.info_dialog_on_mark_groups_created = True
+
+        return self.info_dialog_on_mark[self.groups_tree]
+
+    info_dialog_on_mark_folder_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_info_dialog_on_mark_folder(self):
+        if not self.info_dialog_on_mark_folder_created:
+            self.status("Creating dialog ...")
+
+            self.info_dialog_on_mark[self.folder_tree] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
+
+            self.info_dialog_on_mark_folder_created = True
+
+        return self.info_dialog_on_mark[self.folder_tree]
+
+
+    find_dialog_on_groups_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_find_dialog_on_groups(self):
+        if not self.find_dialog_on_groups_created:
+            self.status("Creating dialog ...")
+
+            self.find_dialog_on_groups = dialogs.FindEntryDialog(self.groups_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.info_dialog_on_find[self.groups_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
+
+            self.find_dialog_on_groups_created = True
+
+        return self.find_dialog_on_groups
+
+    find_dialog_on_folder_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_find_dialog_on_folder(self):
+        if not self.find_dialog_on_folder_created:
+            self.status("Creating dialog ...")
+
+            self.find_dialog_on_folder = dialogs.FindEntryDialog(self.folder_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.info_dialog_on_find[self.folder_tree] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
+
+            self.find_dialog_on_folder_created = True
+
+        return self.find_dialog_on_folder
+
+    about_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_about_dialog(self):
+        if not self.about_dialog_created:
+            self.status("Creating dialog ...")
+
+            self.about_dialog = dialogs.GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
+
+            frame1 = LabelFrame(self.about_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
+            frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
+            self.about_dialog.area_main.grid_rowconfigure(1, weight=1)
+
+            text= f'\n\nDUDE (DUplicates DEtector) {VER_TIMESTAMP}\nAuthor: Piotr Jochymek\n\n{HOMEPAGE}\n\nPJ.soft.dev.x@gmail.com\n\n'
+
+            Label(frame1,text=text,bg=self.bg_color,justify='center').pack(expand=1,fill='both')
+
+            frame2 = LabelFrame(self.about_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
+            frame2.grid(row=1,column=0,sticky='news',padx=4,pady=(2,4))
+            lab2_text=  'LOGS DIRECTORY     :  ' + LOG_DIR + '\n' + \
+                        'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n' + \
+                        'CACHE DIRECTORY    :  ' + CACHE_DIR + '\n\n' + \
+                        'Current log file   :  ' + log
+
+            #'LOGGING LEVEL      :  ' + log_levels[LOG_LEVEL] + '\n\n' + \
+
+            lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='left')
+            lab_courier.pack(expand=1,fill='both')
+
+            try:
+                lab_courier.configure(font=('Courier', 10))
+            except:
+                try:
+                    lab_courier.configure(font=('TkFixedFont', 10))
+                except:
+                    pass
+
+            self.about_dialog_created = True
+
+        return self.about_dialog
+
+    license_dialog_created = False
+    @restore_status_line
+    @block_actions_processing
+    @gui_block
+    def get_license_dialog(self):
+        if not self.license_dialog_created:
+            self.status("Creating dialog ...")
+
+            try:
+                self.license=Path(path_join(DUDE_DIR,'LICENSE')).read_text(encoding='ASCII')
+            except Exception as exception_1:
+                l_error(exception_1)
+                try:
+                    self.license=Path(path_join(dirname(DUDE_DIR),'LICENSE')).read_text(encoding='ASCII')
+                except Exception as exception_2:
+                    l_error(exception_2)
+                    self.exit()
+
+            self.license_dialog = dialogs.GenericDialog(self.main,(self.ico['license'],self.ico['license']),self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
+
+            frame1 = LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
+            frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
+            self.license_dialog.area_main.grid_rowconfigure(0, weight=1)
+
+            lab_courier=Label(frame1,text=self.license,bg=self.bg_color,justify='center')
+            lab_courier.pack(expand=1,fill='both')
+
+            self.license_dialog_created = True
+
+        return self.license_dialog
+
+    #########################################
+
+    def semi_selection(self,tree,item):
+        #print(f'semi_selection:{tree}')
+        if tree==self.main.focus_get():
+            tree.focus(item)
+        else:
+            tree.selection_set(item)
+
+        self.selected[tree]=item
+
+    def groups_tree_focus_out(self,event):
+        #print(f'groups_tree_focus_out:{event.widget}')
+        item=self.groups_tree.focus()
+        if item:
+            self.groups_tree.selection_set(item)
+            self.selected[self.groups_tree]=item
+
+    def folder_tree_focus_out(self,event):
+        #print(f'folder_tree_focus_out:{event.widget}')
+        item = self.folder_tree.focus()
+        if item:
+            self.folder_tree.selection_set(item)
+            self.selected[self.folder_tree]=item
+
+    def groups_tree_focus_in(self,event):
+        #print(f'groups_tree_focus_in:{event.widget}')
+        tree=self.groups_tree
+        self.sel_tree=tree
+
+        if item:=self.selected[tree]:
+            tree.focus(item)
+
+        tree.configure(style='semi_focus.Treeview')
+        self.other_tree[tree].configure(style='no_focus.Treeview')
+        tree.selection_remove(tree.selection())
+
+    def folder_tree_focus_in(self,event):
+        #print(f'folder_tree_focus_in:{event.widget}')
+        tree = self.folder_tree
+        self.sel_tree=tree
+
+        if item:=self.selected[tree]:
+            tree.focus(item)
+
+        tree.configure(style='semi_focus.Treeview')
+        self.other_tree[tree].configure(style='no_focus.Treeview')
+        tree.selection_remove(tree.selection())
 
     def vsb1_set(self,v1,v2):
         if v1=='0.0' and v2=='1.0':
             self.vsb1.pack_forget()
         else:
             self.vsb1.set(v1,v2)
-            self.vsb1.pack(side="right", fill="y")
+            self.vsb1.pack(side="left", fill="both",expand=0)
 
     def vsb2_set(self,v1,v2):
         if v1=='0.0' and v2=='1.0':
             self.vsb2.pack_forget()
         else:
             self.vsb2.set(v1,v2)
-            self.vsb2.pack(side="right", fill="y")
+            self.vsb2.pack(side="left", fill="both",expand=0)
 
     def focusin(self):
         #print('focusin')
@@ -1457,18 +1707,15 @@ class Gui:
         else:
             initialvalue='*'
 
-        #self.find_dialog_on_main.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
-        #self.find_by_tree[tree]=self.find_dialog_on_main.entry.get()
-
         if self.sel_tree==self.groups_tree:
-            self.find_dialog_on_groups.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
+            self.get_find_dialog_on_groups().show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
             self.find_by_tree[tree]=self.find_dialog_on_groups.entry.get()
         else:
-            self.find_dialog_on_folder.show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
+            self.get_find_dialog_on_folder().show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
             self.find_by_tree[tree]=self.find_dialog_on_folder.entry.get()
 
         self.find_dialog_shown=False
-        self.tree_semi_focus(tree)
+        tree.focus_set()
 
     def find_prev_from_dialog(self,expression,use_reg_expr):
         self.find_items(expression,use_reg_expr)
@@ -1559,14 +1806,11 @@ class Gui:
             self.find_result_index+=mod
             next_item=self.find_result[self.find_result_index%items_len]
 
-            self.find_tree.focus(next_item)
-
             if self.find_dialog_shown:
                 #focus is still on find dialog
-                self.find_tree.selection_set(next_item)
+                self.semi_selection(self.find_tree,next_item)
             else:
-                self.find_tree.selection_set(next_item)
-                self.tree_semi_focus(self.find_tree)
+                self.semi_selection(self.find_tree,next_item)
 
             self.find_tree.see(next_item)
             self.find_tree.update()
@@ -1618,8 +1862,7 @@ class Gui:
         status ='selecting next CRC group' if direction==1 else 'selecting prev CRC group'
 
         tree=self.groups_tree
-        current_item=self.sel_item
-        self_sel_item = self.sel_item
+        self_sel_item = current_item = self.sel_item
 
         tree_set = tree.set
 
@@ -1657,7 +1900,6 @@ class Gui:
             current_item = move_dict[current_item]
 
             if tree_set(current_item,'kind')==self_FILE:
-                tree.selection_set(current_item)
                 tree.focus(current_item)
                 tree.see(current_item)
                 self.folder_tree_sel_change(current_item)
@@ -1703,7 +1945,10 @@ class Gui:
             my_next_dict[prev1],my_prev_dict[first] = first,prev1
 
     def key_press(self,event):
+
         if self.actions_processing:
+            #t0=perf_counter()
+
             self.main_unbind_class('Treeview','<KeyPress>')
 
             self.hide_tooltip()
@@ -1711,20 +1956,17 @@ class Gui:
             self.popup_groups_unpost()
             self.popup_folder_unpost()
 
+            #t1=perf_counter()
             try:
                 tree=event.widget
                 item=tree.focus()
                 key=event.keysym
-                #state=event.state
 
                 if key in ("Up","Down"):
-                    #new_item = self.my_next(tree,item) if key=='Down' else self.my_prev(tree,item)
                     new_item = self.my_next_dict[tree][item] if key=='Down' else self.my_prev_dict[tree][item]
 
                     if new_item:
                         tree.focus(new_item)
-                        #tree.selection_set(tree.focus())
-                        tree.selection_set(new_item)
                         tree.see(new_item)
 
                         if tree==self.groups_tree:
@@ -1751,8 +1993,7 @@ class Gui:
                     else:
                         self.tag_toggle_selected(tree,item)
                 elif key == "Tab":
-                    old_node=tree.focus()
-                    self.tree_semi_focus(self.other_tree[tree])
+                    self.other_tree[tree].focus_set()
                 elif key in ('KP_Multiply','asterisk'):
                     self.mark_on_all(self.invert_mark)
                 else:
@@ -1858,7 +2099,7 @@ class Gui:
                         if tree==self.folder_tree:
 
                             self.tree_folder_update()
-                            self.tree_semi_focus(self.folder_tree)
+                            self.folder_tree.focus_set()
                             try:
                                 self.folder_tree.focus(self.sel_item)
                             except Exception :
@@ -1894,16 +2135,24 @@ class Gui:
 
             except Exception as e:
                 l_error(e)
-                self.info_dialog_on_main.show('INTERNAL ERROR',str(e))
+                self.get_info_dialog_on_main().show('INTERNAL ERROR',str(e))
 
-            if tree_focus:=tree.focus():
-                tree.selection_set(tree_focus)
+            #t2=perf_counter()
+
+            #if tree_focus:=tree.focus():
+                #print('another_selection')
+                #tree.selection_set(tree_focus)
+            #t3=perf_counter()
+
             self.main_bind_class('Treeview','<KeyPress>', self.key_press )
+            #t4=perf_counter()
+
+            #print(f'key_pres {t1-t0},{t2-t1},{t3-t2},{t4-t3},---,{t4-t0}')
 
     def go_to_parent_dir(self):
         if self.sel_path_full :
             if self.two_dots_condition(self.sel_path_full):
-                self.tree_semi_focus(self.folder_tree)
+                self.folder_tree.focus_set()
                 head,tail=path_split(self.sel_path_full)
                 self.enter_dir(normpath(str(Path(self.sel_path_full).parent.absolute())),tail)
 
@@ -1913,11 +2162,10 @@ class Gui:
             self.groups_tree_see(self.groups_tree_get_children(crc)[-1])
             self.groups_tree.update()
 
-        self.groups_tree_see(crc)
+        self.groups_tree.focus_set()
         self.groups_tree_focus(crc)
-        self.groups_tree.selection_set(crc)
+        self.groups_tree_see(crc)
 
-        self.tree_semi_focus(self.groups_tree)
         self.groups_tree.update()
         self.groups_tree_sel_change(crc)
 
@@ -1941,9 +2189,9 @@ class Gui:
             elif item:=tree.identify('item',event.x,event.y):
                 tree.selection_remove(tree.selection())
 
+                tree.focus_set()
                 tree.focus(item)
-                tree.selection_set(item)
-                self.tree_semi_focus(tree)
+                #tree.selection_set(item)
 
                 if tree==self.groups_tree:
                     self.groups_tree_sel_change(item)
@@ -1958,42 +2206,42 @@ class Gui:
         #return None
         return "break"
 
-    def tree_semi_focus(self,tree):
-        item=None
+    #def tree_semi_focus(self,tree):
+    #    tree.focus_set()
 
-        if sel:=tree.selection():
-            item=sel[0]
+    #    return
+    #    item=None
 
-        if not item:
-            item=tree.focus()
+    #    if sel:=tree.selection():
+    #        item=sel[0]
 
-        if not item:
-            if tree==self.groups_tree:
-                try:
-                    item = tree.get_children()[0]
-                except :
-                    pass
-            else:
-                try:
-                    item = self.current_folder_items[0]
-                except :
-                    pass
+    #    if not item:
+    #        item=tree.focus()
 
-        if item:
-            self.sel_tree=tree
+    #    if not item:
+    #        if tree==self.groups_tree:
+    #            try:
+    #                item = tree.get_children()[0]
+    #            except :
+    #                pass
+    #        else:
+    #            try:
+    #                item = self.current_folder_items[0]
+    #            except :
+    #                pass
 
-            tree.focus_set()
-            tree.configure(style='semi_focus.Treeview')
-            self.other_tree[tree].configure(style='no_focus.Treeview')
+    #    if item:
 
-            tree.focus(item)
-            tree.see(item)
-            tree.selection_set(item)
+    #        tree.focus_set()
 
-            if tree==self.groups_tree:
-                self.groups_tree_sel_change(item,True)
-            else:
-                self.folder_tree_sel_change(item)
+    #        tree.focus(item)
+    #        tree.see(item)
+    #        #tree.selection_set(item)
+
+    #        if tree==self.groups_tree:
+    #            self.groups_tree_sel_change(item,True)
+    #        else:
+    #            self.folder_tree_sel_change(item)
 
     def set_full_path_to_file_win(self):
         self.sel_full_path_to_file=str(Path(sep.join([self.sel_path_full,self.sel_file]))) if self.sel_path_full and self.sel_file else None
@@ -2013,7 +2261,7 @@ class Gui:
 
     @catched
     def groups_tree_sel_change(self,item,force=False,change_status_line=True):
-        t0=perf_counter()
+        #t0=perf_counter()
         self.sel_item = item
 
         if change_status_line :
@@ -2058,14 +2306,14 @@ class Gui:
         #print(type(kind),kind,type(self.FILE),self.FILE)
         self.sel_kind = kind
 
-        t1a=perf_counter()
+        #t1a=perf_counter()
 
         if self.sel_kind==self.FILE:
             self.tree_folder_update()
         else:
             self.tree_folder_update_none()
 
-        t1=perf_counter()
+        #t1=perf_counter()
         #print(f'groups_tree_sel_change\t{t1a-t0}\t{t1-t1a}')
 
     @catched
@@ -2323,7 +2571,7 @@ class Gui:
 
         pop_add_separator()
         pop_add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
-        pop_add_command(label = 'Settings ...',  command = self.settings_dialog.show,accelerator='F2',image = self.ico['settings'],compound='left')
+        pop_add_command(label = 'Settings ...',  command = lambda : self.get_settings_dialog().show(),accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
         pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico['empty'],compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
@@ -2349,7 +2597,7 @@ class Gui:
             self.last_dir=res
             final_info = self.empty_dirs_removal(res,True)
 
-            self.text_info_dialog.show('Removed empty directories','\n'.join(final_info))
+            self.get_text_info_dialog().show('Removed empty directories','\n'.join(final_info))
 
             self.tree_folder_update(self.sel_path_full)
 
@@ -2459,7 +2707,7 @@ class Gui:
 
     def scan_dialog_hide_wrapper(self):
         self.scan_dialog.hide()
-        self.tree_semi_focus(self.groups_tree)
+        self.groups_tree.focus_set()
 
     def scan_update_info_path_nr(self,info_path_nr):
         self.update_scan_path_nr=True
@@ -2485,16 +2733,16 @@ class Gui:
         exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
 
         if res:=dude_core.set_exclude_masks(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
-            self.info_dialog_on_scan.show('Error. Fix expression.',res)
+            self.get_info_dialog_on_scan().show('Error. Fix expression.',res)
             return False
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(exclude_from_entry))
 
         if not paths_to_scan_from_entry:
-            self.info_dialog_on_scan.show('Error. No paths to scan.','Add paths to scan.')
+            self.get_info_dialog_on_scan().show('Error. No paths to scan.','Add paths to scan.')
             return False
 
         if res:=dude_core.set_paths_to_scan(paths_to_scan_from_entry):
-            self.info_dialog_on_scan.show('Error. Fix paths selection.',res)
+            self.get_info_dialog_on_scan().show('Error. Fix paths selection.',res)
             return False
 
         dude_core.scan_update_info_path_nr=self.scan_update_info_path_nr
@@ -2502,7 +2750,7 @@ class Gui:
         self.main_update()
 
         #############################
-        self_progress_dialog_on_scan = self.progress_dialog_on_scan
+        self_progress_dialog_on_scan = self.get_progress_dialog_on_scan()
         self_progress_dialog_on_scan_lab = self_progress_dialog_on_scan.lab
         self_progress_dialog_on_scan_area_main_update = self_progress_dialog_on_scan.area_main.update
 
@@ -2627,7 +2875,7 @@ class Gui:
         #############################
         if dude_core.sum_size==0:
             self_progress_dialog_on_scan.hide(True)
-            self.info_dialog_on_scan.show('Cannot Proceed.','No Duplicates.')
+            self.get_info_dialog_on_scan().show('Cannot Proceed.','No Duplicates.')
             return False
         #############################
         self_status=self.status=self.status_progress
@@ -2764,7 +3012,7 @@ class Gui:
         self.status=self.status_main_win if windows else self.status_main
 
         if self.action_abort:
-            self.info_dialog_on_scan.show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
+            self.get_info_dialog_on_scan().show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
 
         return True
 
@@ -2854,7 +3102,7 @@ class Gui:
             self.exclude_mask_string(expr)
 
     def exclude_mask_add_dialog(self):
-        self.exclude_dialog_on_scan.show('Specify Exclude expression','expression:','')
+        self.get_exclude_dialog_on_scan().show('Specify Exclude expression','expression:','')
         confirmed=self.exclude_dialog_on_scan.res_bool
         mask=self.exclude_dialog_on_scan.res_str
 
@@ -3055,6 +3303,7 @@ class Gui:
         self_groups_tree = self.groups_tree
 
         self_groups_tree.delete(*self_groups_tree.get_children())
+        self.selected[self.groups_tree]=None
 
         cross_mode = self.cfg_get_bool(CFG_KEY_CROSS_MODE)
         show_full_crc=self.cfg_get_bool(CFG_KEY_FULL_CRC)
@@ -3171,10 +3420,8 @@ class Gui:
     def groups_tree_update(self,item):
         self_groups_tree = self.groups_tree
 
-        #self_groups_tree.see(self.sel_crc)
-        #self_groups_tree.update()
+        self.semi_selection(self_groups_tree,item)
 
-        self_groups_tree.selection_set(item)
         self_groups_tree.see(item)
         self_groups_tree.update()
 
@@ -3187,6 +3434,7 @@ class Gui:
 
         if self.current_folder_items:
             self.folder_tree_delete(*self.current_folder_items)
+            self.selected[self.folder_tree]=None
 
         self.status_folder_size_configure(text='')
         self.status_folder_quant_configure(text='')
@@ -3325,6 +3573,7 @@ class Gui:
 
         if self_current_folder_items := self.current_folder_items:
             self.folder_tree_delete(*self_current_folder_items)
+            self.selected[self.folder_tree]=None
 
         #t1=perf_counter()
         try:
@@ -3335,7 +3584,7 @@ class Gui:
 
         if not arbitrary_path:
             try:
-                ftree.selection_set(self.sel_item)
+                self.semi_selection(ftree,self.sel_item)
                 ftree.see(self.sel_item)
             except Exception:
                 pass
@@ -3505,7 +3754,7 @@ class Gui:
                     sel_count+=1
 
         if not sel_count :
-            self.info_dialog_on_main.show('No files found for specified path',path_param_abs)
+            self.get_info_dialog_on_main().show('No files found for specified path',path_param_abs)
         else:
             self.status(f'Subdirectory action. {sel_count} File(s) Found')
             self.update_marks_folder()
@@ -3530,11 +3779,11 @@ class Gui:
             title='Specify expression for file names in selected directory.'
 
         if tree==self.groups_tree:
-            self.mark_dialog_on_groups.show(title,prompt + f'{range_str}', initialvalue,'treat as a regular expression',self.cfg_get_bool(CFG_KEY_USE_REG_EXPR))
+            self.get_mark_dialog_on_groups().show(title,prompt + f'{range_str}', initialvalue,'treat as a regular expression',self.cfg_get_bool(CFG_KEY_USE_REG_EXPR))
             use_reg_expr = self.mark_dialog_on_groups.res_check
             expression = self.mark_dialog_on_groups.res_str
         else:
-            self.mark_dialog_on_folder.show(title,prompt + f'{range_str}', initialvalue,'treat as a regular expression',self.cfg_get_bool(CFG_KEY_USE_REG_EXPR))
+            self.get_mark_dialog_on_folder().show(title,prompt + f'{range_str}', initialvalue,'treat as a regular expression',self.cfg_get_bool(CFG_KEY_USE_REG_EXPR))
             use_reg_expr = self.mark_dialog_on_folder.res_check
             expression = self.mark_dialog_on_folder.res_str
 
@@ -3559,7 +3808,7 @@ class Gui:
                             if (use_reg_expr and search(expression,fullpath)) or (not use_reg_expr and fnmatch(fullpath,expression) ):
                                 items_append(item)
                         except Exception as e:
-                            self.info_dialog_on_main.show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}')
+                            self.get_info_dialog_on_main().show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}')
                             tree.focus_set()
                             return
             else:
@@ -3574,7 +3823,7 @@ class Gui:
                             if (use_reg_expr and search(expression,file)) or (not use_reg_expr and fnmatch(file,expression) ):
                                 items_append(item)
                         except Exception as e:
-                            self.info_dialog_on_main.show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}')
+                            self.get_info_dialog_on_main().show('expression Error !',f'expression:"{expression}"  {use_reg_expr_info}\n\nERROR:{e}')
                             tree.focus_set()
                             return
 
@@ -3638,8 +3887,6 @@ class Gui:
 
         tree_set = tree.set
         tree_tag_has = tree.tag_has
-        #self_my_next = self.my_next_dict[tree]
-        #self_my_prev = self.my_prev_dict[tree]
 
         next_dict = self.my_next_dict[tree] if direction==1 else self.my_prev_dict[tree]
 
@@ -3653,7 +3900,7 @@ class Gui:
 
             if (tag_has and not go_to_no_mark) or (go_to_no_mark and not tag_has and tree_set(current_item,'kind')!=self.CRC):
                 tree.focus(current_item)
-                tree.selection_set(current_item)
+                tree.see(current_item)
 
                 if tree==self.groups_tree:
                     self.groups_tree_sel_change(current_item)
@@ -3662,7 +3909,6 @@ class Gui:
 
                 self.status(status,do_log=False)
 
-                tree.see(current_item)
                 break
 
             if current_item==self_sel_item:
@@ -3720,7 +3966,7 @@ class Gui:
             self.folder_tree.update()
 
             try:
-                self.tree_semi_focus(self.folder_tree)
+                self.folder_tree.focus_set()
                 self.folder_tree.focus(item)
                 self.folder_tree_sel_change(item,change_status_line=False)
                 self.folder_tree_see(item)
@@ -3839,7 +4085,7 @@ class Gui:
             (checkres,tuples_to_remove)=dude_core_check_group_files_state(size,crc)
 
             if checkres:
-                self.text_info_dialog.show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
+                self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
 
                 orglist=self_groups_tree_get_children()
 
@@ -3892,7 +4138,7 @@ class Gui:
                 header = f'Warning ({NAME[action]}). {problem_header}'
                 message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
 
-                self.text_info_dialog.show(header,message)
+                self.get_text_info_dialog().show(header,message)
 
                 self.crc_select_and_focus(incorrect_groups[0],True)
 
@@ -3902,12 +4148,12 @@ class Gui:
 
             else:
                 if action==DELETE and self.cfg_get_bool(CFG_ALLOW_DELETE_ALL):
-                    self.text_ask_dialog.show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED')
+                    self.get_text_ask_dialog().show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED')
                     if self.text_ask_dialog.res_bool:
                         return self.CHECK_OK
                 else:
                     header = f'Error ({NAME[action]}). {problem_header}'
-                    self.info_dialog_on_main.show(header,problem_message)
+                    self.get_info_dialog_on_main().show(header,problem_message)
 
                 self.crc_select_and_focus(incorrect_groups[0],True)
                 return self.CHECK_ERR
@@ -3932,12 +4178,12 @@ class Gui:
                     message=f"Files on multiple devices selected. Crc:{crc}"
                     l_error(title)
                     l_error(message)
-                    self.info_dialog_on_main.show(title,message)
+                    self.get_info_dialog_on_main().show(title,message)
                     return self.CHECK_ERR
         for crc in processed_items:
             for item in remaining_items[crc]:
                 if res:=self_file_check_state(item):
-                    self.info_dialog_on_main.show('Error',res+'\n\nNo action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.')
+                    self.get_info_dialog_on_main().show('Error',res+'\n\nNo action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.')
                     l_error('aborting.')
                     return self.CHECK_ERR
 
@@ -3980,15 +4226,15 @@ class Gui:
         if action==DELETE:
             trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No")
             erase_empty_dirs = "\nErase empty directories  : " + ('Yes' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
-            self.text_ask_dialog.show('Delete marked files ?','Scope: ' + scope_title + trash_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
+            self.get_text_ask_dialog().show('Delete marked files ?','Scope: ' + scope_title + trash_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
             if not self.text_ask_dialog.res_bool:
                 return True
         elif action==SOFTLINK:
-            self.text_ask_dialog.show('Soft-Link marked files to first unmarked file in group ?','Scope: ' + scope_title + '\n\n' + size_info + '\n'+'\n'.join(message))
+            self.get_text_ask_dialog().show('Soft-Link marked files to first unmarked file in group ?','Scope: ' + scope_title + '\n\n' + size_info + '\n'+'\n'.join(message))
             if not self.text_ask_dialog.res_bool:
                 return True
         elif action==HARDLINK:
-            self.text_ask_dialog.show('Hard-Link marked files together in groups ?','Scope: ' + scope_title + '\n\n' + size_info +'\n'+'\n'.join(message))
+            self.get_text_ask_dialog().show('Hard-Link marked files together in groups ?','Scope: ' + scope_title + '\n\n' + size_info +'\n'+'\n'.join(message))
             if not self.text_ask_dialog.res_bool:
                 return True
 
@@ -4160,10 +4406,10 @@ class Gui:
         self.data_precalc()
 
         if end_message_list:
-            self.text_info_dialog.show('Error','\n'.join(end_message_list))
+            self.get_text_info_dialog().show('Error','\n'.join(end_message_list))
 
         if final_info:
-            self.text_info_dialog.show('Removed empty directories','\n'.join(final_info))
+            self.get_text_info_dialog().show('Removed empty directories','\n'.join(final_info))
 
     @logwrapper
     def get_this_or_existing_parent(self,path):
@@ -4180,7 +4426,7 @@ class Gui:
         tree=self.sel_tree
 
         if not processed_items:
-            self.info_dialog_on_main.show('No Files Marked For Processing !','Scope: ' + scope_title + '\n\nMark files first.')
+            self.get_info_dialog_on_main().show('No Files Marked For Processing !','Scope: ' + scope_title + '\n\nMark files first.')
             return
 
         l_info('process_files: %s',action)
@@ -4211,11 +4457,11 @@ class Gui:
             return
 
         if check!=self.CHECK_OK:
-            self.info_dialog_on_main.show('INTERNAL ERROR 1 - aborting','got %s from process_files_check_correctness' % check)
+            self.get_info_dialog_on_main().show('INTERNAL ERROR 1 - aborting','got %s from process_files_check_correctness' % check)
             return
 
         if not processed_items:
-            self.info_dialog_on_main.show('info','No files left for processing.\nFix files selection.')
+            self.get_info_dialog_on_main().show('info','No files left for processing.\nFix files selection.')
             return
 
         l_warning('###########################################################################################')
@@ -4232,7 +4478,7 @@ class Gui:
             return
 
         if check!=self.CHECK_OK:
-            self.info_dialog_on_main.show('INTERNAL ERROR 2 - aborting','got %s process_files_check_correctness_last' % check)
+            self.get_info_dialog_on_main().show('INTERNAL ERROR 2 - aborting','got %s process_files_check_correctness_last' % check)
             return
 
         #############################################
@@ -4278,9 +4524,10 @@ class Gui:
             l_info('updating groups : %s',item_to_select)
 
             if item_to_select:
-                tree.selection_set(item_to_select)
+                self.groups_tree.focus_set()
+                self.groups_tree.focus(item_to_select)
+
                 self.groups_tree_sel_change(item_to_select)
-                self.tree_semi_focus(self.groups_tree)
             else:
                 self.initial_focus()
         else:
@@ -4298,12 +4545,12 @@ class Gui:
 
                     if item_to_sel:
                         try:
+                            self.folder_tree.focus_set()
                             self.folder_tree.focus(item_to_sel)
                             self.folder_tree_sel_change(item_to_sel)
                             self.folder_tree_see(item_to_sel)
                             self.folder_tree.update()
 
-                            self.tree_semi_focus(self.folder_tree)
                         except :
                             self.initial_focus()
             else:
