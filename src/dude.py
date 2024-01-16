@@ -67,7 +67,7 @@ import logging
 
 from core import *
 import console
-import dialogs
+from dialogs import *
 
 from dude_images import dude_image
 
@@ -347,8 +347,7 @@ class Gui:
         self.current_folder_items_tagged_add=self.current_folder_items_tagged.add
 
         ####################################################################
-        self.main = Tk()
-        self_main = self.main
+        self_main = self.main = Tk()
 
         self.main_config = self.main.config
 
@@ -383,6 +382,11 @@ class Gui:
         self.ico_hardlink = self_ico['hardlink']
         self.ico_softlink = self_ico['softlink']
         self.ico_softlink_dir = self_ico['softlink_dir']
+        self.ico_left = self_ico['left']
+        self.ico_right = self_ico['right']
+        self.ico_warning = self_ico['warning']
+        self.ico_search_text = self_ico['search_text']
+        self.ico_empty = self_ico['empty']
 
         self.main_icon_tuple = (self.ico_dude,self.ico_dude_small)
 
@@ -415,6 +419,7 @@ class Gui:
         self.tooltip_withdraw()
         self.tooltip_deiconify = self.tooltip.deiconify
         self.tooltip_wm_geometry = self.tooltip.wm_geometry
+        self.main_wm_geometry = self.main.wm_geometry
 
         self.tooltip.wm_overrideredirect(True)
         self.tooltip_lab=Label(self.tooltip, justify='left', background="#ffffe0", relief='solid', borderwidth=0, wraplength = 1200)
@@ -480,15 +485,12 @@ class Gui:
         self.paned.pack(fill='both',expand=1)
 
         frame_groups = Frame(self.paned,bg=self.bg_color)
+        frame_groups.pack(fill='both',expand='yes')
         self.paned.add(frame_groups)
+
         frame_folder = Frame(self.paned,bg=self.bg_color)
+        frame_folder.pack(fill='both',expand='yes')
         self.paned.add(frame_folder)
-
-        frame_groups.grid_columnconfigure(0, weight=1)
-        frame_groups.grid_rowconfigure(0, weight=1,minsize=200)
-
-        frame_folder.grid_columnconfigure(0, weight=1)
-        frame_folder.grid_rowconfigure(0, weight=1,minsize=200)
 
         (status_frame_groups := Frame(frame_groups,bg=self.bg_color)).pack(side='bottom', fill='both')
 
@@ -502,7 +504,7 @@ class Gui:
         self.status_all_size_configure=self.status_all_size.configure
 
         Label(status_frame_groups,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
-        self.status_groups=Label(status_frame_groups,text='0',image=self_ico['empty'],width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
+        self.status_groups=Label(status_frame_groups,text='0',image=self.ico_empty,width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
         self.status_groups_configure = self.status_groups.configure
 
         self.status_groups.pack(fill='x',expand=0,side='right')
@@ -601,7 +603,7 @@ class Gui:
 
         self.vsb1 = Scrollbar(frame_groups, orient='vertical', command=self_groups_tree.yview,takefocus=False)
 
-        self_groups_tree.configure(yscrollcommand=self.vsb1_set)
+        self_groups_tree.configure(yscrollcommand=self.vsb1.set)
 
         self.vsb1.pack(side='right',fill='y',expand=0)
         self_groups_tree.pack(fill='both',expand=1, side='left')
@@ -625,7 +627,7 @@ class Gui:
         self_folder_tree_column = self_folder_tree.column
 
         self_folder_tree_column('#0', width=120, minwidth=100, stretch='no')
-        self_folder_tree_column('file', width=100, minwidth=10, stretch='yes')
+        self_folder_tree_column('file', width=200, minwidth=20, stretch='yes')
         self_folder_tree_column('size_h', width=80, minwidth=80, stretch='no')
         self_folder_tree_column('instances_h', width=80, minwidth=80, stretch='no')
         self_folder_tree_column('ctime_h', width=150, minwidth=100, stretch='no')
@@ -648,10 +650,10 @@ class Gui:
 
         self.vsb2 = Scrollbar(frame_folder, orient='vertical', command=self_folder_tree.yview,takefocus=False)
         #,bg=self.bg_color
-        self.folder_tree_configure(yscrollcommand=self.vsb2_set)
+        self.folder_tree_configure(yscrollcommand=self.vsb2.set)
 
-        self.vsb2.pack(side='right',fill='y',expand=0)
         self_folder_tree.pack(fill='both',expand=1,side='left')
+        self.vsb2.pack(side='right',fill='y',expand=0)
 
         self_folder_tree.bind('<Double-Button-1>', self.double_left_button)
 
@@ -700,15 +702,6 @@ class Gui:
             l_error(e)
             cfg_geometry = None
 
-        self_main.deiconify()
-
-        self.paned.update()
-        self.paned.sash_place(0,0,self.cfg.get('sash_coord',400,section='geometry'))
-
-        #prevent displacement
-        if cfg_geometry :
-            self_main.geometry(cfg_geometry)
-
         self.popup_groups = Menu(self_groups_tree, tearoff=0,bg=self.bg_color)
         self.popup_groups_unpost = self.popup_groups.unpost
         self.popup_groups.bind("<FocusOut>",lambda event : self.popup_groups_unpost() )
@@ -732,28 +725,31 @@ class Gui:
         #######################################################################
         #scan dialog
 
-        self.scan_dialog=dialogs.GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'Scan',pre_show=self.pre_show,post_close=self.post_close)
+        self_scan_dialog = self.scan_dialog=GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'Scan',pre_show=self.pre_show,post_close=self.post_close)
 
         self.log_skipped_var=BooleanVar()
         self.log_skipped_var.set(False)
 
-        self.scan_dialog.area_main.grid_columnconfigure(0, weight=1)
-        self.scan_dialog.area_main.grid_rowconfigure(0, weight=1)
-        self.scan_dialog.area_main.grid_rowconfigure(1, weight=1)
+        self_scan_dialog_area_main = self_scan_dialog.area_main
 
-        self.scan_dialog.widget.bind('<Alt_L><a>',lambda event : self.path_to_scan_add_dialog())
-        self.scan_dialog.widget.bind('<Alt_L><A>',lambda event : self.path_to_scan_add_dialog())
-        self.scan_dialog.widget.bind('<Alt_L><s>',lambda event : self.scan_wrapper())
-        self.scan_dialog.widget.bind('<Alt_L><S>',lambda event : self.scan_wrapper())
+        self_scan_dialog_area_main.grid_columnconfigure(0, weight=1)
+        self_scan_dialog_area_main.grid_rowconfigure(0, weight=1)
+        self_scan_dialog_area_main.grid_rowconfigure(1, weight=1)
 
-        self.scan_dialog.widget.bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
-        self.scan_dialog.widget.bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
+        self_scan_dialog_widget_bind = self_scan_dialog.widget.bind
+
+        self_scan_dialog_widget_bind('<Alt_L><a>',lambda event : self.path_to_scan_add_dialog())
+        self_scan_dialog_widget_bind('<Alt_L><A>',lambda event : self.path_to_scan_add_dialog())
+        self_scan_dialog_widget_bind('<Alt_L><s>',lambda event : self.scan_wrapper())
+        self_scan_dialog_widget_bind('<Alt_L><S>',lambda event : self.scan_wrapper())
+        self_scan_dialog_widget_bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
+        self_scan_dialog_widget_bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
 
         ##############
-        temp_frame = LabelFrame(self.scan_dialog.area_main,text='Paths To scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame = LabelFrame(self_scan_dialog_area_main,text='Paths To scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
         temp_frame.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        sf_par=dialogs.SFrame(temp_frame,bg=self.bg_color)
+        sf_par=SFrame(temp_frame,bg=self.bg_color)
         sf_par.pack(fill='both',expand=True,side='top')
         self.paths_frame=sf_par.frame()
 
@@ -772,10 +768,10 @@ class Gui:
         ##############
         self.exclude_regexp_scan=BooleanVar()
 
-        temp_frame2 = LabelFrame(self.scan_dialog.area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame2 = LabelFrame(self_scan_dialog_area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
         temp_frame2.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        sf_par2=dialogs.SFrame(temp_frame2,bg=self.bg_color)
+        sf_par2=SFrame(temp_frame2,bg=self.bg_color)
         sf_par2.pack(fill='both',expand=True,side='top')
         self.exclude_frame=sf_par2.frame()
 
@@ -801,19 +797,19 @@ class Gui:
         self.exclude_frame.grid_rowconfigure(99, weight=1)
         ##############
 
-        skip_button = Checkbutton(self.scan_dialog.area_main,text='log skipped files',variable=self.log_skipped_var)
+        skip_button = Checkbutton(self_scan_dialog_area_main,text='log skipped files',variable=self.log_skipped_var)
         skip_button.grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
         skip_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
         skip_button.bind("<Leave>", lambda event : self.widget_leave())
 
-        self.scan_button = Button(self.scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0)
+        self.scan_button = Button(self_scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
 
-        self.scan_cancel_button = Button(self.scan_dialog.area_buttons,width=12,text="Cancel",image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
+        self.scan_cancel_button = Button(self_scan_dialog.area_buttons,width=12,text="Cancel",image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
         self.scan_cancel_button.pack(side='left',padx=4,pady=4)
 
-        self.scan_dialog.focus=self.scan_cancel_button
+        self_scan_dialog.focus=self.scan_cancel_button
 
         #######################################################################
 
@@ -829,6 +825,10 @@ class Gui:
                 pass
 
         def file_cascade_post():
+            self.hide_tooltip()
+            self.popup_groups_unpost()
+            self.popup_folder_unpost()
+
             item_actions_state=('disabled','normal')[self.sel_item is not None]
 
             self.file_cascade.delete(0,'end')
@@ -841,11 +841,11 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Settings ...',command=lambda : self.get_settings_dialog().show(), accelerator="F2",image = self_ico['settings'],compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self_ico['empty'],compound='left')
+                self_file_cascade_add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self_ico['empty'],compound='left')
+                self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Erase CRC Cache',command = self.cache_clean,image = self_ico['empty'],compound='left')
+                self_file_cascade_add_command(label = 'Erase CRC Cache',command = self.cache_clean,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
 
@@ -853,6 +853,10 @@ class Gui:
         self.menubar.add_cascade(label = 'File',menu = self.file_cascade,accelerator="Alt+F")
 
         def navi_cascade_post():
+            self.hide_tooltip()
+            self.popup_groups_unpost()
+            self.popup_folder_unpost()
+
             self.navi_cascade.delete(0,'end')
             if self.actions_processing:
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
@@ -881,6 +885,10 @@ class Gui:
         self.menubar.add_cascade(label = 'Navigation',menu = self.navi_cascade)
 
         def help_cascade_post():
+            self.hide_tooltip()
+            self.popup_groups_unpost()
+            self.popup_folder_unpost()
+
             self.help_cascade.delete(0,'end')
             if self.actions_processing:
 
@@ -969,6 +977,17 @@ class Gui:
 
         self.exclude_regexp_scan.set(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP))
 
+        self.main_locked_by_child = None
+
+        self_main.deiconify()
+
+        self.paned.update()
+        self.paned.sash_place(0,0,self.cfg.get('sash_coord',400,section='geometry'))
+
+        #prevent displacement
+        if cfg_geometry :
+            self_main.geometry(cfg_geometry)
+
         self.main_update()
 
         self.scan_dialog_show(run_scan_condition)
@@ -1008,6 +1027,18 @@ class Gui:
             _ = {var.set(self.cfg.get(key)) for var,key in self.settings_str}
             return self.pre_show(on_main_window_dialog=on_main_window_dialog,new_widget=new_widget)
 
+    def widget_tooltip(self,widget,tooltip):
+        widget.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip))
+        widget.bind("<Leave>", lambda event : self.widget_leave())
+
+    def fix_text_dialog(self,dialog):
+        dialog.find_lab.configure(image=self.ico_search_text,text=' Search:',compound='left',bg=self.bg_color)
+        dialog.find_prev_butt.configure(image=self.ico_left)
+        dialog.find_next_butt.configure(image=self.ico_right)
+
+        self.widget_tooltip(dialog.find_prev_butt,'Find Prev (Shift+F3)')
+        self.widget_tooltip(dialog.find_next_butt,'Find Next (F3)')
+
     #######################################################################
     settings_dialog_created = False
     @restore_status_line
@@ -1017,7 +1048,7 @@ class Gui:
         if not self.settings_dialog_created:
             self.status("Creating dialog ...")
 
-            self.settings_dialog=dialogs.GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show_settings,post_close=self.post_close)
+            self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show_settings,post_close=self.post_close)
 
             self.show_full_crc = BooleanVar()
             self.show_full_paths = BooleanVar()
@@ -1082,7 +1113,7 @@ class Gui:
             cb_3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
             cb_3.bind("<Leave>", lambda event : self.widget_leave())
 
-            (cb_4:=Checkbutton(label_frame, text = 'Allow deletion of all copies', variable=self.allow_delete_all,image=self.ico['warning'],compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+            (cb_4:=Checkbutton(label_frame, text = 'Allow deletion of all copies', variable=self.allow_delete_all,image=self.ico_warning,compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
             cb_4.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
             cb_4.bind("<Leave>", lambda event : self.widget_leave())
 
@@ -1092,7 +1123,7 @@ class Gui:
             label_frame=LabelFrame(self.settings_dialog.area_main, text="Processing",borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-            Checkbutton(label_frame, text = 'Create relative symbolic links', variable=self.create_relative_symlinks                  ).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = 'Create relative symbolic links', variable=self.create_relative_symlinks).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
             Checkbutton(label_frame, text = 'Send Files to %s instead of deleting them' % ('Recycle Bin' if windows else 'Trash'), variable=self.send_to_trash ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
             Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
             Checkbutton(label_frame, text = 'Abort on first error', variable=self.abort_on_error).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
@@ -1135,7 +1166,6 @@ class Gui:
 
         return self.settings_dialog
 
-
     info_dialog_on_main_created = False
     @restore_status_line
     @block_actions_processing
@@ -1144,7 +1174,7 @@ class Gui:
         if not self.info_dialog_on_main_created:
             self.status("Creating dialog ...")
 
-            self.info_dialog_on_main = dialogs.LabelDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.info_dialog_on_main = LabelDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
             self.info_dialog_on_main_created = True
 
@@ -1158,7 +1188,8 @@ class Gui:
         if not self.text_ask_dialog_created:
             self.status("Creating dialog ...")
 
-            self.text_ask_dialog = dialogs.TextDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico['warning'])
+            self.text_ask_dialog = TextDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
+            self.fix_text_dialog(self.text_ask_dialog)
 
             self.text_ask_dialog_created = True
 
@@ -1172,7 +1203,8 @@ class Gui:
         if not self.text_info_dialog_created:
             self.status("Creating dialog ...")
 
-            self.text_info_dialog = dialogs.TextDialogInfo(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.text_info_dialog = TextDialogInfo(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.fix_text_dialog(self.text_info_dialog)
 
             self.text_info_dialog_created = True
 
@@ -1186,7 +1218,7 @@ class Gui:
         if not self.info_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.info_dialog_on_scan = dialogs.LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
             self.info_dialog_on_scan_created = True
 
@@ -1200,7 +1232,7 @@ class Gui:
         if not self.exclude_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.exclude_dialog_on_scan = dialogs.EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
             self.exclude_dialog_on_scan_created = True
 
@@ -1215,7 +1247,7 @@ class Gui:
         if not self.progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.progress_dialog_on_scan = dialogs.ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
             self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
@@ -1235,7 +1267,7 @@ class Gui:
         if not self.mark_dialog_on_groups_created:
             self.status("Creating dialog ...")
 
-            self.mark_dialog_on_groups = dialogs.CheckboxEntryDialogQuestion(self.groups_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.mark_dialog_on_groups = CheckboxEntryDialogQuestion(self.groups_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
             self.mark_dialog_on_groups_created = True
 
@@ -1251,7 +1283,7 @@ class Gui:
         if not self.mark_dialog_on_folder_created:
             self.status("Creating dialog ...")
 
-            self.mark_dialog_on_folder = dialogs.CheckboxEntryDialogQuestion(self.folder_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.mark_dialog_on_folder = CheckboxEntryDialogQuestion(self.folder_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
             self.mark_dialog_on_folder_created = True
 
@@ -1267,7 +1299,7 @@ class Gui:
         if not self.info_dialog_on_mark_groups_created:
             self.status("Creating dialog ...")
 
-            self.info_dialog_on_mark[self.groups_tree] = dialogs.LabelDialog(self.mark_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
+            self.info_dialog_on_mark[self.groups_tree] = LabelDialog(self.mark_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
 
             self.info_dialog_on_mark_groups_created = True
 
@@ -1281,7 +1313,7 @@ class Gui:
         if not self.info_dialog_on_mark_folder_created:
             self.status("Creating dialog ...")
 
-            self.info_dialog_on_mark[self.folder_tree] = dialogs.LabelDialog(self.mark_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
+            self.info_dialog_on_mark[self.folder_tree] = LabelDialog(self.mark_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
 
             self.info_dialog_on_mark_folder_created = True
 
@@ -1296,9 +1328,9 @@ class Gui:
         if not self.find_dialog_on_groups_created:
             self.status("Creating dialog ...")
 
-            self.find_dialog_on_groups = dialogs.FindEntryDialog(self.groups_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
+            self.find_dialog_on_groups = FindEntryDialog(self.groups_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
 
-            self.info_dialog_on_find[self.groups_tree] = dialogs.LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
+            self.info_dialog_on_find[self.groups_tree] = LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
 
             self.find_dialog_on_groups_created = True
 
@@ -1312,9 +1344,9 @@ class Gui:
         if not self.find_dialog_on_folder_created:
             self.status("Creating dialog ...")
 
-            self.find_dialog_on_folder = dialogs.FindEntryDialog(self.folder_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
+            self.find_dialog_on_folder = FindEntryDialog(self.folder_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
 
-            self.info_dialog_on_find[self.folder_tree] = dialogs.LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
+            self.info_dialog_on_find[self.folder_tree] = LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
 
             self.find_dialog_on_folder_created = True
 
@@ -1328,7 +1360,7 @@ class Gui:
         if not self.about_dialog_created:
             self.status("Creating dialog ...")
 
-            self.about_dialog = dialogs.GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
+            self.about_dialog = GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
 
             frame1 = LabelFrame(self.about_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame1.grid(row=0,column=0,sticky='news',padx=4,pady=(4,2))
@@ -1380,7 +1412,7 @@ class Gui:
                     l_error(exception_2)
                     self.exit()
 
-            self.license_dialog = dialogs.GenericDialog(self.main,(self.ico['license'],self.ico['license']),self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
+            self.license_dialog = GenericDialog(self.main,(self.ico['license'],self.ico['license']),self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close,min_width=800,min_height=520)
 
             frame1 = LabelFrame(self.license_dialog.area_main,text='',bd=2,bg=self.bg_color,takefocus=False)
             frame1.grid(row=0,column=0,sticky='news',padx=4,pady=4)
@@ -1406,17 +1438,19 @@ class Gui:
 
     def groups_tree_focus_out(self,event):
         #print(f'groups_tree_focus_out:{event.widget}')
-        item=self.groups_tree.focus()
+        self_groups_tree = self.groups_tree
+        item=self_groups_tree.focus()
         if item:
-            self.groups_tree.selection_set(item)
-            self.selected[self.groups_tree]=item
+            self_groups_tree.selection_set(item)
+            self.selected[self_groups_tree]=item
 
     def folder_tree_focus_out(self,event):
         #print(f'folder_tree_focus_out:{event.widget}')
-        item = self.folder_tree.focus()
+        self_folder_tree = self.folder_tree
+        item = self_folder_tree.focus()
         if item:
-            self.folder_tree.selection_set(item)
-            self.selected[self.folder_tree]=item
+            self_folder_tree.selection_set(item)
+            self.selected[self_folder_tree]=item
 
     def groups_tree_focus_in(self,event):
         #print(f'groups_tree_focus_in:{event.widget}')
@@ -1425,10 +1459,11 @@ class Gui:
 
         if item:=self.selected[tree]:
             tree.focus(item)
+            tree.selection_remove(item)
 
         tree.configure(style='semi_focus.Treeview')
         self.other_tree[tree].configure(style='no_focus.Treeview')
-        tree.selection_remove(tree.selection())
+        #tree.selection_remove(tree.selection())
 
     def folder_tree_focus_in(self,event):
         #print(f'folder_tree_focus_in:{event.widget}')
@@ -1437,24 +1472,11 @@ class Gui:
 
         if item:=self.selected[tree]:
             tree.focus(item)
+            tree.selection_remove(item)
 
         tree.configure(style='semi_focus.Treeview')
         self.other_tree[tree].configure(style='no_focus.Treeview')
-        tree.selection_remove(tree.selection())
-
-    def vsb1_set(self,v1,v2):
-        if v1=='0.0' and v2=='1.0':
-            self.vsb1.pack_forget()
-        else:
-            self.vsb1.set(v1,v2)
-            self.vsb1.pack(side="left", fill="both",expand=0)
-
-    def vsb2_set(self,v1,v2):
-        if v1=='0.0' and v2=='1.0':
-            self.vsb2.pack_forget()
-        else:
-            self.vsb2.set(v1,v2)
-            self.vsb2.pack(side="left", fill="both",expand=0)
+        #tree.selection_remove(tree.selection())
 
     def focusin(self):
         #print('focusin')
@@ -1491,6 +1513,29 @@ class Gui:
     def configure_tooltip(self,widget):
         self.tooltip_lab_configure(text=self.tooltip_message[str(widget)])
 
+    def adaptive_tooltip_geometry(self,event):
+        x,y = self.tooltip_wm_geometry().split('+')[0].split('x')
+        x_int=int(x)
+        y_int=int(y)
+
+        size_combo,x_main_off,y_main_off = self.main_wm_geometry().split('+')
+        x_main_size,y_main_size = size_combo.split('x')
+
+        x_middle = int(x_main_size)/2+int(x_main_off)
+        y_middle = int(y_main_size)/2+int(y_main_off)
+
+        if event.x_root>x_middle:
+            x_mod = -x_int -20
+        else:
+            x_mod = 20
+
+        if event.y_root>y_middle:
+            y_mod = -y_int -5
+        else:
+            y_mod = 5
+
+        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + x_mod, event.y_root + y_mod))
+
     def show_tooltip_widget(self,event):
         self.unschedule_tooltip_widget(event)
         self.menubar_unpost()
@@ -1498,13 +1543,11 @@ class Gui:
         self.configure_tooltip(event.widget)
 
         self.tooltip_deiconify()
-        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
+        self.adaptive_tooltip_geometry(event)
 
     def show_tooltip_groups(self,event):
         self.unschedule_tooltip_groups(event)
         self.menubar_unpost()
-
-        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
 
         tree = event.widget
         col=tree.identify_column(event.x)
@@ -1542,11 +1585,11 @@ class Gui:
                     else:
                         self.hide_tooltip()
 
+        self.adaptive_tooltip_geometry(event)
+
     def show_tooltip_folder(self,event):
         self.unschedule_tooltip_folder(event)
         self.menubar_unpost()
-
-        self.tooltip_wm_geometry("+%d+%d" % (event.x_root + 20, event.y_root + 5))
 
         tree = event.widget
         col=tree.identify_column(event.x)
@@ -1584,6 +1627,8 @@ class Gui:
                     self.tooltip_deiconify()
                 else:
                     self.hide_tooltip()
+
+        self.adaptive_tooltip_geometry(event)
 
     def unschedule_tooltip_widget(self,event):
         if self.tooltip_show_after_widget:
@@ -1958,9 +2003,8 @@ class Gui:
 
             #t1=perf_counter()
             try:
-                tree=event.widget
+                tree,key=event.widget,event.keysym
                 item=tree.focus()
-                key=event.keysym
 
                 if key in ("Up","Down"):
                     new_item = self.my_next_dict[tree][item] if key=='Down' else self.my_prev_dict[tree][item]
@@ -2190,7 +2234,9 @@ class Gui:
                 tree.selection_remove(tree.selection())
 
                 tree.focus_set()
-                tree.focus(item)
+                #tree.focus(item)
+
+                self.semi_selection(tree,item)
                 #tree.selection_set(item)
 
                 if tree==self.groups_tree:
@@ -2205,43 +2251,6 @@ class Gui:
 
         #return None
         return "break"
-
-    #def tree_semi_focus(self,tree):
-    #    tree.focus_set()
-
-    #    return
-    #    item=None
-
-    #    if sel:=tree.selection():
-    #        item=sel[0]
-
-    #    if not item:
-    #        item=tree.focus()
-
-    #    if not item:
-    #        if tree==self.groups_tree:
-    #            try:
-    #                item = tree.get_children()[0]
-    #            except :
-    #                pass
-    #        else:
-    #            try:
-    #                item = self.current_folder_items[0]
-    #            except :
-    #                pass
-
-    #    if item:
-
-    #        tree.focus_set()
-
-    #        tree.focus(item)
-    #        tree.see(item)
-    #        #tree.selection_set(item)
-
-    #        if tree==self.groups_tree:
-    #            self.groups_tree_sel_change(item,True)
-    #        else:
-    #            self.folder_tree_sel_change(item)
 
     def set_full_path_to_file_win(self):
         self.sel_full_path_to_file=str(Path(sep.join([self.sel_path_full,self.sel_file]))) if self.sel_path_full and self.sel_file else None
@@ -2267,48 +2276,33 @@ class Gui:
         if change_status_line :
             self.status()
 
-        #self_groups_tree_set_item=lambda x : self.groups_tree_set(item,x)
-
         kind,crc,file,path,pathnr_int = self.groups_tree_mirror[item]
-        if pathnr_int!=None:
-            pathnr = str(pathnr_int)
-        else:
-            pathnr = None
-        #print('self.groups_tree_mirror[item]',self.groups_tree_mirror[item])
+        pathnr = str(pathnr_int) if pathnr_int!=None else None
 
-        #self.sel_file = self_groups_tree_set_item('file')
         self.sel_file = file
 
-        #crc = self_groups_tree_set_item('crc')
         if self.sel_crc != crc:
             self.sel_crc = crc
 
             self.dominant_groups_index={0:-1,1:-1}
-
-        #pathnr = self_groups_tree_set_item('pathnr')
-        #path=self_groups_tree_set_item('path')
 
         if path!=self.sel_path or force or pathnr!=self.sel_pathnr:
             if self.find_tree_index==1:
                 self.find_result=()
 
             if pathnr: #non crc node
-                self.sel_pathnr = pathnr
-                self.sel_path = path
-                self.sel_path_set(dude_core.scanned_paths[int(pathnr)]+path)
+                self.sel_pathnr,self.sel_path = pathnr,path
+                self.sel_path_set(dude_core.scanned_paths[pathnr_int]+path)
             else :
-                self.sel_pathnr = None
-                self.sel_path = None
+                self.sel_pathnr,self.sel_path = None,None
                 self.sel_path_set(None)
             self.set_full_path_to_file()
 
-        #self.sel_kind = self_groups_tree_set_item('kind')
-        #print(type(kind),kind,type(self.FILE),self.FILE)
         self.sel_kind = kind
 
         #t1a=perf_counter()
 
-        if self.sel_kind==self.FILE:
+        if kind==self.FILE:
             self.tree_folder_update()
         else:
             self.tree_folder_update_none()
@@ -2322,9 +2316,8 @@ class Gui:
 
         self_folder_tree_set_item = self.folder_tree_set_item
 
-        self.sel_file = self_folder_tree_set_item(item,'file')
-        self.sel_crc = self_folder_tree_set_item(item,'crc')
-        self.sel_kind = kind = self_folder_tree_set_item(item,'kind')
+        self.sel_file,self.sel_crc,self.sel_kind = self_folder_tree_set_item(item,'file'),self_folder_tree_set_item(item,'crc'),self_folder_tree_set_item(item,'kind')
+        kind = self.sel_kind
 
         self.set_full_path_to_file()
 
@@ -2584,6 +2577,12 @@ class Gui:
         pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
 
         try:
+            self.hide_tooltip()
+
+            self.menubar.unpost()
+            #self.popup_groups_unpost()
+            #self.popup_folder_unpost()
+
             pop.tk_popup(event.x_root, event.y_root)
         except Exception as e:
             print(e)
@@ -3573,7 +3572,7 @@ class Gui:
 
         if self_current_folder_items := self.current_folder_items:
             self.folder_tree_delete(*self_current_folder_items)
-            self.selected[self.folder_tree]=None
+            self.selected[ftree]=None
 
         #t1=perf_counter()
         try:
@@ -3589,7 +3588,7 @@ class Gui:
             except Exception:
                 pass
 
-        self.status_folder_quant_configure(text=str(len(self_current_folder_items_tagged)))
+        self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)))
         self.status_folder_size_configure(text=bytes_to_str(current_folder_items_tagged_size))
 
         ftree.update()
@@ -3625,12 +3624,12 @@ class Gui:
                     self_current_folder_items_tagged_add(item)
 
     def calc_mark_stats_groups(self):
-        self.status_all_quant_configure(text=str(len(self.tagged)))
+        self.status_all_quant_configure(text=fnumber(len(self.tagged)))
         self_iid_to_size=self.iid_to_size
         self.status_all_size_configure(text=bytes_to_str(sum([self_iid_to_size[iid] for iid in self.tagged])))
 
     def calc_mark_stats_folder(self):
-        self.status_folder_quant_configure(text=str(len(self.current_folder_items_tagged)))
+        self.status_folder_quant_configure(text=fnumber(len(self.current_folder_items_tagged)))
 
         self_iid_to_size = self.iid_to_size
         self.status_folder_size_configure(text=bytes_to_str(sum(self_iid_to_size[iid] for iid in self.current_folder_items_tagged)))
@@ -3654,7 +3653,11 @@ class Gui:
         reverse=1 if order_str=='oldest' else 0
 
         self_mark_in_specified_group_by_ctime = self.mark_in_specified_group_by_ctime
-        _ = { self_mark_in_specified_group_by_ctime(action, crc, reverse) for crc in self.groups_tree_get_children() }
+        #_ = { self_mark_in_specified_group_by_ctime(action, crc, reverse) for crc in self.groups_tree_get_children() }
+        _ = { self_mark_in_specified_group_by_ctime(action, crc, reverse) for size,size_dict in dude_core.files_of_size_of_crc_items() for crc in size_dict }
+
+
+
         self.update_marks_folder()
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -3687,7 +3690,8 @@ class Gui:
     def mark_on_all(self,action):
         self.status('Un/Setting marking on all files ...')
         self_mark_in_specified_crc_group = self.mark_in_specified_crc_group
-        _ = { self_mark_in_specified_crc_group(action,crc) for crc in self.groups_tree_get_children() }
+        #_ = { self_mark_in_specified_crc_group(action,crc) for crc in self.groups_tree_get_children() }
+        _ = { self_mark_in_specified_crc_group(action,crc) for size,size_dict in dude_core.files_of_size_of_crc_items() for crc in size_dict }
         self.update_marks_folder()
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -3735,11 +3739,12 @@ class Gui:
 
         if all_groups:
             crc_range = self.groups_tree_get_children()
+            #crc_range = [crc for size,size_dict in dude_core.files_of_size_of_crc_items() for crc in size_dict]
         else :
             crc_range = [str(self.sel_crc)]
 
         sel_count=0
-        self_groups_tree_get_children = self.groups_tree_get_children
+        #self_groups_tree_get_children = self.groups_tree_get_children
         self_item_full_path = self.item_full_path
 
         dude_core_name_func = dude_core.name_func
@@ -4558,6 +4563,7 @@ class Gui:
 
         self.calc_mark_stats_groups()
 
+        self.selected={}
         self.find_result=()
 
     @logwrapper
