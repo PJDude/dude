@@ -1970,6 +1970,8 @@ class Gui:
                 self.folder_tree_sel_change(next_item)
                 self.folder_tree.update()
 
+    @catched
+    @logwrapper
     def create_my_next_dict(self,tree):
         my_next_dict = self.my_next_dict[tree]={}
         my_prev_dict = self.my_prev_dict[tree]={}
@@ -3595,7 +3597,7 @@ class Gui:
 
         #t2=perf_counter()
 
-        folder_items_len = len(folder_items)
+        folder_items_len = len(self.current_folder_items)
 
         #fact1 = format((t1-t0)/folder_items_len, '.10f')
         #fact2 = format((t2-t1)/folder_items_len, '.10f')
@@ -4252,16 +4254,15 @@ class Gui:
     @gui_block
     def empty_dirs_removal(self,path,report_empty=False):
         removal_func = send2trash if self.cfg_get_bool(CFG_SEND_TO_TRASH) else rmdir
-        os_path_abspath = abspath
 
-        clean,removed = self.empty_dirs_removal_core(path,removal_func,os_path_abspath)
+        clean,removed = self.empty_dirs_removal_core(path,removal_func)
 
         if report_empty and not removed:
             removed.append(f'No empty subdirectories in:\'{path}\'')
 
         return removed
 
-    def empty_dirs_removal_core(self,path,removal_func,os_path_abspath):
+    def empty_dirs_removal_core(self,path,removal_func):
         result = []
         result_extend = result.extend
         result_append = result.append
@@ -4273,7 +4274,7 @@ class Gui:
                     if entry.is_symlink():
                         clean = False
                     elif entry.is_dir():
-                        sub_clean,sub_result = self_empty_dirs_removal_core(os_path_abspath(path_join(path, entry.name)),removal_func,os_path_abspath)
+                        sub_clean,sub_result = self_empty_dirs_removal_core(abspath(path_join(path, entry.name)),removal_func)
                         clean = clean and sub_clean
                         result_extend(sub_result)
                     else:
@@ -4292,6 +4293,23 @@ class Gui:
         except Exception as e:
             l_error('empty_dirs_removal:%s',e)
             return (False,result)
+
+    def empty_dirs_removal_single(self,path,removal_func):
+        try:
+            with scandir(path) as res:
+                for entry in res:
+                   return ''
+
+                try:
+                    l_info('empty_dirs_removal_single %s(%s)',removal_func.__name__,path)
+                    removal_func(path)
+                    return(str(path))
+                except Exception as removal_e:
+                    l_error('empty_dirs_removal_single:%s',removal_e)
+                    return f'error (remove {path}): {removal_e}'
+        except Exception as e:
+            l_error('empty_dirs_removal_single scandir :%s',e)
+            return f' error (scandir {path}): {e}'
 
     @block_actions_processing
     @gui_block
@@ -4337,8 +4355,10 @@ class Gui:
                     (pathnr,path,file_name,ctime,dev,inode)=index_tuple
 
                     if erase_empty_dirs:
-                        full_path = dude_core.scanned_paths[pathnr]+path
-                        directories_to_check_add(full_path)
+                        #print(f'{path=}')
+                        if path:
+                            #directories_to_check_add(dude_core.scanned_paths[pathnr]+path)
+                            directories_to_check_add( tuple( [pathnr] + path.strip(sep).split(sep) ) )
                     if counter%128==0:
                         self_status('processing files %s ...' % counter)
 
@@ -4354,15 +4374,31 @@ class Gui:
                 self_crc_node_update(crc)
 
             if erase_empty_dirs:
-                directories_to_check_list=list(directories_to_check)
-                directories_to_check_list.sort(key=lambda d : (len(str(d).split(sep)),d),reverse=True )
+                #directories_to_check_list=
+
+                directories_to_check_expanded=set()
+                directories_to_check_expanded_add = directories_to_check_expanded.add
+
+                for dir_tuple in directories_to_check:
+                    elems = len(dir_tuple)-1
+                    for i in range(elems):
+                        combo_to_check = tuple(dir_tuple[0:2+i])
+                        directories_to_check_expanded_add( combo_to_check )
+                        #print(f'{combo_to_check=}')
 
                 removed=[]
-                removed_extend = removed.extend
-                for directory in directories_to_check_list:
-                    removed_extend(self_empty_dirs_removal(directory))
+                removed_append=removed.append
+                removal_func = send2trash if self.cfg_get_bool(CFG_SEND_TO_TRASH) else rmdir
 
-                final_info.extend(removed)
+                for dir_tuple in sorted(directories_to_check_expanded,key=lambda p : len(p),reverse=True):
+                    real_path = normpath(abspath(dude_core.scanned_paths[dir_tuple[0]] + sep + sep.join(dir_tuple[1:])))
+
+                    info = self.empty_dirs_removal_single(real_path,removal_func)
+                    if info:
+                        removed_append(info)
+
+                if removed:
+                    final_info.extend(removed)
 
         elif action==SOFTLINK:
             do_rel_symlink = self.cfg_get_bool(CFG_KEY_REL_SYMLINKS)
@@ -4407,6 +4443,8 @@ class Gui:
 
             for crc in processed_items:
                 self_crc_node_update(crc)
+
+        self.create_my_next_dict(self.groups_tree)
 
         self.data_precalc()
 
@@ -4563,7 +4601,8 @@ class Gui:
 
         self.calc_mark_stats_groups()
 
-        self.selected={}
+        self.selected[self.groups_tree]=None
+        self.selected[self.folder_tree]=None
         self.find_result=()
 
     @logwrapper
