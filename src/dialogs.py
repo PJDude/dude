@@ -650,6 +650,7 @@ class SFrame(Frame):
         self.f = Frame(self.canvas, bg=bg,takefocus=False)
         self.vsb = Scrollbar(self, orient="vertical", command=self.yview)
         self.canvas.configure(yscrollcommand=self.yscrollcommand)
+        #self.canvas.configure(yscrollcommand=self.vsb.set)
         self.canvas.configure(highlightthickness=0,takefocus=False)
 
         self.vsb.pack(side="right", fill="y")
@@ -665,6 +666,8 @@ class SFrame(Frame):
         self.frame_conf(None)
 
     def yscrollcommand(self,v1,v2):
+        #self.vsb.set(v1,v2)
+
         if v1=='0.0' and v2=='1.0':
             self.vsb.pack_forget()
         else:
@@ -682,7 +685,7 @@ class SFrame(Frame):
 
     def canv_conf(self, event):
         self.canvas.itemconfig(self.canvas_window, width = event.width)
-        self.canvas.update_idletasks()
+        #self.canvas.update_idletasks()
 
     def wheel(self, event):
         if self.windows:

@@ -1,6 +1,6 @@
 # DUDE (DUplicates DEtector)
 
-GUI utility for finding duplicated files, delete or link them to save space.
+A cross-platform  GUI utility for finding duplicated files, delete or link them to save space.
 
 ## Features:
 - Scanning for duplicate files in **multiple designated folders** (up to 8). Optional "Cross paths" mode
@@ -28,16 +28,13 @@ GUI utility for finding duplicated files, delete or link them to save space.
 ![image info](./info/settings.png)
 
 ## Download:
-Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the Releases site:
+Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the [Releases](https://github.com/PJDude/dude/releases) site.
+  
 
-https://github.com/PJDude/dude/releases   
 
+## [SOFTPEDIA review](https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml)
 
-## SOFTPEDIA review:
-https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml
-
-## MAJORGEEKS review:
-https://www.majorgeeks.com/files/details/dude_(duplicates_detector).html  
+## [MAJORGEEKS review](https://www.majorgeeks.com/files/details/dude_(duplicates_detector).html)  
 
 ## General usage:
 - Scan for duplicate files
