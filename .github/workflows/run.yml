@@ -2,7 +2,7 @@ name: win_lin_release
 
 on:
   push:
-    branches: [ "main","devel","nitka" ]
+    branches: [ "main","devel","nuitka" ]
 
 permissions: read-all
 
