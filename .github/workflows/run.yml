@@ -2,7 +2,7 @@ name: win_lin_release
 
 on:
   push:
-    branches: [ "main","devel" ]
+    branches: [ "main","devel","nitka" ]
 
 permissions: read-all
 
@@ -47,16 +47,16 @@ jobs:
       shell: cmd
 
     #####################################
-    - name: run pyinstaller
+    - name: run nuitka
       working-directory: ./scripts
-      run: "pyinstaller.run.bat"
+      run: "nuitka.run.bat"
       shell: cmd
 
     - name: upload win distro
       uses: actions/upload-artifact@v3
       with:
-        name: pyinstaller-win
-        path: ./build-pyinstaller/dude.win.zip
+        name: nuitka-win
+        path: ./build-nuitka/dude.win.zip
         if-no-files-found: error
 
 ##########################################################################
@@ -96,15 +96,15 @@ jobs:
       run: bash "icons.convert.sh"
 
     #####################################
-    - name: run pyinstaller
+    - name: run nuitka
       working-directory: ./scripts
-      run: bash "pyinstaller.run.sh"
+      run: bash "nuitka.run.sh"
 
     - name: upload lin distro
       uses: actions/upload-artifact@v3
       with:
-        name: pyinstaller-lin
-        path: ./build-pyinstaller/dude.lin.zip
+        name: nuitka-lin
+        path: ./build-nuitka/dude.lin.zip
         if-no-files-found: error
 
     #####################################
@@ -113,17 +113,17 @@ jobs:
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
     - name: rename linux distro
-      run: mv ./build-pyinstaller/dude.lin.zip ./dude.${{ steps.version.outputs.version }}.portable.linux.zip
+      run: mv ./build-nuitka/dude.lin.zip ./dude_nuitka.${{ steps.version.outputs.version }}.portable.linux.zip
 
     #####################################
     - name: download windows distro
       uses: actions/download-artifact@v3
       with:
-        name: pyinstaller-win
+        name: nuitka-win
         path: ./
 
     - name: rename windows distro
-      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.zip
+      run: mv ./dude.win.zip ./dude_nuitka.${{ steps.version.outputs.version }}.portable.windows.zip
 
     #####################################
     - name: Create GitHub release
@@ -136,6 +136,6 @@ jobs:
         draft: false
         prerelease: true
         files: |
-            dude.${{ steps.version.outputs.version }}.portable.linux.zip
-            dude.${{ steps.version.outputs.version }}.portable.windows.zip
+            dude_nuitka.${{ steps.version.outputs.version }}.portable.linux.zip
+            dude_nuitka.${{ steps.version.outputs.version }}.portable.windows.zip
 
