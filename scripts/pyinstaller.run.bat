@@ -21,11 +21,11 @@
 
 @echo.
 @echo running-pyinstaller-stage_dude
-pyinstaller --version-file=version.pi.dudecmd.txt --noconfirm --clean --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --windowed --contents-directory=internal --name dude dude.py  || exit /b 2
+pyinstaller --version-file=version.pi.dude.txt --noconfirm --clean --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --windowed --contents-directory=internal --name dude dude.py  || exit /b 2
 
 @echo.
 @echo running-pyinstaller-dudecmd
-pyinstaller --version-file=version.pi.dude.txt --noconfirm --clean --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --console --contents-directory=internal --name dudecmd console.py  || exit /b 1
+pyinstaller --version-file=version.pi.dudecmd.txt --noconfirm --clean --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --console --contents-directory=internal --name dudecmd console.py  || exit /b 1
 
 move %OUTDIR%\dudecmd\dudecmd.exe %OUTDIR%\dude
 
