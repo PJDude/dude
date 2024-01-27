@@ -24,12 +24,6 @@ echo running-pyinstaller-stage_dude
 pyinstaller --strip --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir ./dude.py
 
 echo ''
-echo running-pyinstaller-stage_dudecmd
-pyinstaller --strip --noconfirm --console --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir ./dudecmd.py -n dudecmd
-
-mv -v $outdir/record/record $outdir/dude
-
-echo ''
 echo packing
 cd $outdir
 zip -9 -r -m ./dude.lin.zip ./dude
