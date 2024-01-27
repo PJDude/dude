@@ -1366,7 +1366,7 @@ class Gui:
             lab2_text=  'LOGS DIRECTORY     :  ' + LOG_DIR + '\n' + \
                         'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n' + \
                         'CACHE DIRECTORY    :  ' + CACHE_DIR + '\n\n' + \
-                        'Current log file   :  ' + log
+                        'Current log file   :  ' + log_file + '\n\n' + distro_info
 
             #'LOGGING LEVEL      :  ' + log_levels[LOG_LEVEL] + '\n\n' + \
 
@@ -4882,7 +4882,8 @@ if __name__ == "__main__":
         #dont mix device id for different hosts in portable mode
         CACHE_DIR = sep.join([CACHE_DIR_DIR,node()])
 
-        log=abspath(p_args.log[0]) if p_args.log else LOG_DIR + sep + strftime('%Y_%m_%d_%H_%M_%S',localtime(time()) ) +'.txt'
+        log_file = strftime('%Y_%m_%d_%H_%M_%S',localtime(time()) ) +'.txt'
+        log=abspath(p_args.log[0]) if p_args.log else LOG_DIR + sep + log_file
         #LOG_LEVEL = logging.DEBUG if p_args.debug else logging.INFO
 
         Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
@@ -4900,6 +4901,7 @@ if __name__ == "__main__":
             distro_info=Path(path_join(DUDE_DIR,'distro.info.txt')).read_text(encoding='ASCII')
         except Exception as exception_1:
             l_error(exception_1)
+            distro_info = 'Error. No distro.info.txt file.'
         else:
             l_info('distro info:\n%s',distro_info)
 
