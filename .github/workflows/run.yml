@@ -13,10 +13,10 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: python setup
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
         cache: 'pip'
@@ -35,7 +35,7 @@ jobs:
       shell: cmd
 
     - name: version upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: version
         path: ./src/version.txt
@@ -53,7 +53,7 @@ jobs:
       shell: cmd
 
     - name: upload win distro
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: nuitka-win
         path: ./build-nuitka/dude.win.zip
@@ -67,10 +67,10 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: python setup
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
         cache: 'pip'
@@ -86,7 +86,7 @@ jobs:
       run: find $pythonLocation -name *.so* -type f -exec strip {} \;
 
     - name: version download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: version
         path: ./src
@@ -101,7 +101,7 @@ jobs:
       run: bash "nuitka.run.sh"
 
     - name: upload lin distro
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: nuitka-lin
         path: ./build-nuitka/dude.lin.zip
@@ -117,7 +117,7 @@ jobs:
 
     #####################################
     - name: download windows distro
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: nuitka-win
         path: ./
@@ -132,7 +132,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.version.outputs.version }}
-        name: Release ${{ steps.version.outputs.version }}
+        name: Dude-Nuitka Release ${{ steps.version.outputs.version }}
         draft: false
         prerelease: true
         files: |
