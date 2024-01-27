@@ -16,8 +16,8 @@ echo ''
 echo running-nuitka
 echo wd:`pwd`
 
-echo `python3 --version` > distro.info.txt
-echo nuitka `python -m nuitka --version` >> distro.info.txt
+echo -n "Nuitka: " > distro.info.txt
+python3 -m nuitka --version >> distro.info.txt
 
 echo ''
 echo running-nuitka-stage_dude

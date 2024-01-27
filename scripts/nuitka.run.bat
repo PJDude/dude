@@ -15,8 +15,7 @@
 @echo running-nuitka
 @echo wd:%CD%
 
-@python --version > distro.info.txt
-@echo|set /p="nuitka " >> distro.info.txt
+@echo|set /p="Nuitka " > distro.info.txt
 python -m nuitka --version >> distro.info.txt
 
 @echo.
