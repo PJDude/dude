@@ -25,9 +25,9 @@ python -m nuitka --include-data-file=./distro.info.txt=./distro.info.txt --inclu
 
 @echo.
 @echo running-nuitka-stage_dudecmd
-python -m nuitka --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=../LICENSE=./LICENSE --output-dir=%outdir% --lto=yes --follow-stdlib  --assume-yes-for-downloads --standalone ./dudecmd.py --output-filename=record
+python -m nuitka --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=../LICENSE=./LICENSE --output-dir=%outdir% --lto=yes --follow-stdlib  --assume-yes-for-downloads --standalone ./dudecmd.py --output-filename=dudecmd
 
-move %OUTDIR%\record.dist\record.exe %OUTDIR%\dude.dist
+move %OUTDIR%\dudecmd.dist\dudecmd.exe %OUTDIR%\dude.dist
 move %OUTDIR%\dude.dist %OUTDIR%\dude
 
 @echo.
