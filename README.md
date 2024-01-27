@@ -1,6 +1,6 @@
 # DUDE (DUplicates DEtector)
 
-GUI utility for finding duplicated files, delete or link them to save space.
+A cross-platform GUI utility for finding duplicated files, delete or link them to save space.
 
 ## Features:
 - Scanning for duplicate files in **multiple designated folders** (up to 8). Optional "Cross paths" mode
@@ -27,10 +27,8 @@ GUI utility for finding duplicated files, delete or link them to save space.
 #### settings  dialog:
 ![image info](./info/settings.png)
 
-## Download:
-The portable executable for **Linux** and **Windows** can be downloaded from the Releases site:
-
-https://github.com/PJDude/dude/releases   
+## [Download](https://github.com/PJDude/dude/releases) ##
+The portable executable for **Linux** and **Windows** can be downloaded from the [Releases](https://github.com/PJDude/dude/releases) site
 
 main distributions:  
 
@@ -40,12 +38,13 @@ contain portable executables with necessary libraries made by [PyInstaller](http
 
 **auxiliary** distributions contain compiled executable binaries made by [Nuitka](https://github.com/Nuitka/Nuitka). At current stage no significant performance gain is observed with comparison to main distribution (interfacing with Tkinter is probably a bottleneck).
 
+💡
+The new version in under development and will bring massive gui performance improvements. New builds are being made on branches "devel" and "nuitka", are marked as Pre-release and are labeled "Dude-devel" and "Dude-Nuitka". It will be ready soon.
 
-## SOFTPEDIA review:
-https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml
 
-## MAJORGEEKS review:
-https://www.majorgeeks.com/files/details/dude_(duplicates_detector).html  
+
+## [SOFTPEDIA review](https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml)
+## [MAJORGEEKS review](https://www.majorgeeks.com/files/details/dude_(duplicates_detector).html)
 
 ## General usage:
 - Scan for duplicate files
