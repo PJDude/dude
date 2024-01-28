@@ -668,8 +668,8 @@ class Gui:
         self_folder_tree_tag_configure(self.MARK, background='red')
 
         self_folder_tree_tag_configure(self.SINGLE, foreground='gray')
-        self_folder_tree_tag_configure(self.DIR, foreground='blue2')
-        self_folder_tree_tag_configure(self.DIRLINK, foreground='blue2')
+        self_folder_tree_tag_configure(self.DIR, foreground='sienna4',font="TkDefaultFont 10 bold")
+        self_folder_tree_tag_configure(self.DIRLINK, foreground='sienna4',font="TkDefaultFont 10 bold")
         self_folder_tree_tag_configure(self.LINK, foreground='darkgray')
 
         #bind_class breaks columns resizing
@@ -2317,6 +2317,8 @@ class Gui:
                     self.status(readlink(self.sel_full_path_to_file),self.icon_softlink_dir_target ,do_log=False)
                 else:
                     self.status('',do_log=False)
+
+            self.folder_tree.update()
 
             self.groups_tree_update_none()
 
