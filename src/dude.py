@@ -1734,7 +1734,6 @@ class Gui:
 
     find_result=()
     find_params_changed=True
-    find_tree_index=-1
 
     find_by_tree={}
 
@@ -1942,7 +1941,7 @@ class Gui:
             current_item = move_dict[current_item]
 
             if tree_set(current_item,'kind')==self_FILE:
-                tree.focus(current_item)
+                self.semi_selection(tree,current_item)
                 tree.see(current_item)
                 self.folder_tree_sel_change(current_item)
                 self.status(status,do_log=False)
@@ -1962,9 +1961,9 @@ class Gui:
     def goto_first_last_dir_entry(self,index):
         if children := self.current_folder_items:
             if next_item:=children[index]:
-                self.folder_tree_see(next_item)
-                self.folder_tree.focus(next_item)
+                self.semi_selection(self.folder_tree,next_item)
                 self.folder_tree_sel_change(next_item)
+                self.folder_tree_see(next_item)
                 self.folder_tree.update()
 
     def key_press(self,event):
@@ -2263,7 +2262,7 @@ class Gui:
             self.dominant_groups_index={0:-1,1:-1}
 
         if path!=self.sel_path or force or pathnr!=self.sel_pathnr:
-            if self.find_tree_index==1:
+            if self.find_tree==self.folder_tree:
                 self.find_result=()
 
             if pathnr: #non crc node
@@ -2363,18 +2362,18 @@ class Gui:
             c_local_add_cascade = c_local.add_cascade
             c_local_entryconfig = c_local.entryconfig
 
-            c_local_add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space", image = self.ico['empty'],compound='left')
+            c_local_add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space", image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = "Mark all files",        command = lambda : self.mark_in_group(self.set_mark),accelerator="A", image = self.ico['empty'],compound='left')
-            c_local_add_command(label = "Unmark all files",        command = lambda : self.mark_in_group(self.unset_mark),accelerator="N", image = self.ico['empty'],compound='left')
+            c_local_add_command(label = "Mark all files",        command = lambda : self.mark_in_group(self.set_mark),accelerator="A", image = self.ico_empty,compound='left')
+            c_local_add_command(label = "Unmark all files",        command = lambda : self.mark_in_group(self.unset_mark),accelerator="N", image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = 'Mark By expression ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',False),accelerator="+", image = self.ico['empty'],compound='left')
-            c_local_add_command(label = 'Unmark By expression ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',False),accelerator="-", image = self.ico['empty'],compound='left')
+            c_local_add_command(label = 'Mark By expression ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',False),accelerator="+", image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Unmark By expression ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',False),accelerator="-", image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = "Toggle mark on oldest file",     command = lambda : self.mark_in_group_by_ctime('oldest',self.invert_mark),accelerator="O", image = self.ico['empty'],compound='left')
-            c_local_add_command(label = "Toggle mark on youngest file",   command = lambda : self.mark_in_group_by_ctime('youngest',self.invert_mark),accelerator="Y", image = self.ico['empty'],compound='left')
+            c_local_add_command(label = "Toggle mark on oldest file",     command = lambda : self.mark_in_group_by_ctime('oldest',self.invert_mark),accelerator="O", image = self.ico_empty,compound='left')
+            c_local_add_command(label = "Toggle mark on youngest file",   command = lambda : self.mark_in_group_by_ctime('youngest',self.invert_mark),accelerator="Y", image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = "Invert marks",   command = lambda : self.mark_in_group(self.invert_mark),accelerator="I", image = self.ico['empty'],compound='left')
+            c_local_add_command(label = "Invert marks",   command = lambda : self.mark_in_group(self.invert_mark),accelerator="I", image = self.ico_empty,compound='left')
             c_local_add_separator()
 
             mark_cascade_path = Menu(c_local, tearoff = 0,bg=self.bg_color)
@@ -2386,42 +2385,42 @@ class Gui:
                 unmark_cascade_path.add_command(image=self.icon_nr[row], label = path, compound = 'left', command  = lambda pathpar=path: self.action_on_path(pathpar,self.unset_mark,False),accelerator="Shift+"+str(row+1)  )
                 row+=1
 
-            c_local_add_command(label = "Mark on specified directory ...",   command = lambda : self.mark_subpath(self.set_mark,False), image = self.ico['empty'],compound='left')
-            c_local_add_command(label = "Unmark on specified directory ...",   command = lambda : self.mark_subpath(self.unset_mark,False), image = self.ico['empty'],compound='left')
+            c_local_add_command(label = "Mark on specified directory ...",   command = lambda : self.mark_subpath(self.set_mark,False), image = self.ico_empty,compound='left')
+            c_local_add_command(label = "Unmark on specified directory ...",   command = lambda : self.mark_subpath(self.unset_mark,False), image = self.ico_empty,compound='left')
             c_local_add_separator()
 
-            c_local_add_cascade(label = "Mark on scan path",             menu = mark_cascade_path, image = self.ico['empty'],compound='left')
-            c_local_add_cascade(label = "Unmark on scan path",             menu = unmark_cascade_path, image = self.ico['empty'],compound='left')
+            c_local_add_cascade(label = "Mark on scan path",             menu = mark_cascade_path, image = self.ico_empty,compound='left')
+            c_local_add_cascade(label = "Unmark on scan path",             menu = unmark_cascade_path, image = self.ico_empty,compound='left')
             c_local_add_separator()
 
             #marks_state=('disabled','normal')[len(tree.tag_has(self.MARK))!=0]
             marks_state=('disabled','normal')[bool(self.tagged)]
 
-            c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=marks_state, image = self.ico['empty'],compound='left')
+            c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=marks_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(19,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=marks_state, image = self.ico['empty'],compound='left')
+            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(20,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=marks_state, image = self.ico['empty'],compound='left')
+            c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(21,foreground='red',activeforeground='red')
 
-            pop_add_cascade(label = 'Local (this CRC group)',menu = c_local,state=item_actions_state, image = self.ico['empty'],compound='left')
+            pop_add_cascade(label = 'Local (this CRC group)',menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
             pop_add_separator()
 
             c_all = Menu(pop,tearoff=0,bg=self.bg_color)
 
-            c_all.add_command(label = "Mark all files",        command = lambda : self.mark_on_all(self.set_mark),accelerator="Ctrl+A", image = self.ico['empty'],compound='left')
-            c_all.add_command(label = "Unmark all files",        command = lambda : self.mark_on_all(self.unset_mark),accelerator="Ctrl+N", image = self.ico['empty'],compound='left')
+            c_all.add_command(label = "Mark all files",        command = lambda : self.mark_on_all(self.set_mark),accelerator="Ctrl+A", image = self.ico_empty,compound='left')
+            c_all.add_command(label = "Unmark all files",        command = lambda : self.mark_on_all(self.unset_mark),accelerator="Ctrl+N", image = self.ico_empty,compound='left')
             c_all.add_separator()
-            c_all.add_command(label = 'Mark By expression ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',True),accelerator="Ctrl+", image = self.ico['empty'],compound='left')
-            c_all.add_command(label = 'Unmark By expression ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',True),accelerator="Ctrl-", image = self.ico['empty'],compound='left')
+            c_all.add_command(label = 'Mark By expression ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',True),accelerator="Ctrl+", image = self.ico_empty,compound='left')
+            c_all.add_command(label = 'Unmark By expression ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',True),accelerator="Ctrl-", image = self.ico_empty,compound='left')
             c_all.add_separator()
-            c_all.add_command(label = "Mark Oldest files",     command = lambda : self.mark_all_by_ctime('oldest',self.set_mark),accelerator="Ctrl+O", image = self.ico['empty'],compound='left')
-            c_all.add_command(label = "Unmark Oldest files",     command = lambda : self.mark_all_by_ctime('oldest',self.unset_mark),accelerator="Ctrl+Shift+O", image = self.ico['empty'],compound='left')
+            c_all.add_command(label = "Mark Oldest files",     command = lambda : self.mark_all_by_ctime('oldest',self.set_mark),accelerator="Ctrl+O", image = self.ico_empty,compound='left')
+            c_all.add_command(label = "Unmark Oldest files",     command = lambda : self.mark_all_by_ctime('oldest',self.unset_mark),accelerator="Ctrl+Shift+O", image = self.ico_empty,compound='left')
             c_all.add_separator()
-            c_all.add_command(label = "Mark Youngest files",   command = lambda : self.mark_all_by_ctime('youngest',self.set_mark),accelerator="Ctrl+Y", image = self.ico['empty'],compound='left')
-            c_all.add_command(label = "Unmark Youngest files",   command = lambda : self.mark_all_by_ctime('youngest',self.unset_mark),accelerator="Ctrl+Shift+Y", image = self.ico['empty'],compound='left')
+            c_all.add_command(label = "Mark Youngest files",   command = lambda : self.mark_all_by_ctime('youngest',self.set_mark),accelerator="Ctrl+Y", image = self.ico_empty,compound='left')
+            c_all.add_command(label = "Unmark Youngest files",   command = lambda : self.mark_all_by_ctime('youngest',self.unset_mark),accelerator="Ctrl+Shift+Y", image = self.ico_empty,compound='left')
             c_all.add_separator()
-            c_all.add_command(label = "Invert marks",   command = lambda : self.mark_on_all(self.invert_mark),accelerator="Ctrl+I, *", image = self.ico['empty'],compound='left')
+            c_all.add_command(label = "Invert marks",   command = lambda : self.mark_on_all(self.invert_mark),accelerator="Ctrl+I, *", image = self.ico_empty,compound='left')
             c_all.add_separator()
 
             mark_cascade_path = Menu(c_all, tearoff = 0,bg=self.bg_color)
@@ -2433,22 +2432,22 @@ class Gui:
                 unmark_cascade_path.add_command(image=self.icon_nr[row], label = path, compound = 'left',  command  = lambda pathpar=path: self.action_on_path(pathpar,self.unset_mark,True) ,accelerator="Ctrl+Shift+"+str(row+1))
                 row+=1
 
-            c_all.add_command(label = "Mark on specified directory ...",   command = lambda : self.mark_subpath(self.set_mark,True), image = self.ico['empty'],compound='left')
-            c_all.add_command(label = "Unmark on specified directory ...",   command = lambda : self.mark_subpath(self.unset_mark,True), image = self.ico['empty'],compound='left')
+            c_all.add_command(label = "Mark on specified directory ...",   command = lambda : self.mark_subpath(self.set_mark,True), image = self.ico_empty,compound='left')
+            c_all.add_command(label = "Unmark on specified directory ...",   command = lambda : self.mark_subpath(self.unset_mark,True), image = self.ico_empty,compound='left')
             c_all.add_separator()
 
-            c_all.add_cascade(label = "Mark on scan path",             menu = mark_cascade_path, image = self.ico['empty'],compound='left')
-            c_all.add_cascade(label = "Unmark on scan path",             menu = unmark_cascade_path, image = self.ico['empty'],compound='left')
+            c_all.add_cascade(label = "Mark on scan path",             menu = mark_cascade_path, image = self.ico_empty,compound='left')
+            c_all.add_cascade(label = "Unmark on scan path",             menu = unmark_cascade_path, image = self.ico_empty,compound='left')
             c_all.add_separator()
 
-            c_all.add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,1),accelerator="Ctrl+Delete",state=marks_state, image = self.ico['empty'],compound='left')
+            c_all.add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,1),accelerator="Ctrl+Delete",state=marks_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(21,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=marks_state, image = self.ico['empty'],compound='left')
+            c_all.add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(22,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=marks_state, image = self.ico['empty'],compound='left')
+            c_all.add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(23,foreground='red',activeforeground='red')
 
-            pop_add_cascade(label = 'All Files',menu = c_all,state=item_actions_state, image = self.ico['empty'],compound='left')
+            pop_add_cascade(label = 'All Files',menu = c_all,state=item_actions_state, image = self.ico_empty,compound='left')
 
             c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
             c_nav_add_command = c_nav.add_command
@@ -2463,13 +2462,13 @@ class Gui:
             c_nav_add_command(label = 'Go to next not marked file'       ,command = lambda : self.goto_next_mark(self.groups_tree,1,1),accelerator="Shift+Right",state='normal', image = self.ico['next_unmarked'],compound='left')
             c_nav_add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark(self.groups_tree,-1,1), accelerator="Shift+Left",state='normal', image = self.ico['prev_unmarked'],compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to parent directory'   ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico['empty'],compound='left')
+            c_nav_add_command(label = 'Go to parent directory'   ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico_empty,compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to next crc group'       ,command = lambda : self.goto_next_prev_crc(1),accelerator="Pg Down",state='normal', image = self.ico['empty'],compound='left')
-            c_nav_add_command(label = 'Go to previous crc group'   ,command = lambda : self.goto_next_prev_crc(-1), accelerator="Pg Up",state='normal', image = self.ico['empty'],compound='left')
+            c_nav_add_command(label = 'Go to next crc group'       ,command = lambda : self.goto_next_prev_crc(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to previous crc group'   ,command = lambda : self.goto_next_prev_crc(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to first crc group'       ,command = lambda : self.goto_first_last_crc(0),accelerator="Home",state='normal', image = self.ico['empty'],compound='left')
-            c_nav_add_command(label = 'Go to last crc group'   ,command = lambda : self.goto_first_last_crc(-1), accelerator="End",state='normal', image = self.ico['empty'],compound='left')
+            c_nav_add_command(label = 'Go to first crc group'       ,command = lambda : self.goto_first_last_crc(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to last crc group'   ,command = lambda : self.goto_first_last_crc(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
         else:
             dir_actions_state=('disabled','normal')[self.sel_kind in (self.DIR,self.DIRLINK)]
@@ -2479,41 +2478,41 @@ class Gui:
             c_local_add_separator = c_local.add_separator
             c_local_entryconfig = c_local.entryconfig
 
-            c_local_add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space",state=duplicate_file_actions_state, image = self.ico['empty'],compound='left')
+            c_local_add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space",state=duplicate_file_actions_state, image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = "Mark all files",        command = lambda : self.mark_in_folder(self.set_mark),accelerator="A",state=duplicate_file_actions_state, image = self.ico['empty'],compound='left')
-            c_local_add_command(label = "Unmark all files",        command = lambda : self.mark_in_folder(self.unset_mark),accelerator="N",state=duplicate_file_actions_state, image = self.ico['empty'],compound='left')
+            c_local_add_command(label = "Mark all files",        command = lambda : self.mark_in_folder(self.set_mark),accelerator="A",state=duplicate_file_actions_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = "Unmark all files",        command = lambda : self.mark_in_folder(self.unset_mark),accelerator="N",state=duplicate_file_actions_state, image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = 'Mark By expression',command = lambda : self.mark_expression(self.set_mark,'Mark files'),accelerator="+", image = self.ico['empty'],compound='left')
-            c_local_add_command(label = 'Unmark By expression',command = lambda : self.mark_expression(self.unset_mark,'Unmark files'),accelerator="-", image = self.ico['empty'],compound='left')
+            c_local_add_command(label = 'Mark By expression',command = lambda : self.mark_expression(self.set_mark,'Mark files'),accelerator="+", image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Unmark By expression',command = lambda : self.mark_expression(self.unset_mark,'Unmark files'),accelerator="-", image = self.ico_empty,compound='left')
             c_local_add_separator()
 
             #marks_state=('disabled','normal')[len(tree.tag_has(self.MARK))!=0]
             marks_state=('disabled','normal')[bool(self.current_folder_items_tagged)]
 
-            c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,0),accelerator="Delete",state=marks_state, image = self.ico['empty'],compound='left')
-            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,0),accelerator="Insert",state=marks_state, image = self.ico['empty'],compound='left')
+            c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,0),accelerator="Delete",state=marks_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,0),accelerator="Insert",state=marks_state, image = self.ico_empty,compound='left')
 
             c_local_entryconfig(8,foreground='red',activeforeground='red')
             c_local_entryconfig(9,foreground='red',activeforeground='red')
             #c_local_entryconfig(10,foreground='red',activeforeground='red')
 
-            pop_add_cascade(label = 'Local (this folder)',menu = c_local,state=item_actions_state, image = self.ico['empty'],compound='left')
+            pop_add_cascade(label = 'Local (this folder)',menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
             pop_add_separator()
 
             c_sel_sub = Menu(pop,tearoff=0,bg=self.bg_color)
             c_sel_sub_add_command = c_sel_sub.add_command
-            c_sel_sub_add_command(label = "Mark All Duplicates in Subdirectory",  command = lambda : self.sel_dir(self.set_mark),accelerator="D",state=dir_actions_state, image = self.ico['empty'],compound='left')
-            c_sel_sub_add_command(label = "Unmark All Duplicates in Subdirectory",  command = lambda : self.sel_dir(self.unset_mark),accelerator="Shift+D",state=dir_actions_state, image = self.ico['empty'],compound='left')
+            c_sel_sub_add_command(label = "Mark All Duplicates in Subdirectory",  command = lambda : self.sel_dir(self.set_mark),accelerator="D",state=dir_actions_state, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = "Unmark All Duplicates in Subdirectory",  command = lambda : self.sel_dir(self.unset_mark),accelerator="Shift+D",state=dir_actions_state, image = self.ico_empty,compound='left')
             c_sel_sub.add_separator()
 
-            c_sel_sub_add_command(label = 'Remove Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,True),accelerator="Delete",state=dir_actions_state, image = self.ico['empty'],compound='left')
-            c_sel_sub_add_command(label = 'Softlink Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,True),accelerator="Insert",state=dir_actions_state, image = self.ico['empty'],compound='left')
+            c_sel_sub_add_command(label = 'Remove Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,True),accelerator="Delete",state=dir_actions_state, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = 'Softlink Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,True),accelerator="Insert",state=dir_actions_state, image = self.ico_empty,compound='left')
 
             c_sel_sub.entryconfig(3,foreground='red',activeforeground='red')
             c_sel_sub.entryconfig(4,foreground='red',activeforeground='red')
 
-            pop_add_cascade(label = 'Selected Subdirectory',menu = c_sel_sub,state=dir_actions_state, image = self.ico['empty'],compound='left')
+            pop_add_cascade(label = 'Selected Subdirectory',menu = c_sel_sub,state=dir_actions_state, image = self.ico_empty,compound='left')
 
             c_nav = Menu(pop,tearoff=0,bg=self.bg_color)
             c_nav_add_command = c_nav.add_command
@@ -2528,31 +2527,31 @@ class Gui:
             c_nav_add_command(label = 'Go to next not marked file'       ,command = lambda : self.goto_next_mark(self.folder_tree,1,1),accelerator="Shift+Right",state='normal', image = self.ico['next_unmarked'],compound='left')
             c_nav_add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark(self.folder_tree,-1,1), accelerator="Shift+Left",state='normal', image = self.ico['prev_unmarked'],compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to parent directory'       ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico['empty'],compound='left')
+            c_nav_add_command(label = 'Go to parent directory'       ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico_empty,compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to next duplicate'       ,command = lambda : self.goto_next_prev_duplicate_in_folder(1),accelerator="Pg Down",state='normal', image = self.ico['empty'],compound='left')
-            c_nav_add_command(label = 'Go to previous duplicate'   ,command = lambda : self.goto_next_prev_duplicate_in_folder(-1), accelerator="Pg Up",state='normal', image = self.ico['empty'],compound='left')
+            c_nav_add_command(label = 'Go to next duplicate'       ,command = lambda : self.goto_next_prev_duplicate_in_folder(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to previous duplicate'   ,command = lambda : self.goto_next_prev_duplicate_in_folder(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to first entry'       ,command = lambda : self.goto_first_last_dir_entry(0),accelerator="Home",state='normal', image = self.ico['empty'],compound='left')
-            c_nav_add_command(label = 'Go to last entry'   ,command = lambda : self.goto_first_last_dir_entry(-1), accelerator="End",state='normal', image = self.ico['empty'],compound='left')
+            c_nav_add_command(label = 'Go to first entry'       ,command = lambda : self.goto_first_last_dir_entry(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to last entry'   ,command = lambda : self.goto_first_last_dir_entry(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
         pop_add_separator()
-        pop_add_cascade(label = 'Navigation',menu = c_nav,state=item_actions_state, image = self.ico['empty'],compound='left')
+        pop_add_cascade(label = 'Navigation',menu = c_nav,state=item_actions_state, image = self.ico_empty,compound='left')
 
         pop_add_separator()
-        pop_add_command(label = 'Open File',command = self.open_file,accelerator="Return",state=file_actions_state, image = self.ico['empty'],compound='left')
-        pop_add_command(label = 'Open Folder(s)',command = self.open_folder,accelerator="Alt+Return",state=file_or_dir_actions_state, image = self.ico['empty'],compound='left')
+        pop_add_command(label = 'Open File',command = self.open_file,accelerator="Return",state=file_actions_state, image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Open Folder(s)',command = self.open_folder,accelerator="Alt+Return",state=file_or_dir_actions_state, image = self.ico_empty,compound='left')
 
         pop_add_separator()
         pop_add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
         pop_add_command(label = 'Settings ...',  command = lambda : self.get_settings_dialog().show(),accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
-        pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico['empty'],compound='left')
+        pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico_empty,compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
         pop_add_separator()
-        pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="F",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico['empty'],compound='left')
-        pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico['empty'],compound='left')
-        pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico['empty'],compound='left')
+        pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="F",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
         pop_add_separator()
 
         pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
@@ -2766,7 +2765,6 @@ class Gui:
         self_progress_dialog_on_scan_progr2var.set(0)
 
         self_progress_dialog_on_scan.show('Scanning')
-        #,image=self.ico['empty'],image_text=' '
 
         update_once=True
 
@@ -2827,7 +2825,7 @@ class Gui:
                     self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
                     self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
-                    self_progress_dialog_on_scan_lab[2].configure(image=self.ico['empty'])
+                    self_progress_dialog_on_scan_lab[2].configure(image=self.ico_empty)
             else :
                 if now>time_without_busy_sign+1.0:
                     self_progress_dialog_on_scan_lab[2].configure(image=self_hg_ico[hr_index],text = '', compound='left')
@@ -2936,7 +2934,7 @@ class Gui:
                     self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
                     self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
-                    self_progress_dialog_on_scan_lab[0].configure(image=self.ico['empty'])
+                    self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty)
             else :
                 if now>time_without_busy_sign+1.0:
                     self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
@@ -3903,22 +3901,17 @@ class Gui:
         self_sel_item = self.sel_item
 
         tree_set = tree.set
-        tree_tag_has = tree.tag_has
 
         next_dict = self.my_next_dict[tree] if direction==1 else self.my_prev_dict[tree]
 
-        self_MARK = self.MARK
-
+        self_active_crcs = self.active_crcs
+        self_tagged = self.tagged
         while current_item:
-            #current_item = self_my_next[current_item] if direction==1 else self_my_prev[current_item]
             current_item = next_dict[current_item]
-            #print(f'{self.tagged=}')
+            item_taggged = bool(current_item in self_tagged)
 
-            #item_taggged = tree_tag_has(self_MARK,current_item)
-            item_taggged = bool(current_item in self.tagged)
-
-            if (item_taggged and not go_to_no_mark) or (go_to_no_mark and not item_taggged and tree_set(current_item,'kind')!=self.CRC):
-                tree.focus(current_item)
+            if (item_taggged and not go_to_no_mark) or (go_to_no_mark and not item_taggged and current_item not in self_active_crcs):
+                self.semi_selection(tree,current_item)
                 tree.see(current_item)
 
                 if tree==self.groups_tree:
@@ -4715,22 +4708,29 @@ class Gui:
 
     @block_actions_processing
     def enter_dir(self,fullpath,sel):
-        if self.find_tree_index==1:
+        self.main.update() #konieczne !, nie wchodzi akcja z menu,
+
+        if self.find_tree==self.folder_tree:
             self.find_result=()
 
         if self.tree_folder_update(fullpath):
             children=self.current_folder_items
+
             res_list=[nodeid for nodeid in children if self.folder_tree.set(nodeid,'file')==sel]
+
             if res_list:
                 item=res_list[0]
-                self.folder_tree_see(item)
-                self.folder_tree.focus(item)
+                #self.folder_tree.focus(item)
+                self.semi_selection(self.folder_tree,item)
                 self.folder_tree_sel_change(item)
+                self.folder_tree_see(item)
 
             elif children:
-                self.folder_tree.focus(children[0])
-                self.sel_file = self.groups_tree_set(children[0],'file')
-                self.folder_tree_sel_change(children[0])
+                item=children[0]
+                self.folder_tree.focus(item)
+                self.semi_selection(self.folder_tree,item)
+                self.sel_file = self.groups_tree_set(item,'file')
+                self.folder_tree_sel_change(item)
 
     def double_left_button(self,event):
         if self.actions_processing:
