@@ -63,7 +63,7 @@ jobs:
 
 ##########################################################################
   win-nuitka:
-  needs: [win-pyinstaller-gen-version]
+    needs: [win-pyinstaller-gen-version]
     runs-on: windows-latest
 
     steps:
@@ -111,7 +111,7 @@ jobs:
         if-no-files-found: error
 
 ##########################################################################
- lin-nuitka:
+  lin-nuitka:
     permissions: write-all
     needs: [win-nuitka]
     runs-on: ubuntu-20.04
