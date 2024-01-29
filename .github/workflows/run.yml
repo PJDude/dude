@@ -2,13 +2,13 @@ name: win_lin_release
 
 on:
   push:
-    branches: [ "main","devel","nuitka" ]
+    branches: [ "main","devel" ]
 
 permissions: read-all
 
 jobs:
 ##########################################################################
-  win-gen-version-build:
+  win-pyinstaller-gen-version:
     runs-on: windows-latest
 
     steps:
@@ -41,6 +41,7 @@ jobs:
         path: ./src/version.txt
         if-no-files-found: error
 
+    #####################################
     - name: convert icons to python source
       working-directory: ./scripts
       run: "icons.convert.bat"
@@ -52,7 +53,8 @@ jobs:
       run: "pyinstaller.run.bat"
       shell: cmd
 
-    - name: upload win distro
+    #####################################
+    - name: upload win pyinstaller distro
       uses: actions/upload-artifact@v4
       with:
         name: pyinstaller-win
@@ -60,9 +62,110 @@ jobs:
         if-no-files-found: error
 
 ##########################################################################
-  build-lin-release:
+  win-nuitka:
+  needs: [win-pyinstaller-gen-version]
+    runs-on: windows-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+
+    - name: python setup
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+        check-latest: true
+
+    - name: pip upgrade
+      run: python -m pip install --upgrade pip
+
+    - name: install requirements
+      run: pip install -r requirements.txt
+
+    #####################################
+    - name: version download
+      uses: actions/download-artifact@v4
+      with:
+        name: version
+        path: ./src
+
+    #####################################
+    - name: convert icons to python source
+      working-directory: ./scripts
+      run: "icons.convert.bat"
+      shell: cmd
+
+    #####################################
+    - name: run nuitka
+      working-directory: ./scripts
+      run: "nuitka.run.bat"
+      shell: cmd
+
+    #####################################
+    - name: upload win nuitka distro
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuitka-win
+        path: ./build-nuitka/dude.win.zip
+        if-no-files-found: error
+
+##########################################################################
+ lin-nuitka:
     permissions: write-all
-    needs: [win-gen-version-build]
+    needs: [win-nuitka]
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+
+    - name: python setup
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+        check-latest: true
+
+    - name: pip upgrade
+      run: python -m pip install --upgrade pip
+
+    - name: install requirements
+      run: pip install -r requirements.txt
+
+    - name: strip python binaries
+      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
+
+    #####################################
+    - name: version download
+      uses: actions/download-artifact@v4
+      with:
+        name: version
+        path: ./src
+
+    #####################################
+    - name: convert icons to python source
+      working-directory: ./scripts
+      run: bash "icons.convert.sh"
+
+    #####################################
+    - name: run nuitka
+      working-directory: ./scripts
+      run: bash "nuitka.run.sh"
+
+
+    #####################################
+    - name: upload lin distro
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuitka-lin
+        path: ./build-nuitka/dude.lin.zip
+        if-no-files-found: error
+
+##########################################################################
+  lin-pyinstaller:
+    permissions: write-all
+    needs: [lin-nuitka]
     runs-on: ubuntu-20.04
 
     steps:
@@ -85,6 +188,7 @@ jobs:
     - name: strip python binaries
       run: find $pythonLocation -name *.so* -type f -exec strip {} \;
 
+    #####################################
     - name: version download
       uses: actions/download-artifact@v4
       with:
@@ -100,6 +204,7 @@ jobs:
       working-directory: ./scripts
       run: bash "pyinstaller.run.sh"
 
+    #####################################
     - name: upload lin distro
       uses: actions/upload-artifact@v4
       with:
@@ -116,7 +221,7 @@ jobs:
       run: mv ./build-pyinstaller/dude.lin.zip ./dude_devel.${{ steps.version.outputs.version }}.portable.linux.zip
 
     #####################################
-    - name: download windows distro
+    - name: download windows pyinstaller distro
       uses: actions/download-artifact@v4
       with:
         name: pyinstaller-win
@@ -126,6 +231,26 @@ jobs:
       run: mv ./dude.win.zip ./dude_devel.${{ steps.version.outputs.version }}.portable.windows.zip
 
     #####################################
+    - name: download windows nuitka distro
+      uses: actions/download-artifact@v4
+      with:
+        name: nuitka-win
+        path: ./
+
+    - name: rename windows distro
+      run: mv ./dude.win.zip ./dude_devel.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
+
+    #####################################
+    - name: download linux nuitka distro
+      uses: actions/download-artifact@v4
+      with:
+        name: nuitka-lin
+        path: ./
+
+    - name: rename linux distro
+      run: mv ./dude.lin.zip ./dude_devel.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
+
+    #####################################
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
       env:
@@ -133,9 +258,11 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Dude-devel Release ${{ steps.version.outputs.version }}
-        draft: false
+        draft: true
         prerelease: true
         files: |
             dude_devel.${{ steps.version.outputs.version }}.portable.linux.zip
             dude_devel.${{ steps.version.outputs.version }}.portable.windows.zip
+            dude_devel.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
+            dude_devel.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
 
