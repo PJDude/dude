@@ -2,3 +2,4 @@ pyinstaller==6.3.0
 appdirs==1.4.4
 send2trash==1.8.2
 zstandard==0.22.0
+nuitka==2.0
