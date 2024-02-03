@@ -743,11 +743,13 @@ class DudeCore:
                         csv_file_write(',,%s\n' % full_path )
             self.log.info('#######################################################')
 
-    def check_crc_pool_and_prune(self,size):
+    def check_crc_pool_and_prune(self,size,crc_callback=None):
         if size in self.files_of_size_of_crc:
             for crc in list(self.files_of_size_of_crc[size]):
                 if len(self.files_of_size_of_crc[size][crc])<2 :
                     del self.files_of_size_of_crc[size][crc]
+                    if crc_callback:
+                        crc_callback(size,crc)
 
             if len(self.files_of_size_of_crc[size])==0 :
                 del self.files_of_size_of_crc[size]
@@ -814,7 +816,7 @@ class DudeCore:
             self.log.error(e)
             return 'Error on hard linking:%s' % e
 
-    def remove_from_data_pool(self,size,crc,index_tuple_list):
+    def remove_from_data_pool(self,size,crc,index_tuple_list,file_callback=None,crc_callback=None):
         self.log.info('remove_from_data_pool size:%s crc:%s tuples:%s',size,crc,index_tuple_list)
 
         if size in self.files_of_size_of_crc:
@@ -822,6 +824,8 @@ class DudeCore:
                 for index_tuple in index_tuple_list:
                     try:
                         self.files_of_size_of_crc[size][crc].remove(index_tuple)
+                        if file_callback(size,crc,index_tuple):
+                            file_callback()
                     except Exception as e:
                         self.log.error('  %s',e)
                         self.log.error('  index_tuple: %s',index_tuple)
@@ -829,11 +833,11 @@ class DudeCore:
             else:
                 self.log.warning('remove_from_data_pool - crc already removed')
 
-            self.check_crc_pool_and_prune(size)
+            self.check_crc_pool_and_prune(size,crc_callback)
         else:
             self.log.warning('remove_from_data_pool - size already removed')
 
-    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash=False):
+    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash=False,file_callback=None,crc_callback=None):
         messages=set()
         messages_add = messages.add
 
@@ -859,13 +863,13 @@ class DudeCore:
             else:
                 messages_add('delete_file_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path,str(index_tuple)) )
 
-        self.remove_from_data_pool(size,crc,index_tuples_list_done)
+        self.remove_from_data_pool(size,crc,index_tuples_list_done,file_callback,crc_callback)
 
         return messages
 
     def link_wrapper(self,\
             soft,relative,size,crc,\
-            index_tuple_ref,index_tuple_list):
+            index_tuple_ref,index_tuple_list,file_callback=None,crc_callback=None):
         l_info = self.log.info
 
         l_info('link_wrapper:%s,%s,%s,%s,%s,%s',soft,relative,size,crc,index_tuple_ref,index_tuple_list)
@@ -918,7 +922,7 @@ class DudeCore:
                 if not soft:
                     tuples_to_remove.add(index_tuple_ref)
 
-        self.remove_from_data_pool(size,crc,tuples_to_remove)
+        self.remove_from_data_pool(size,crc,tuples_to_remove,file_callback,crc_callback)
 
         l_info('link_wrapper done')
 
