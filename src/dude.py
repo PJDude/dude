@@ -3284,7 +3284,7 @@ class Gui:
 
         
         self_groups_tree_item_to_data = self.groups_tree_item_to_data
-            
+
         self.path_stat_list_size=tuple(sorted([(pathnr,path,number) for (pathnr,path),number in path_stat_size.items()],key=lambda x : x[2],reverse=True))
         self.path_stat_list_quant=tuple(sorted([(pathnr,path,number) for (pathnr,path),number in path_stat_quant.items()],key=lambda x : x[2],reverse=True))
         self.groups_combos_size = tuple(sorted([(crc_item,sum([self_groups_tree_item_to_data[item][1] for item in self_tree_children_sub[crc_item]])) for crc_item in self_tree_children_self_groups_tree],key = lambda x : x[1],reverse = True))
@@ -3344,6 +3344,8 @@ class Gui:
         self_icon_nr=self.icon_nr
 
         self_groups_tree_item_to_data = self.groups_tree_item_to_data = {}
+        dude_core_scanned_paths=dude_core.scanned_paths
+        
 
         for size,size_dict in dude_core.files_of_size_of_crc_items() :
             size_h = local_bytes_to_str(size)
@@ -3414,15 +3416,18 @@ class Gui:
         self_icon_nr=self.icon_nr
         dude_core_scanned_paths=dude_core.scanned_paths
         self_crc_to_size=self.crc_to_size
+        self_groups_tree_item_to_data = self.groups_tree_item_to_data
         for size,size_dict in dude_core.files_of_size_of_crc_items() :
             for crc,crc_dict in size_dict.items():
                 if crc in self_crc_to_size:
-                    self_groups_tree_item(crc,text=crc if show_full_crc else crc[:dude_core_crc_cut_len])
-                    for pathnr,path,file,ctime,dev,inode in crc_dict:
-                        if configure_icon:
-                            self_groups_tree_item(self_idfunc(inode,dev),image=self_icon_nr[pathnr],text=dude_core_scanned_paths[pathnr] if show_full_paths else '')
-                        else:
-                            self_groups_tree_item(self_idfunc(inode,dev),text=dude_core_scanned_paths[pathnr] if show_full_paths else '')
+                    #cross_paths
+                    if crc in self_groups_tree_item_to_data:# dla cross paths moze nie istniec item crc
+                        self_groups_tree_item(crc,text=crc if show_full_crc else crc[:dude_core_crc_cut_len])
+                        for pathnr,path,file,ctime,dev,inode in crc_dict:
+                            if configure_icon:
+                                self_groups_tree_item(self_idfunc(inode,dev),image=self_icon_nr[pathnr],text=dude_core_scanned_paths[pathnr] if show_full_paths else '')
+                            else:
+                                self_groups_tree_item(self_idfunc(inode,dev),text=dude_core_scanned_paths[pathnr] if show_full_paths else '')
 
         self.status('')
 
@@ -4705,7 +4710,6 @@ class Gui:
         if self.tree_folder_update(fullpath):
             children=self.current_folder_items
 
-            #res_list=[nodeid for nodeid in children if self.folder_tree.set(nodeid,'file')==sel]
             res_list=[nodeid for nodeid in children if self.current_folder_items_dict[nodeid][0]==sel]
 
             if res_list:
