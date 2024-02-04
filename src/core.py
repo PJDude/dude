@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2022-2023 Piotr Jochymek
+#  Copyright (c) 2022-2024 Piotr Jochymek
 #
 #  MIT License
 #
@@ -33,29 +33,15 @@ from pathlib import Path
 from fnmatch import fnmatch
 from re import search
 
-from time import sleep
-from time import strftime
-from time import localtime
-from time import time
+from time import sleep,strftime,localtime,time
 from hashlib import sha1
 
-from os import stat
-from os import scandir
-from os import sep
-from os import symlink
-from os import link
-from os import cpu_count
-from os import name as os_name
-from os import rename as os_rename
-from os import remove as os_remove
+from os import stat,scandir,sep,symlink,link,cpu_count,name as os_name,rename as os_rename,remove as os_remove
 
-from os.path import dirname
-from os.path import relpath
-from os.path import normpath
-from os.path import join as path_join
-from os.path import abspath as abspath
-from os.path import exists as path_exists
-from os.path import isdir as path_isdir
+from os.path import dirname,relpath,normpath,join as path_join,abspath as abspath,exists as path_exists,isdir as path_isdir
+
+from pickle import dumps,loads
+from zstandard import ZstdCompressor,ZstdDecompressor
 
 from send2trash import send2trash
 
@@ -77,6 +63,9 @@ def bytes_to_str(num):
             return "%s%s" % (s_main,unit)
 
     return "BIG"
+
+def fnumber(num):
+    return str(format(num,',d').replace(',',' '))
 
 class CRCThreadedCalc:
     def __init__(self,log):
@@ -295,7 +284,7 @@ class DudeCore:
             self.info_path_nr=path_nr
 
             if self.scan_update_info_path_nr:
-                self.scan_update_info_path_nr(path_nr)
+                self.scan_update_info_path_nr()
 
             loop_list=[]
             loop_list_append=loop_list.append
@@ -408,32 +397,33 @@ class DudeCore:
         self_crc_cache=self.crc_cache
         for dev in self.devs:
             self_crc_cache_int_dev = self_crc_cache[dev]={}
+
+            self.log.info('reading cache:%s:device:%s',self.cache_dir,dev)
             try:
-                self.log.info('reading cache:%s:device:%s',self.cache_dir,dev)
-                with open(sep.join([self.cache_dir,str(dev)]),'r',encoding='ASCII' ) as cfile:
-                    while line:=cfile.readline() :
-                        inode,mtime,crc = line.rstrip('\n').split(' ')
-                        if crc is None or crc=='None' or crc=='':
-                            self.log.warning("crc_cache read error:%s,%s,%s",inode,mtime,crc)
-                        else:
-                            self_crc_cache_int_dev[(int(inode),int(mtime))]=crc
-            except Exception as e:
-                self.log.warning(e)
-                self_crc_cache[dev]={}
+                with open(sep.join([self.cache_dir,f'{dev}.dat']), "rb") as dat_file:
+                    self.crc_cache[dev] = loads(ZstdDecompressor().decompress(dat_file.read()))
+            except Exception as e1:
+                self.log.warning(e1)
+            else:
+                self.log.info(f'cache loaded for dev: {dev}')
         self.info=''
 
     def crc_cache_write(self):
         self.info='Writing cache ...'
 
         Path(self.cache_dir).mkdir(parents=True,exist_ok=True)
-        for (dev,val_dict) in self.crc_cache.items():
 
-            self.log.info('writing cache:%s:device:%s',self.cache_dir,dev)
-            with open(sep.join([self.cache_dir,str(dev)]),'w',encoding='ASCII') as cfile:
-                for (inode,mtime),crc in sorted(val_dict.items()):
-                    cfile.write(' '.join([str(x) for x in [inode,mtime,crc] ]) +'\n' )
+        for (dev,val_dict) in self.crc_cache.items():
+            try:
+                self.log.info(f'writing cache for dev: {dev}')
+                with open(sep.join([self.cache_dir,f'{dev}.dat']), "wb") as dat_file:
+                    dat_file.write(ZstdCompressor(level=9,threads=-1).compress(dumps(val_dict)))
+                    self.log.info(f'writing cache for dev: {dev} done.')
+            except Exception as e:
+                self.log.error(f'writing cache for dev: {dev} error: {e}.')
 
         del self.crc_cache
+
         self.info=''
 
     info_size_done=0
@@ -753,11 +743,13 @@ class DudeCore:
                         csv_file_write(',,%s\n' % full_path )
             self.log.info('#######################################################')
 
-    def check_crc_pool_and_prune(self,size):
+    def check_crc_pool_and_prune(self,size,crc_callback=None):
         if size in self.files_of_size_of_crc:
             for crc in list(self.files_of_size_of_crc[size]):
                 if len(self.files_of_size_of_crc[size][crc])<2 :
                     del self.files_of_size_of_crc[size][crc]
+                    if crc_callback:
+                        crc_callback(size,crc)
 
             if len(self.files_of_size_of_crc[size])==0 :
                 del self.files_of_size_of_crc[size]
@@ -824,7 +816,7 @@ class DudeCore:
             self.log.error(e)
             return 'Error on hard linking:%s' % e
 
-    def remove_from_data_pool(self,size,crc,index_tuple_list):
+    def remove_from_data_pool(self,size,crc,index_tuple_list,file_callback=None,crc_callback=None):
         self.log.info('remove_from_data_pool size:%s crc:%s tuples:%s',size,crc,index_tuple_list)
 
         if size in self.files_of_size_of_crc:
@@ -832,6 +824,8 @@ class DudeCore:
                 for index_tuple in index_tuple_list:
                     try:
                         self.files_of_size_of_crc[size][crc].remove(index_tuple)
+                        if file_callback(size,crc,index_tuple):
+                            file_callback()
                     except Exception as e:
                         self.log.error('  %s',e)
                         self.log.error('  index_tuple: %s',index_tuple)
@@ -839,11 +833,11 @@ class DudeCore:
             else:
                 self.log.warning('remove_from_data_pool - crc already removed')
 
-            self.check_crc_pool_and_prune(size)
+            self.check_crc_pool_and_prune(size,crc_callback)
         else:
             self.log.warning('remove_from_data_pool - size already removed')
 
-    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash=False):
+    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash=False,file_callback=None,crc_callback=None):
         messages=set()
         messages_add = messages.add
 
@@ -869,13 +863,13 @@ class DudeCore:
             else:
                 messages_add('delete_file_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path,str(index_tuple)) )
 
-        self.remove_from_data_pool(size,crc,index_tuples_list_done)
+        self.remove_from_data_pool(size,crc,index_tuples_list_done,file_callback,crc_callback)
 
         return messages
 
     def link_wrapper(self,\
             soft,relative,size,crc,\
-            index_tuple_ref,index_tuple_list):
+            index_tuple_ref,index_tuple_list,file_callback=None,crc_callback=None):
         l_info = self.log.info
 
         l_info('link_wrapper:%s,%s,%s,%s,%s,%s',soft,relative,size,crc,index_tuple_ref,index_tuple_list)
@@ -928,7 +922,7 @@ class DudeCore:
                 if not soft:
                     tuples_to_remove.add(index_tuple_ref)
 
-        self.remove_from_data_pool(size,crc,tuples_to_remove)
+        self.remove_from_data_pool(size,crc,tuples_to_remove,file_callback,crc_callback)
 
         l_info('link_wrapper done')
 
@@ -975,7 +969,7 @@ if __name__ == "__main__":
         scan_thread.start()
 
         while scan_thread.is_alive():
-            print(f'crc_calc...{core.info_files_done}/{core.info_total}                 ',end='\r')
+            print(f'crc_calc...{fnumber(core.info_files_done)}/{fnumber(core.info_total)}                 ',end='\r')
             sleep(0.04)
 
         scan_thread.join()

@@ -7,28 +7,26 @@ VERSION=`cat ./version.txt`
 VERSION=${VERSION:1:10}
 echo VERSION=$VERSION
 
-outdir=build-nuitka-lin$venvname
+outdir=../build-nuitka$venvname
 
-rm -rf ../$outdir
-mkdir ../$outdir
+rm -rf $outdir
+mkdir $outdir
 
+echo ''
 echo running-nuitka
+echo wd:`pwd`
 
-python3 -m nuitka --version > distro.info.txt
+echo -n "Nuitka: " > distro.info.txt
+python3 -m nuitka --version >> distro.info.txt
 
-CCFLAGS='-Ofast -static' python3 -m nuitka --file-reference-choice=runtime --follow-imports --follow-stdlib --onefile --show-scons --show-progress --show-modules --assume-yes-for-downloads --linux-icon=./icon.ico --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude --output-dir=../$outdir --lto=yes ./dude.py
+echo ''
+echo running-nuitka-stage_dude
+python3 -m nuitka --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=../LICENSE=./LICENSE --enable-plugin=tk-inter --lto=yes --follow-stdlib  --assume-yes-for-downloads --windows-disable-console --output-dir=$outdir --standalone ./dude.py --output-filename=dude
 
-mv ./dude ../$outdir/dude
+mv -v $outdir/dude.dist $outdir/dude
 
-# --file-description='DUplicates DEtector'
-# --copyright='2022-2023 Piotr Jochymek'
-#--product-version=$VERSION
-#--product-name='dude'
-cd ../$outdir
+echo ''
+echo packing
+cd $outdir
+zip -9 -r -m ./dude.lin.zip ./dude
 
-mv ./dude ./dude-temp
-mv ./dude.dist ./dude
-
-zip -9 -r -m ./dude.nuitka.lin.zip ./dude
-
-mv ./dude-temp ./dude

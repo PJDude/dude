@@ -6,35 +6,30 @@
 @SET VERSION=%VERSION:~1,10%
 @echo VERSION=%VERSION%
 
-SET OUTDIR=..\build-nuitka-win%VENVNAME%
-rmdir /s /q %OUTDIR%
+@SET OUTDIR=..\build-nuitka
 
-SET OUTDIR_C=%OUTDIR%\C
-SET OUTDIR_G=%OUTDIR%\G
+@if exist %OUTDIR% rmdir /s /q %OUTDIR%
+@mkdir %OUTDIR%
 
-mkdir %OUTDIR%
+@echo.
+@echo running-nuitka
+@echo wd:%CD%
 
-mkdir %OUTDIR_C%
-mkdir %OUTDIR_G%
+@echo|set /p="Nuitka " > distro.info.txt
+python -m nuitka --version >> distro.info.txt
 
-python -m nuitka --version > distro.info.txt || exit /b 1
+@echo.
+@echo running-nuitka-stage_dude
+python -m nuitka --windows-icon-from-ico=./icon.ico --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=../LICENSE=./LICENSE --output-dir=%outdir% --standalone --lto=yes --follow-stdlib --assume-yes-for-downloads --product-version=%VERSION% --copyright="2022-2024 Piotr Jochymek" --file-description="DUplicates DEtector" --enable-plugin=tk-inter --disable-console --output-filename=dude ./dude.py || exit /b 2
 
-@rem --show-scons --show-progress --show-modules
+@echo.
+@echo running-nuitka-stage_dudecmd
+python -m nuitka --windows-icon-from-ico=./icon.ico --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=../LICENSE=./LICENSE --output-dir=%outdir% --standalone --lto=yes --follow-stdlib --assume-yes-for-downloads --product-version=%VERSION% --copyright="2022-2024 Piotr Jochymek" --file-description="DUplicates DEtector" ./console.py --enable-console --output-filename=dudecmd || exit /b 2
 
-@rem --file-reference-choice=runtime
-@rem Nuitka-Options:INFO: Using default file reference mode 'runtime' need not be specified.
+move %OUTDIR%\console.dist\dudecmd.exe %OUTDIR%\dude.dist
+move %OUTDIR%\dude.dist %OUTDIR%\dude
 
-@rem --follow-imports
-@rem Nuitka-Options:INFO: Following all imports is the default for onefile mode and need not be specified.
+@echo.
+@echo packing
+powershell Compress-Archive %OUTDIR%\dude %OUTDIR%\dude.win.zip
 
-python -m nuitka --follow-stdlib --onefile --assume-yes-for-downloads --windows-icon-from-ico=./icon.ico --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --output-filename=dudecmd.exe --output-dir=%OUTDIR_C% --lto=yes --product-name=dudecmd --product-version=%VERSION% --copyright="2022-2023 Piotr Jochymek" --file-description="DUplicates DEtector" ./console.py || exit /b 2
-
-python -m nuitka --onefile --assume-yes-for-downloads --windows-icon-from-ico=./icon.ico --include-data-file=./distro.info.txt=./distro.info.txt --include-data-file=./version.txt=./version.txt --include-data-file=./../LICENSE=./LICENSE --enable-plugin=tk-inter --output-filename=dude.exe --output-dir=%OUTDIR_G% --lto=yes --product-name=dude --product-version=%VERSION% --copyright="2022-2023 Piotr Jochymek" --file-description="DUplicates DEtector" --disable-console ./dude.py || exit /b 3
-
-move %OUTDIR_C%\console.dist\dudecmd.exe %OUTDIR_G%\dude.dist
-move %OUTDIR_G%\dude.dist %OUTDIR_G%\dude
-
-del %OUTDIR%\dude.nuitka.win.zip
-powershell Compress-Archive %OUTDIR_G%\dude %OUTDIR%\dude.nuitka.win.zip
-
-exit
