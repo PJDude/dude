@@ -5,15 +5,15 @@ A cross-platform  GUI utility for finding duplicated files, delete or link them 
 ## Features:
 - Scanning for duplicate files in **multiple designated folders** (up to 8). Optional "Cross paths" mode
 - Optional **command line parameters** to start scanning immediately or integrate **Dude** with your favorite file manager
-- Two **synchronized** panels
-  - duplicates groups
+- Two **synchronized** panels:
+  - groups of duplicates
   - directory of selected file
-- Two stage processing
+- Two stage processing:
   - interactive marking of files with multiple criteria
   - taking action on marked files (Move to Trash/Recycle Bin, delete, hard-link or soft-link)
-- support for **regular expressions** or simplified (wildcards) syntax
-- searching for duplicates based on the **hash** of the file content. Different filenames or extensions do not affect the search results
-- support for **Linux** and **Windows**
+- Support for **regular expressions** or simplified (wildcards) syntax
+- Searching for duplicates based on the **hash** of the file content. Different filenames or extensions do not affect the search results
+- Works on **Linux** and **Windows**
 
 ## Why another anti-duplicate application ?
 - Because you need to see the context of removed files, and use such application clearly,safely and easily.
@@ -22,15 +22,14 @@ A cross-platform  GUI utility for finding duplicated files, delete or link them 
 
 #### GUI usage example:
 ![image info](./info/dude.gif)
-#### immediate scanning with CLI parameters example:
+#### immediate scanning start with CLI parameters example:
 ![image info](./info/cmd.gif)
 #### settings  dialog:
 ![image info](./info/settings.png)
 
 ## Download:
-Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the [Releases](https://github.com/PJDude/dude/releases) site.
-  
-
+Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the [Releases](https://github.com/PJDude/dude/releases) site. At the same time, separate builds are created with the [Nuitka](https://github.com/Nuitka/Nuitka) compiler.
+ compilations 
 
 ## [SOFTPEDIA review](https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml)
 

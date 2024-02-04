@@ -284,7 +284,7 @@ class DudeCore:
             self.info_path_nr=path_nr
 
             if self.scan_update_info_path_nr:
-                self.scan_update_info_path_nr(path_nr)
+                self.scan_update_info_path_nr()
 
             loop_list=[]
             loop_list_append=loop_list.append
