@@ -258,7 +258,6 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Dude ${{ steps.version.outputs.version }}
-        name: Dude ${{ steps.version.outputs.version }}
         draft: false
         prerelease: false
         files: |
