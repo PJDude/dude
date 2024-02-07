@@ -145,14 +145,17 @@ class Config:
     def write(self):
         l_info('writing config')
         Path(self.path).mkdir(parents=True,exist_ok=True)
-        with open(self.file, 'w') as configfile:
-            self.config.write(configfile)
+        try:
+            with open(self.file, 'w',encoding='utf-8') as configfile:
+                self.config.write(configfile)
+        except Exception as e:
+                l_error(e)
 
     def read(self):
         l_info('reading config')
         if path_isfile(self.file):
             try:
-                with open(self.file, 'r') as configfile:
+                with open(self.file, 'r',encoding='utf-8') as configfile:
                     self.config.read_file(configfile)
             except Exception as e:
                 l_error(e)
