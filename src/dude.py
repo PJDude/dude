@@ -26,8 +26,6 @@
 #
 ####################################################################################
 
-
-
 from pathlib import Path
 from re import search
 
@@ -147,14 +145,14 @@ class Config:
     def write(self):
         l_info('writing config')
         Path(self.path).mkdir(parents=True,exist_ok=True)
-        with open(self.file, 'w', encoding='ASCII') as configfile:
+        with open(self.file, 'w') as configfile:
             self.config.write(configfile)
 
     def read(self):
         l_info('reading config')
         if path_isfile(self.file):
             try:
-                with open(self.file, 'r', encoding='ASCII') as configfile:
+                with open(self.file, 'r') as configfile:
                     self.config.read_file(configfile)
             except Exception as e:
                 l_error(e)
@@ -3621,8 +3619,9 @@ class Gui:
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
         self_groups_tree = self.groups_tree
         self_tree_children_sub = self.tree_children_sub
+        self_groups_tree_item_to_data = self.groups_tree_item_to_data
 
-        item=sorted([ (item,self.groups_tree_item_to_data[item][3][3] ) for item in self_tree_children_sub[crc]],key=lambda x : int(x[1]),reverse=reverse)[0][0]
+        item=sorted([ (item,self_groups_tree_item_to_data[item][3][3] ) for item in self_tree_children_sub[crc]],key=lambda x : int(x[1]),reverse=reverse)[0][0]
         if item:
             action(item,self_groups_tree)
             if select:
@@ -3634,7 +3633,7 @@ class Gui:
     @block
     def mark_all_by_ctime(self,order_str, action):
         self.status('Un/Setting marking on all files ...')
-        reverse=1 if order_str=='oldest' else 0
+        reverse=0 if order_str=='oldest' else 1
 
         self_mark_in_specified_group_by_ctime = self.mark_in_specified_group_by_ctime
         _ = { self_mark_in_specified_group_by_ctime(action, crc, reverse) for crc in self.tree_children[self.groups_tree] }
@@ -3646,7 +3645,7 @@ class Gui:
     @block
     def mark_in_group_by_ctime(self,order_str,action):
         self.status('Un/Setting marking in group ...')
-        reverse=1 if order_str=='oldest' else 0
+        reverse=0 if order_str=='oldest' else 1
         self.mark_in_specified_group_by_ctime(action,self.sel_crc,reverse,True)
         self.update_marks_folder()
         self.calc_mark_stats_groups()
@@ -4860,7 +4859,7 @@ if __name__ == "__main__":
         #l_debug('DEBUG LEVEL ENABLED')
 
         try:
-            distro_info=Path(path_join(DUDE_DIR,'distro.info.txt')).read_text(encoding='ASCII')
+            distro_info=Path(path_join(DUDE_DIR,'distro.info.txt')).read_text()
         except Exception as exception_1:
             l_error(exception_1)
             distro_info = 'Error. No distro.info.txt file.'
