@@ -776,22 +776,22 @@ class DudeCore:
             return 'Rename error:' + str(e)
 
     def delete_file(self,file_name,l_info):
-        l_info('deleting file:%s',file_name)
+        l_info(f'deleting file:{file_name}')
         try:
             os_remove(file_name)
             return False
         except Exception as e:
             self.log.error(e)
-            return 'Delete error:' + str(e)
+            return f'Deletion error:{e}'
 
     def delete_file_to_trash(self,file_name,l_info):
-        l_info('deleting file to trash:%s',file_name)
+        l_info(f'deleting file to trash:{file_name}')
         try:
             send2trash(file_name)
             return False
         except Exception as e:
             self.log.error(e)
-            return 'Delete error:' + str(e)
+            return f'send2trash error:{e}'
 
     def do_soft_link(self,src,dest,relative,l_info):
         l_info('soft-linking %s<-%s (relative:%s)',src,dest,relative)

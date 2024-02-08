@@ -1425,39 +1425,36 @@ class Gui:
             tree.selection_set(item)
             self.selected[tree]=item
 
-    @catched
     def groups_tree_focus_in(self):
-        #print('groups_tree_focus_in',str(event.type),dir(event.type))
-        self.sel_tree = tree = self.groups_tree
+        try:
+            self.sel_tree = tree = self.groups_tree
 
-        if item:=self.selected[tree]:
-            tree.focus(item)
-            tree.selection_remove(item)
-            self.groups_tree_sel_change(item,True)
-        #else:
-        #    print('groups_tree_focus_in NO SELECTED')
+            if item:=self.selected[tree]:
+                tree.focus(item)
+                tree.selection_remove(item)
+                self.groups_tree_sel_change(item,True)
 
-        tree.configure(style='semi_focus.Treeview')
-        self.other_tree[tree].configure(style='no_focus.Treeview')
-        #print('groups_tree_focus_in',str(event.type),'end')
+            tree.configure(style='semi_focus.Treeview')
+            self.other_tree[tree].configure(style='no_focus.Treeview')
+        except Exception as e:
+            l_error(f'groups_tree_focus_in:{e}')
 
-    @catched
     def folder_tree_focus_in(self):
-        #print('folder_tree_focus_in',str(event.type),dir(event.type))
-        self.sel_tree = tree = self.folder_tree
+        try:
+            self.sel_tree = tree = self.folder_tree
 
-        if item:=self.selected[tree]:
-            tree.focus(item)
-            tree.selection_remove(item)
-        else:
-            print('folder_tree_focus_in NO SELECTED')
+            if item:=self.selected[tree]:
+                tree.focus(item)
+                tree.selection_remove(item)
+            else:
+                print('folder_tree_focus_in NO SELECTED')
 
-        tree.configure(style='semi_focus.Treeview')
-        self.other_tree[tree].configure(style='no_focus.Treeview')
-        #print('folder_tree_focus_in',str(event.type),'end')
+            tree.configure(style='semi_focus.Treeview')
+            self.other_tree[tree].configure(style='no_focus.Treeview')
+        except Exception as e:
+            l_error(f'folder_tree_focus_in:{e}')
 
     def focusin(self):
-        #print('focusin')
         if self.main_locked_by_child:
             self.main_locked_by_child.focus_set()
 
@@ -1672,6 +1669,7 @@ class Gui:
         #self.menubar.update()
 
     def reset_sels(self):
+        self.sel_path_full = ''
         self.sel_pathnr = None
         self.sel_path = None
         self.sel_file = None
@@ -3138,32 +3136,42 @@ class Gui:
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
-    @catched
     def file_remove_callback(self,size,crc,index_tuple):
-        l_info(f'file_remove_callback {size},{crc},{index_tuple}')
-        (pathnr,path,file_name,ctime,dev,inode)=index_tuple
-        item = self.idfunc(inode,dev)
+        #l_info(f'file_remove_callback {size},{crc},{index_tuple}')
+        try:
+            (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+            item = self.idfunc(inode,dev)
 
-        self.groups_tree.delete(item)
-        self.tagged_discard(item)
+            self.groups_tree.delete(item)
+            self.tagged_discard(item)
 
-        if item==self.selected[self.groups_tree]:
+            if item==self.selected[self.groups_tree]:
+                self.selected[self.groups_tree]=None
+
+            #to bedzie przeliczone
+            #self.tree_children_sub[crc].remove(item)
+        except Exception as e:
             self.selected[self.groups_tree]=None
+            l_error(f'file_remove_callback,{size},{crc},{index_tuple},{e}')
 
-        #to bedzie przeliczone
-        #self.tree_children_sub[crc].remove(item)
+        #l_info('file_remove_callback done')
 
-        l_info('file_remove_callback done')
-
-    @catched
     def crc_remove_callback(self,size,crc):
-        l_info(f'crc_remove_callback:{size},{crc}')
+        #l_info(f'crc_remove_callback:{size},{crc}')
+        try:
+            self.groups_tree.delete(crc)
 
-        self.groups_tree.delete(crc)
+            if item:=self.selected[self.groups_tree]:
+                if self.id2crc[item]==crc:
+                    self.selected[self.groups_tree]=None
 
-        #to bedzie przeliczone
-        #self.tree_children[self.groups_tree].remove(crc)
-        l_info('crc_remove_callback done')
+            #to bedzie przeliczone
+            #self.tree_children[self.groups_tree].remove(crc)
+            #l_info('crc_remove_callback done')
+        except Exception as e:
+            self.selected[self.groups_tree]=None
+            l_error(f'crc_remove_callback,{size},{crc},{e}')
+
 
     @catched
     def create_my_prev_next_dicts(self,tree):
@@ -3240,7 +3248,6 @@ class Gui:
 
         self_tree_children_self_groups_tree = self_tree_children[self.groups_tree]
 
-
         self_groups_tree_item_to_data = self.groups_tree_item_to_data
 
         self.path_stat_list_size=tuple(sorted([(pathnr,path,number) for (pathnr,path),number in path_stat_size.items()],key=lambda x : x[2],reverse=True))
@@ -3249,6 +3256,10 @@ class Gui:
 
         self.groups_combos_quant = tuple(sorted([(crc_item,len(self_tree_children_sub[crc_item])) for crc_item in self_tree_children_self_groups_tree],key = lambda x : x[1],reverse = True))
         self.status('')
+
+        if not self_tree_children_self_groups_tree:
+            self.tree_folder_update_none()
+            self.reset_sels()
 
     @logwrapper
     def initial_focus(self):
@@ -4518,12 +4529,12 @@ class Gui:
         self.selected[self.folder_tree]=None
 
         if tree==self.groups_tree:
-            if tree.exists(self.sel_crc):
-                item_to_select=self.sel_crc
-
-            l_info('updating groups : %s',item_to_select)
+            if self.sel_crc:
+                if tree.exists(self.sel_crc):
+                    item_to_select=self.sel_crc
 
             if item_to_select:
+                l_info('updating groups : %s',item_to_select)
                 try:
                     self.groups_tree.focus(item_to_select)
                     self.selected[self.groups_tree] = item_to_select
