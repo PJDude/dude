@@ -1,4 +1,4 @@
-# DUDE (DUplicates DEtector)
+# <img src="./src/icons/dude.png" width=30> DUDE (DUplicates DEtector)
 
 A cross-platform GUI utility for finding duplicated files, delete or link them to save space.
 
