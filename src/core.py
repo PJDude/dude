@@ -45,6 +45,13 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 
 from send2trash import send2trash
 
+def localtime_catched(t):
+    try:
+        #mtime sometimes happens to be negative (Virtual box ?)
+        return localtime(t)
+    except:
+        return localtime(0)
+
 def bytes_to_str(num):
     if num < 1024:
         return "%sB" % num
@@ -940,7 +947,7 @@ if __name__ == "__main__":
     LOG_DIR = "./test/log"
     Path(LOG_DIR).mkdir(parents=True,exist_ok=True)
 
-    log=LOG_DIR + sep + strftime('%Y_%m_%d_%H_%M_%S',localtime(time()) ) +'.log'
+    log=LOG_DIR + sep + strftime('%Y_%m_%d_%H_%M_%S',localtime_catched(time()) ) +'.log'
 
     print('log:',log)
     logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s', filename=log,filemode='w')

@@ -47,7 +47,7 @@ from traceback import format_stack
 from fnmatch import fnmatch
 from shutil import rmtree
 
-from time import sleep,strftime,localtime,time,perf_counter
+from time import sleep,strftime,time,perf_counter
 
 import sys
 import logging
@@ -3314,7 +3314,7 @@ class Gui:
 
         self_groups_tree_item_to_data = self.groups_tree_item_to_data = {}
         dude_core_scanned_paths=dude_core.scanned_paths
-
+        localtime_catched_local = localtime_catched
 
         for size,size_dict in dude_core.files_of_size_of_crc_items() :
             size_h = local_bytes_to_str(size)
@@ -3346,7 +3346,7 @@ class Gui:
                             '',\
                             str(ctime),str(dev),str(inode),crc,\
                             '','',\
-                            strftime('%Y/%m/%d %H:%M:%S',localtime(ctime//1000000000)),self_FILE),tags='',text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
+                            strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags='',text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
 
                     #kind,crc,index_tuple
                     #kind,crc,(pathnr,path,file,ctime,dev,inode)
@@ -3479,7 +3479,7 @@ class Gui:
         current_folder_items_tagged_size=0
 
         local_strftime = strftime
-        local_localtime = localtime
+        local_localtime_catched = localtime_catched
         folder_items=set()
         folder_items_add=folder_items.add
 
@@ -3514,7 +3514,7 @@ class Gui:
                                 ctime,size_num = stat_res.st_ctime_ns,stat_res.st_size
                                 file_id=self_idfunc(inode,dev)
 
-                                ctime_h = local_strftime('%Y/%m/%d %H:%M:%S',local_localtime(ctime//1000000000)) #DE_NANO
+                                ctime_h = local_strftime('%Y/%m/%d %H:%M:%S',local_localtime_catched(ctime//1000000000)) #DE_NANO
 
                                 size_h=local_bytes_to_str(size_num)
 
@@ -4857,7 +4857,7 @@ if __name__ == "__main__":
         #dont mix device id for different hosts in portable mode
         CACHE_DIR = sep.join([CACHE_DIR_DIR,node()])
 
-        log_file = strftime('%Y_%m_%d_%H_%M_%S',localtime(time()) ) +'.txt'
+        log_file = strftime('%Y_%m_%d_%H_%M_%S',localtime_catched(time()) ) +'.txt'
         log=abspath(p_args.log[0]) if p_args.log else LOG_DIR + sep + log_file
         #LOG_LEVEL = logging.DEBUG if p_args.debug else logging.INFO
 
