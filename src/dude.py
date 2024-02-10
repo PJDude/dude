@@ -200,27 +200,34 @@ class Gui:
     MAX_PATHS=8
 
     sel_path_full=''
-    actions_processing=False
+
+    block_processing_stack=['init']
+
+    def processing_off(self,caller_id=None):
+        self.block_processing_stack.append(caller_id)
+
+        disable = lambda menu : self.menubar_entryconfig(menu, state="disabled")
+
+        _ = {disable(menu) for menu in ("File","Navigation","Help") }
+
+        self.menubar_config(cursor='watch')
+        self.main_config(cursor='watch')
+
+    def processing_on(self,caller_id=None):
+        self.block_processing_stack.pop()
+
+        if not self.block_processing_stack:
+            norm = lambda menu : self.menubar_entryconfig(menu, state="normal")
+
+            _ = {norm(menu) for menu in ("File","Navigation","Help") }
+
+            self.main_config(cursor='')
+            self.menubar_config(cursor='')
 
     #####################################################
     def block(func):
         def block_wrapp(self,*args,**kwargs):
-
-            prev_active=self.actions_processing
-            self.actions_processing=False
-
-            prev_cursor=self.menubar_cget('cursor')
-
-            if prev_cursor=='watch':
-                print('nested call:',func)
-
-            self_menubar_config = self.menubar_config
-            self_main_config = self.main_config
-
-            self.menu_disable()
-
-            self_menubar_config(cursor='watch')
-            self_main_config(cursor='watch')
+            self.processing_off(f'block_wrapp:{func.__name__}')
 
             try:
                 res=func(self,*args,**kwargs)
@@ -231,11 +238,7 @@ class Gui:
                 self.get_info_dialog_on_main().show('INTERNAL ERROR block_wrapp',f'{func.__name__}\n' + str(e))
                 res=None
 
-            self.actions_processing=prev_active
-
-            self.menu_enable()
-            self_main_config(cursor=prev_cursor)
-            self_menubar_config(cursor=prev_cursor)
+            self.processing_on()
 
             return res
         return block_wrapp
@@ -589,7 +592,21 @@ class Gui:
         self_main_unbind_class('Treeview', '<<TreeviewClose>>')
         self_main_unbind_class('Treeview', '<<TreeviewOpen>>')
 
-        self.vsb1 = Scrollbar(frame_groups, orient='vertical', command=self_groups_tree.yview,takefocus=False)
+        def mouse_scroll(event):
+            if self.block_processing_stack:
+                return "break"
+
+        self_groups_tree.bind('<MouseWheel>', mouse_scroll)
+        self_groups_tree.bind('<Button-4>', mouse_scroll)
+        self_groups_tree.bind('<Button-5>', mouse_scroll)
+
+        def self_groups_tree_yview(*args):
+            if self.block_processing_stack:
+                return "break"
+            else:
+                self_groups_tree.yview(*args)
+
+        self.vsb1 = Scrollbar(frame_groups, orient='vertical', command=self_groups_tree_yview,takefocus=False)
 
         self_groups_tree.configure(yscrollcommand=self.vsb1.set)
 
@@ -636,7 +653,17 @@ class Gui:
 
         self_folder_tree_heading('file', text='File \u25B2')
 
-        self.vsb2 = Scrollbar(frame_folder, orient='vertical', command=self_folder_tree.yview,takefocus=False)
+        self_folder_tree.bind('<MouseWheel>', mouse_scroll)
+        self_folder_tree.bind('<Button-4>', mouse_scroll)
+        self_folder_tree.bind('<Button-5>', mouse_scroll)
+
+        def self_folder_tree_yview(*args):
+            if self.block_processing_stack:
+                return "break"
+            else:
+                self_folder_tree.yview(*args)
+
+        self.vsb2 = Scrollbar(frame_folder, orient='vertical', command=self_folder_tree_yview,takefocus=False)
         #,bg=self.bg_color
         self.folder_tree_configure(yscrollcommand=self.vsb2.set)
 
@@ -812,7 +839,7 @@ class Gui:
             item_actions_state=('disabled','normal')[self.sel_item is not None]
 
             self.file_cascade.delete(0,'end')
-            if self.actions_processing:
+            if not self.block_processing_stack:
                 self_file_cascade_add_command = self.file_cascade.add_command
                 self_file_cascade_add_separator = self.file_cascade.add_separator
 
@@ -838,7 +865,7 @@ class Gui:
             self.popup_folder_unpost()
 
             self.navi_cascade.delete(0,'end')
-            if self.actions_processing:
+            if not self.block_processing_stack:
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
 
                 self_navi_cascade_add_command = self.navi_cascade.add_command
@@ -870,7 +897,7 @@ class Gui:
             self.popup_folder_unpost()
 
             self.help_cascade.delete(0,'end')
-            if self.actions_processing:
+            if not self.block_processing_stack:
 
                 self_help_cascade_add_command = self.help_cascade.add_command
                 self_help_cascade_add_separator = self.help_cascade.add_separator
@@ -977,12 +1004,14 @@ class Gui:
         gc_collect()
         gc_enable()
 
-        self.actions_processing=True
+        self.processing_on()
 
         self_main.mainloop()
         #######################################################################
 
     def pre_show(self,on_main_window_dialog=True,new_widget=None):
+        self.processing_off(f'pre_show:{new_widget}')
+
         self.menubar_unpost()
         self.hide_tooltip()
         self.popup_groups_unpost()
@@ -992,15 +1021,11 @@ class Gui:
             if new_widget:
                 self.main_locked_by_child=new_widget
 
-            self.actions_processing=False
-            self.menu_disable()
-            self.menubar_config(cursor="watch")
-
     def post_close(self,on_main_window_dialog=True):
         if on_main_window_dialog:
-            self.actions_processing=True
-            self.menu_enable()
-            self.menubar_config(cursor="")
+            self.main_locked_by_child=None
+
+        self.processing_on()
 
     def pre_show_settings(self,on_main_window_dialog=True,new_widget=None):
         _ = {var.set(self.cfg_get_bool(key)) for var,key in self.settings}
@@ -1193,7 +1218,7 @@ class Gui:
         if not self.info_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=self.post_close)
 
             self.info_dialog_on_scan_created = True
 
@@ -1206,7 +1231,7 @@ class Gui:
         if not self.exclude_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=self.post_close)
 
             self.exclude_dialog_on_scan_created = True
 
@@ -1220,7 +1245,7 @@ class Gui:
         if not self.progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=self.post_close)
             self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
             self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
@@ -1478,11 +1503,11 @@ class Gui:
         self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widget(event))
 
     def motion_on_groups_tree(self,event):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             self.tooltip_show_after_groups = event.widget.after(1, self.show_tooltip_groups(event))
 
     def motion_on_folder_tree(self,event):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             self.tooltip_show_after_folder = event.widget.after(1, self.show_tooltip_folder(event))
 
     def configure_tooltip(self,widget):
@@ -1681,7 +1706,7 @@ class Gui:
         self.sel_kind = None
 
     def delete_window_wrapper(self):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             self.exit()
         else:
             self.status('WM_DELETE_WINDOW NOT exiting ...')
@@ -1937,8 +1962,7 @@ class Gui:
 
     @catched
     def key_press(self,event):
-        if self.actions_processing:
-
+        if not self.block_processing_stack:
             self.main_unbind_class('Treeview','<KeyPress>')
 
             self.hide_tooltip()
@@ -2154,7 +2178,7 @@ class Gui:
         self.popup_groups_unpost()
         self.popup_folder_unpost()
 
-        if self.actions_processing:
+        if not self.block_processing_stack:
             tree=event.widget
 
             region = tree.identify("region", event.x, event.y)
@@ -2289,7 +2313,7 @@ class Gui:
         if tree.identify("region", event.x, event.y) == 'heading':
             return
 
-        if not self.actions_processing:
+        if self.block_processing_stack:
             return
 
         tree.focus_set()
@@ -3276,7 +3300,7 @@ class Gui:
     @block
     @logwrapper
     def groups_show(self):
-        self.menu_disable()
+        #self.menu_disable()
 
         self_idfunc=self.idfunc = (lambda i,d : '%s-%s' % (i,d)) if len(dude_core.devs)>1 else (lambda i,d : str(i))
         self_status=self.status
@@ -3366,7 +3390,7 @@ class Gui:
         self.initial_focus()
         self.calc_mark_stats_groups()
 
-        self.menu_enable()
+        #self.menu_enable()
         self_status('')
 
     @block
@@ -4229,6 +4253,7 @@ class Gui:
         _ = {l_warning(line) for line in message}
         l_warning('###########################################################################################')
         l_warning('Confirmed.')
+
         return False
 
     @block
@@ -4301,7 +4326,6 @@ class Gui:
         to_trash=self.cfg_get_bool(CFG_SEND_TO_TRASH)
         abort_on_error=self.cfg_get_bool(CFG_ABORT_ON_ERROR)
         erase_empty_dirs=self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS)
-
 
         self_groups_tree_item_to_data = self.groups_tree_item_to_data
         dude_core_delete_file_wrapper = dude_core.delete_file_wrapper
@@ -4703,7 +4727,7 @@ class Gui:
                 self.folder_tree_sel_change(item)
 
     def double_left_button(self,event):
-        if self.actions_processing:
+        if not self.block_processing_stack:
             tree=event.widget
             if tree.identify("region", event.x, event.y) != 'heading':
                 if item:=tree.identify('item',event.x,event.y):
