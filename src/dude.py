@@ -202,9 +202,11 @@ class Gui:
     sel_path_full=''
 
     block_processing_stack=['init']
+    block_processing_stack_append = block_processing_stack.append
+    block_processing_stack_pop = block_processing_stack.pop
 
     def processing_off(self,caller_id=None):
-        self.block_processing_stack.append(caller_id)
+        self.block_processing_stack_append(caller_id)
 
         disable = lambda menu : self.menubar_entryconfig(menu, state="disabled")
 
@@ -214,7 +216,7 @@ class Gui:
         self.main_config(cursor='watch')
 
     def processing_on(self,caller_id=None):
-        self.block_processing_stack.pop()
+        self.block_processing_stack_pop()
 
         if not self.block_processing_stack:
             norm = lambda menu : self.menubar_entryconfig(menu, state="normal")
