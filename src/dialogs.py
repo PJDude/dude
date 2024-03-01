@@ -359,10 +359,10 @@ class TextDialogInfo(GenericDialog):
         self.area_main.grid_columnconfigure(0, weight=1)
 
         self.cancel_button=Button(self.area_buttons, text='Close', width=14, command=super().hide )
-        self.cancel_button.pack(side='right', anchor='e',padx=2,pady=5)
+        self.cancel_button.pack(side='right', anchor='e',padx=2,pady=5,fill='both')
 
         self.copy_button=Button(self.area_buttons, text='Copy', width=14, command=self.clip_copy_message )
-        self.copy_button.pack(side='right', anchor='w',padx=2,pady=5)
+        self.copy_button.pack(side='right', anchor='w',padx=2,pady=5,fill='both')
 
         self.find_next_butt=Button(self.area_mark, command=lambda : self.find_next_prev(1), width=1)
         self.find_next_butt.pack(side='right', anchor='w',padx=2,pady=5,fill='both')
@@ -370,7 +370,7 @@ class TextDialogInfo(GenericDialog):
         self.find_info_var=StringVar()
         self.find_info_var.set('-/-')
         self.find_info_lab=Label(self.area_mark, textvariable=self.find_info_var, width=8,relief='groove',bd=2,bg=self.bg_color)
-        self.find_info_lab.pack(side='right', anchor='w',padx=2,pady=5,expand=1)
+        self.find_info_lab.pack(side='right', anchor='w',padx=2,pady=5,expand=1,fill='both')
 
         self.find_prev_butt=Button(self.area_mark, command=lambda : self.find_next_prev(-1), width=1)
         self.find_prev_butt.pack(side='right', anchor='w',padx=2,pady=5,fill='both')
@@ -514,7 +514,7 @@ class TextDialogQuestion(TextDialogInfo):
         self.cancel_button.pack(side='left', anchor='n',padx=5,pady=5)
 
         self.ok_button=Button(self.area_buttons, text='OK', width=14, command=self.ok,image=image, compound='left' )
-        self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
+        self.ok_button.pack(side='right', anchor='n',padx=5,pady=5,fill='both')
 
         self.focus=self.cancel_button
 
