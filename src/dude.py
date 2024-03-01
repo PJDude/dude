@@ -1041,6 +1041,8 @@ class Gui:
 
         self.widget_tooltip(dialog.find_prev_butt,'Find Prev (Shift+F3)')
         self.widget_tooltip(dialog.find_next_butt,'Find Next (F3)')
+        self.widget_tooltip(dialog.find_cs,'Case Sensitive')
+        self.widget_tooltip(dialog.find_info_lab,'index of the selected search result / search results total ')
 
     #######################################################################
     settings_dialog_created = False

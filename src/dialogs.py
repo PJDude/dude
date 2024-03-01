@@ -375,6 +375,10 @@ class TextDialogInfo(GenericDialog):
         self.find_prev_butt=Button(self.area_mark, command=lambda : self.find_next_prev(-1), width=1)
         self.find_prev_butt.pack(side='right', anchor='w',padx=2,pady=5,fill='both')
 
+        self.find_cs_var=BooleanVar()
+        self.find_cs=Checkbutton(self.area_mark,text='C.S.',variable=self.find_cs_var, command=lambda : self.find_key_binding() )
+        self.find_cs.pack(side='right', anchor='e',padx=5,pady=5,expand='yes', fill='both')
+
         self.find_var=StringVar()
         self.find_entry=Entry(self.area_mark, textvariable=self.find_var, width=22)
         self.find_entry.pack(side='right', anchor='w',padx=2,pady=5,fill='both')
@@ -387,7 +391,7 @@ class TextDialogInfo(GenericDialog):
         self.text_search_pool_index=0
 
         self.find_lab=Label(self.area_mark)
-        self.find_lab.pack(side='right', anchor='e',padx=5,pady=5)
+        self.find_lab.pack(side='right', anchor='e',padx=5,pady=5,expand='yes', fill='both')
 
         try:
             self.find_lab.configure(text='Mark:',compound='left')
@@ -462,7 +466,7 @@ class TextDialogInfo(GenericDialog):
             len_search_str = len(search_str)
 
             while True:
-                start_index = self_text_search(search_str, start_index, 'end')
+                start_index = self_text_search(search_str, start_index, 'end',nocase=0 if self.find_cs_var.get() else 1)
                 if not start_index:
                     break
                 end_index = f"{start_index}+{len_search_str}c"
@@ -558,6 +562,7 @@ class EntryDialogQuestion(LabelDialog):
 
     def show(self,title='',message='',initial=''):
         self.entry_val.set(initial)
+        self.entry.selection_range(0, 'end')
 
         self.res_str=''
         super().show(title,message)
