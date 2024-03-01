@@ -40,10 +40,17 @@ from os import stat,scandir,sep,symlink,link,cpu_count,name as os_name,rename as
 
 from os.path import dirname,relpath,normpath,join as path_join,abspath as abspath,exists as path_exists,isdir as path_isdir
 
+from subprocess import run as subprocess_run
+
 from pickle import dumps,loads
 from zstandard import ZstdCompressor,ZstdDecompressor
 
 from send2trash import send2trash
+
+DELETE=0
+SOFTLINK=1
+HARDLINK=2
+WIN_LNK=3
 
 def localtime_catched(t):
     try:
@@ -814,6 +821,21 @@ class DudeCore:
             self.log.error(e)
             return 'Error on soft linking:%s' % e
 
+    def do_win_lnk_link(self,src,dest,l_info):
+        l_info('win-lnk-linking %s<-%s',src,dest)
+        try:
+            powershell_cmd = f'$ol=(New-Object -ComObject WScript.Shell).CreateShortcut("{dest}")\n\r$ol.TargetPath="{src}"\n\r$ol.Save()'
+            l_info(f'{powershell_cmd=}')
+
+            res = subprocess_run(["powershell", "-Command", powershell_cmd], capture_output=True)
+
+            if res.returncode != 0:
+                return f"Error on win lnk code: {res.returncode} error: {res.stderr}"
+
+        except Exception as e:
+            self.log.error(e)
+            return 'Error on win lnk linking:%s' % e
+
     def do_hard_link(self,src,dest,l_info):
         l_info('hard-linking %s<-%s',src,dest)
         try:
@@ -874,12 +896,13 @@ class DudeCore:
 
         return messages
 
-    def link_wrapper(self,\
-            soft,relative,size,crc,\
+    def win_lnk_wrapper (self,\
+            size,crc,\
             index_tuple_ref,index_tuple_list,file_callback=None,crc_callback=None):
+
         l_info = self.log.info
 
-        l_info('link_wrapper:%s,%s,%s,%s,%s,%s',soft,relative,size,crc,index_tuple_ref,index_tuple_list)
+        l_info(f'win_lnk_wrapper:{size},{crc},{index_tuple_ref},{index_tuple_list}')
 
         (path_nr_keep,path_keep,file_keep,ctime_keep,dev_keep,inode_keep)=index_tuple_ref
 
@@ -891,7 +914,26 @@ class DudeCore:
 
         full_file_path_keep=self_get_full_path_scanned(path_nr_keep,path_keep,file_keep)
 
-        link_command = (lambda p : self.do_soft_link(full_file_path_keep,p,relative,l_info)) if soft else (lambda p : self.do_hard_link(full_file_path_keep,p,l_info))
+    def link_wrapper(self,\
+            kind,relative,size,crc,\
+            index_tuple_ref,index_tuple_list,file_callback=None,crc_callback=None):
+
+        l_info = self.log.info
+
+        l_info('link_wrapper:%s,%s,%s,%s,%s,%s',kind,relative,size,crc,index_tuple_ref,index_tuple_list)
+
+        (path_nr_keep,path_keep,file_keep,ctime_keep,dev_keep,inode_keep)=index_tuple_ref
+
+        self_get_full_path_scanned = self.get_full_path_scanned
+        self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
+
+        self_rename_file = self.rename_file
+        self_delete_file = self.delete_file
+
+        full_file_path_keep=self_get_full_path_scanned(path_nr_keep,path_keep,file_keep)
+
+        #link_command = (lambda p : self.do_soft_link(full_file_path_keep,p,relative,l_info)) if soft else (lambda p : self.do_hard_link(full_file_path_keep,p,l_info))
+        link_command = (lambda p : self.do_soft_link(full_file_path_keep,p,relative,l_info)) if kind==SOFTLINK else (lambda p : self.do_win_lnk_link(full_file_path_keep,str(p) + ".lnk",l_info)) if kind==WIN_LNK else (lambda p : self.do_hard_link(full_file_path_keep,p,l_info))
 
         if index_tuple_ref not in self_files_of_size_of_crc_size_crc:
             return 'link_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path_keep,index_tuple_ref)
@@ -926,7 +968,7 @@ class DudeCore:
 
                 tuples_to_remove.add(index_tuple)
 
-                if not soft:
+                if kind==HARDLINK:
                     tuples_to_remove.add(index_tuple_ref)
 
         self.remove_from_data_pool(size,crc,tuples_to_remove,file_callback,crc_callback)

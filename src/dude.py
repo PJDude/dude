@@ -122,10 +122,6 @@ cfg_defaults={
     CFG_KEY_EXCLUDE:''
 }
 
-DELETE=0
-SOFTLINK=1
-HARDLINK=2
-
 NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink'}
 
 HOMEPAGE='https://github.com/PJDude/dude'
@@ -1162,7 +1158,7 @@ class Gui:
             bfr.grid(row=row,column=0) ; row+=1
 
             Button(bfr, text='Set defaults',width=14, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
-            Button(bfr, text='OK', width=14, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(bfr, text='OK', width=14, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5,fill='both')
             self.cancel_button=Button(bfr, text='Cancel', width=14 ,command=self.settings_dialog.hide )
             self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
 
@@ -2378,13 +2374,16 @@ class Gui:
 
             #marks_state=('disabled','normal')[len(tree.tag_has(self.MARK))!=0]
             marks_state=('disabled','normal')[bool(self.tagged)]
+            marks_state_win=('disabled','normal')[bool(self.tagged) and windows ]
 
             c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=marks_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(19,foreground='red',activeforeground='red')
             c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(20,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=marks_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),state=marks_state_win, image = self.ico_empty,compound='left')
             c_local_entryconfig(21,foreground='red',activeforeground='red')
+            c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=marks_state, image = self.ico_empty,compound='left')
+            c_local_entryconfig(22,foreground='red',activeforeground='red')
 
             pop_add_cascade(label = 'Local (this CRC group)',menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
             pop_add_separator()
@@ -2427,8 +2426,10 @@ class Gui:
             c_all.entryconfig(21,foreground='red',activeforeground='red')
             c_all.add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(22,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=marks_state, image = self.ico_empty,compound='left')
+            c_all.add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),state=marks_state_win, image = self.ico_empty,compound='left')
             c_all.entryconfig(23,foreground='red',activeforeground='red')
+            c_all.add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=marks_state, image = self.ico_empty,compound='left')
+            c_all.entryconfig(24,foreground='red',activeforeground='red')
 
             pop_add_cascade(label = 'All Files',menu = c_all,state=item_actions_state, image = self.ico_empty,compound='left')
 
@@ -2455,6 +2456,7 @@ class Gui:
 
         else:
             dir_actions_state=('disabled','normal')[self.sel_kind in (self.DIR,self.DIRLINK)]
+            dir_actions_state_win=('disabled','normal')[(self.sel_kind in (self.DIR,self.DIRLINK)) and windows]
 
             c_local = Menu(pop,tearoff=0,bg=self.bg_color)
             c_local_add_command = c_local.add_command
@@ -2472,13 +2474,15 @@ class Gui:
 
             #marks_state=('disabled','normal')[len(tree.tag_has(self.MARK))!=0]
             marks_state=('disabled','normal')[bool(self.current_folder_items_tagged)]
+            marks_state_win=('disabled','normal')[bool(self.current_folder_items_tagged) and windows]
 
             c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,0),accelerator="Delete",state=marks_state, image = self.ico_empty,compound='left')
             c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,0),accelerator="Insert",state=marks_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,0),state=marks_state_win, image = self.ico_empty,compound='left')
 
             c_local_entryconfig(8,foreground='red',activeforeground='red')
             c_local_entryconfig(9,foreground='red',activeforeground='red')
-            #c_local_entryconfig(10,foreground='red',activeforeground='red')
+            c_local_entryconfig(10,foreground='red',activeforeground='red')
 
             pop_add_cascade(label = 'Local (this folder)',menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
             pop_add_separator()
@@ -2491,9 +2495,11 @@ class Gui:
 
             c_sel_sub_add_command(label = 'Remove Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,True),accelerator="Delete",state=dir_actions_state, image = self.ico_empty,compound='left')
             c_sel_sub_add_command(label = 'Softlink Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,True),accelerator="Insert",state=dir_actions_state, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = 'Create *.lnk for Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,True),state=dir_actions_state_win, image = self.ico_empty,compound='left')
 
             c_sel_sub.entryconfig(3,foreground='red',activeforeground='red')
             c_sel_sub.entryconfig(4,foreground='red',activeforeground='red')
+            c_sel_sub.entryconfig(5,foreground='red',activeforeground='red')
 
             pop_add_cascade(label = 'Selected Subdirectory',menu = c_sel_sub,state=dir_actions_state, image = self.ico_empty,compound='left')
 
@@ -4134,7 +4140,7 @@ class Gui:
                     incorrect_groups_append(crc)
 
             problem_header = 'All files marked'
-            if action==SOFTLINK:
+            if action==SOFTLINK or action==WIN_LNK:
                 problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
             else:
                 problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\""
@@ -4211,6 +4217,11 @@ class Gui:
         message=[]
         message_append = message.append
 
+        if action==WIN_LNK:
+            message_append('Link files will be created with the names of the listed files with the ".lnk" suffix.')
+            message_append('Original files will be removed.')
+            message_append('')
+
         self_item_full_path = self.item_full_path
 
         self_groups_tree_item_to_data = self.groups_tree_item_to_data
@@ -4230,7 +4241,7 @@ class Gui:
 
                 message_append('   ' + (self_item_full_path(item) if show_full_path else file) + '|RED' )
 
-            if action==SOFTLINK:
+            if action==SOFTLINK or action==WIN_LNK:
                 if remaining_items[crc]:
                     item = remaining_items[crc][0]
                     if cfg_show_links_targets:
@@ -4244,7 +4255,11 @@ class Gui:
             if not self.text_ask_dialog.res_bool:
                 return True
         elif action==SOFTLINK:
-            self.get_text_ask_dialog().show('Soft-Link marked files to first unmarked file in group ?','Scope: ' + scope_title + '\n\n' + size_info + '\n'+'\n'.join(message))
+            self.get_text_ask_dialog().show('Soft-Link marked files to the first unmarked file in the group ?','Scope: ' + scope_title + '\n\n' + size_info + '\n'+'\n'.join(message))
+            if not self.text_ask_dialog.res_bool:
+                return True
+        elif action==WIN_LNK:
+            self.get_text_ask_dialog().show('replace marked files with .lnk files pointing to the first unmarked file in the group ?','Scope: ' + scope_title + '\n\n' + size_info + '\n'+'\n'.join(message))
             if not self.text_ask_dialog.res_bool:
                 return True
         elif action==HARDLINK:
@@ -4333,6 +4348,7 @@ class Gui:
         dude_core_delete_file_wrapper = dude_core.delete_file_wrapper
 
         dude_core_link_wrapper = dude_core.link_wrapper
+        dude_core_win_lnk_wrapper = dude_core.win_lnk_wrapper
 
         final_info=[]
 
@@ -4402,7 +4418,28 @@ class Gui:
                 index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
                 size=self_groups_tree_item_to_data[to_keep_item][1]
 
-                if resmsg:=dude_core_link_wrapper(True, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],self.file_remove_callback,self.crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],self.file_remove_callback,self.crc_remove_callback ):
+                    l_error(resmsg)
+
+                    end_message_list_append(resmsg)
+
+                    if abort_on_error:
+                        break
+
+                if counter%16==0:
+                    self_status('processing crc groups %s ...' % counter)
+
+
+        elif action==WIN_LNK:
+
+            for crc,items_dict in processed_items.items():
+                counter+=1
+                to_keep_item=remaining_items[crc][0]
+
+                index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
+                size=self_groups_tree_item_to_data[to_keep_item][1]
+
+                if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)
@@ -4420,7 +4457,7 @@ class Gui:
                 index_tuple_ref=self_groups_tree_item_to_data[ref_item][3]
                 size=self_groups_tree_item_to_data[ref_item][1]
 
-                if resmsg:=dude_core_link_wrapper(False, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],self.file_remove_callback,self.crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)
