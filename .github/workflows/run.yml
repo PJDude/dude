@@ -238,7 +238,7 @@ jobs:
         path: ./
 
     - name: rename windows distro
-      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
+      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
 
     #####################################
     - name: download linux nuitka distro
@@ -248,7 +248,7 @@ jobs:
         path: ./
 
     - name: rename linux distro
-      run: mv ./dude.lin.zip ./dude.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
+      run: mv ./dude.lin.zip ./dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.zip
 
     #####################################
     - name: Create GitHub release
@@ -259,10 +259,10 @@ jobs:
         tag_name: ${{ steps.version.outputs.version }}
         name: Dude ${{ steps.version.outputs.version }}
         draft: false
-        prerelease: false
+        prerelease: true
         files: |
             dude.${{ steps.version.outputs.version }}.portable.linux.zip
+            dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.zip
             dude.${{ steps.version.outputs.version }}.portable.windows.zip
-            dude.${{ steps.version.outputs.version }}.nuitka.portable.linux.zip
-            dude.${{ steps.version.outputs.version }}.nuitka.portable.windows.zip
+            dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
 
