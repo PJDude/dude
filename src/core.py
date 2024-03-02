@@ -42,6 +42,9 @@ from os.path import dirname,relpath,normpath,join as path_join,abspath as abspat
 
 from subprocess import run as subprocess_run
 
+if os_name=='nt':
+    from subprocess import CREATE_NO_WINDOW
+
 from pickle import dumps,loads
 from zstandard import ZstdCompressor,ZstdDecompressor
 
@@ -827,7 +830,7 @@ class DudeCore:
             powershell_cmd = f'$ol=(New-Object -ComObject WScript.Shell).CreateShortcut("{dest}")\n\r$ol.TargetPath="{src}"\n\r$ol.Save()'
             l_info(f'{powershell_cmd=}')
 
-            res = subprocess_run(["powershell", "-Command", powershell_cmd], capture_output=True)
+            res = subprocess_run(["powershell", "-Command", powershell_cmd], capture_output=True,creationflags=CREATE_NO_WINDOW)
 
             if res.returncode != 0:
                 return f"Error on win lnk code: {res.returncode} error: {res.stderr}"
