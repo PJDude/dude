@@ -575,7 +575,6 @@ class CheckboxEntryDialogQuestion(EntryDialogQuestion):
 
         self.check = Checkbutton(self.area_main, variable=self.check_val)
         self.check.grid(row=1,column=0,padx=5,pady=5,sticky="wens")
-        self.result2=None
 
         self.focus=self.entry
 

@@ -869,7 +869,7 @@ class DudeCore:
         else:
             self.log.warning('remove_from_data_pool - size already removed')
 
-    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash=False,file_callback=None,crc_callback=None):
+    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash,file_callback=None,crc_callback=None):
         messages=set()
         messages_add = messages.add
 
@@ -899,29 +899,12 @@ class DudeCore:
 
         return messages
 
-    def win_lnk_wrapper (self,\
-            size,crc,\
-            index_tuple_ref,index_tuple_list,file_callback=None,crc_callback=None):
-
-        l_info = self.log.info
-
-        l_info(f'win_lnk_wrapper:{size},{crc},{index_tuple_ref},{index_tuple_list}')
-
-        (path_nr_keep,path_keep,file_keep,ctime_keep,dev_keep,inode_keep)=index_tuple_ref
-
-        self_get_full_path_scanned = self.get_full_path_scanned
-        self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
-
-        self_rename_file = self.rename_file
-        self_delete_file = self.delete_file
-
-        full_file_path_keep=self_get_full_path_scanned(path_nr_keep,path_keep,file_keep)
-
     def link_wrapper(self,\
             kind,relative,size,crc,\
-            index_tuple_ref,index_tuple_list,file_callback=None,crc_callback=None):
+            index_tuple_ref,index_tuple_list,to_trash,file_callback=None,crc_callback=None):
 
         l_info = self.log.info
+        delete_command = self.delete_file_to_trash if to_trash else self.delete_file
 
         l_info('link_wrapper:%s,%s,%s,%s,%s,%s',kind,relative,size,crc,index_tuple_ref,index_tuple_list)
 
@@ -931,11 +914,9 @@ class DudeCore:
         self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
 
         self_rename_file = self.rename_file
-        self_delete_file = self.delete_file
 
         full_file_path_keep=self_get_full_path_scanned(path_nr_keep,path_keep,file_keep)
 
-        #link_command = (lambda p : self.do_soft_link(full_file_path_keep,p,relative,l_info)) if soft else (lambda p : self.do_hard_link(full_file_path_keep,p,l_info))
         link_command = (lambda p : self.do_soft_link(full_file_path_keep,p,relative,l_info)) if kind==SOFTLINK else (lambda p : self.do_win_lnk_link(full_file_path_keep,str(p) + ".lnk",l_info)) if kind==WIN_LNK else (lambda p : self.do_hard_link(full_file_path_keep,p,l_info))
 
         if index_tuple_ref not in self_files_of_size_of_crc_size_crc:
@@ -951,7 +932,7 @@ class DudeCore:
                 res.append('link_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path,index_tuple))
                 break
 
-            temp_file='%s.temp' % full_file_path
+            temp_file='%s.dude_pre_delete_temp' % full_file_path
 
             rename_file_res1 = self_rename_file(full_file_path,temp_file,l_info)
 
@@ -964,7 +945,7 @@ class DudeCore:
                     res.append(("%s\n%s" % (linking_problem,rename_file_back_res)) if rename_file_back_res else ("%s" % linking_problem))
                     break
 
-                if message:=self_delete_file(temp_file,l_info):
+                if message:=delete_command(temp_file,l_info):
                     self.log.error(message)
                     res.append(message)
                     break

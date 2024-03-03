@@ -83,7 +83,6 @@ CFG_KEY_FULL_PATHS='show_full_paths'
 CFG_KEY_CROSS_MODE='cross_mode'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
 
-CFG_KEY_USE_REG_EXPR='use_reg_expr'
 CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
 
 CFG_ERASE_EMPTY_DIRS='erase_empty_dirs'
@@ -101,12 +100,27 @@ CFG_KEY_WRAPPER_FILE = 'file_open_wrapper'
 CFG_KEY_WRAPPER_FOLDERS = 'folders_open_wrapper'
 CFG_KEY_WRAPPER_FOLDERS_PARAMS = 'folders_open_wrapper_params'
 
+CFG_KEY_SEARCH_TXT_STRING = 'search_txt_string'
+CFG_KEY_SEARCH_TXT_CS = 'search_txt_cs'
+
+CFG_KEY_FIND_STRING_0 = 'find_string_0'
+CFG_KEY_FIND_STRING_1 = 'find_string_1'
+
+CFG_KEY_FIND_RE_0 = 'find_re_0'
+CFG_KEY_FIND_RE_1 = 'find_re_1'
+
+CFG_KEY_MARK_STRING_0 = 'mark_string_0'
+CFG_KEY_MARK_STRING_1 = 'mark_string_1'
+
+CFG_KEY_MARK_RE_0 = 'mark_re_0'
+CFG_KEY_MARK_RE_1 = 'mark_re_1'
+
+
 cfg_defaults={
     CFG_KEY_FULL_CRC:False,
     CFG_KEY_FULL_PATHS:False,
     CFG_KEY_CROSS_MODE:False,
     CFG_KEY_REL_SYMLINKS:True,
-    CFG_KEY_USE_REG_EXPR:False,
     CFG_KEY_EXCLUDE_REGEXP:False,
     CFG_ERASE_EMPTY_DIRS:True,
     CFG_ABORT_ON_ERROR:True,
@@ -119,7 +133,17 @@ cfg_defaults={
     CFG_KEY_WRAPPER_FILE:'',
     CFG_KEY_WRAPPER_FOLDERS:'',
     CFG_KEY_WRAPPER_FOLDERS_PARAMS:'2',
-    CFG_KEY_EXCLUDE:''
+    CFG_KEY_EXCLUDE:'',
+    CFG_KEY_SEARCH_TXT_STRING:'',
+    CFG_KEY_SEARCH_TXT_CS:False,
+    CFG_KEY_FIND_STRING_0:'*',
+    CFG_KEY_FIND_STRING_1:'*',
+    CFG_KEY_FIND_RE_0:False,
+    CFG_KEY_FIND_RE_1:False,
+    CFG_KEY_MARK_STRING_0:'*',
+    CFG_KEY_MARK_STRING_1:'*',
+    CFG_KEY_MARK_RE_0:False,
+    CFG_KEY_MARK_RE_1:False
 }
 
 NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink'}
@@ -314,6 +338,7 @@ class Gui:
         self.cfg.read()
 
         self.cfg_get_bool=self.cfg.get_bool
+        self.cfg_get=self.cfg.get
 
         self.paths_to_scan_frames=[]
         self.exclude_frames=[]
@@ -429,7 +454,10 @@ class Gui:
         style_configure("TButton", background = self.bg_color)
 
         style_configure("TCheckbutton", background = self.bg_color)
-        style_configure("TCombobox", borderwidth=2,highlightthickness=1,bordercolor='darkgray')
+
+        if windows:
+            #fix border problem ...
+            style_configure("TCombobox",padding=1)
 
         style_map = style.map
 
@@ -447,7 +475,6 @@ class Gui:
 
         style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
         style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
-        #style_map('no_focus.Treeview', background=[('focus',bg_sel),('selected',bg_sel),('','white')])
 
         #works but not for every theme
         #style_configure("Treeview", fieldbackground=self.bg_color)
@@ -643,6 +670,8 @@ class Gui:
         self_folder_tree_heading('instances_h',anchor='w')
         self_folder_tree_heading('ctime_h',anchor='w')
 
+        self.tree_index={self.groups_tree:0,self.folder_tree:1}
+
         for tree in (self_groups_tree,self_folder_tree):
             tree_heading = tree.heading
             for col in tree["displaycolumns"]:
@@ -662,7 +691,7 @@ class Gui:
                 self_folder_tree.yview(*args)
 
         self.vsb2 = Scrollbar(frame_folder, orient='vertical', command=self_folder_tree_yview,takefocus=False)
-        #,bg=self.bg_color
+
         self.folder_tree_configure(yscrollcommand=self.vsb2.set)
 
         self_folder_tree.pack(fill='both',expand=1,side='left')
@@ -700,7 +729,7 @@ class Gui:
 
         try:
             self.main_update()
-            cfg_geometry=self.cfg.get('main','',section='geometry')
+            cfg_geometry=self.cfg_get('main','',section='geometry')
 
             if cfg_geometry:
                 self_main.geometry(cfg_geometry)
@@ -987,7 +1016,7 @@ class Gui:
         self_main.deiconify()
 
         self.paned.update()
-        self.paned.sash_place(0,0,self.cfg.get('sash_coord',400,section='geometry'))
+        self.paned.sash_place(0,0,self.cfg_get('sash_coord',400,section='geometry'))
 
         #prevent displacement
         if cfg_geometry :
@@ -1027,7 +1056,7 @@ class Gui:
 
     def pre_show_settings(self,on_main_window_dialog=True,new_widget=None):
         _ = {var.set(self.cfg_get_bool(key)) for var,key in self.settings}
-        _ = {var.set(self.cfg.get(key)) for var,key in self.settings_str}
+        _ = {var.set(self.cfg_get(key)) for var,key in self.settings_str}
         return self.pre_show(on_main_window_dialog=on_main_window_dialog,new_widget=new_widget)
 
     def widget_tooltip(self,widget,tooltip):
@@ -1043,6 +1072,13 @@ class Gui:
         self.widget_tooltip(dialog.find_next_butt,'Find Next (F3)')
         self.widget_tooltip(dialog.find_cs,'Case Sensitive')
         self.widget_tooltip(dialog.find_info_lab,'index of the selected search result / search results total ')
+
+        dialog.find_var.set( self.cfg_get(CFG_KEY_SEARCH_TXT_STRING) )
+        dialog.find_cs_var.set( self.cfg_get_bool(CFG_KEY_SEARCH_TXT_CS) )
+
+    def store_text_dialog_fields(self,dialog):
+        self.cfg.set(CFG_KEY_SEARCH_TXT_STRING,dialog.find_var.get())
+        self.cfg.set_bool(CFG_KEY_SEARCH_TXT_CS,dialog.find_cs_var.get())
 
     #######################################################################
     settings_dialog_created = False
@@ -1148,7 +1184,7 @@ class Gui:
             (en_2:=Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=2, column=1,sticky='news',padx=3,pady=2)
             en_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.'))
             en_2.bind("<Leave>", lambda event : self.widget_leave())
-            (cb_2:=Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly')).grid(row=2, column=2,sticky='ew',padx=3)
+            (cb_2:=Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly') ).grid(row=2, column=2,sticky='ew',padx=3)
             cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on crc groups\ndefault is 2'))
             cb_2.bind("<Leave>", lambda event : self.widget_leave())
 
@@ -1232,11 +1268,9 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=self.post_close)
-
             self.exclude_dialog_on_scan_created = True
 
         return self.exclude_dialog_on_scan
-
 
     progress_dialog_on_scan_created = False
     @restore_status_line
@@ -1251,7 +1285,6 @@ class Gui:
             self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
             self.progress_dialog_on_scan.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event) )
 
-
             self.progress_dialog_on_scan_created = True
 
         return self.progress_dialog_on_scan
@@ -1265,9 +1298,7 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.mark_dialog_on_groups = CheckboxEntryDialogQuestion(self.groups_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-
             self.mark_dialog_on_groups_created = True
-
             self.get_info_dialog_on_mark_groups()
 
         return self.mark_dialog_on_groups
@@ -1280,9 +1311,7 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.mark_dialog_on_folder = CheckboxEntryDialogQuestion(self.folder_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
-
             self.mark_dialog_on_folder_created = True
-
             self.get_info_dialog_on_mark_folder()
 
         return self.mark_dialog_on_folder
@@ -1295,7 +1324,6 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.info_dialog_on_mark[self.groups_tree] = LabelDialog(self.mark_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
-
             self.info_dialog_on_mark_groups_created = True
 
         return self.info_dialog_on_mark[self.groups_tree]
@@ -1308,11 +1336,9 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.info_dialog_on_mark[self.folder_tree] = LabelDialog(self.mark_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
-
             self.info_dialog_on_mark_folder_created = True
 
         return self.info_dialog_on_mark[self.folder_tree]
-
 
     find_dialog_on_groups_created = False
     @restore_status_line
@@ -1322,9 +1348,7 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.find_dialog_on_groups = FindEntryDialog(self.groups_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
-
             self.info_dialog_on_find[self.groups_tree] = LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
-
             self.find_dialog_on_groups_created = True
 
         return self.find_dialog_on_groups
@@ -1337,9 +1361,7 @@ class Gui:
             self.status("Creating dialog ...")
 
             self.find_dialog_on_folder = FindEntryDialog(self.folder_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
-
             self.info_dialog_on_find[self.folder_tree] = LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
-
             self.find_dialog_on_folder_created = True
 
         return self.find_dialog_on_folder
@@ -1367,8 +1389,6 @@ class Gui:
                         'SETTINGS DIRECTORY :  ' + CONFIG_DIR + '\n' + \
                         'CACHE DIRECTORY    :  ' + CACHE_DIR + '\n\n' + \
                         'Current log file   :  ' + log_file + '\n\n' + distro_info
-
-            #'LOGGING LEVEL      :  ' + log_levels[LOG_LEVEL] + '\n\n' + \
 
             lab_courier = Label(frame2,text=lab2_text,bg=self.bg_color,justify='left')
             lab_courier.pack(expand=1,fill='both')
@@ -1608,7 +1628,6 @@ class Gui:
             elif item := tree.identify('item', event.x, event.y):
 
                 coldata=''
-                #KIND_INDEX=3
                 kind=tree.set(item,3)
                 if kind==self.LINK:
                     coldata='(soft-link)'
@@ -1620,12 +1639,6 @@ class Gui:
                 elif col:
                     coldata = coldata + ' ' + tree.set(item,col)
 
-                #islink
-                #if pathnrstr:
-                #    pathnr=int(pathnrstr)
-                #    path=tree.set(item,'path')
-                #    file=tree.set(item,'file')
-                #    file_path = abspath(dude_core.get_full_path_scanned(pathnr,path,file))
                 if coldata:
                     self.tooltip_lab_configure(text=coldata)
                     self.tooltip_deiconify()
@@ -1729,6 +1742,7 @@ class Gui:
     find_params_changed=True
 
     find_by_tree={}
+    find_by_tree_re={}
 
     def finder_wrapper_show(self):
         tree=self.sel_tree
@@ -1736,18 +1750,32 @@ class Gui:
         self.find_dialog_shown=True
 
         scope_info = 'Scope: All groups.' if self.sel_tree==self.groups_tree else 'Scope: Selected directory.'
+        tree_index = self.tree_index[tree]
+
+        cfg_key = CFG_KEY_FIND_STRING_0 if tree_index==0 else CFG_KEY_FIND_STRING_1
+        cfg_key_re = CFG_KEY_FIND_RE_0 if tree_index==0 else CFG_KEY_FIND_RE_1
 
         if tree in self.find_by_tree:
             initialvalue=self.find_by_tree[tree]
         else:
-            initialvalue='*'
+            initialvalue=self.cfg.get(cfg_key)
+
+        if tree in self.find_by_tree_re:
+            initialvalue_re=self.find_by_tree_re[tree]
+        else:
+            initialvalue_re=self.cfg.get(cfg_key_re)
 
         if self.sel_tree==self.groups_tree:
-            self.get_find_dialog_on_groups().show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
+            self.get_find_dialog_on_groups().show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=initialvalue_re)
             self.find_by_tree[tree]=self.find_dialog_on_groups.entry.get()
+            self.find_by_tree_re[tree]=self.find_dialog_on_groups.check_val.get()
         else:
-            self.get_find_dialog_on_folder().show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=False)
+            self.get_find_dialog_on_folder().show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=initialvalue_re)
             self.find_by_tree[tree]=self.find_dialog_on_folder.entry.get()
+            self.find_by_tree_re[tree]=self.find_dialog_on_folder.check_val.get()
+
+        self.cfg.set(cfg_key,self.find_by_tree[tree])
+        self.cfg.set_bool(cfg_key_re,self.find_by_tree_re[tree])
 
         self.find_dialog_shown=False
         tree.focus_set()
@@ -1785,7 +1813,6 @@ class Gui:
             self.use_reg_expr_prev=use_reg_expr
             self.find_expression_prev=expression
             self.find_params_changed=True
-            self.cfg.set_bool(CFG_KEY_USE_REG_EXPR,use_reg_expr)
             self.find_result_index=0
 
     @restore_status_line
@@ -1819,9 +1846,6 @@ class Gui:
                 else:
                     try:
                         for item in self.current_folder_items:
-                            #if tree.set(item,'kind')==self.FILE:
-                            #file=self.folder_tree.set(item,'file')
-
                             file = self.current_folder_items_dict[item][0]
 
                             if (use_reg_expr and search(expression,file)) or (not use_reg_expr and fnmatch(file,expression) ):
@@ -2040,10 +2064,12 @@ class Gui:
                         else:
                             self.process_files_in_folder_wrapper(DELETE,self.sel_kind in (self.DIR,self.DIRLINK))
                     elif key == "Insert":
+                        action = WIN_LNK if shift_pressed and alt_pressed else HARDLINK if shift_pressed else SOFTLINK
+
                         if tree==self.groups_tree:
-                            self.process_files_in_groups_wrapper((SOFTLINK,HARDLINK)[shift_pressed],ctrl_pressed)
+                            self.process_files_in_groups_wrapper(action,ctrl_pressed)
                         else:
-                            self.process_files_in_folder_wrapper((SOFTLINK,HARDLINK)[shift_pressed],self.sel_kind in (self.DIR,self.DIRLINK))
+                            self.process_files_in_folder_wrapper(action,self.sel_kind in (self.DIR,self.DIRLINK))
                     elif key=='F5':
                         self.goto_max_folder(1,-1 if shift_pressed else 1)
                     elif key=='F6':
@@ -2382,7 +2408,7 @@ class Gui:
             c_local_entryconfig(19,foreground='red',activeforeground='red')
             c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(20,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),state=marks_state_win, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=marks_state_win, image = self.ico_empty,compound='left')
             c_local_entryconfig(21,foreground='red',activeforeground='red')
             c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(22,foreground='red',activeforeground='red')
@@ -2428,7 +2454,7 @@ class Gui:
             c_all.entryconfig(21,foreground='red',activeforeground='red')
             c_all.add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(22,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),state=marks_state_win, image = self.ico_empty,compound='left')
+            c_all.add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),accelerator="Alt+Shift+Insert",state=marks_state_win, image = self.ico_empty,compound='left')
             c_all.entryconfig(23,foreground='red',activeforeground='red')
             c_all.add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(24,foreground='red',activeforeground='red')
@@ -2474,7 +2500,6 @@ class Gui:
             c_local_add_command(label = 'Unmark By expression',command = lambda : self.mark_expression(self.unset_mark,'Unmark files'),accelerator="-", image = self.ico_empty,compound='left')
             c_local_add_separator()
 
-            #marks_state=('disabled','normal')[len(tree.tag_has(self.MARK))!=0]
             marks_state=('disabled','normal')[bool(self.current_folder_items_tagged)]
             marks_state_win=('disabled','normal')[bool(self.current_folder_items_tagged) and windows]
 
@@ -2568,6 +2593,7 @@ class Gui:
             final_info = self.empty_dirs_removal(res,True)
 
             self.get_text_info_dialog().show('Removed empty directories','\n'.join(final_info))
+            self.store_text_dialog_fields(self.text_info_dialog)
 
             self.tree_folder_update(self.sel_path_full)
 
@@ -2971,7 +2997,6 @@ class Gui:
         self.main.focus_set()
 
         crc_thread.join()
-        #self_progress_dialog_on_scan.label.update()
 
         self.groups_show()
 
@@ -3040,7 +3065,7 @@ class Gui:
 
         row=0
 
-        for entry in self.cfg.get(CFG_KEY_EXCLUDE,'').split('|'):
+        for entry in self.cfg_get(CFG_KEY_EXCLUDE,'').split('|'):
             if entry:
                 (frame:=Frame(self.exclude_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
                 self.exclude_frames.append(frame)
@@ -3078,7 +3103,7 @@ class Gui:
             self.exclude_mask_string(mask)
 
     def exclude_mask_string(self,mask):
-        orglist=self.cfg.get(CFG_KEY_EXCLUDE,'').split('|')
+        orglist=self.cfg_get(CFG_KEY_EXCLUDE,'').split('|')
         orglist.append(mask)
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
         self.exclude_mask_update()
@@ -3088,7 +3113,7 @@ class Gui:
         self.paths_to_scan_update()
 
     def exclude_mask_remove(self,mask) :
-        orglist=self.cfg.get(CFG_KEY_EXCLUDE,'').split('|')
+        orglist=self.cfg_get(CFG_KEY_EXCLUDE,'').split('|')
         orglist.remove(mask)
         if '' in orglist:
             orglist.remove('')
@@ -3141,13 +3166,13 @@ class Gui:
         if self.cfg_get_bool(CFG_CONFIRM_SHOW_LINKSTARGETS)!=self.confirm_show_links_targets.get():
             self.cfg.set_bool(CFG_CONFIRM_SHOW_LINKSTARGETS,self.confirm_show_links_targets.get())
 
-        if self.cfg.get(CFG_KEY_WRAPPER_FILE)!=self.file_open_wrapper.get():
+        if self.cfg_get(CFG_KEY_WRAPPER_FILE)!=self.file_open_wrapper.get():
             self.cfg.set(CFG_KEY_WRAPPER_FILE,self.file_open_wrapper.get())
 
-        if self.cfg.get(CFG_KEY_WRAPPER_FOLDERS)!=self.folders_open_wrapper.get():
+        if self.cfg_get(CFG_KEY_WRAPPER_FOLDERS)!=self.folders_open_wrapper.get():
             self.cfg.set(CFG_KEY_WRAPPER_FOLDERS,self.folders_open_wrapper.get())
 
-        if self.cfg.get(CFG_KEY_WRAPPER_FOLDERS_PARAMS)!=self.folders_open_wrapper_params.get():
+        if self.cfg_get(CFG_KEY_WRAPPER_FOLDERS_PARAMS)!=self.folders_open_wrapper_params.get():
             self.cfg.set(CFG_KEY_WRAPPER_FOLDERS_PARAMS,self.folders_open_wrapper_params.get())
 
         self.cfg.write()
@@ -3466,8 +3491,6 @@ class Gui:
 
     @block
     def tree_folder_update(self,arbitrary_path=None):
-        #t0=perf_counter()
-
         ftree = self.folder_tree
         self.folder_tree_configure(takefocus=False)
 
@@ -3726,7 +3749,6 @@ class Gui:
         self.status('Un/Setting marking in folder ...')
         self_groups_tree = self.groups_tree
         self_folder_tree = self.folder_tree
-        #self_folder_tree_set = self_folder_tree.set
         self_FILE=self.FILE
         self_current_folder_items=self.current_folder_items
 
@@ -3792,14 +3814,24 @@ class Gui:
             self.calc_mark_stats_folder()
 
     expr_by_tree={}
+    expr_by_tree_re={}
 
     def mark_expression(self,action,prompt,all_groups=True):
         tree=self.main.focus_get()
+        tree_index = self.tree_index[tree]
+
+        cfg_key = CFG_KEY_MARK_STRING_0 if tree_index==0 else CFG_KEY_MARK_STRING_1
+        cfg_key_re = CFG_KEY_MARK_RE_0 if tree_index==0 else CFG_KEY_MARK_RE_1
 
         if tree in self.expr_by_tree:
             initialvalue=self.expr_by_tree[tree]
         else:
-            initialvalue='*'
+            initialvalue=self.cfg.get(cfg_key)
+
+        if tree in self.expr_by_tree_re:
+            initialvalue_re=self.expr_by_tree_re[tree]
+        else:
+            initialvalue_re=self.cfg.get(cfg_key_re)
 
         if tree==self.groups_tree:
             range_str = " (all groups)" if all_groups else " (selected group)"
@@ -3809,22 +3841,24 @@ class Gui:
             title='Specify expression for file names in selected directory.'
 
         if tree==self.groups_tree:
-            self.get_mark_dialog_on_groups().show(title,prompt + f'{range_str}', initialvalue,'treat as a regular expression',self.cfg_get_bool(CFG_KEY_USE_REG_EXPR))
-            use_reg_expr = self.mark_dialog_on_groups.res_check
-            expression = self.mark_dialog_on_groups.res_str
+            self.get_mark_dialog_on_groups().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=initialvalue_re)
+            res_code = self.mark_dialog_on_groups.res_bool
+            use_reg_expr = self.mark_dialog_on_groups.check_val.get()
+            self.expr_by_tree[tree] = expression = self.mark_dialog_on_groups.entry_val.get()
         else:
-            self.get_mark_dialog_on_folder().show(title,prompt + f'{range_str}', initialvalue,'treat as a regular expression',self.cfg_get_bool(CFG_KEY_USE_REG_EXPR))
-            use_reg_expr = self.mark_dialog_on_folder.res_check
-            expression = self.mark_dialog_on_folder.res_str
+            self.get_mark_dialog_on_folder().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=initialvalue_re)
+            res_code = self.mark_dialog_on_folder.res_bool
+            use_reg_expr = self.mark_dialog_on_folder.check_val.get()
+            self.expr_by_tree[tree] = expression = self.mark_dialog_on_folder.entry_val.get()
 
         items=[]
         items_append = items.append
         use_reg_expr_info = '(regular expression)' if use_reg_expr else ''
 
-        if expression:
-            self.cfg.set_bool(CFG_KEY_USE_REG_EXPR,use_reg_expr)
-            self.expr_by_tree[tree]=expression
+        self.cfg.set(cfg_key,expression)
+        self.cfg.set_bool(cfg_key_re,use_reg_expr)
 
+        if res_code:
             self_item_full_path = self.item_full_path
 
             if tree==self.groups_tree:
@@ -3841,10 +3875,7 @@ class Gui:
                             tree.focus_set()
                             return
             else:
-                #self_folder_tree_set = self.folder_tree.set
                 self_current_folder_items_dict = self.current_folder_items_dict
-
-                #tree_set = tree.set
 
                 for item in self.current_folder_items:
                     if self_current_folder_items_dict[item][1]==self.FILE:
@@ -4104,6 +4135,7 @@ class Gui:
 
             if checkres:
                 self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
+                self.store_text_dialog_fields(self.text_info_dialog)
 
                 orglist=self.tree_children[self.groups_tree]
 
@@ -4155,6 +4187,7 @@ class Gui:
                 message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
 
                 self.get_text_info_dialog().show(header,message)
+                self.store_text_dialog_fields(self.text_info_dialog)
 
                 self.crc_select_and_focus(incorrect_groups[0],True)
 
@@ -4165,6 +4198,7 @@ class Gui:
             else:
                 if action==DELETE and self.cfg_get_bool(CFG_ALLOW_DELETE_ALL):
                     self.get_text_ask_dialog().show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED')
+                    self.store_text_dialog_fields(self.text_ask_dialog)
                     if self.text_ask_dialog.res_bool:
                         return self.CHECK_OK
                 else:
@@ -4219,7 +4253,13 @@ class Gui:
         message=[]
         message_append = message.append
 
-        if action==WIN_LNK:
+        action_is_win_lnk = bool(action==WIN_LNK)
+        action_is_softlink = bool(action==SOFTLINK)
+        softlink_or_win_lnk = bool (action_is_softlink or action_is_win_lnk)
+
+        space_prefix = '  ' if softlink_or_win_lnk and cfg_show_links_targets else ''
+
+        if action_is_win_lnk:
             message_append('Link files will be created with the names of the listed files with the ".lnk" suffix.')
             message_append('Original files will be removed.')
             message_append('')
@@ -4241,31 +4281,41 @@ class Gui:
                 size_sum += size
                 kind,size_item,crc_item, (pathnr,path,file,ctime,dev,inode) = self_groups_tree_item_to_data[item]
 
-                message_append('   ' + (self_item_full_path(item) if show_full_path else file) + '|RED' )
+                if action_is_win_lnk:
+                    message_append(space_prefix + (self_item_full_path(item) if show_full_path else file) + '(.lnk)|RED' )
+                else:
+                    message_append(space_prefix + (self_item_full_path(item) if show_full_path else file) + '|RED' )
 
-            if action==SOFTLINK or action==WIN_LNK:
+            if softlink_or_win_lnk:
                 if remaining_items[crc]:
                     item = remaining_items[crc][0]
                     if cfg_show_links_targets:
-                        message_append('-> %s' % (self_item_full_path(item) if show_full_path else self_groups_tree_item_to_data[item][3][2]) ) #file
+                        message_append('> %s' % (self_item_full_path(item) if show_full_path else self_groups_tree_item_to_data[item][3][2]) ) #file
 
         size_info = "Processed files size sum : " + bytes_to_str(size_sum) + "\n"
+
+        trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No") + "|RED"
+
+        head_info = scope_title + trash_info
         if action==DELETE:
-            trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No")
-            erase_empty_dirs = "\nErase empty directories  : " + ('Yes' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
-            self.get_text_ask_dialog().show('Delete marked files ?','Scope: ' + scope_title + trash_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
+            erase_empty_dirs = "\nErase empty directories  : " + ('Yes|RED' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
+            self.get_text_ask_dialog().show('Delete marked files ?','Scope: ' + head_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
+            self.store_text_dialog_fields(self.text_ask_dialog)
             if not self.text_ask_dialog.res_bool:
                 return True
-        elif action==SOFTLINK:
-            self.get_text_ask_dialog().show('Soft-Link marked files to the first unmarked file in the group ?','Scope: ' + scope_title + '\n\n' + size_info + '\n'+'\n'.join(message))
+        elif action_is_softlink:
+            self.get_text_ask_dialog().show('Soft-Link marked files to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+            self.store_text_dialog_fields(self.text_ask_dialog)
             if not self.text_ask_dialog.res_bool:
                 return True
-        elif action==WIN_LNK:
-            self.get_text_ask_dialog().show('replace marked files with .lnk files pointing to the first unmarked file in the group ?','Scope: ' + scope_title + '\n\n' + size_info + '\n'+'\n'.join(message))
+        elif action_is_win_lnk:
+            self.get_text_ask_dialog().show('replace marked files with .lnk files pointing to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+            self.store_text_dialog_fields(self.text_ask_dialog)
             if not self.text_ask_dialog.res_bool:
                 return True
         elif action==HARDLINK:
-            self.get_text_ask_dialog().show('Hard-Link marked files together in groups ?','Scope: ' + scope_title + '\n\n' + size_info +'\n'+'\n'.join(message))
+            self.get_text_ask_dialog().show('Hard-Link marked files together in groups ?','Scope: ' + head_info + '\n\n' + size_info +'\n'+'\n'.join(message))
+            self.store_text_dialog_fields(self.text_ask_dialog)
             if not self.text_ask_dialog.res_bool:
                 return True
 
@@ -4350,7 +4400,6 @@ class Gui:
         dude_core_delete_file_wrapper = dude_core.delete_file_wrapper
 
         dude_core_link_wrapper = dude_core.link_wrapper
-        dude_core_win_lnk_wrapper = dude_core.win_lnk_wrapper
 
         final_info=[]
 
@@ -4420,7 +4469,7 @@ class Gui:
                 index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
                 size=self_groups_tree_item_to_data[to_keep_item][1]
 
-                if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],self.file_remove_callback,self.crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)
@@ -4441,7 +4490,7 @@ class Gui:
                 index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
                 size=self_groups_tree_item_to_data[to_keep_item][1]
 
-                if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],self.file_remove_callback,self.crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)
@@ -4459,7 +4508,7 @@ class Gui:
                 index_tuple_ref=self_groups_tree_item_to_data[ref_item][3]
                 size=self_groups_tree_item_to_data[ref_item][1]
 
-                if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],self.file_remove_callback,self.crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)
@@ -4474,9 +4523,11 @@ class Gui:
 
         if end_message_list:
             self.get_text_info_dialog().show('Error','\n'.join(end_message_list))
+            self.store_text_dialog_fields(self.text_info_dialog)
 
         if final_info:
             self.get_text_info_dialog().show('Removed empty directories','\n'.join(final_info))
+            self.store_text_dialog_fields(self.text_info_dialog)
 
     @logwrapper
     def get_this_or_existing_parent(self,path):
@@ -4554,7 +4605,6 @@ class Gui:
         item_to_select=None
 
         processed_items_list = [item for crc,index_dict in processed_items.items() for index,item in index_dict.items()]
-        #print(f'{processed_items_list=}')
 
         if tree==self.groups_tree:
             item_to_select = self.sel_crc
@@ -4562,7 +4612,6 @@ class Gui:
             self_my_next_dict_tree = self.my_next_dict[tree]
             while True:
                 try:
-                    #item_to_select = tree.next(item_to_select)
                     item_to_select = self_my_next_dict_tree[item_to_select]
                 except :
                     item_to_select = None
@@ -4576,10 +4625,7 @@ class Gui:
             orglist=self.current_folder_items
             org_sel_item=self.sel_item
             try:
-                #org_sel_file=self.folder_tree.set(org_sel_item,'file')
-
                 org_sel_file = self.current_folder_items_dict[org_sel_item][0]
-                #print('org_sel_files:',org_sel_file,org_sel_file2)
 
             except :
                 org_sel_file=None
@@ -4647,7 +4693,6 @@ class Gui:
         if not new_list:
             return None
 
-        #self_folder_tree_set = self.folder_tree.set
         self_current_folder_items_dict = self.current_folder_items_dict
 
         new_list_names=[self_current_folder_items_dict[item][0] for item in self.current_folder_items] if self.current_folder_items else []
@@ -4755,7 +4800,6 @@ class Gui:
 
             if res_list:
                 item=res_list[0]
-                #self.folder_tree.focus(item)
                 self.semi_selection(self.folder_tree,item)
                 self.folder_tree_sel_change(item)
                 self.folder_tree_see(item)
@@ -4808,8 +4852,8 @@ class Gui:
         else:
             return
 
-        if wrapper:=self.cfg.get(CFG_KEY_WRAPPER_FOLDERS):
-            params_num = self.cfg.get(CFG_KEY_WRAPPER_FOLDERS_PARAMS)
+        if wrapper:=self.cfg_get(CFG_KEY_WRAPPER_FOLDERS):
+            params_num = self.cfg_get(CFG_KEY_WRAPPER_FOLDERS_PARAMS)
 
             num = 1024 if params_num=='all' else int(params_num)
             run_command = lambda : Popen([wrapper,*params[:num]])
@@ -4825,7 +4869,7 @@ class Gui:
         if self.sel_path_full and self.sel_file:
             file_to_open = sep.join([self.sel_path_full,self.sel_file])
 
-            if wrapper:=self.cfg.get(CFG_KEY_WRAPPER_FILE) and self.sel_kind in (self.FILE,self.LINK,self.SINGLE,self.SINGLEHARDLINKED):
+            if wrapper:=self.cfg_get(CFG_KEY_WRAPPER_FILE) and self.sel_kind in (self.FILE,self.LINK,self.SINGLE,self.SINGLEHARDLINKED):
                 self.status('opening: %s' % file_to_open)
                 run_command = lambda : Popen([wrapper,file_to_open])
             elif windows:
