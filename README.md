@@ -10,8 +10,8 @@ A cross-platform GUI utility for finding duplicated files, delete or link them t
   - directory of selected file
 - Two stage processing:
   - interactive marking of files with multiple criteria
-  - taking action on marked files (Move to Trash/Recycle Bin, delete, hard-link or soft-link)
-- Support for **regular expressions** or simplified (wildcards) syntax
+  - taking action on marked files (Move to Trash/Recycle Bin, delete, hard-link, soft-link, create windows .lnk shortcut file)
+- Support for **regular expressions** or **glob** expressions syntax
 - Searching for duplicates based on the **hash** of the file content. Different filenames or extensions do not affect the search results
 - Works on **Linux** and **Windows**
 
