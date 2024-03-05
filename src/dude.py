@@ -235,7 +235,7 @@ class Gui:
         self.menubar_config(cursor='watch')
         self.main_config(cursor='watch')
 
-    def processing_on(self,caller_id=None):
+    def processing_on(self):
         self.block_processing_stack_pop()
 
         if not self.block_processing_stack:
@@ -247,6 +247,26 @@ class Gui:
             self.menubar_config(cursor='')
 
     #####################################################
+    def block_and_log(func):
+        def block_and_log_wrapp(self,*args,**kwargs):
+            self.processing_off(f'b&l_wrapp:{func.__name__}')
+            l_info("b&l '%s' start",func.__name__)
+
+            try:
+                res=func(self,*args,**kwargs)
+            except Exception as e:
+                self.status('block_and_log_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
+                l_error('block_and_log_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
+                l_error(''.join(format_stack()))
+                self.get_info_dialog_on_main().show('INTERNAL ERROR block_and_log_wrapp',f'{func.__name__}\n' + str(e))
+                res=None
+
+            self.processing_on()
+
+            l_info("b&l '%s' end",func.__name__)
+            return res
+        return block_and_log_wrapp
+
     def block(func):
         def block_wrapp(self,*args,**kwargs):
             self.processing_off(f'block_wrapp:{func.__name__}')
@@ -1254,7 +1274,7 @@ class Gui:
         if not self.info_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=self.post_close)
+            self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
 
             self.info_dialog_on_scan_created = True
 
@@ -1267,7 +1287,7 @@ class Gui:
         if not self.exclude_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=self.post_close)
+            self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
             self.exclude_dialog_on_scan_created = True
 
         return self.exclude_dialog_on_scan
@@ -1279,7 +1299,7 @@ class Gui:
         if not self.progress_dialog_on_scan_created:
             self.status("Creating dialog ...")
 
-            self.progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=self.post_close)
+            self.progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
             self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
 
             self.progress_dialog_on_scan.abort_button.bind("<Leave>", lambda event : self.widget_leave())
@@ -1288,6 +1308,23 @@ class Gui:
             self.progress_dialog_on_scan_created = True
 
         return self.progress_dialog_on_scan
+
+    progress_dialog_on_main_created = False
+    @restore_status_line
+    @block
+    def get_progress_dialog_on_main(self):
+        if not self.progress_dialog_on_main_created:
+            self.status("Creating dialog ...")
+
+            self.progress_dialog_on_main = ProgressDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+            self.progress_dialog_on_main.command_on_close = self.progress_dialog_abort
+
+            self.progress_dialog_on_main.abort_button.bind("<Leave>", lambda event : self.widget_leave())
+            self.progress_dialog_on_main.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'processing...') )
+
+            self.progress_dialog_on_main_created = True
+
+        return self.progress_dialog_on_main
 
 
     mark_dialog_on_groups_created = False
@@ -2650,8 +2687,7 @@ class Gui:
             self.current_folder_items = self.tree_children[self.folder_tree]
 
     @restore_status_line
-    @block
-    @logwrapper
+    @block_and_log
     def column_sort(self, tree):
         self.status('Sorting...')
         colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
@@ -3332,8 +3368,7 @@ class Gui:
             self.tree_folder_update_none()
             self.reset_sels()
 
-    @block
-    @logwrapper
+    @block_and_log
     def groups_show(self):
         #self.menu_disable()
 
@@ -3428,8 +3463,7 @@ class Gui:
         #self.menu_enable()
         self_status('')
 
-    @block
-    @logwrapper
+    @block_and_log
     def groups_tree_update_crc_and_path(self,configure_icon=False):
         self.status('Updating items ...')
         self.main_update()
@@ -3781,8 +3815,7 @@ class Gui:
             self.tagged_add(item)
             self.current_folder_items_tagged_add(item)
 
-    @block
-    @logwrapper
+    @block_and_log
     def action_on_path(self,path_param,action,all_groups=True):
         self.status('Un/Setting marking in subdirectory ...')
 
@@ -4055,8 +4088,7 @@ class Gui:
 
         return None
 
-    @block
-    @logwrapper
+    @block_and_log
     def process_files_in_groups_wrapper(self,action,all_groups):
         processed_items=defaultdict(dict)
 
@@ -4078,10 +4110,10 @@ class Gui:
                         processed_items[crc][index]=item
                         index+=1
 
-        return self.process_files(action,processed_items,scope_title)
+        self.process_files(action,processed_items,scope_title)
+        #return
 
-    @block
-    @logwrapper
+    @block_and_log
     def process_files_in_folder_wrapper(self,action,on_dir_action=False):
         processed_items=defaultdict(dict)
 
@@ -4119,8 +4151,7 @@ class Gui:
     CHECK_ERR='error_special_string'
 
     @restore_status_line
-    @block
-    @logwrapper
+    @block_and_log
     def process_files_check_correctness(self,action,processed_items,remaining_items):
         skip_incorrect = self.cfg_get_bool(CFG_SKIP_INCORRECT_GROUPS)
         show_full_crc=self.cfg_get_bool(CFG_KEY_FULL_CRC)
@@ -4211,8 +4242,7 @@ class Gui:
         return self.CHECK_OK
 
     @restore_status_line
-    @block
-    @logwrapper
+    @block_and_log
     def process_files_check_correctness_last(self,action,processed_items,remaining_items):
         self.status('final checking selection correctness')
         self.main_update()
@@ -4385,13 +4415,8 @@ class Gui:
             l_error('empty_dirs_removal_single scandir :%s',e)
             return f' error (scandir {path}): {e}'
 
-    @logwrapper
+    #@logwrapper
     def process_files_core(self,action,processed_items,remaining_items):
-        self_status = self.status
-
-        self_status('processing files ...')
-        self.main_update()
-
         to_trash=self.cfg_get_bool(CFG_SEND_TO_TRASH)
         abort_on_error=self.cfg_get_bool(CFG_ABORT_ON_ERROR)
         erase_empty_dirs=self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS)
@@ -4403,9 +4428,18 @@ class Gui:
 
         final_info=[]
 
-        counter = 0
+        self.process_files_counter = 0
+        self.process_files_size_sum = 0
+
         end_message_list=[]
         end_message_list_append = end_message_list.append
+
+        self.process_files_core_info='processing files'
+
+        self.process_files_core_perc_1=0
+        self.process_files_core_perc_2=0
+
+        self.process_files_result=('','')
 
         if action==DELETE:
             directories_to_check=set()
@@ -4415,7 +4449,14 @@ class Gui:
                 tuples_to_delete_add = tuples_to_delete.add
                 size = self.crc_to_size[crc]
                 for item in items_dict.values():
-                    counter+=1
+                    #self.process_files_core_info=f'{self.process_files_counter}/{self.process_files_total}'
+
+                    self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
+                    self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
+
+                    self.process_files_counter+=1
+                    self.process_files_size_sum+=size
+
                     index_tuple=self_groups_tree_item_to_data[item][3]
                     tuples_to_delete_add(index_tuple)
 
@@ -4424,8 +4465,6 @@ class Gui:
                     if erase_empty_dirs:
                         if path:
                             directories_to_check_add( tuple( [pathnr] + path.strip(sep).split(sep) ) )
-                    if counter%16==0:
-                        self_status('processing files %s ...' % counter)
 
                 if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash,self.file_remove_callback,self.crc_remove_callback):
                     resmsg_str='\n'.join(resmsg)
@@ -4463,7 +4502,13 @@ class Gui:
         elif action==SOFTLINK:
             do_rel_symlink = self.cfg_get_bool(CFG_KEY_REL_SYMLINKS)
             for crc,items_dict in processed_items.items():
-                counter+=1
+                #self.process_files_core_info=f'{self.process_files_counter}/{self.process_files_total}'
+                self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
+                self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
+
+                self.process_files_counter+=1
+                self.process_files_size_sum+=size
+
                 to_keep_item=remaining_items[crc][0]
 
                 index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
@@ -4477,14 +4522,16 @@ class Gui:
                     if abort_on_error:
                         break
 
-                if counter%16==0:
-                    self_status('processing crc groups %s ...' % counter)
-
-
         elif action==WIN_LNK:
 
             for crc,items_dict in processed_items.items():
-                counter+=1
+                #self.process_files_core_info=f'{self.process_files_counter}/{self.process_files_total}'
+                self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
+                self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
+
+                self.process_files_counter+=1
+                self.process_files_size_sum+=size
+
                 to_keep_item=remaining_items[crc][0]
 
                 index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
@@ -4498,12 +4545,15 @@ class Gui:
                     if abort_on_error:
                         break
 
-                if counter%16==0:
-                    self_status('processing crc groups %s ...' % counter)
-
         elif action==HARDLINK:
             for crc,items_dict in processed_items.items():
-                counter+=1
+                #self.process_files_core_info=f'{self.process_files_counter}/{self.process_files_total}'
+                self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
+                self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
+
+                self.process_files_counter+=1
+                self.process_files_size_sum+=size
+
                 ref_item=items_dict[0]
                 index_tuple_ref=self_groups_tree_item_to_data[ref_item][3]
                 size=self_groups_tree_item_to_data[ref_item][1]
@@ -4516,18 +4566,7 @@ class Gui:
                     if abort_on_error:
                         break
 
-                if counter%16==0:
-                    self_status('processing crc groups %s ...' % counter)
-
-        self.data_precalc()
-
-        if end_message_list:
-            self.get_text_info_dialog().show('Error','\n'.join(end_message_list))
-            self.store_text_dialog_fields(self.text_info_dialog)
-
-        if final_info:
-            self.get_text_info_dialog().show('Removed empty directories','\n'.join(final_info))
-            self.store_text_dialog_fields(self.text_info_dialog)
+        self.process_files_result=(end_message_list,final_info)
 
     @logwrapper
     def get_this_or_existing_parent(self,path):
@@ -4539,8 +4578,7 @@ class Gui:
 
         return None
 
-    @block
-    @logwrapper
+    @block_and_log
     def process_files(self,action,processed_items,scope_title):
         tree=self.sel_tree
 
@@ -4630,9 +4668,107 @@ class Gui:
             except :
                 org_sel_file=None
 
-        #############################################
-        self.process_files_core(action,processed_items,remaining_items)
-        #############################################
+
+        self.process_files_total = len([item for crc,items_dict in processed_items.items() for item in items_dict.values()])
+        self.process_files_total_size = sum([self.crc_to_size[crc] for crc,items_dict in processed_items.items() for item in items_dict.values()])
+        self.process_files_total_size_str = bytes_to_str(self.process_files_total_size)
+
+        dialog = self.get_progress_dialog_on_main()
+
+        self.process_files_core_info='initial'
+
+        dialog.lab_l1.configure(text='Total space:')
+        dialog.lab_l2.configure(text='Files number:' )
+
+        dialog.progr1var.set(0)
+        dialog.progr2var.set(0)
+
+        #update_once=True
+
+        dialog_progr1var_set = dialog.progr1var.set
+        dialog_progr2var_set = dialog.progr2var.set
+
+        run_processing_thread=Thread(target=lambda : self.process_files_core(action,processed_items,remaining_items) ,daemon=True)
+        run_processing_thread_is_alive = run_processing_thread.is_alive
+        run_processing_thread.start()
+
+        wait_var=BooleanVar()
+        wait_var.set(False)
+
+        dialog_shown = False
+        dialog_time = perf_counter()+1.0
+
+
+        while run_processing_thread_is_alive():
+            #############################################
+
+            if dialog_shown:
+                dialog.lab[0].configure(text=self.process_files_core_info)
+
+                dialog_progr1var_set(self.process_files_core_perc_1)
+                dialog_progr2var_set(self.process_files_core_perc_2)
+
+                dialog.lab_r1.configure(text = f'{bytes_to_str(self.process_files_size_sum)} / {self.process_files_total_size_str}')
+                dialog.lab_r2.configure(text = f'{self.process_files_counter} / {self.process_files_total}')
+            else :
+                if perf_counter()>dialog_time:
+                    dialog.show('Processing')
+                    dialog_shown = True
+
+            self.main.after(100,lambda : wait_var.set(not wait_var.get()))
+            self.main.wait_variable(wait_var)
+
+            continue
+
+            anything_changed=False
+
+            size_progress_info=dude_core.info_size_done_perc
+            if size_progress_info!=prev_progress_size:
+                prev_progress_size=size_progress_info
+
+                dialog.progr1var_set(size_progress_info)
+                dialog.lab_r1_config(text='%s / %s' % (local_bytes_to_str(dude_core.info_size_done),bytes_to_str_dude_core_sum_size))
+                anything_changed=True
+
+            quant_progress_info=dude_core.info_files_done_perc
+            if quant_progress_info!=prev_progress_quant:
+                prev_progress_quant=quant_progress_info
+
+                dialog.progr2var_set(quant_progress_info)
+                dialog.lab_r2_config(text='%s / %s' % (fnumber(dude_core.info_files_done),fnumber(dude_core.info_total)))
+                anything_changed=True
+
+            if anything_changed:
+                if dude_core.info_found_groups:
+                    #new_data[1]='Results'
+                    new_data[2]='CRC groups: %s' % fnumber(dude_core.info_found_groups)
+                    new_data[3]='space: %s' % local_bytes_to_str(dude_core.info_found_dupe_space)
+                    new_data[4]='folders: %s' % fnumber(dude_core.info_found_folders)
+
+                    for i in (2,3,4):
+                        if new_data[i] != prev_data[i]:
+                            prev_data[i]=new_data[i]
+                            dialog.lab[i].configure(text=new_data[i])
+
+                dialog.area_main_update()
+
+            #############################################
+
+        end_message_list,final_info = self.process_files_result
+
+        run_processing_thread.join()
+
+        dialog.hide(True)
+
+        if end_message_list:
+            self.get_text_info_dialog().show('Error','\n'.join(end_message_list))
+            self.store_text_dialog_fields(self.text_info_dialog)
+
+        if final_info:
+            self.get_text_info_dialog().show('Removed empty directories','\n'.join(final_info))
+            self.store_text_dialog_fields(self.text_info_dialog)
+
+        self.data_precalc()
 
         l_info('post-update %s',tree)
 

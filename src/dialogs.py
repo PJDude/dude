@@ -94,6 +94,9 @@ class GenericDialog:
         self.do_command_after_show=None
         self.command_on_close=None
 
+        self.focus_restore=False
+        self.shown_really = False
+
     def clip_copy(self,what):
         self.widget.clipboard_clear()
         self.widget.clipboard_append(what)
@@ -120,6 +123,7 @@ class GenericDialog:
     def show(self,wait=True):
         self.parent.config(cursor="watch")
         self.parent.update()
+        self.shown_really=True
 
         widget = self.widget
 
@@ -179,28 +183,27 @@ class GenericDialog:
         if not force_hide and self.command_on_close:
             self.command_on_close()
         else:
-            #widget.grab_release()
+            if self.shown_really:
+                widget.withdraw()
 
-            widget.withdraw()
+                try:
+                    widget.update()
+                except Exception as e:
+                    pass
 
-            try:
-                widget.update()
-            except Exception as e:
-                pass
+                locked_by_child[self.parent]=None
 
-            locked_by_child[self.parent]=None
+                if self.post_close:
+                    self.post_close()
 
-            if self.post_close:
-                self.post_close()
+                if self.focus_restore:
+                    if self.pre_focus:
+                        self.pre_focus.focus_set()
+                    else:
+                        self.parent.focus_set()
 
-            if self.focus_restore:
-                if self.pre_focus:
-                    self.pre_focus.focus_set()
-                else:
-                    self.parent.focus_set()
-
-            self.wait_var.set(True)
-            self.parent.config(cursor="")
+                self.wait_var.set(True)
+                self.parent.config(cursor="")
 
 class LabelDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=120):
