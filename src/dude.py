@@ -4507,12 +4507,12 @@ class Gui:
                 self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
                 self.process_files_counter+=1
-                self.process_files_size_sum+=size
 
                 to_keep_item=remaining_items[crc][0]
 
                 index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
                 size=self_groups_tree_item_to_data[to_keep_item][1]
+                self.process_files_size_sum+=size
 
                 if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
@@ -4530,12 +4530,12 @@ class Gui:
                 self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
                 self.process_files_counter+=1
-                self.process_files_size_sum+=size
 
                 to_keep_item=remaining_items[crc][0]
 
                 index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
                 size=self_groups_tree_item_to_data[to_keep_item][1]
+                self.process_files_size_sum+=size
 
                 if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
@@ -4552,11 +4552,11 @@ class Gui:
                 self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
                 self.process_files_counter+=1
-                self.process_files_size_sum+=size
 
                 ref_item=items_dict[0]
                 index_tuple_ref=self_groups_tree_item_to_data[ref_item][3]
                 size=self_groups_tree_item_to_data[ref_item][1]
+                self.process_files_size_sum+=size
 
                 if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
