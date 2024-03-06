@@ -95,7 +95,6 @@ class GenericDialog:
         self.command_on_close=None
 
         self.focus_restore=False
-        self.shown_really = False
 
     def clip_copy(self,what):
         self.widget.clipboard_clear()
@@ -120,10 +119,10 @@ class GenericDialog:
         if child_widget := locked_by_child[self.widget]:
             child_widget.focus_set()
 
-    def show(self,wait=True):
+    def show(self,wait=True,now=True):
         self.parent.config(cursor="watch")
-        self.parent.update()
-        self.shown_really=True
+        if now:
+            self.parent.update()
 
         widget = self.widget
 
@@ -138,22 +137,24 @@ class GenericDialog:
         self.focus_restore=True
         self.pre_focus=self.parent.focus_get()
 
-        widget.update()
+        if now:
+            widget.update()
+
         set_geometry_by_parent(widget,self.parent)
 
         self.wait_var.set(False)
         self.res_bool=False
 
-        try:
-            widget.deiconify()
-            widget.update()
-            #widget.grab_set()
-        except Exception as e:
-            print(e)
+        widget.deiconify()
+
+        if now:
+            try:
+                widget.update()
+            except Exception as e:
+                print(e)
 
         if self.focus:
             self.focus.focus_set()
-            #focus.focus_force()
 
         set_geometry_by_parent(widget,self.parent)
 
@@ -173,6 +174,11 @@ class GenericDialog:
         if wait:
             widget.wait_variable(self.wait_var)
 
+    def show_postprocess(self):
+        self.parent.update()
+        self.widget.update()
+        set_geometry_by_parent(self.widget,self.parent)
+
     def hide(self,force_hide=False):
         widget = self.widget
 
@@ -183,27 +189,27 @@ class GenericDialog:
         if not force_hide and self.command_on_close:
             self.command_on_close()
         else:
-            if self.shown_really:
-                widget.withdraw()
+            widget.withdraw()
 
-                try:
-                    widget.update()
-                except Exception as e:
-                    pass
+            try:
+                widget.update()
+            except Exception as e:
+                pass
 
-                locked_by_child[self.parent]=None
+            locked_by_child[self.parent]=None
 
-                if self.post_close:
-                    self.post_close()
+            if self.focus_restore:
+                if self.pre_focus:
+                    self.pre_focus.focus_set()
+                else:
+                    self.parent.focus_set()
 
-                if self.focus_restore:
-                    if self.pre_focus:
-                        self.pre_focus.focus_set()
-                    else:
-                        self.parent.focus_set()
+            self.wait_var.set(True)
+            self.parent.config(cursor="")
 
-                self.wait_var.set(True)
-                self.parent.config(cursor="")
+
+            if self.post_close:
+                self.post_close()
 
 class LabelDialog(GenericDialog):
     def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=120):
@@ -317,9 +323,9 @@ class ProgressDialog(GenericDialog):
             return True
         return False
 
-    def show(self,title='',wait=False):
+    def show(self,title='',wait=False, now=True):
         self.widget.title(title)
-        super().show(wait)
+        super().show(wait,now=now)
 
 class TextDialogInfo(GenericDialog):
     def text_vsb_set(self,v1,v2):

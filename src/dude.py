@@ -437,11 +437,6 @@ class Gui:
 
         self_main_bind = self_main.bind
 
-        self_main_bind('<KeyPress-F2>', lambda event : self.get_settings_dialog().show())
-        self_main_bind('<KeyPress-F1>', lambda event : self.get_about_dialog().show())
-        self_main_bind('<KeyPress-s>', lambda event : self.scan_dialog_show())
-        self_main_bind('<KeyPress-S>', lambda event : self.scan_dialog_show())
-
         #self.defaultFont = font.nametofont("TkDefaultFont")
         #self.defaultFont.configure(family="Monospace regular",size=8,weight=font.BOLD)
         #self.defaultFont.configure(family="Monospace regular",size=10)
@@ -1319,8 +1314,10 @@ class Gui:
             self.progress_dialog_on_main = ProgressDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.progress_dialog_on_main.command_on_close = self.progress_dialog_abort
 
-            self.progress_dialog_on_main.abort_button.bind("<Leave>", lambda event : self.widget_leave())
-            self.progress_dialog_on_main.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'processing...') )
+            self.progress_dialog_on_main.abort_button.pack_forget()
+
+            #self.progress_dialog_on_main.abort_button.bind("<Leave>", lambda event : self.widget_leave())
+            #self.progress_dialog_on_main.abort_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'processing...') )
 
             self.progress_dialog_on_main_created = True
 
@@ -1732,7 +1729,7 @@ class Gui:
                 norm("Navigation")
                 norm("Help")
         except Exception as e:
-            l_error(e)
+            l_error(f'menu_enable error:{e}')
 
     def menu_disable(self):
         disable = self.menubar_disable
@@ -2065,7 +2062,7 @@ class Gui:
                 elif key == "space":
                     if item:
                         if tree==self.groups_tree:
-                            if tree.set(item,'kind')==self.CRC:
+                            if self.sel_kind==self.CRC:
                                 self.tag_toggle_selected(tree,*self.tree_children_sub[item])
                             else:
                                 self.tag_toggle_selected(tree,item)
@@ -2101,7 +2098,7 @@ class Gui:
                         else:
                             self.process_files_in_folder_wrapper(DELETE,self.sel_kind in (self.DIR,self.DIRLINK))
                     elif key == "Insert":
-                        action = WIN_LNK if shift_pressed and alt_pressed else HARDLINK if shift_pressed else SOFTLINK
+                        action = WIN_LNK if shift_pressed and alt_pressed and windows else HARDLINK if shift_pressed else SOFTLINK
 
                         if tree==self.groups_tree:
                             self.process_files_in_groups_wrapper(action,ctrl_pressed)
@@ -2125,6 +2122,8 @@ class Gui:
                                 self.mark_in_group(self.invert_mark)
                             else:
                                 self.mark_in_folder(self.invert_mark)
+                    elif key in ('s','S'):
+                        self.scan_dialog_show()
                     elif key in ('o','O'):
                         if ctrl_pressed:
                             if shift_pressed:
@@ -2208,6 +2207,10 @@ class Gui:
                     elif key=='Return':
                         if item:
                             self.tree_action(tree,item,alt_pressed)
+                    elif key=='F1':
+                        self.get_about_dialog().show()
+                    elif key=='F2':
+                        self.get_settings_dialog().show()
 
             except Exception as e:
                 l_error(f'key_press error:{e}')
@@ -2437,7 +2440,6 @@ class Gui:
             c_local_add_cascade(label = "Unmark on scan path",             menu = unmark_cascade_path, image = self.ico_empty,compound='left')
             c_local_add_separator()
 
-            #marks_state=('disabled','normal')[len(tree.tag_has(self.MARK))!=0]
             marks_state=('disabled','normal')[bool(self.tagged)]
             marks_state_win=('disabled','normal')[bool(self.tagged) and windows ]
 
@@ -2491,7 +2493,7 @@ class Gui:
             c_all.entryconfig(21,foreground='red',activeforeground='red')
             c_all.add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(22,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),accelerator="Alt+Shift+Insert",state=marks_state_win, image = self.ico_empty,compound='left')
+            c_all.add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),accelerator="Ctrl+Alt+Shift+Insert",state=marks_state_win, image = self.ico_empty,compound='left')
             c_all.entryconfig(23,foreground='red',activeforeground='red')
             c_all.add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=marks_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(24,foreground='red',activeforeground='red')
@@ -2542,7 +2544,7 @@ class Gui:
 
             c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,0),accelerator="Delete",state=marks_state, image = self.ico_empty,compound='left')
             c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,0),accelerator="Insert",state=marks_state, image = self.ico_empty,compound='left')
-            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,0),state=marks_state_win, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=marks_state_win, image = self.ico_empty,compound='left')
 
             c_local_entryconfig(8,foreground='red',activeforeground='red')
             c_local_entryconfig(9,foreground='red',activeforeground='red')
@@ -2559,7 +2561,7 @@ class Gui:
 
             c_sel_sub_add_command(label = 'Remove Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,True),accelerator="Delete",state=dir_actions_state, image = self.ico_empty,compound='left')
             c_sel_sub_add_command(label = 'Softlink Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,True),accelerator="Insert",state=dir_actions_state, image = self.ico_empty,compound='left')
-            c_sel_sub_add_command(label = 'Create *.lnk for Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,True),state=dir_actions_state_win, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = 'Create *.lnk for Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,True),accelerator="Alt+Shift+Insert",state=dir_actions_state_win, image = self.ico_empty,compound='left')
 
             c_sel_sub.entryconfig(3,foreground='red',activeforeground='red')
             c_sel_sub.entryconfig(4,foreground='red',activeforeground='red')
@@ -2852,6 +2854,11 @@ class Gui:
 
         local_bytes_to_str = bytes_to_str
 
+        self_main_after = self.main.after
+        self_main_wait_variable = self.main.wait_variable
+        wait_var_set = wait_var.set
+        wait_var_get = wait_var.get
+
         while scan_thread_is_alive():
             new_data[3]=local_bytes_to_str(dude_core.info_size_sum)
             new_data[4]='%s files' % fnumber(dude_core.info_counter)
@@ -2893,8 +2900,8 @@ class Gui:
                 dude_core.abort()
                 break
 
-            self.main.after(100,lambda : wait_var.set(not wait_var.get()))
-            self.main.wait_variable(wait_var)
+            self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+            self_main_wait_variable(wait_var)
 
         scan_thread.join()
 
@@ -3981,6 +3988,7 @@ class Gui:
 
         self_crc_to_size = self.crc_to_size
         self_tagged = self.tagged
+
         while current_item:
             current_item = next_dict[current_item]
             item_taggged = bool(current_item in self_tagged)
@@ -4068,7 +4076,7 @@ class Gui:
         kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self.groups_tree_item_to_data[item]
         return abspath(dude_core.get_full_path_scanned(pathnr,path,file))
 
-    @logwrapper
+    #@logwrapper
     def file_check_state(self,item):
         fullpath = self.item_full_path(item)
         l_info('checking file: %s',fullpath)
@@ -4415,7 +4423,6 @@ class Gui:
             l_error('empty_dirs_removal_single scandir :%s',e)
             return f' error (scandir {path}): {e}'
 
-    #@logwrapper
     def process_files_core(self,action,processed_items,remaining_items):
         to_trash=self.cfg_get_bool(CFG_SEND_TO_TRASH)
         abort_on_error=self.cfg_get_bool(CFG_ABORT_ON_ERROR)
@@ -4434,7 +4441,9 @@ class Gui:
         end_message_list=[]
         end_message_list_append = end_message_list.append
 
-        self.process_files_core_info='processing files'
+        self.process_files_core_info0=''
+        self.process_files_core_info1=''
+        self.process_files_core_info2='processing files...'
 
         self.process_files_core_perc_1=0
         self.process_files_core_perc_2=0
@@ -4448,19 +4457,22 @@ class Gui:
                 tuples_to_delete=set()
                 tuples_to_delete_add = tuples_to_delete.add
                 size = self.crc_to_size[crc]
+
+                self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
+                self.process_files_core_info1 = f'crc:{crc}'
+
                 for item in items_dict.values():
-                    #self.process_files_core_info=f'{self.process_files_counter}/{self.process_files_total}'
+                    index_tuple=self_groups_tree_item_to_data[item][3]
+                    tuples_to_delete_add(index_tuple)
+                    (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+
+                    self.process_files_core_info2 = f'{path}{sep}{file_name}'
 
                     self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
                     self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
                     self.process_files_counter+=1
                     self.process_files_size_sum+=size
-
-                    index_tuple=self_groups_tree_item_to_data[item][3]
-                    tuples_to_delete_add(index_tuple)
-
-                    (pathnr,path,file_name,ctime,dev,inode)=index_tuple
 
                     if erase_empty_dirs:
                         if path:
@@ -4502,7 +4514,7 @@ class Gui:
         elif action==SOFTLINK:
             do_rel_symlink = self.cfg_get_bool(CFG_KEY_REL_SYMLINKS)
             for crc,items_dict in processed_items.items():
-                #self.process_files_core_info=f'{self.process_files_counter}/{self.process_files_total}'
+
                 self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
                 self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
@@ -4513,6 +4525,9 @@ class Gui:
                 index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
                 size=self_groups_tree_item_to_data[to_keep_item][1]
                 self.process_files_size_sum+=size
+
+                self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
+                self.process_files_core_info1 = f'crc:{crc}'
 
                 if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
@@ -4525,7 +4540,7 @@ class Gui:
         elif action==WIN_LNK:
 
             for crc,items_dict in processed_items.items():
-                #self.process_files_core_info=f'{self.process_files_counter}/{self.process_files_total}'
+
                 self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
                 self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
@@ -4537,6 +4552,9 @@ class Gui:
                 size=self_groups_tree_item_to_data[to_keep_item][1]
                 self.process_files_size_sum+=size
 
+                self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
+                self.process_files_core_info1 = f'crc:{crc}'
+
                 if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
 
@@ -4547,7 +4565,6 @@ class Gui:
 
         elif action==HARDLINK:
             for crc,items_dict in processed_items.items():
-                #self.process_files_core_info=f'{self.process_files_counter}/{self.process_files_total}'
                 self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
                 self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
@@ -4557,6 +4574,9 @@ class Gui:
                 index_tuple_ref=self_groups_tree_item_to_data[ref_item][3]
                 size=self_groups_tree_item_to_data[ref_item][1]
                 self.process_files_size_sum+=size
+
+                self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
+                self.process_files_core_info1 = f'crc:{crc}'
 
                 if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
@@ -4639,7 +4659,6 @@ class Gui:
         #action
         l_info('tree: %s',tree)
 
-        #print('TODO SELECT !!')
         item_to_select=None
 
         processed_items_list = [item for crc,index_dict in processed_items.items() for index,item in index_dict.items()]
@@ -4668,7 +4687,6 @@ class Gui:
             except :
                 org_sel_file=None
 
-
         self.process_files_total = len([item for crc,items_dict in processed_items.items() for item in items_dict.values()])
         self.process_files_total_size = sum([self.crc_to_size[crc] for crc,items_dict in processed_items.items() for item in items_dict.values()])
         self.process_files_total_size_str = bytes_to_str(self.process_files_total_size)
@@ -4683,8 +4701,6 @@ class Gui:
         dialog.progr1var.set(0)
         dialog.progr2var.set(0)
 
-        #update_once=True
-
         dialog_progr1var_set = dialog.progr1var.set
         dialog_progr2var_set = dialog.progr2var.set
 
@@ -4693,30 +4709,37 @@ class Gui:
         run_processing_thread.start()
 
         wait_var=BooleanVar()
-        wait_var.set(False)
+        wait_var_set = wait_var.set
+        wait_var_set(False)
+        wait_var_get = wait_var.get
 
-        dialog_shown = False
-        dialog_time = perf_counter()+1.0
+        dialog.show('Processing',now=False)
 
+        dialog_lab = dialog.lab
+
+        dialog_lab_r1_configure = dialog.lab_r1.configure
+        dialog_lab_r2_configure = dialog.lab_r2.configure
+
+        self_main_after = self.main.after
+        self_main_wait_variable = self.main.wait_variable
+
+        dialog_update_lab_text = dialog.update_lab_text
 
         while run_processing_thread_is_alive():
             #############################################
 
-            if dialog_shown:
-                dialog.lab[0].configure(text=self.process_files_core_info)
+            dialog_update_lab_text(0,self.process_files_core_info0)
+            dialog_update_lab_text(1,self.process_files_core_info1)
+            dialog_update_lab_text(2, f'...{self.process_files_core_info2[-50:0]}')
 
-                dialog_progr1var_set(self.process_files_core_perc_1)
-                dialog_progr2var_set(self.process_files_core_perc_2)
+            dialog_progr1var_set(self.process_files_core_perc_1)
+            dialog_progr2var_set(self.process_files_core_perc_2)
 
-                dialog.lab_r1.configure(text = f'{bytes_to_str(self.process_files_size_sum)} / {self.process_files_total_size_str}')
-                dialog.lab_r2.configure(text = f'{self.process_files_counter} / {self.process_files_total}')
-            else :
-                if perf_counter()>dialog_time:
-                    dialog.show('Processing')
-                    dialog_shown = True
+            dialog_lab_r1_configure(text = f'{bytes_to_str(self.process_files_size_sum)} / {self.process_files_total_size_str}')
+            dialog_lab_r2_configure(text = f'{self.process_files_counter} / {self.process_files_total}')
 
-            self.main.after(100,lambda : wait_var.set(not wait_var.get()))
-            self.main.wait_variable(wait_var)
+            self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+            self_main_wait_variable(wait_var)
 
             continue
 
@@ -4775,6 +4798,8 @@ class Gui:
         self.selected[self.groups_tree]=None
         self.selected[self.folder_tree]=None
 
+        tree.selection_remove(*tree.selection())
+
         if tree==self.groups_tree:
             if self.sel_crc:
                 if tree.exists(self.sel_crc):
@@ -4783,11 +4808,13 @@ class Gui:
             if item_to_select:
                 l_info('updating groups : %s',item_to_select)
                 try:
-                    self.groups_tree.focus(item_to_select)
+
                     self.selected[self.groups_tree] = item_to_select
+                    self.groups_tree.focus(item_to_select)
                     self.groups_tree.focus_set()
 
                     self.groups_tree_sel_change(item_to_select)
+                    self.groups_tree_see(item_to_select)
                 except :
                     self.initial_focus()
             else:
@@ -4958,17 +4985,14 @@ class Gui:
 
     @logwrapper
     def tree_action(self,tree,item,alt_pressed=False):
-        #kind = self_current_folder_items_dict[item][1]
-        #todo
-
         if alt_pressed:
             self.open_folder()
-        elif tree.set(item,'kind') == self.UPDIR:
+        elif self.sel_kind == self.UPDIR:
             head,tail=path_split(self.sel_path_full)
             self.enter_dir(normpath(str(Path(self.sel_path_full).parent.absolute())),tail)
-        elif tree.set(item,'kind') in (self.DIR,self.DIRLINK):
-            self.enter_dir(self.sel_path_full+self.folder_tree.set(item,'file') if self.sel_path_full=='/' else sep.join([self.sel_path_full,self.folder_tree.set(item,'file')]),'..' )
-        elif tree.set(item,'kind')!=self.CRC:
+        elif self.sel_kind in (self.DIR,self.DIRLINK):
+            self.enter_dir(self.sel_path_full+self.sel_file if self.sel_path_full=='/' else sep.join([self.sel_path_full,self.sel_file]),'..' )
+        elif self.sel_kind!=self.CRC:
             self.open_file()
 
     @logwrapper
