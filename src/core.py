@@ -725,16 +725,16 @@ class DudeCore:
                 try:
                     stat_res = stat(full_path)
                 except Exception as e:
-                    self.log.error('check_group_files_state: %s',e)
+                    self.log.error(f'check_group_files_state:{e}')
                     res_problems_append('%s|RED' % e)
                     problem=True
                 else:
                     if stat_res.st_nlink>1:
-                        res_problems_append('file became hardlink:%s - %s,%s,%s' % (stat_res.st_nlink,pathnr,path,file_name) )
+                        res_problems_append(f'file became hardlink:{stat_res.st_nlink},{pathnr},{path},{file_name}')
                         problem=True
                     else:
                         if (size,ctime,dev,inode) != (stat_res.st_size,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino):
-                            res_problems_append('file changed:%s,%s,%s,%s vs %s,%s,%s,%s' % (size,ctime,dev,inode,stat_res.st_size,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino) )
+                            res_problems_append(f'file changed:{size},{ctime},{dev},{inode},{stat_res.st_size},{stat_res.st_ctime_ns},{stat_res.st_dev},{stat_res.st_ino}' )
                             problem=True
                 if problem:
                     index_tuple=(pathnr,path,file_name,ctime,dev,inode)
