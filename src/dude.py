@@ -40,6 +40,8 @@ from tkinter.ttk import Checkbutton,Treeview,Scrollbar,Button,Entry,Combobox,Sty
 
 from tkinter.filedialog import askdirectory,asksaveasfilename
 
+from tkinterdnd2 import DND_FILES, TkinterDnD
+
 from collections import defaultdict
 from threading import Thread
 from traceback import format_stack
@@ -57,7 +59,7 @@ from platform import node
 from os import sep,stat,scandir,readlink,rmdir,system,getcwd,name as os_name
 from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,set_threshold as gc_set_threshold, get_threshold as gc_get_threshold
 
-from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,split as path_split,exists as path_exists
+from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,split as path_split,exists as path_exists,isdir
 
 windows = bool(os_name=='nt')
 
@@ -360,7 +362,6 @@ class Gui:
         self.cfg_get_bool=self.cfg.get_bool
         self.cfg_get=self.cfg.get
 
-        self.paths_to_scan_frames=[]
         self.exclude_frames=[]
 
         self.paths_to_scan_from_dialog=[]
@@ -382,7 +383,11 @@ class Gui:
         self.current_folder_items_tagged_add=self.current_folder_items_tagged.add
 
         ####################################################################
-        self_main = self.main = Tk()
+        #self_main = self.main = Tk()
+        self_main = self.main = TkinterDnD.Tk()
+
+        self_main.drop_target_register(DND_FILES)
+        self_main.dnd_bind('<<Drop>>', lambda e: self.main_drop(e.data) )
 
         self.main_config = self.main.config
 
@@ -402,7 +407,7 @@ class Gui:
 
         self_ico = self.ico = { img:PhotoImage(data = img_data) for img,img_data in dude_image.items() }
 
-        self.icon_nr={ i:self_ico[str(i+1)] for i in range(8) }
+        self.icon_nr={ i:self_ico[str(i+1)] for i in range(self.MAX_PATHS) }
 
         hg_indices=('01','02','03','04','05','06','07','08', '11','12','13','14','15','16','17','18', '21','22','23','24','25','26','27','28', '31','32','33','34','35','36','37','38',)
         self.hg_ico={ i:self_ico[str('hg'+j)] for i,j in enumerate(hg_indices) }
@@ -501,6 +506,9 @@ class Gui:
         self_main.config(menu=self.menubar)
         #######################################################################
 
+        self_motion_on_widget = self.motion_on_widget
+        self_widget_leave = self.widget_leave
+
         self.my_next_dict={}
         self.my_prev_dict={}
 
@@ -541,15 +549,15 @@ class Gui:
 
         self.status_groups.pack(fill='x',expand=0,side='right')
 
-        self.status_groups.bind("<Motion>", lambda event : self.motion_on_widget(event,'Number of groups with consideration od "cross paths" option'))
-        self.status_groups.bind("<Leave>", lambda event : self.widget_leave())
+        self.status_groups.bind("<Motion>", lambda event : self_motion_on_widget(event,'Number of groups with consideration od "cross paths" option'))
+        self.status_groups.bind("<Leave>", lambda event : self_widget_leave())
 
         Label(status_frame_groups,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
         self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_path.pack(fill='x',expand=1,side='left')
-        self.status_path.bind("<Motion>", lambda event : self.motion_on_widget(event,'The full path of a directory shown in the bottom panel.'))
-        self.status_path.bind("<Leave>", lambda event : self.widget_leave())
+        self.status_path.bind("<Motion>", lambda event : self_motion_on_widget(event,'The full path of a directory shown in the bottom panel.'))
+        self.status_path.bind("<Leave>", lambda event : self_widget_leave())
 
         self.status_path_configure=self.status_path.configure
         ###############################################################################
@@ -791,16 +799,20 @@ class Gui:
 
         self_scan_dialog_area_main = self_scan_dialog.area_main
 
+        self_scan_dialog_area_main.drop_target_register(DND_FILES)
+        self_scan_dialog_area_main.dnd_bind('<<Drop>>', lambda e: self.scan_dialog_drop(e.data) )
+
         self_scan_dialog_area_main.grid_columnconfigure(0, weight=1)
         self_scan_dialog_area_main.grid_rowconfigure(0, weight=1)
         self_scan_dialog_area_main.grid_rowconfigure(1, weight=1)
 
         self_scan_dialog_widget_bind = self_scan_dialog.widget.bind
+        self_scan_wrapper = self.scan_wrapper
 
         self_scan_dialog_widget_bind('<Alt_L><a>',lambda event : self.path_to_scan_add_dialog())
         self_scan_dialog_widget_bind('<Alt_L><A>',lambda event : self.path_to_scan_add_dialog())
-        self_scan_dialog_widget_bind('<Alt_L><s>',lambda event : self.scan_wrapper())
-        self_scan_dialog_widget_bind('<Alt_L><S>',lambda event : self.scan_wrapper())
+        self_scan_dialog_widget_bind('<Alt_L><s>',lambda event : self_scan_wrapper())
+        self_scan_dialog_widget_bind('<Alt_L><S>',lambda event : self_scan_wrapper())
         self_scan_dialog_widget_bind('<Alt_L><E>',lambda event : self.exclude_mask_add_dialog())
         self_scan_dialog_widget_bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
 
@@ -818,11 +830,41 @@ class Gui:
         self.add_path_button = Button(buttons_fr,width=18,image = self_ico['open'], command=self.path_to_scan_add_dialog,underline=0)
         self.add_path_button.pack(side='left',pady=4,padx=4)
 
-        self.add_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path to scan.\nA maximum of 8 paths are allowed."))
-        self.add_path_button.bind("<Leave>", lambda event : self.widget_leave())
+        self.add_path_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"Add path to scan.\nA maximum of 8 paths are allowed."))
+        self.add_path_button.bind("<Leave>", lambda event : self_widget_leave())
 
         self.paths_frame.grid_columnconfigure(1, weight=1)
         self.paths_frame.grid_rowconfigure(99, weight=1)
+
+        #####################
+        self_paths_to_scan_entry_var = self.paths_to_scan_entry_var={}
+        self.paths_to_scan_frame={}
+
+        self_paths_frame = self.paths_frame
+
+        self_bg_color = self.bg_color
+        self_icon_nr = self.icon_nr
+
+        self_paths_to_scan_frames = self.paths_to_scan_frames = {}
+
+        self_ico_delete = self.ico['delete']
+        self_path_to_scan_remove = self.path_to_scan_remove
+
+        for row in range(self.MAX_PATHS):
+            frame = self_paths_to_scan_frames[row] = Frame(self_paths_frame,bg=self_bg_color)
+
+            Label(frame,image=self_icon_nr[row], relief='flat',bg=self_bg_color).pack(side='left',padx=2,pady=2,fill='y')
+
+            self_paths_to_scan_entry_var[row]=StringVar()
+            path_to_scan_entry = Entry(frame,textvariable=self_paths_to_scan_entry_var[row])
+            path_to_scan_entry.pack(side='left',expand=1,fill='both',pady=1)
+            path_to_scan_entry.bind("<KeyPress-Return>", lambda event : self_scan_wrapper())
+
+            remove_path_button=Button(frame,image=self_ico_delete,command=lambda row=row: self_path_to_scan_remove(row),width=3)
+            remove_path_button.pack(side='right',padx=2,pady=1,fill='y')
+
+            remove_path_button.bind("<Motion>", lambda event : self_motion_on_widget(event,'Remove path from list.'))
+            remove_path_button.bind("<Leave>", lambda event : self_widget_leave())
 
         ##############
         self.exclude_regexp_scan=BooleanVar()
@@ -839,14 +881,14 @@ class Gui:
 
         self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self_ico['open'],command=self.exclude_mask_add_dir)
         self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
-        self.add_exclude_button_dir.bind("<Motion>", lambda event : self.motion_on_widget(event,"Add path as exclude expression ..."))
-        self.add_exclude_button_dir.bind("<Leave>", lambda event : self.widget_leave())
+        self.add_exclude_button_dir.bind("<Motion>", lambda event : self_motion_on_widget(event,"Add path as exclude expression ..."))
+        self.add_exclude_button_dir.bind("<Leave>", lambda event : self_widget_leave())
 
         self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
 
         tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
-        self.add_exclude_button.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip_string))
-        self.add_exclude_button.bind("<Leave>", lambda event : self.widget_leave())
+        self.add_exclude_button.bind("<Motion>", lambda event : self_motion_on_widget(event,tooltip_string))
+        self.add_exclude_button.bind("<Leave>", lambda event : self_widget_leave())
 
         self.add_exclude_button.pack(side='left',pady=4,padx=4)
 
@@ -859,10 +901,10 @@ class Gui:
         skip_button = Checkbutton(self_scan_dialog_area_main,text='log skipped files',variable=self.log_skipped_var)
         skip_button.grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
 
-        skip_button.bind("<Motion>", lambda event : self.motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
-        skip_button.bind("<Leave>", lambda event : self.widget_leave())
+        skip_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
+        skip_button.bind("<Leave>", lambda event : self_widget_leave())
 
-        self.scan_button = Button(self_scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self.scan_wrapper,underline=0)
+        self.scan_button = Button(self_scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self_scan_wrapper,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
 
         self.scan_cancel_button = Button(self_scan_dialog.area_buttons,width=12,text="Cancel",image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
@@ -1001,8 +1043,8 @@ class Gui:
         self_groups_tree.bind("<Motion>", self.motion_on_groups_tree)
         self_folder_tree.bind("<Motion>", self.motion_on_folder_tree)
 
-        self_groups_tree.bind("<Leave>", lambda event : self.widget_leave())
-        self_folder_tree.bind("<Leave>", lambda event : self.widget_leave())
+        self_groups_tree.bind("<Leave>", lambda event : self_widget_leave())
+        self_folder_tree.bind("<Leave>", lambda event : self_widget_leave())
 
         #######################################################################
 
@@ -1052,6 +1094,22 @@ class Gui:
 
         self_main.mainloop()
         #######################################################################
+
+    def main_drop(self, data):
+        self.scan_dialog_drop(data)
+        self.scan_dialog_show()
+
+    def scan_dialog_drop(self, data):
+        for path in self.main.splitlist(data):
+            p_path = normpath(abspath(path))
+
+            if path_exists(p_path):
+                if isdir(p_path):
+                    self.path_to_scan_add(p_path)
+                else:
+                    self.path_to_scan_add(dirname(p_path))
+            else:
+                self.get_info_dialog_on_main().show('Path does not exist',str(p_path))
 
     def pre_show(self,on_main_window_dialog=True,new_widget=None):
         self.processing_off(f'pre_show:{new_widget}')
@@ -1103,6 +1161,9 @@ class Gui:
     @block
     def get_settings_dialog(self):
         if not self.settings_dialog_created:
+            self_motion_on_widget = self.motion_on_widget
+            self_widget_leave = self.widget_leave
+
             self.status("Creating dialog ...")
 
             self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show_settings,post_close=self.post_close)
@@ -1152,27 +1213,27 @@ class Gui:
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
             (cb_1:=Checkbutton(label_frame, text = 'Show full CRC', variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            cb_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'If disabled, shortest necessary prefix of full CRC wil be shown'))
-            cb_1.bind("<Leave>", lambda event : self.widget_leave())
+            cb_1.bind("<Motion>", lambda event : self_motion_on_widget(event,'If disabled, shortest necessary prefix of full CRC wil be shown'))
+            cb_1.bind("<Leave>", lambda event : self_widget_leave())
 
             (cb_2:=Checkbutton(label_frame, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips'))
-            cb_2.bind("<Leave>", lambda event : self.widget_leave())
+            cb_2.bind("<Motion>", lambda event : self_motion_on_widget(event,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips'))
+            cb_2.bind("<Leave>", lambda event : self_widget_leave())
 
             (cb_3:=Checkbutton(label_frame, text = '"Cross paths" mode', variable=self.cross_mode)).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            cb_3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Ignore (hide) CRC groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease'))
-            cb_3.bind("<Leave>", lambda event : self.widget_leave())
+            cb_3.bind("<Motion>", lambda event : self_motion_on_widget(event,'Ignore (hide) CRC groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease'))
+            cb_3.bind("<Leave>", lambda event : self_widget_leave())
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
             (cb_3:=Checkbutton(label_frame, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            cb_3.bind("<Motion>", lambda event : self.motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
-            cb_3.bind("<Leave>", lambda event : self.widget_leave())
+            cb_3.bind("<Motion>", lambda event : self_motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
+            cb_3.bind("<Leave>", lambda event : self_widget_leave())
 
             (cb_4:=Checkbutton(label_frame, text = 'Allow deletion of all copies', variable=self.allow_delete_all,image=self.ico_warning,compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            cb_4.bind("<Motion>", lambda event : self.motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
-            cb_4.bind("<Leave>", lambda event : self.widget_leave())
+            cb_4.bind("<Motion>", lambda event : self_motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
+            cb_4.bind("<Leave>", lambda event : self_widget_leave())
 
             Checkbutton(label_frame, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
             Checkbutton(label_frame, text = 'Show CRC and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
@@ -1194,16 +1255,16 @@ class Gui:
 
             Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
             (en_1:=Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
-            en_1.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.'))
-            en_1.bind("<Leave>", lambda event : self.widget_leave())
+            en_1.bind("<Motion>", lambda event : self_motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.'))
+            en_1.bind("<Leave>", lambda event : self_widget_leave())
 
             Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=2, column=0,sticky='news')
             (en_2:=Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=2, column=1,sticky='news',padx=3,pady=2)
-            en_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.'))
-            en_2.bind("<Leave>", lambda event : self.widget_leave())
+            en_2.bind("<Motion>", lambda event : self_motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.'))
+            en_2.bind("<Leave>", lambda event : self_widget_leave())
             (cb_2:=Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly') ).grid(row=2, column=2,sticky='ew',padx=3)
-            cb_2.bind("<Motion>", lambda event : self.motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on crc groups\ndefault is 2'))
-            cb_2.bind("<Leave>", lambda event : self.widget_leave())
+            cb_2.bind("<Motion>", lambda event : self_motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on crc groups\ndefault is 2'))
+            cb_2.bind("<Leave>", lambda event : self_widget_leave())
 
             label_frame.grid_columnconfigure(1, weight=1)
 
@@ -1623,11 +1684,14 @@ class Gui:
                             if kind==self.FILE:
                                 self.tooltip_lab_configure(text='%s - %s' % (pathnr+1,dude_core.scanned_paths[pathnr]) )
                                 self.tooltip_deiconify()
-
                         else:
-                            crc=item
-                            self.tooltip_lab_configure(text='CRC: %s' % crc )
-                            self.tooltip_deiconify()
+                            if kind==self.FILE:
+                                self.tooltip_lab_configure(text=f'{pathnr+1} = {dude_core.scanned_paths[pathnr]}' )
+                                self.tooltip_deiconify()
+                            else:
+                                crc=item
+                                self.tooltip_lab_configure(text='CRC: %s' % crc )
+                                self.tooltip_deiconify()
 
                     elif col:
 
@@ -2752,7 +2816,7 @@ class Gui:
         tree.heading(colname, text=self.org_label[colname] + ' ' + str('\u25BC' if reverse else '\u25B2') )
 
     def path_to_scan_add(self,path):
-        if len(self.paths_to_scan_from_dialog)<10:
+        if len(self.paths_to_scan_from_dialog)<self.MAX_PATHS:
             self.paths_to_scan_from_dialog.append(path)
             self.paths_to_scan_update()
         else:
@@ -2799,7 +2863,7 @@ class Gui:
         self.status_path_configure(text='')
         self.groups_show()
 
-        paths_to_scan_from_entry = [var.get() for var in self.paths_to_scan_entry_var.values()]
+        paths_to_scan_from_entry = [var.get() for var in self.paths_to_scan_entry_var.values() if bool(var.get())]
         exclude_from_entry = [var.get() for var in self.exclude_entry_var.values()]
 
         if res:=dude_core.set_exclude_masks(self.cfg_get_bool(CFG_KEY_EXCLUDE_REGEXP),exclude_from_entry):
@@ -3101,31 +3165,18 @@ class Gui:
             self.paths_to_scan_from_dialog=dude_core.scanned_paths.copy()
 
     def paths_to_scan_update(self) :
-        for subframe in self.paths_to_scan_frames:
-            subframe.destroy()
-
-        self.paths_to_scan_frames=[]
-        self.paths_to_scan_entry_var={}
+        self_paths_to_scan_entry_var = self.paths_to_scan_entry_var
+        self_paths_to_scan_frames = self.paths_to_scan_frames
 
         row=0
         for path in self.paths_to_scan_from_dialog:
-            (frame:=Frame(self.paths_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
-            self.paths_to_scan_frames.append(frame)
+            self_paths_to_scan_entry_var[row].set(path)
+            self_paths_to_scan_frames[row].grid(row=row,column=0,sticky='news',columnspan=3)
+            row+=1
 
-            Label(frame,image=self.icon_nr[row], relief='flat',bg=self.bg_color).pack(side='left',padx=2,pady=2,fill='y')
-
-            self.paths_to_scan_entry_var[row]=StringVar(value=path)
-            path_to_scan_entry = Entry(frame,textvariable=self.paths_to_scan_entry_var[row])
-            path_to_scan_entry.pack(side='left',expand=1,fill='both',pady=1)
-
-            path_to_scan_entry.bind("<KeyPress-Return>", lambda event : self.scan_wrapper())
-
-            remove_path_button=Button(frame,image=self.ico['delete'],command=lambda pathpar=path: self.path_to_scan_remove(pathpar),width=3)
-            remove_path_button.pack(side='right',padx=2,pady=1,fill='y')
-
-            remove_path_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove path from list.'))
-            remove_path_button.bind("<Leave>", lambda event : self.widget_leave())
-
+        while row<self.MAX_PATHS:
+            self_paths_to_scan_entry_var[row].set('')
+            self_paths_to_scan_frames[row].grid_remove()
             row+=1
 
         if len(self.paths_to_scan_from_dialog)==self.MAX_PATHS:
@@ -3188,8 +3239,8 @@ class Gui:
         self.cfg.set(CFG_KEY_EXCLUDE,'|'.join(orglist))
         self.exclude_mask_update()
 
-    def path_to_scan_remove(self,path) :
-        self.paths_to_scan_from_dialog.remove(path)
+    def path_to_scan_remove(self,row) :
+        del self.paths_to_scan_from_dialog[row]
         self.paths_to_scan_update()
 
     def exclude_mask_remove(self,mask) :
