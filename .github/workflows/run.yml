@@ -218,7 +218,7 @@ jobs:
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
     - name: rename linux distro
-      run: mv ./build-pyinstaller/dude.lin.zip ./dude.${{ steps.version.outputs.version }}.portable.linux.zip
+      run: mv ./build-pyinstaller/dude.lin.zip ./dude.${{ steps.version.outputs.version }}.linux.portable.zip
 
     #####################################
     - name: download windows pyinstaller distro
@@ -228,7 +228,7 @@ jobs:
         path: ./
 
     - name: rename windows distro
-      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.zip
+      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.windows.portable.zip
 
     #####################################
     - name: download windows nuitka distro
@@ -238,7 +238,7 @@ jobs:
         path: ./
 
     - name: rename windows distro
-      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.windows.nuitka.portable.zip
 
     #####################################
     - name: download linux nuitka distro
@@ -248,7 +248,7 @@ jobs:
         path: ./
 
     - name: rename linux distro
-      run: mv ./dude.lin.zip ./dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.zip
+      run: mv ./dude.lin.zip ./dude.${{ steps.version.outputs.version }}.linux.nuitka.portable.zip
 
     #####################################
     - name: Create GitHub release
@@ -258,11 +258,11 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Dude ${{ steps.version.outputs.version }}
-        draft: false
+        draft: true
         prerelease: true
         files: |
-            dude.${{ steps.version.outputs.version }}.portable.linux.zip
-            dude.${{ steps.version.outputs.version }}.portable.linux.nuitka.zip
-            dude.${{ steps.version.outputs.version }}.portable.windows.zip
-            dude.${{ steps.version.outputs.version }}.portable.windows.nuitka.zip
+            dude.${{ steps.version.outputs.version }}.linux.portable.zip
+            dude.${{ steps.version.outputs.version }}.linux.nuitka.portable.zip
+            dude.${{ steps.version.outputs.version }}.windows.portable.zip
+            dude.${{ steps.version.outputs.version }}.windows.nuitka.portable.zip
 
