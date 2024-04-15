@@ -827,10 +827,12 @@ class Gui:
         buttons_fr = Frame(temp_frame,bg=self.bg_color,takefocus=False)
         buttons_fr.pack(fill='both',expand=False,side='bottom')
 
+        Label(buttons_fr,relief='flat',text='Specify manually, or drag and drop here, up to 8 paths to scan',bg=self.bg_color,fg='gray').pack(side='right',pady=4,padx=4, fill='x',expand=True)
+
         self.add_path_button = Button(buttons_fr,width=18,image = self_ico['open'], command=self.path_to_scan_add_dialog,underline=0)
         self.add_path_button.pack(side='left',pady=4,padx=4)
 
-        self.add_path_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"Add path to scan.\nA maximum of 8 paths are allowed."))
+        self.add_path_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"Add path to scan"))
         self.add_path_button.bind("<Leave>", lambda event : self_widget_leave())
 
         self.paths_frame.grid_columnconfigure(1, weight=1)
@@ -1097,7 +1099,7 @@ class Gui:
 
     def main_drop(self, data):
         self.scan_dialog_drop(data)
-        self.scan_dialog_show()
+        self.main.after_idle(lambda : self.scan_dialog_show())
 
     def scan_dialog_drop(self, data):
         for path in self.main.splitlist(data):
