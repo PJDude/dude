@@ -382,6 +382,7 @@ class Gui:
         self.current_folder_items_tagged_discard=self.current_folder_items_tagged.discard
         self.current_folder_items_tagged_add=self.current_folder_items_tagged.add
 
+        self.similarity_mode = False
         ####################################################################
         #self_main = self.main = Tk()
         self_main = self.main = TkinterDnD.Tk()
@@ -797,6 +798,9 @@ class Gui:
         self.log_skipped_var=BooleanVar()
         self.log_skipped_var.set(False)
 
+        self.similarity_mode_var=BooleanVar()
+        self.similarity_mode_var.set(False)
+
         self_scan_dialog_area_main = self_scan_dialog.area_main
 
         self_scan_dialog_area_main.drop_target_register(DND_FILES)
@@ -901,10 +905,16 @@ class Gui:
         ##############
 
         skip_button = Checkbutton(self_scan_dialog_area_main,text='log skipped files',variable=self.log_skipped_var)
-        skip_button.grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=3)
+        skip_button.grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=1)
 
         skip_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
         skip_button.bind("<Leave>", lambda event : self_widget_leave())
+
+        similarity_button = Checkbutton(self_scan_dialog_area_main,text='similarity mode',variable=self.similarity_mode_var)
+        similarity_button.grid(row=3,column=2,sticky='news',padx=8,pady=3,columnspan=2)
+
+        similarity_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"image similarity mode\nWARNING !\nEarly development stage !"))
+        similarity_button.bind("<Leave>", lambda event : self_widget_leave())
 
         self.scan_button = Button(self_scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self_scan_wrapper,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
@@ -2910,7 +2920,10 @@ class Gui:
         self.update_scan_path_nr=False
 
         dude_core.log_skipped = self.log_skipped_var.get()
-        self.log_skipped = self.log_skipped_var.get()
+        #self.log_skipped = self.log_skipped_var.get()
+
+        self.similarity_mode = similarity_mode = dude_core.similarity_mode = self.similarity_mode_var.get()
+        print(f'{similarity_mode=}')
 
         scan_thread=Thread(target=dude_core.scan,daemon=True)
         scan_thread.start()
@@ -3026,123 +3039,260 @@ class Gui:
         self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
         self_progress_dialog_on_scan.abort_button.configure(image=self.ico['abort'],text='Abort',compound='left')
 
-        self_status('Starting CRC threads ...')
-        crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
-        crc_thread.start()
+        if similarity_mode:
+            self_status('Starting data clustering ...')
 
-        update_once=True
-        self_progress_dialog_on_scan_lab[0].configure(image='',text='')
-        self_progress_dialog_on_scan_lab[1].configure(image='',text='')
-        self_progress_dialog_on_scan_lab[2].configure(image='',text='')
-        self_progress_dialog_on_scan_lab[3].configure(image='',text='')
-        self_progress_dialog_on_scan_lab[4].configure(image='',text='')
+            ih_thread=Thread(target=dude_core.image_hashing,daemon=True)
+            ih_thread.start()
 
-        prev_progress_size=0
-        prev_progress_quant=0
+            ih_thread_is_alive = ih_thread.is_alive
 
-        crc_thread_is_alive = crc_thread.is_alive
-        self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
-        self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
+            while ih_thread_is_alive():
+                anything_changed=False
 
-        bytes_to_str_dude_core_sum_size = local_bytes_to_str(dude_core.sum_size)
+                self_progress_dialog_on_scan_lab[2].configure(text=dude_core.info_line)
 
-        self_main_after = self.main.after
-        wait_var_get = wait_var.get
-        wait_var_set = wait_var.set
-        self_main_wait_variable = self.main.wait_variable
+                #size_progress_info=dude_core.info_size_done_perc
+                #if size_progress_info!=prev_progress_size:
+                #    prev_progress_size=size_progress_info
 
-        #fnumber_dude_core_info_total = fnumber(dude_core.info_total)
-        while crc_thread_is_alive():
-            anything_changed=False
+                #    self_progress_dialog_on_scan_progr1var_set(size_progress_info)
+                #    self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_bytes_to_str(dude_core.info_size_done),bytes_to_str_dude_core_sum_size))
+                #    anything_changed=True
 
-            size_progress_info=dude_core.info_size_done_perc
-            if size_progress_info!=prev_progress_size:
-                prev_progress_size=size_progress_info
+                #quant_progress_info=dude_core.info_files_done_perc
+                #if quant_progress_info!=prev_progress_quant:
+                #    prev_progress_quant=quant_progress_info
 
-                self_progress_dialog_on_scan_progr1var_set(size_progress_info)
-                self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_bytes_to_str(dude_core.info_size_done),bytes_to_str_dude_core_sum_size))
-                anything_changed=True
+                #    self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
+                #    self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (fnumber(dude_core.info_files_done),fnumber(dude_core.info_total)))
+                #    anything_changed=True
 
-            quant_progress_info=dude_core.info_files_done_perc
-            if quant_progress_info!=prev_progress_quant:
-                prev_progress_quant=quant_progress_info
+                #if anything_changed:
+                #    if dude_core.info_found_groups:
+                        #new_data[1]='Results'
+                #        new_data[2]='CRC groups: %s' % fnumber(dude_core.info_found_groups)
+                #        new_data[3]='space: %s' % local_bytes_to_str(dude_core.info_found_dupe_space)
+                #        new_data[4]='folders: %s' % fnumber(dude_core.info_found_folders)
 
-                self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
-                self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (fnumber(dude_core.info_files_done),fnumber(dude_core.info_total)))
-                anything_changed=True
+                #        for i in (2,3,4):
+                #            if new_data[i] != prev_data[i]:
+                #                prev_data[i]=new_data[i]
+                #                self_progress_dialog_on_scan_lab[i].configure(text=new_data[i])
 
-            if anything_changed:
-                if dude_core.info_found_groups:
-                    #new_data[1]='Results'
-                    new_data[2]='CRC groups: %s' % fnumber(dude_core.info_found_groups)
-                    new_data[3]='space: %s' % local_bytes_to_str(dude_core.info_found_dupe_space)
-                    new_data[4]='folders: %s' % fnumber(dude_core.info_found_folders)
+                #    self_progress_dialog_on_scan_area_main_update()
 
-                    for i in (2,3,4):
-                        if new_data[i] != prev_data[i]:
-                            prev_data[i]=new_data[i]
-                            self_progress_dialog_on_scan_lab[i].configure(text=new_data[i])
+                #now=time()
+                #if anything_changed:
+                #    time_without_busy_sign=now
+                    #info_line = dude_core.info_line if len(dude_core.info_line)<48 else ('...%s' % dude_core.info_line[-48:])
+                    #self_progress_dialog_on_scan_lab[1].configure(text=info_line)
 
+                #    if update_once:
+                #        update_once=False
+                #        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
+                #        self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
+
+                #        self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty)
+                #else :
+                #    if now>time_without_busy_sign+1.0:
+                #        self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
+                #        hr_index=(hr_index+1) % len_self_hg_ico
+
+                #        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='crc calculating:\n%s...' % dude_core.info_line
+                #        self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
+                #        update_once=True
+
+                if dude_core.can_abort:
+                    if self.action_abort:
+                        self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
+                        self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
+                        self_progress_dialog_on_scan_lab[2].configure(text='')
+                        self_progress_dialog_on_scan_lab[3].configure(text='')
+                        self_progress_dialog_on_scan_lab[4].configure(text='')
+                        self_progress_dialog_on_scan_area_main_update()
+                        dude_core.abort()
+                        break
+
+                self_status(dude_core.info)
+
+                self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+                self_main_wait_variable(wait_var)
+
+            ih_thread.join()
+
+            #clustering
+            self_status('Starting Images hashing ...')
+
+            sc_thread=Thread(target=dude_core.similarity_clustering,daemon=True)
+            sc_thread.start()
+
+            sc_thread_is_alive = sc_thread.is_alive
+
+            while sc_thread_is_alive():
+                anything_changed=False
+
+                self_progress_dialog_on_scan_lab[2].configure(text=dude_core.info_line)
+
+                if dude_core.can_abort:
+                    if self.action_abort:
+                        self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
+                        self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
+                        self_progress_dialog_on_scan_lab[2].configure(text='')
+                        self_progress_dialog_on_scan_lab[3].configure(text='')
+                        self_progress_dialog_on_scan_lab[4].configure(text='')
+                        self_progress_dialog_on_scan_area_main_update()
+                        dude_core.abort()
+                        break
+
+                self_status(dude_core.info)
+
+                self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+                self_main_wait_variable(wait_var)
+
+            sc_thread.join()
+
+            self_progress_dialog_on_scan.widget.config(cursor="watch")
+
+            if not self.action_abort:
+                self_progress_dialog_on_scan_lab[0].configure(image='',text='Finished.')
+                self_progress_dialog_on_scan_lab[1].configure(image='',text='... Rendering data ...')
+                self_progress_dialog_on_scan_lab[2].configure(image='',text='')
+                self_progress_dialog_on_scan_lab[3].configure(image='',text='')
+                self_progress_dialog_on_scan_lab[4].configure(image='',text='')
                 self_progress_dialog_on_scan_area_main_update()
 
-            now=time()
-            if anything_changed:
-                time_without_busy_sign=now
-                #info_line = dude_core.info_line if len(dude_core.info_line)<48 else ('...%s' % dude_core.info_line[-48:])
-                #self_progress_dialog_on_scan_lab[1].configure(text=info_line)
+            #self_status('Finishing CRC Thread...')
+            #############################
 
-                if update_once:
-                    update_once=False
-                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
-                    self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
+            #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
+            self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
+            self_progress_dialog_on_scan.abort_button.pack_forget()
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
+            self_progress_dialog_on_scan.widget.update()
+            self.main.focus_set()
 
-                    self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty)
-            else :
-                if now>time_without_busy_sign+1.0:
-                    self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
-                    hr_index=(hr_index+1) % len_self_hg_ico
+            ih_thread.join()
 
-                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='crc calculating:\n%s...' % dude_core.info_line
-                    self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
-                    update_once=True
+        else:
+            self_status('Starting CRC threads ...')
+            crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
+            crc_thread.start()
 
-            if dude_core.can_abort:
-                if self.action_abort:
-                    self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
-                    self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
-                    self_progress_dialog_on_scan_lab[2].configure(text='')
-                    self_progress_dialog_on_scan_lab[3].configure(text='')
-                    self_progress_dialog_on_scan_lab[4].configure(text='')
-                    self_progress_dialog_on_scan_area_main_update()
-                    dude_core.abort()
-                    break
-
-            self_status(dude_core.info)
-
-            self_main_after(100,lambda : wait_var_set(not wait_var_get()))
-            self_main_wait_variable(wait_var)
-
-        self_progress_dialog_on_scan.widget.config(cursor="watch")
-
-        if not self.action_abort:
-            self_progress_dialog_on_scan_lab[0].configure(image='',text='Finished.')
-            self_progress_dialog_on_scan_lab[1].configure(image='',text='... Rendering data ...')
+            update_once=True
+            self_progress_dialog_on_scan_lab[0].configure(image='',text='')
+            self_progress_dialog_on_scan_lab[1].configure(image='',text='')
             self_progress_dialog_on_scan_lab[2].configure(image='',text='')
             self_progress_dialog_on_scan_lab[3].configure(image='',text='')
             self_progress_dialog_on_scan_lab[4].configure(image='',text='')
-            self_progress_dialog_on_scan_area_main_update()
 
-        #self_status('Finishing CRC Thread...')
-        #############################
 
-        #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
-        self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
-        self_progress_dialog_on_scan.abort_button.pack_forget()
-        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
-        self_progress_dialog_on_scan.widget.update()
-        self.main.focus_set()
+            prev_progress_size=0
+            prev_progress_quant=0
 
-        crc_thread.join()
+            crc_thread_is_alive = crc_thread.is_alive
+            self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
+            self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
+
+            bytes_to_str_dude_core_sum_size = local_bytes_to_str(dude_core.sum_size)
+
+            self_main_after = self.main.after
+            wait_var_get = wait_var.get
+            wait_var_set = wait_var.set
+            self_main_wait_variable = self.main.wait_variable
+
+            #fnumber_dude_core_info_total = fnumber(dude_core.info_total)
+            while crc_thread_is_alive():
+                anything_changed=False
+
+                size_progress_info=dude_core.info_size_done_perc
+                if size_progress_info!=prev_progress_size:
+                    prev_progress_size=size_progress_info
+
+                    self_progress_dialog_on_scan_progr1var_set(size_progress_info)
+                    self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_bytes_to_str(dude_core.info_size_done),bytes_to_str_dude_core_sum_size))
+                    anything_changed=True
+
+                quant_progress_info=dude_core.info_files_done_perc
+                if quant_progress_info!=prev_progress_quant:
+                    prev_progress_quant=quant_progress_info
+
+                    self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
+                    self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (fnumber(dude_core.info_files_done),fnumber(dude_core.info_total)))
+                    anything_changed=True
+
+                if anything_changed:
+                    if dude_core.info_found_groups:
+                        #new_data[1]='Results'
+                        new_data[2]='CRC groups: %s' % fnumber(dude_core.info_found_groups)
+                        new_data[3]='space: %s' % local_bytes_to_str(dude_core.info_found_dupe_space)
+                        new_data[4]='folders: %s' % fnumber(dude_core.info_found_folders)
+
+                        for i in (2,3,4):
+                            if new_data[i] != prev_data[i]:
+                                prev_data[i]=new_data[i]
+                                self_progress_dialog_on_scan_lab[i].configure(text=new_data[i])
+
+                    self_progress_dialog_on_scan_area_main_update()
+
+                now=time()
+                if anything_changed:
+                    time_without_busy_sign=now
+                    #info_line = dude_core.info_line if len(dude_core.info_line)<48 else ('...%s' % dude_core.info_line[-48:])
+                    #self_progress_dialog_on_scan_lab[1].configure(text=info_line)
+
+                    if update_once:
+                        update_once=False
+                        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
+                        self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
+
+                        self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty)
+                else :
+                    if now>time_without_busy_sign+1.0:
+                        self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
+                        hr_index=(hr_index+1) % len_self_hg_ico
+
+                        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='crc calculating:\n%s...' % dude_core.info_line
+                        self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
+                        update_once=True
+
+                if dude_core.can_abort:
+                    if self.action_abort:
+                        self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
+                        self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
+                        self_progress_dialog_on_scan_lab[2].configure(text='')
+                        self_progress_dialog_on_scan_lab[3].configure(text='')
+                        self_progress_dialog_on_scan_lab[4].configure(text='')
+                        self_progress_dialog_on_scan_area_main_update()
+                        dude_core.abort()
+                        break
+
+                self_status(dude_core.info)
+
+                self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+                self_main_wait_variable(wait_var)
+
+            self_progress_dialog_on_scan.widget.config(cursor="watch")
+
+            if not self.action_abort:
+                self_progress_dialog_on_scan_lab[0].configure(image='',text='Finished.')
+                self_progress_dialog_on_scan_lab[1].configure(image='',text='... Rendering data ...')
+                self_progress_dialog_on_scan_lab[2].configure(image='',text='')
+                self_progress_dialog_on_scan_lab[3].configure(image='',text='')
+                self_progress_dialog_on_scan_lab[4].configure(image='',text='')
+                self_progress_dialog_on_scan_area_main_update()
+
+            #self_status('Finishing CRC Thread...')
+            #############################
+
+            #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
+            self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
+            self_progress_dialog_on_scan.abort_button.pack_forget()
+            self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
+            self_progress_dialog_on_scan.widget.update()
+            self.main.focus_set()
+
+            crc_thread.join()
 
         self.groups_show()
 
@@ -3488,64 +3638,102 @@ class Gui:
 
         self.tagged.clear()
 
-        sizes_counter=0
-        self.iid_to_size.clear()
-
-        self_groups_tree_insert=self_groups_tree.insert
-
-        dude_core_crc_cut_len=dude_core.crc_cut_len
-
-        self_iid_to_size=self.iid_to_size
-
         self_CRC = self.CRC
         self_FILE = self.FILE
-
-        local_bytes_to_str = bytes_to_str
-        self_icon_nr=self.icon_nr
-
+        self_groups_tree_insert=self_groups_tree.insert
         self_groups_tree_item_to_data = self.groups_tree_item_to_data = {}
-        dude_core_scanned_paths=dude_core.scanned_paths
+        self_iid_to_size=self.iid_to_size
+        self.iid_to_size.clear()
         localtime_catched_local = localtime_catched
+        dude_core_scanned_paths=dude_core.scanned_paths
+        self_icon_nr=self.icon_nr
+        local_bytes_to_str = bytes_to_str
 
-        for size,size_dict in dude_core.files_of_size_of_crc_items() :
-            size_h = local_bytes_to_str(size)
-            size_str = str(size)
-            if not sizes_counter%128:
-                self_status('Rendering data... (%s)' % size_h,do_log=False)
+        if self.similarity_mode:
+            #####################################################
 
-            sizes_counter+=1
-            for crc,crc_dict in size_dict.items():
-                if cross_mode:
-                    is_cross_group = bool(len({pathnr for pathnr,path,file,ctime,dev,inode in crc_dict})>1)
-                    if not is_cross_group:
-                        continue
+            for group_index,items_set in dude_core.files_of_images_groups.items():
+                crc = group_index
+                size_str_group = ''
+                size = 0
+                size_h_group = ''
+                instances_str = len(items_set)
 
-                #self_groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
-                instances_str=str(len(crc_dict))
-                crc_item=self_groups_tree_insert('','end',crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',self_CRC),tags=self_CRC,open=True,text= crc if show_full_crc else crc[:dude_core_crc_cut_len])
-
-                #kind,crc,index_tuple
+                group_item=self_groups_tree_insert('','end',crc, values=('','','',size_str_group,size_h_group,'','','',crc,instances_str,instances_str,'',self_CRC),tags=self_CRC,open=True,text = crc)
                 #kind,crc,(pathnr,path,file,ctime,dev,inode)
-                self_groups_tree_item_to_data[crc_item]=(self_CRC,size,crc,(None,None,None,None,None,None) )
+                self_groups_tree_item_to_data[group_item]=(self_CRC,size,crc,(None,None,None,None,None,None) )
 
-                for pathnr,path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
+                for pathnr,path,file,mtime,ctime,dev,inode,size in items_set:
+                    print(pathnr,path,file,mtime,ctime,dev,inode,size)
                     iid=self_idfunc(inode,dev)
                     self_iid_to_size[iid]=size
 
-                    file_item = self_groups_tree_insert(crc_item,'end',iid, values=(\
-                            str(pathnr),path,file,size_str,\
-                            '',\
-                            str(ctime),str(dev),str(inode),crc,\
-                            '','',\
-                            strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags='',text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
+                    size_str = str(size)
+                    size_h = local_bytes_to_str(size)
+
+                    #self_groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
+                    file_item = self_groups_tree_insert(group_item,'end',iid, values=(\
+                                str(pathnr),path,file,size_str,\
+                                size_h,\
+                                str(ctime),str(dev),str(inode),crc,\
+                                '','',\
+                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags='',text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
 
                     #kind,crc,index_tuple
                     #kind,crc,(pathnr,path,file,ctime,dev,inode)
                     self_groups_tree_item_to_data[file_item]=(self_FILE,size,crc, (pathnr,path,file,ctime,dev,inode) )
 
-        self.crc_to_size={crc:size for size,size_dict in dude_core.files_of_size_of_crc.items() for crc in size_dict }
+
+        else:
+            #####################################################
+
+
+            sizes_counter=0
+
+            dude_core_crc_cut_len=dude_core.crc_cut_len
+
+            for size,size_dict in dude_core.files_of_size_of_crc_items() :
+                size_h = local_bytes_to_str(size)
+                size_str = str(size)
+                if not sizes_counter%128:
+                    self_status('Rendering data... (%s)' % size_h,do_log=False)
+
+                sizes_counter+=1
+                for crc,crc_dict in size_dict.items():
+                    if cross_mode:
+                        is_cross_group = bool(len({pathnr for pathnr,path,file,ctime,dev,inode in crc_dict})>1)
+                        if not is_cross_group:
+                            continue
+
+                    #self_groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
+                    instances_str=str(len(crc_dict))
+                    crc_item=self_groups_tree_insert('','end',crc, values=('','','',size_str,size_h,'','','',crc,instances_str,instances_str,'',self_CRC),tags=self_CRC,open=True,text= crc if show_full_crc else crc[:dude_core_crc_cut_len])
+
+                    #kind,crc,index_tuple
+                    #kind,crc,(pathnr,path,file,ctime,dev,inode)
+                    self_groups_tree_item_to_data[crc_item]=(self_CRC,size,crc,(None,None,None,None,None,None) )
+
+                    for pathnr,path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
+                        iid=self_idfunc(inode,dev)
+                        self_iid_to_size[iid]=size
+
+                        file_item = self_groups_tree_insert(crc_item,'end',iid, values=(\
+                                str(pathnr),path,file,size_str,\
+                                '',\
+                                str(ctime),str(dev),str(inode),crc,\
+                                '','',\
+                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags='',text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
+
+                        #kind,crc,index_tuple
+                        #kind,crc,(pathnr,path,file,ctime,dev,inode)
+                        self_groups_tree_item_to_data[file_item]=(self_FILE,size,crc, (pathnr,path,file,ctime,dev,inode) )
+
+            self.crc_to_size={crc:size for size,size_dict in dude_core.files_of_size_of_crc.items() for crc in size_dict }
 
         self.data_precalc()
+
+
+        #####################################################
 
         if self.column_sort_last_params[self_groups_tree]!=self.column_groups_sort_params_default:
             #defaultowo po size juz jest, nie trzeba tracic czasu

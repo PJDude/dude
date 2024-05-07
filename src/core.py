@@ -50,6 +50,12 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 
 from send2trash import send2trash
 
+from PIL import Image
+from imagehash import average_hash,phash,dhash,whash,colorhash,hex_to_hash
+
+from sklearn.cluster import DBSCAN,MiniBatchKMeans
+from numpy import array as numpy_array
+
 DELETE=0
 SOFTLINK=1
 HARDLINK=2
@@ -184,6 +190,9 @@ class DudeCore:
         self.crc_cut_len=40
         self.scanned_paths=[]
         self.exclude_list=[]
+        #self.scan_results_images=defaultdict(set)
+
+        self.files_of_images_groups=defaultdict(set)
 
     def __init__(self,cache_dir,log_par):
         self.cache_dir=cache_dir
@@ -260,6 +269,7 @@ class DudeCore:
     info_size_sum=0
 
     log_skipped = False
+    similarity_mode = False
 
     scan_update_info_path_nr=None
     def scan(self):
@@ -279,134 +289,240 @@ class DudeCore:
         self.info_size_sum=0
 
         self_scan_results_by_size=self.scan_results_by_size
+        self_similarity_mode = self.similarity_mode
 
-        self_scan_results_by_size.clear()
+        self_scan_results_images = self.scan_results_images = set()
+        #############################################################################################
+        if self_similarity_mode:
+            self_log_skipped = self.log_skipped
 
-        self_log_skipped = self.log_skipped
-        self_log_error=self.log.error
+            self_exclude_list=self.exclude_list
+            any_exclude_list = bool(self_exclude_list)
+            self_excl_fn=self.excl_fn
 
-        self_exclude_list=self.exclude_list
-        any_exclude_list = bool(self_exclude_list)
-        self_excl_fn=self.excl_fn
+            self.sum_size=0
+            self.info_size_done_perc=0
+            self.info_files_done_perc=0
 
-        self.sum_size=0
-        self.info_size_done_perc=0
-        self.info_files_done_perc=0
+            self_log_info=self.log.info
+            skipping_action = lambda *args : self_log_info(*args) if self_log_skipped else None
 
-        self_log_info=self.log.info
-        skipping_action = lambda *args : self_log_info(*args) if self_log_skipped else None
+            self_scan_results_images_add = self_scan_results_images.add
 
-        for path_to_scan in self.paths_to_scan:
-            self.info_path_to_scan=path_to_scan
-            self.info_path_nr=path_nr
+            sum_size = 0
+            for path_to_scan in self.paths_to_scan:
+                self.info_path_to_scan=path_to_scan
+                self.info_path_nr=path_nr
 
-            if self.scan_update_info_path_nr:
-                self.scan_update_info_path_nr()
+                if self.scan_update_info_path_nr:
+                    self.scan_update_info_path_nr()
 
-            loop_list=[]
-            loop_list_append=loop_list.append
-            loop_list_append(path_to_scan)
+                loop_list=[]
+                loop_list_append=loop_list.append
+                loop_list_append(path_to_scan)
 
-            loop_list_pop=loop_list.pop
+                loop_list_pop=loop_list.pop
 
-            while loop_list:
-                path = loop_list_pop()
-                self.info_line=path
+                while loop_list:
+                    path = loop_list_pop()
+                    self.info_line=path
 
-                ##############################################
-                try:
-                    with scandir(path) as res:
-                        folder_size=0
-                        folder_counter=0
+                    ##############################################
+                    try:
+                        with scandir(path) as res:
+                            folder_size=0
+                            folder_counter=0
 
-                        for entry in res:
-                            if self.abort_action:
-                                break
+                            for entry in res:
+                                if self.abort_action:
+                                    break
 
-                            if entry.is_symlink() :
-                                skipping_action('skippping link: %s / %s',path,entry.name)
-                            else:
-                                if any_exclude_list:
-                                    fullpath=path_join(path,entry.name)
-                                    if any({self_excl_fn(expr,fullpath) for expr in self_exclude_list}):
-                                        skipping_action('skipping by Exclude Mask:%s',fullpath)
-                                        continue
-
-                                if entry.is_dir():
-                                    loop_list_append(path_join(path,entry.name))
-                                elif entry.is_file():
-                                    try:
-                                        stat_res = stat(entry)
-                                    except Exception as e:
-                                        skipping_action('scandir(stat):%s error:%s',entry.name,e )
-                                    else:
-                                        nlink = stat_res.st_nlink
-                                        if nlink>1:
-                                            skipping_action('scan skipp - hardlinks %s - %s,%s,%s',nlink,path_nr,path,entry.name)
-                                        else:
-                                            if size:=stat_res.st_size:
-                                                folder_size+=size
-
-                                                subpath=path.replace(path_to_scan,'')
-                                                self_scan_results_by_size[size].add( (path_nr,subpath,entry.name,stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino) )
-
-                                    folder_counter+=1
+                                if entry.is_symlink() :
+                                    skipping_action('skippping link: %s / %s',path,entry.name)
                                 else:
-                                    skipping_action('skipping another:%s',path)
+                                    if any_exclude_list:
+                                        fullpath=path_join(path,entry.name)
+                                        if any({self_excl_fn(expr,fullpath) for expr in self_exclude_list}):
+                                            skipping_action('skipping by Exclude Mask:%s',fullpath)
+                                            continue
 
-                        self.info_size_sum+=folder_size
-                        self.info_counter+=folder_counter
+                                    if entry.is_dir():
+                                        loop_list_append(path_join(path,entry.name))
+                                    elif entry.is_file():
+                                        try:
+                                            stat_res = stat(entry)
+                                        except Exception as e:
+                                            skipping_action('scandir(stat):%s error:%s',entry.name,e )
+                                        else:
+                                            nlink = stat_res.st_nlink
+                                            if nlink>1:
+                                                skipping_action('scan skipp - hardlinks %s - %s,%s,%s',nlink,path_nr,path,entry.name)
+                                            else:
+                                                entry.name
+                                                extension = Path(entry).suffix
+                                                #print('extension:',extension,entry.name)
 
-                except Exception as e:
-                    skipping_action('scandir %s: error:%s',path,e)
+                                                if size:=stat_res.st_size:
+                                                    folder_size+=size
+                                                    if extension in ('.jpeg','.jpg','.png'):
+                                                        sum_size+=size
+                                                        subpath=path.replace(path_to_scan,'')
+                                                        self_scan_results_images_add( (path_nr,subpath,entry.name,stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino,size) )
 
-                ##############################################
+                                        folder_counter+=1
+                                    else:
+                                        skipping_action('skipping another:%s',path)
 
+                            self.info_size_sum+=folder_size
+                            self.info_counter+=folder_counter
+
+                    except Exception as e:
+                        skipping_action('scandir %s: error:%s',path,e)
+
+                    ##############################################
+
+                    if self.abort_action:
+                        break
+
+                path_nr+=1
                 if self.abort_action:
                     break
 
-            path_nr+=1
+            print(f'{self_scan_results_images=}')
+            self.sum_size = sum_size
+
+            self.devs=tuple(list({dev for pathnr,path,file_name,mtime,ctime,dev,inode,size in self_scan_results_images}))
+
+            return True
+            #############################################################################################
+        else:
+            self_scan_results_by_size.clear()
+
+            self_log_skipped = self.log_skipped
+            self_log_error=self.log.error
+
+            self_exclude_list=self.exclude_list
+            any_exclude_list = bool(self_exclude_list)
+            self_excl_fn=self.excl_fn
+
+            self.sum_size=0
+            self.info_size_done_perc=0
+            self.info_files_done_perc=0
+
+            self_log_info=self.log.info
+            skipping_action = lambda *args : self_log_info(*args) if self_log_skipped else None
+
+            for path_to_scan in self.paths_to_scan:
+                self.info_path_to_scan=path_to_scan
+                self.info_path_nr=path_nr
+
+                if self.scan_update_info_path_nr:
+                    self.scan_update_info_path_nr()
+
+                loop_list=[]
+                loop_list_append=loop_list.append
+                loop_list_append(path_to_scan)
+
+                loop_list_pop=loop_list.pop
+
+                while loop_list:
+                    path = loop_list_pop()
+                    self.info_line=path
+
+                    ##############################################
+                    try:
+                        with scandir(path) as res:
+                            folder_size=0
+                            folder_counter=0
+
+                            for entry in res:
+                                if self.abort_action:
+                                    break
+
+                                if entry.is_symlink() :
+                                    skipping_action('skippping link: %s / %s',path,entry.name)
+                                else:
+                                    if any_exclude_list:
+                                        fullpath=path_join(path,entry.name)
+                                        if any({self_excl_fn(expr,fullpath) for expr in self_exclude_list}):
+                                            skipping_action('skipping by Exclude Mask:%s',fullpath)
+                                            continue
+
+                                    if entry.is_dir():
+                                        loop_list_append(path_join(path,entry.name))
+                                    elif entry.is_file():
+                                        try:
+                                            stat_res = stat(entry)
+                                        except Exception as e:
+                                            skipping_action('scandir(stat):%s error:%s',entry.name,e )
+                                        else:
+                                            nlink = stat_res.st_nlink
+                                            if nlink>1:
+                                                skipping_action('scan skipp - hardlinks %s - %s,%s,%s',nlink,path_nr,path,entry.name)
+                                            else:
+                                                if size:=stat_res.st_size:
+                                                    folder_size+=size
+
+                                                    subpath=path.replace(path_to_scan,'')
+                                                    self_scan_results_by_size[size].add( (path_nr,subpath,entry.name,stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino) )
+
+                                        folder_counter+=1
+                                    else:
+                                        skipping_action('skipping another:%s',path)
+
+                            self.info_size_sum+=folder_size
+                            self.info_counter+=folder_counter
+
+                    except Exception as e:
+                        skipping_action('scandir %s: error:%s',path,e)
+
+                    ##############################################
+
+                    if self.abort_action:
+                        break
+
+                path_nr+=1
+                if self.abort_action:
+                    break
+
             if self.abort_action:
-                break
+                self.reset()
+                return False
 
-        if self.abort_action:
-            self.reset()
-            return False
+            self.devs=tuple(list({dev for size,data in self_scan_results_by_size.items() for pathnr,path,file_name,mtime,ctime,dev,inode in data}))
 
-        self.devs=tuple(list({dev for size,data in self_scan_results_by_size.items() for pathnr,path,file_name,mtime,ctime,dev,inode in data}))
+            ######################################################################
+            #inodes collision detection
+            self.info='Inode collision detection'
+            known_dev_inodes=defaultdict(int)
+            for size,data in self_scan_results_by_size.items():
+                for pathnr,path,file_name,mtime,ctime,dev,inode in data:
+                    index=(dev,inode)
+                    known_dev_inodes[index]+=1
 
-        ######################################################################
-        #inodes collision detection
-        self.info='Inode collision detection'
-        known_dev_inodes=defaultdict(int)
-        for size,data in self_scan_results_by_size.items():
-            for pathnr,path,file_name,mtime,ctime,dev,inode in data:
-                index=(dev,inode)
-                known_dev_inodes[index]+=1
+            blacklisted_inodes = {index for index in known_dev_inodes if known_dev_inodes[index]>1}
 
-        blacklisted_inodes = {index for index in known_dev_inodes if known_dev_inodes[index]>1}
+            #self_scan_results_by_size = self.scan_results_by_size
+            for size in list(self_scan_results_by_size):
+                for pathnr,path,file_name,mtime,ctime,dev,inode in list(self_scan_results_by_size[size]):
+                    index=(dev,inode)
+                    if index in blacklisted_inodes:
+                        this_index=(pathnr,path,file_name,mtime,ctime,dev,inode)
+                        self.log.warning('ignoring conflicting inode entry: %s',this_index)
+                        self_scan_results_by_size[size].remove(this_index)
 
-        #self_scan_results_by_size = self.scan_results_by_size
-        for size in list(self_scan_results_by_size):
-            for pathnr,path,file_name,mtime,ctime,dev,inode in list(self_scan_results_by_size[size]):
-                index=(dev,inode)
-                if index in blacklisted_inodes:
-                    this_index=(pathnr,path,file_name,mtime,ctime,dev,inode)
-                    self.log.warning('ignoring conflicting inode entry: %s',this_index)
-                    self_scan_results_by_size[size].remove(this_index)
+            ######################################################################
+            sum_size = 0
+            for size in list(self_scan_results_by_size):
+                quant=len(self_scan_results_by_size[size])
+                if quant==1 :
+                    del self_scan_results_by_size[size]
+                else:
+                    sum_size += quant*size
 
-        ######################################################################
-        sum_size = 0
-        for size in list(self_scan_results_by_size):
-            quant=len(self_scan_results_by_size[size])
-            if quant==1 :
-                del self_scan_results_by_size[size]
-            else:
-                sum_size += quant*size
-
-        self.sum_size = sum_size
-        ######################################################################
-        return True
+            self.sum_size = sum_size
+            ######################################################################
+            return True
 
     def crc_cache_read(self):
         self.info='Reading cache ...'
@@ -450,6 +566,187 @@ class DudeCore:
 
     info_speed=0
     info_threads='?'
+
+    hashes_cache={}
+
+    def images_hashes_cache_read(self):
+        self.info='images_hashes_cache_read'
+
+        self.hashes_cache={}
+        self_hashes_cache=self.hashes_cache
+
+        for dev in self.devs:
+            print('dev:',dev)
+            self_hashes_cache_int_dev = self_hashes_cache[dev]={}
+
+            self.log.info('reading cache:%s:device:%s',self.cache_dir,dev)
+            try:
+                with open(sep.join([self.cache_dir,f'{dev}-ih.dat']), "rb") as dat_file:
+                    self.hashes_cache[dev] = loads(ZstdDecompressor().decompress(dat_file.read()))
+            except Exception as e1:
+                self.log.warning(e1)
+            else:
+                self.log.info(f'cache loaded for dev: {dev}')
+        self.info=''
+
+    def images_hashes_cache_write(self):
+        self.info='Writing ih cache ...'
+
+        Path(self.cache_dir).mkdir(parents=True,exist_ok=True)
+
+        for (dev,val_dict) in self.hashes_cache.items():
+            try:
+                self.log.info(f'writing cache for dev: {dev}')
+                with open(sep.join([self.cache_dir,f'{dev}-ih.dat']), "wb") as dat_file:
+                    dat_file.write(ZstdCompressor(level=9,threads=-1).compress(dumps(val_dict)))
+                    self.log.info(f'writing cache for dev: {dev} done.')
+            except Exception as e:
+                self.log.error(f'writing cache for dev: {dev} error: {e}.')
+
+        del self.hashes_cache
+
+        self.info=''
+
+    info=''
+    def image_hashing(self):
+        self.images_hashes_cache_read()
+        self.scanned_paths=self.paths_to_scan.copy()
+
+        self.info_size_done=0
+        self.info_files_done=0
+
+        self.abort_action=False
+        self.can_abort=True
+
+        self.info = 'Images hashing ...'
+
+        anything_new=False
+
+        self.scan_results_images_hashes={}
+        for pathnr,path,file_name,mtime,ctime,dev,inode,size in self.scan_results_images:
+            fullpath=self.get_full_path_to_scan(pathnr,path,file_name)
+            print(f'{fullpath=}')
+            self.info_line = fullpath
+
+            dict_key = (inode,mtime)
+
+            if dev in self.hashes_cache:
+                if dict_key in self.hashes_cache[dev]:
+                    (h1,h2,h3,h4,h5)=self.hashes_cache[dev][dict_key]
+                    #print('read from cache:',h1,h2,h3,h4,h5)
+                    print('read from cache')
+                    self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=h1
+                    continue
+
+            print('calc')
+            anything_new=True
+            file = Image.open(fullpath)
+
+            #imagehash.hex_to_hash
+
+            #h0 = average_hash(file)
+            #h0a = h0.hash
+            #h0b = h0a.tolist()
+
+            #print('hhhhhh',h0,h0a,h0b)
+
+            #h1 = average_hash(file).hash.tolist()
+
+            seq_hash = []
+            for hash_row in average_hash(file).hash:
+                seq_hash.extend(hash_row)
+
+            h1 = numpy_array(seq_hash)
+            #print('h1:',type(h1),h1)
+
+            h2,h3,h4,h5=None,None,None,None
+            #h2 = phash(file).hash.tolist()
+            #h3 = dhash(file).hash.tolist()
+            #h4 = whash(file).hash.tolist()
+            #h5 = colorhash(file).hash.tolist()
+
+            if dev not in self.hashes_cache:
+                self.hashes_cache[dev]={}
+
+            self.hashes_cache[dev][dict_key]=(h1,h2,h3,h4,h5)
+
+            self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=h1
+
+            #print(f'{h1=},{h2=},{h3=},{h4=},{h5=}')
+            #print(f'{str(h1)},{str(h2)},{str(h3)},{str(h4)},{str(h5)}')
+
+            if self.abort_action:
+                break
+
+        if anything_new:
+            self.images_hashes_cache_write()
+
+    #def hash_distance(self, hash1, hash2):
+    #    return abs(hash1 - hash2)
+
+    #def custom_distance(self,x, y):
+    #    print('custom_distance:',x, y)
+        #return (x[0] - y[0]) + (x[1] - y[1])
+    #    return abs(x-y)
+        #x[0] - y[0]
+
+
+    def similarity_clustering(self):
+        #(h1,h2,h3,h4,h5)=self.hashes_cache[dev][dict_key]
+        pool = []
+        keys = []
+
+        for (pathnr,path,file_name,mtime,ctime,dev,inode,size),imagehash in self.scan_results_images_hashes.items():
+            print('imagehash:',imagehash)
+            pool.append(imagehash)
+            keys.append( (pathnr,path,file_name,mtime,ctime,dev,inode,size) )
+
+        #for dev,dev_dict in self.hashes_cache.items():
+            #for dict_key,dict_elem in dev_dict.items():
+                #h1,h2,h3,h4,h5 = dict_elem
+                #print('h1-fit:',h1,type(h1))
+                #pool.append(h1)
+                #keys.append(dict_key)
+
+        #pool = numpy_array(pool_set)
+        #.reshape(-1,1)
+
+        #print(f'{pool=}')
+
+        model = DBSCAN(eps=1, min_samples=2)
+        #model = DBSCAN(eps=1, min_samples=2, metric=self.custom_distance)
+        #model = DBSCAN(eps=1, min_samples=2, metric=self.custom_distance)
+        #model = MiniBatchKMeans(n_clusters=2, batch_size=2)
+
+        print('fitting...')
+        #yhat = model.fit_predict(X)
+        fit = model.fit(pool)
+
+        labels = fit.labels_
+
+        unique_labels = set(labels)
+        print("Przypisanie klastrów:", labels,unique_labels)
+
+        # retrieve unique clusters
+        #clusters = unique(yhat)
+
+        groups = defaultdict(set)
+
+        for label,key in zip(labels,keys):
+            if label!=-1:
+                groups[label].add(key)
+
+        self.files_of_images_groups = defaultdict(set)
+
+        for label,lab_keys in groups.items():
+            print(label)
+            for key in lab_keys:
+                print('  ',key)
+                self.files_of_images_groups[str(label)].add(key)
+
+            #print('cluster:',cluster)
+
+            #row_ix = where(yhat == cluster)
 
     def crc_calc(self):
         self.crc_cache_read()
@@ -544,6 +841,10 @@ class DudeCore:
 
                 cache_key=(inode,mtime)
                 self_files_of_size_of_crc_size=self.files_of_size_of_crc[size]
+
+                print('self_crc_cache_dev:',self_crc_cache_dev)
+                print('self.crc_cache:',self.crc_cache)
+
                 if cache_key in self_crc_cache_dev:
                     if crc:=self_crc_cache_dev[cache_key]:
                         self.info_size_done+=size
