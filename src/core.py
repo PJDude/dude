@@ -45,6 +45,7 @@ from subprocess import run as subprocess_run
 if os_name=='nt':
     from subprocess import CREATE_NO_WINDOW
 
+from sys import exit as sys_exit
 from pickle import dumps,loads
 from zstandard import ZstdCompressor,ZstdDecompressor
 
@@ -567,10 +568,6 @@ class DudeCore:
     info_speed=0
     info_threads='?'
 
-    #images_hashes_cache={}
-    #def image_hash_cache_file(self,dev,hash_size):
-    #    return sep.join([self.cache_dir,f'{dev}.{hash_size}.ih.dat'])
-
     def images_hashes_cache_read(self):
         self.info='image hashes cache read'
 
@@ -622,7 +619,7 @@ class DudeCore:
 
             return tuple(seq_hash)
 
-        for index_tuple,fullpath in source_dict.items():
+        for index_tuple,fullpath in sorted(source_dict.items(), key = lambda x : x[0][7], reverse=True):
             if self.abort_action:
                 break
 
@@ -636,8 +633,9 @@ class DudeCore:
                 continue
 
             if all_rotations:
+                file_rotate = file.rotate
                 try:
-                    result_dict[index_tuple]=( my_hash_combo(file,hash_size),my_hash_combo(file.rotate(90),hash_size),my_hash_combo(file.rotate(180),hash_size),my_hash_combo(file.rotate(270),hash_size) )
+                    result_dict[index_tuple]=( my_hash_combo(file,hash_size),my_hash_combo(file_rotate(90),hash_size),my_hash_combo(file_rotate(180),hash_size),my_hash_combo(file_rotate(270),hash_size) )
 
                 except Exception as e:
                     self.log.error(f'hashing file: {fullpath} error: {e}.')
@@ -650,7 +648,7 @@ class DudeCore:
                     self.log.error(f'hashing file: {fullpath} error: {e}.')
                     continue
 
-        #sys.exit(0)
+        sys_exit() #thread
 
     info=''
     def image_hashing(self,hash_size,all_rotations):
@@ -669,7 +667,6 @@ class DudeCore:
         anything_new=False
 
         self.scan_results_images_hashes={}
-        #self.hashes_to_calculate=set()
 
         max_threads = cpu_count()
 
@@ -677,7 +674,7 @@ class DudeCore:
         imagehash_threads_sets_results = {i:{} for i in range(max_threads)}
         imagehash_threads = {i:Thread(target=lambda iloc=i: self.imagehsh_calc_in_thread(iloc,hash_size,all_rotations,imagehash_threads_sets_source[iloc],imagehash_threads_sets_results[iloc]),daemon=True) for i in range(max_threads)}
 
-        set_index=0
+        thread_index=0
 
         images_quantity_cache_read=0
         images_quantity_need_to_calculate=0
@@ -686,30 +683,29 @@ class DudeCore:
         size_to_calculate = 0
 
         rotations_list = (0,1,2,3) if all_rotations else (0,)
-        for pathnr,path,file_name,mtime,ctime,dev,inode,size in self.scan_results_images:
-
+        for pathnr,path,file_name,mtime,ctime,dev,inode,size in sorted(self.scan_results_images, key = lambda x : x[7], reverse=True):
+            all_rotations_from_cache = True
             for rotation in rotations_list:
-                dict_key = (dev,inode,mtime,rotation)
+                dict_key = (dev,inode,mtime,hash_size,rotation)
                 if dict_key in self.images_hashes_cache:
                     if val := self.images_hashes_cache[dict_key]:
-                        #print('read from cache:',dict_key,val)
                         self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size,rotation)] = val
-                        if rotation==0:
-                            images_quantity_cache_read+=1
-                            size_from_cache += size
-                        continue
-                #else:
-                #    self.images_hashes_cache[dict_key]={}
+                else:
+                    all_rotations_from_cache = False
+                    break
 
-            fullpath=self.get_full_path_to_scan(pathnr,path,file_name)
+            if all_rotations_from_cache:
+                images_quantity_cache_read+=1
+                size_from_cache += size
+            else:
+                fullpath=self.get_full_path_to_scan(pathnr,path,file_name)
 
-            imagehash_threads_sets_source[set_index][(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=fullpath
+                imagehash_threads_sets_source[thread_index][(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=fullpath
 
-            set_index += 1
-            set_index %= max_threads
+                thread_index = (thread_index+1) % max_threads
 
-            images_quantity_need_to_calculate += 1
-            size_to_calculate += size
+                images_quantity_need_to_calculate += 1
+                size_to_calculate += size
 
         #self.images_quantity_need_to_calculate = images_quantity_need_to_calculate
         #self.images_quantity_cache_read = images_quantity_cache_read
@@ -734,14 +730,13 @@ class DudeCore:
         sto_by_self_info_total = 100.0/self.info_total
         sto_by_self_sum_size = 100.0/self.sum_size
 
-        self.info = f'Threads:{max_threads}'
+        #self.info = f'Threads:{max_threads}'
 
         while True:
             all_dead=True
             for i in range(max_threads):
                 if imagehash_threads[i].is_alive():
                     all_dead=False
-                    sleep(0.02)
 
             if all_dead:
                 break
@@ -751,6 +746,7 @@ class DudeCore:
 
                 self.info_size_done_perc = sto_by_self_sum_size*self.info_size_done
                 self.info_files_done_perc = sto_by_self_info_total*self.info_files_done
+                sleep(0.02)
 
         for i in range(max_threads):
             imagehash_threads[i].join()
@@ -761,7 +757,7 @@ class DudeCore:
                 for rotation,ihash in enumerate(ihash_rotations):
                     if (rotation in rotations_list) and ihash:
                         self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size,rotation)]=numpy_array(ihash)
-                        self.images_hashes_cache[(dev,inode,mtime,rotation)]=ihash
+                        self.images_hashes_cache[(dev,inode,mtime,hash_size,rotation)]=ihash
 
                         anything_new=True
 
@@ -769,11 +765,15 @@ class DudeCore:
             self.info = self.info_line = 'Writing cache ...'
             self.images_hashes_cache_write()
 
+        sys_exit() #thread
+
     def similarity_clustering(self,hash_size,distance,all_rotations):
         pool = []
         keys = []
 
-        for key,imagehash in self.scan_results_images_hashes.items():
+        self.info_line = self.info = 'Preparing data pool ...'
+
+        for key,imagehash in sorted(self.scan_results_images_hashes.items(), key=lambda x :x[0][7],reverse = True) :
             pool.append(imagehash)
             keys.append( key )
 
@@ -782,13 +782,14 @@ class DudeCore:
         self.info_line = self.info = 'Clustering ...'
 
         model = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1)
-
         fit = model.fit(pool)
 
         labels = fit.labels_
 
         unique_labels = set(labels)
         groups = defaultdict(set)
+
+        self.info_line = self.info = 'Separating groups ...'
 
         for label,key in zip(labels,keys):
             if label!=-1:
@@ -800,6 +801,10 @@ class DudeCore:
             self_files_of_images_groups_str_label_add = self_files_of_images_groups[str(label)].add
             for key in lab_keys:
                 self_files_of_images_groups_str_label_add(key)
+
+        del model
+
+        sys_exit() #thread
 
     def crc_calc(self):
         self.crc_cache_read()

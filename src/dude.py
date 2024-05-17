@@ -412,6 +412,7 @@ class Gui:
 
         hg_indices=('01','02','03','04','05','06','07','08', '11','12','13','14','15','16','17','18', '21','22','23','24','25','26','27','28', '31','32','33','34','35','36','37','38',)
         self.hg_ico={ i:self_ico[str('hg'+j)] for i,j in enumerate(hg_indices) }
+        self.hg_ico_len = len(self.hg_ico)
 
         self.icon_softlink_target=self_ico['softlink_target']
         self.icon_softlink_dir_target=self_ico['softlink_dir_target']
@@ -1185,6 +1186,13 @@ class Gui:
 
         self_main.mainloop()
         #######################################################################
+
+    hg_index = 0
+
+    def get_hg_ico(self):
+        self.hg_index=(self.hg_index+1) % self.hg_ico_len
+        return self.hg_ico[self.hg_index]
+
     def similarity_mode_change(self):
 
         if self.similarity_mode_var.get():
@@ -1814,7 +1822,11 @@ class Gui:
                                 self.tooltip_deiconify()
                             else:
                                 crc=item
-                                self.tooltip_lab_configure(text='CRC: %s' % crc )
+                                if self.similarity_mode:
+                                    self.tooltip_lab_configure(text='GROUP: %s' % crc )
+                                else:
+                                    self.tooltip_lab_configure(text='CRC: %s' % crc )
+
                                 self.tooltip_deiconify()
 
                     elif col:
@@ -3064,8 +3076,6 @@ class Gui:
 
         time_without_busy_sign=0
 
-        hr_index=0
-
         self_progress_dialog_on_scan_progr1var.set(0)
         self_progress_dialog_on_scan_lab_r1_config(text='- - - -')
         self_progress_dialog_on_scan_progr2var.set(0)
@@ -3082,8 +3092,7 @@ class Gui:
 
         scan_thread_is_alive = scan_thread.is_alive
 
-        self_hg_ico = self.hg_ico
-        len_self_hg_ico = len(self_hg_ico)
+        self_get_hg_ico = self.get_hg_ico
 
         local_bytes_to_str = bytes_to_str
 
@@ -3120,8 +3129,7 @@ class Gui:
                     self_progress_dialog_on_scan_lab[2].configure(image=self.ico_empty)
             else :
                 if now>time_without_busy_sign+1.0:
-                    self_progress_dialog_on_scan_lab[2].configure(image=self_hg_ico[hr_index],text = '', compound='left')
-                    hr_index=(hr_index+1) % len_self_hg_ico
+                    self_progress_dialog_on_scan_lab[2].configure(image=self_get_hg_ico(),text = '', compound='left')
 
                     self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='currently scanning:\n%s...' % dude_core.info_line
                     self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
@@ -3158,6 +3166,8 @@ class Gui:
 
         prev_progress_size=0
         prev_progress_quant=0
+
+        self_get_hg_ico = self.get_hg_ico
 
         if similarity_mode:
             self_progress_dialog_on_scan_lab[0].configure(image='',text='')
@@ -3208,8 +3218,8 @@ class Gui:
 
                 if dude_core.can_abort:
                     if self.action_abort:
-                        self_progress_dialog_on_scan_lab[0].configure(image='',text='Images hashing aborted')
-                        self_progress_dialog_on_scan_lab[1].configure(text='')
+                        self_progress_dialog_on_scan_lab[0].configure(text='',image='')
+                        self_progress_dialog_on_scan_lab[1].configure(image='',text='Images hashing aborted')
                         self_progress_dialog_on_scan_lab[2].configure(text='')
                         self_progress_dialog_on_scan_lab[3].configure(text='')
                         self_progress_dialog_on_scan_lab[4].configure(text='')
@@ -3217,8 +3227,7 @@ class Gui:
                         dude_core.abort()
                         break
 
-                self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
-                hr_index=(hr_index+1) % len_self_hg_ico
+                self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
 
                 self_status(dude_core.info)
 
@@ -3250,8 +3259,7 @@ class Gui:
             self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
 
             while sc_thread_is_alive():
-                self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
-                hr_index=(hr_index+1) % len_self_hg_ico
+                self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
 
                 self_main_after(50,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
@@ -3276,8 +3284,6 @@ class Gui:
             self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
             self_progress_dialog_on_scan.widget.update()
             self.main.focus_set()
-
-            ih_thread.join()
 
         else:
             self_status('Calculating CRC ...')
@@ -3352,8 +3358,7 @@ class Gui:
                         self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty)
                 else :
                     if now>time_without_busy_sign+1.0:
-                        self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
-                        hr_index=(hr_index+1) % len_self_hg_ico
+                        self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
 
                         self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='crc calculating:\n%s...' % dude_core.info_line
                         self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
@@ -3753,9 +3758,14 @@ class Gui:
     def groups_show(self):
         #self.menu_disable()
 
+
         if self.similarity_mode:
-            self_idfunc=self.idfunc = (lambda i,d,r : '%s-%s-$s' % (i,d,r)) if len(dude_core.devs)>1 else (lambda i,d,r : '%s-%s' % (i,r))
+            self.groups_tree.heading('#0',text='GROUP/Scan Path',anchor='w')
+            self.folder_tree.heading('#0',text='GROUP',anchor='w')
+            self_idfunc=self.idfunc = (lambda i,d,r : '%s-%s-%s' % (i,d,r)) if len(dude_core.devs)>1 else (lambda i,d,r : '%s-%s' % (i,r))
         else:
+            self.groups_tree.heading('#0',text='CRC/Scan Path',anchor='w')
+            self.folder_tree.heading('#0',text='CRC',anchor='w')
             self_idfunc=self.idfunc = (lambda i,d,r=0 : '%s-%s' % (i,d)) if len(dude_core.devs)>1 else (lambda i,d,r=0 : str(i))
 
         self_status=self.status
@@ -4746,8 +4756,12 @@ class Gui:
 
             size=self.crc_to_size[crc]
 
-            if cfg_show_crc_size:
-                message_append('CRC:' + crc + ' size:' + bytes_to_str(size) + '|GRAY')
+            if self.similarity_mode:
+                if cfg_show_crc_size:
+                    message_append('size:' + bytes_to_str(size) + '|GRAY')
+            else:
+                if cfg_show_crc_size:
+                    message_append('CRC:' + crc + ' size:' + bytes_to_str(size) + '|GRAY')
 
             for index,item in items_dict.items():
                 size_sum += size
@@ -4893,7 +4907,10 @@ class Gui:
                 size = self.crc_to_size[crc]
 
                 self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-                self.process_files_core_info1 = f'crc:{crc}'
+                if self.similarity_mode:
+                    self.process_files_core_info1 = f'group:{crc}'
+                else:
+                    self.process_files_core_info1 = f'crc:{crc}'
 
                 for item in items_dict.values():
                     index_tuple=self_groups_tree_item_to_data[item][3]
@@ -4961,7 +4978,10 @@ class Gui:
                 self.process_files_size_sum+=size
 
                 self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-                self.process_files_core_info1 = f'crc:{crc}'
+                if self.similarity_mode:
+                    self.process_files_core_info1 = f'group:{crc}'
+                else:
+                    self.process_files_core_info1 = f'crc:{crc}'
 
                 if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
@@ -4987,7 +5007,10 @@ class Gui:
                 self.process_files_size_sum+=size
 
                 self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-                self.process_files_core_info1 = f'crc:{crc}'
+                if self.similarity_mode:
+                    self.process_files_core_info1 = f'group:{crc}'
+                else:
+                    self.process_files_core_info1 = f'crc:{crc}'
 
                 if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
@@ -5010,7 +5033,10 @@ class Gui:
                 self.process_files_size_sum+=size
 
                 self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-                self.process_files_core_info1 = f'crc:{crc}'
+                if self.similarity_mode:
+                    self.process_files_core_info1 = f'group:{crc}'
+                else:
+                    self.process_files_core_info1 = f'crc:{crc}'
 
                 if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
                     l_error(resmsg)
