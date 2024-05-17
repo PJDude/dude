@@ -50,7 +50,8 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 
 from send2trash import send2trash
 
-from PIL import Image
+#from PIL import Image
+from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
 from imagehash import average_hash,phash,dhash,whash,colorhash,hex_to_hash
 
 from sklearn.cluster import DBSCAN,MiniBatchKMeans
@@ -190,7 +191,6 @@ class DudeCore:
         self.crc_cut_len=40
         self.scanned_paths=[]
         self.exclude_list=[]
-        #self.scan_results_images=defaultdict(set)
 
         self.files_of_images_groups=defaultdict(set)
 
@@ -364,7 +364,7 @@ class DudeCore:
 
                                                 if size:=stat_res.st_size:
                                                     folder_size+=size
-                                                    if extension in ('.jpeg','.jpg','.png'):
+                                                    if extension.lower() in ('.jpeg','.jpg','.png'):
                                                         sum_size+=size
                                                         subpath=path.replace(path_to_scan,'')
                                                         self_scan_results_images_add( (path_nr,subpath,entry.name,stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino,size) )
@@ -388,7 +388,7 @@ class DudeCore:
                 if self.abort_action:
                     break
 
-            print(f'{self_scan_results_images=}')
+            #print(f'{self_scan_results_images=}')
             self.sum_size = sum_size
 
             self.devs=tuple(list({dev for pathnr,path,file_name,mtime,ctime,dev,inode,size in self_scan_results_images}))
@@ -567,26 +567,24 @@ class DudeCore:
     info_speed=0
     info_threads='?'
 
-    hashes_cache={}
+    #images_hashes_cache={}
+    #def image_hash_cache_file(self,dev,hash_size):
+    #    return sep.join([self.cache_dir,f'{dev}.{hash_size}.ih.dat'])
 
     def images_hashes_cache_read(self):
-        self.info='images_hashes_cache_read'
+        self.info='image hashes cache read'
 
-        self.hashes_cache={}
-        self_hashes_cache=self.hashes_cache
+        self.images_hashes_cache = {}
 
-        for dev in self.devs:
-            print('dev:',dev)
-            self_hashes_cache_int_dev = self_hashes_cache[dev]={}
-
-            self.log.info('reading cache:%s:device:%s',self.cache_dir,dev)
-            try:
-                with open(sep.join([self.cache_dir,f'{dev}-ih.dat']), "rb") as dat_file:
-                    self.hashes_cache[dev] = loads(ZstdDecompressor().decompress(dat_file.read()))
-            except Exception as e1:
-                self.log.warning(e1)
-            else:
-                self.log.info(f'cache loaded for dev: {dev}')
+        self.log.info('reading image hashes cache')
+        try:
+            with open(sep.join([self.cache_dir,'ihashes.dat']), "rb") as dat_file:
+                self.images_hashes_cache = loads(ZstdDecompressor().decompress(dat_file.read()))
+                #print('ddddd:',self.images_hashes_cache)
+        except Exception as e1:
+            self.log.warning(e1)
+        else:
+            self.log.info(f'image hashes cache loaded.')
         self.info=''
 
     def images_hashes_cache_write(self):
@@ -594,21 +592,68 @@ class DudeCore:
 
         Path(self.cache_dir).mkdir(parents=True,exist_ok=True)
 
-        for (dev,val_dict) in self.hashes_cache.items():
-            try:
-                self.log.info(f'writing cache for dev: {dev}')
-                with open(sep.join([self.cache_dir,f'{dev}-ih.dat']), "wb") as dat_file:
-                    dat_file.write(ZstdCompressor(level=9,threads=-1).compress(dumps(val_dict)))
-                    self.log.info(f'writing cache for dev: {dev} done.')
-            except Exception as e:
-                self.log.error(f'writing cache for dev: {dev} error: {e}.')
+        self.log.info(f'writing images hashes cache')
+        try:
+            with open(sep.join([self.cache_dir,'ihashes.dat']), "wb") as dat_file:
+                dat_file.write(ZstdCompressor(level=9,threads=-1).compress(dumps(self.images_hashes_cache)))
+                self.log.info('writing images hashes cache')
+        except Exception as e:
+            self.log.error(f'writing images hashes cache error: {e}.')
 
-        del self.hashes_cache
+        del self.images_hashes_cache
 
         self.info=''
 
+    def imagehsh_calc_in_thread(self,i,hash_size,all_rotations,source_dict,result_dict):
+        def my_hash_combo(file,hash_size):
+            seq_hash = []
+            seq_hash_extend = seq_hash.extend
+
+            for hash_row in average_hash(file,hash_size).hash:
+                seq_hash_extend(hash_row)
+
+                for hash_row in phash(file,hash_size).hash:
+                    seq_hash_extend(hash_row)
+
+                for hash_row in dhash(file,hash_size).hash:
+                    seq_hash_extend(hash_row)
+
+                #colorhash(file).hash.tolist()
+
+            return tuple(seq_hash)
+
+        for index_tuple,fullpath in source_dict.items():
+            if self.abort_action:
+                break
+
+            try:
+                file = image_open(fullpath)
+                if file.mode == 'RGBA':
+                    file = image_alpha_composite(image_new('RGBA', file.size, (255,255,255)), file)
+
+            except Exception as e:
+                self.log.error(f'opening file: {fullpath} error: {e}.')
+                continue
+
+            if all_rotations:
+                try:
+                    result_dict[index_tuple]=( my_hash_combo(file,hash_size),my_hash_combo(file.rotate(90),hash_size),my_hash_combo(file.rotate(180),hash_size),my_hash_combo(file.rotate(270),hash_size) )
+
+                except Exception as e:
+                    self.log.error(f'hashing file: {fullpath} error: {e}.')
+                    continue
+            else:
+                try:
+                    result_dict[index_tuple]=(my_hash_combo(file,hash_size),None,None,None)
+
+                except Exception as e:
+                    self.log.error(f'hashing file: {fullpath} error: {e}.')
+                    continue
+
+        #sys.exit(0)
+
     info=''
-    def image_hashing(self):
+    def image_hashing(self,hash_size,all_rotations):
         self.images_hashes_cache_read()
         self.scanned_paths=self.paths_to_scan.copy()
 
@@ -618,135 +663,143 @@ class DudeCore:
         self.abort_action=False
         self.can_abort=True
 
-        self.info = 'Images hashing ...'
+        self.info = 'Cache reading'
+        self.info_line = 'Cache reading ...'
 
         anything_new=False
 
         self.scan_results_images_hashes={}
+        #self.hashes_to_calculate=set()
+
+        max_threads = cpu_count()
+
+        imagehash_threads_sets_source = {i:{} for i in range(max_threads)}
+        imagehash_threads_sets_results = {i:{} for i in range(max_threads)}
+        imagehash_threads = {i:Thread(target=lambda iloc=i: self.imagehsh_calc_in_thread(iloc,hash_size,all_rotations,imagehash_threads_sets_source[iloc],imagehash_threads_sets_results[iloc]),daemon=True) for i in range(max_threads)}
+
+        set_index=0
+
+        images_quantity_cache_read=0
+        images_quantity_need_to_calculate=0
+
+        size_from_cache = 0
+        size_to_calculate = 0
+
+        rotations_list = (0,1,2,3) if all_rotations else (0,)
         for pathnr,path,file_name,mtime,ctime,dev,inode,size in self.scan_results_images:
+
+            for rotation in rotations_list:
+                dict_key = (dev,inode,mtime,rotation)
+                if dict_key in self.images_hashes_cache:
+                    if val := self.images_hashes_cache[dict_key]:
+                        #print('read from cache:',dict_key,val)
+                        self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size,rotation)] = val
+                        if rotation==0:
+                            images_quantity_cache_read+=1
+                            size_from_cache += size
+                        continue
+                #else:
+                #    self.images_hashes_cache[dict_key]={}
+
             fullpath=self.get_full_path_to_scan(pathnr,path,file_name)
-            print(f'{fullpath=}')
-            self.info_line = fullpath
 
-            dict_key = (inode,mtime)
+            imagehash_threads_sets_source[set_index][(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=fullpath
 
-            if dev in self.hashes_cache:
-                if dict_key in self.hashes_cache[dev]:
-                    (h1,h2,h3,h4,h5)=self.hashes_cache[dev][dict_key]
-                    #print('read from cache:',h1,h2,h3,h4,h5)
-                    print('read from cache')
-                    self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=h1
-                    continue
+            set_index += 1
+            set_index %= max_threads
 
-            print('calc')
-            anything_new=True
-            file = Image.open(fullpath)
+            images_quantity_need_to_calculate += 1
+            size_to_calculate += size
 
-            #imagehash.hex_to_hash
+        #self.images_quantity_need_to_calculate = images_quantity_need_to_calculate
+        #self.images_quantity_cache_read = images_quantity_cache_read
 
-            #h0 = average_hash(file)
-            #h0a = h0.hash
-            #h0b = h0a.tolist()
+        self.info_total = images_quantity_cache_read + images_quantity_need_to_calculate
+        self.sum_size = size_from_cache + size_to_calculate
 
-            #print('hhhhhh',h0,h0a,h0b)
+        print(f'{images_quantity_need_to_calculate=}')
+        print(f'{images_quantity_cache_read=}')
 
-            #h1 = average_hash(file).hash.tolist()
+        self.info = self.info_line = 'Images hashing ...'
 
-            seq_hash = []
-            for hash_row in average_hash(file).hash:
-                seq_hash.extend(hash_row)
+        for i in range(max_threads):
+            imagehash_threads[i].start()
 
-            h1 = numpy_array(seq_hash)
-            #print('h1:',type(h1),h1)
+        self.info_size_done=0
+        self.info_files_done=0
 
-            h2,h3,h4,h5=None,None,None,None
-            #h2 = phash(file).hash.tolist()
-            #h3 = dhash(file).hash.tolist()
-            #h4 = whash(file).hash.tolist()
-            #h5 = colorhash(file).hash.tolist()
+        self.info_size_done_perc = 0
+        self.info_files_done_perc = 0
 
-            if dev not in self.hashes_cache:
-                self.hashes_cache[dev]={}
+        sto_by_self_info_total = 100.0/self.info_total
+        sto_by_self_sum_size = 100.0/self.sum_size
 
-            self.hashes_cache[dev][dict_key]=(h1,h2,h3,h4,h5)
+        self.info = f'Threads:{max_threads}'
 
-            self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=h1
+        while True:
+            all_dead=True
+            for i in range(max_threads):
+                if imagehash_threads[i].is_alive():
+                    all_dead=False
+                    sleep(0.02)
 
-            #print(f'{h1=},{h2=},{h3=},{h4=},{h5=}')
-            #print(f'{str(h1)},{str(h2)},{str(h3)},{str(h4)},{str(h5)}')
-
-            if self.abort_action:
+            if all_dead:
                 break
+            else:
+                self.info_size_done = size_from_cache + sum([size for pathnr,path,file_name,mtime,ctime,dev,inode,size in imagehash_threads_sets_results[i] for i in range(max_threads)])
+                self.info_files_done = images_quantity_cache_read + sum([len(imagehash_threads_sets_results[i]) for i in range(max_threads)])
+
+                self.info_size_done_perc = sto_by_self_sum_size*self.info_size_done
+                self.info_files_done_perc = sto_by_self_info_total*self.info_files_done
+
+        for i in range(max_threads):
+            imagehash_threads[i].join()
+
+        self.info = self.info_line = 'Data merging ...'
+        for i in range(max_threads):
+            for (pathnr,path,file_name,mtime,ctime,dev,inode,size),ihash_rotations in imagehash_threads_sets_results[i].items():
+                for rotation,ihash in enumerate(ihash_rotations):
+                    if (rotation in rotations_list) and ihash:
+                        self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size,rotation)]=numpy_array(ihash)
+                        self.images_hashes_cache[(dev,inode,mtime,rotation)]=ihash
+
+                        anything_new=True
 
         if anything_new:
+            self.info = self.info_line = 'Writing cache ...'
             self.images_hashes_cache_write()
 
-    #def hash_distance(self, hash1, hash2):
-    #    return abs(hash1 - hash2)
-
-    #def custom_distance(self,x, y):
-    #    print('custom_distance:',x, y)
-        #return (x[0] - y[0]) + (x[1] - y[1])
-    #    return abs(x-y)
-        #x[0] - y[0]
-
-
-    def similarity_clustering(self):
-        #(h1,h2,h3,h4,h5)=self.hashes_cache[dev][dict_key]
+    def similarity_clustering(self,hash_size,distance,all_rotations):
         pool = []
         keys = []
 
-        for (pathnr,path,file_name,mtime,ctime,dev,inode,size),imagehash in self.scan_results_images_hashes.items():
-            print('imagehash:',imagehash)
+        for key,imagehash in self.scan_results_images_hashes.items():
             pool.append(imagehash)
-            keys.append( (pathnr,path,file_name,mtime,ctime,dev,inode,size) )
+            keys.append( key )
 
-        #for dev,dev_dict in self.hashes_cache.items():
-            #for dict_key,dict_elem in dev_dict.items():
-                #h1,h2,h3,h4,h5 = dict_elem
-                #print('h1-fit:',h1,type(h1))
-                #pool.append(h1)
-                #keys.append(dict_key)
+        de_norm_distance = distance*hash_size*0.33*0.25+0.001
 
-        #pool = numpy_array(pool_set)
-        #.reshape(-1,1)
+        self.info_line = self.info = 'Clustering ...'
 
-        #print(f'{pool=}')
+        model = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1)
 
-        model = DBSCAN(eps=1, min_samples=2)
-        #model = DBSCAN(eps=1, min_samples=2, metric=self.custom_distance)
-        #model = DBSCAN(eps=1, min_samples=2, metric=self.custom_distance)
-        #model = MiniBatchKMeans(n_clusters=2, batch_size=2)
-
-        print('fitting...')
-        #yhat = model.fit_predict(X)
         fit = model.fit(pool)
 
         labels = fit.labels_
 
         unique_labels = set(labels)
-        print("Przypisanie klastrów:", labels,unique_labels)
-
-        # retrieve unique clusters
-        #clusters = unique(yhat)
-
         groups = defaultdict(set)
 
         for label,key in zip(labels,keys):
             if label!=-1:
                 groups[label].add(key)
 
-        self.files_of_images_groups = defaultdict(set)
+        self_files_of_images_groups = self.files_of_images_groups = defaultdict(set)
 
         for label,lab_keys in groups.items():
-            print(label)
+            self_files_of_images_groups_str_label_add = self_files_of_images_groups[str(label)].add
             for key in lab_keys:
-                print('  ',key)
-                self.files_of_images_groups[str(label)].add(key)
-
-            #print('cluster:',cluster)
-
-            #row_ix = where(yhat == cluster)
+                self_files_of_images_groups_str_label_add(key)
 
     def crc_calc(self):
         self.crc_cache_read()
@@ -841,9 +894,6 @@ class DudeCore:
 
                 cache_key=(inode,mtime)
                 self_files_of_size_of_crc_size=self.files_of_size_of_crc[size]
-
-                print('self_crc_cache_dev:',self_crc_cache_dev)
-                print('self.crc_cache:',self.crc_cache)
 
                 if cache_key in self_crc_cache_dev:
                     if crc:=self_crc_cache_dev[cache_key]:

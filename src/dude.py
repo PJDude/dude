@@ -34,9 +34,9 @@ from signal import signal,SIGINT
 from configparser import ConfigParser
 from subprocess import Popen
 
-from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar
+from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
 
-from tkinter.ttk import Checkbutton,Treeview,Scrollbar,Button,Entry,Combobox,Style
+from tkinter.ttk import Checkbutton,Treeview,Scrollbar,Button,Entry,Combobox,Scale,Style
 
 from tkinter.filedialog import askdirectory,asksaveasfilename
 
@@ -499,6 +499,10 @@ class Gui:
         style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
         style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
 
+        style_configure("TScale", background=self.bg_color)
+        style_configure('TScale.slider', background=self.bg_color)
+        style_configure('TScale.Horizontal.TScale', background=self.bg_color)
+
         #works but not for every theme
         #style_configure("Treeview", fieldbackground=self.bg_color)
 
@@ -798,6 +802,9 @@ class Gui:
         self.log_skipped_var=BooleanVar()
         self.log_skipped_var.set(False)
 
+        self.all_rotations=BooleanVar()
+        self.all_rotations.set(False)
+
         self.similarity_mode_var=BooleanVar()
         self.similarity_mode_var.set(False)
 
@@ -904,17 +911,89 @@ class Gui:
         self.exclude_frame.grid_rowconfigure(99, weight=1)
         ##############
 
+        similarity_button = Checkbutton(self_scan_dialog_area_main,text='Images similarity mode',variable=self.similarity_mode_var,command=self.similarity_mode_change )
+        similarity_button.grid(row=3,column=0,sticky='news',padx=8,pady=3)
+
+        similarity_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"Only image files are processed\n\nFound file groups represent similar images by its content\n\nNOT(!) byte-by-byte identical files"))
+        similarity_button.bind("<Leave>", lambda event : self_widget_leave())
+
+        temp_frame3 = LabelFrame(self_scan_dialog_area_main,text='Similarity mode options',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame3.grid(row=4,column=0,sticky='news',padx=4,pady=4,columnspan=4)
+
+        sf_par3=Frame(temp_frame3,bg=self.bg_color)
+        sf_par3.pack(fill='both',expand=True,side='top')
+
+        sf_par4=Frame(temp_frame3,bg=self.bg_color)
+        sf_par4.pack(fill='both',expand=True,side='top')
+
+        self.similarity_distance_var = IntVar()
+        self.similarity_distance_var_lab = StringVar()
+        self.similarity_distance_var.set(5)
+
+        self.similarity_hsize_var = IntVar()
+        self.similarity_hsize_varx2 = IntVar()
+        self.similarity_hsize_var_lab = StringVar()
+        self.similarity_hsize_var.set(4)
+        self.similarity_hsize_varx2.set(8)
+
+        self.similarity_hsize_label = Label(sf_par3, text='Hash size:',bg=self.bg_color,relief='flat')
+        self.similarity_hsize_label.grid(row=0,column=0,padx=2,pady=2,sticky='w')
+
+        self.similarity_hsize_scale = Scale(sf_par3, variable=self.similarity_hsize_var, orient='horizontal',from_=2, to=16,command=lambda x : self.hsize_val_set(),style="TScale",length=160)
+        self.similarity_hsize_scale.grid(row=0,column=1,padx=2,sticky='ew')
+
+        self.similarity_hsize_label_val = Label(sf_par3, textvariable=self.similarity_hsize_var_lab,bg=self.bg_color,relief='groove',width=5,height=1,borderwidth=2)
+        self.similarity_hsize_label_val.grid(row=0,column=2,padx=2,pady=2)
+        self.hsize_val_set()
+
+        hash_tooltip = "The larger the hash size value,\nthe more details of the image\nare taken into consideration."
+        self.similarity_hsize_label.bind("<Motion>", lambda event : self_motion_on_widget(event,hash_tooltip))
+        self.similarity_hsize_label.bind("<Leave>", lambda event : self_widget_leave())
+
+        self.similarity_hsize_scale.bind("<Motion>", lambda event : self_motion_on_widget(event,hash_tooltip))
+        self.similarity_hsize_scale.bind("<Leave>", lambda event : self_widget_leave())
+
+        self.similarity_hsize_label_val.bind("<Motion>", lambda event : self_motion_on_widget(event,hash_tooltip))
+        self.similarity_hsize_label_val.bind("<Leave>", lambda event : self_widget_leave())
+
+
+        self.similarity_distance_label = Label(sf_par3, text='Relative divergence:',bg=self.bg_color,relief='flat')
+        self.similarity_distance_label.grid(row=1,column=0,padx=2,pady=2,sticky='w')
+
+        self.similarity_distance_scale = Scale(sf_par3, variable=self.similarity_distance_var, orient='horizontal',from_=0, to=9,command=lambda x : self.distance_val_set(),style="TScale",length=160)
+        self.similarity_distance_scale.grid(row=1,column=1,padx=2,pady=2,sticky='ew')
+
+        self.similarity_distance_label_val = Label(sf_par3, textvariable=self.similarity_distance_var_lab,bg=self.bg_color,relief='groove',width=5,height=1,borderwidth=2)
+        self.similarity_distance_label_val.grid(row=1,column=2,padx=2,pady=2)
+
+        div_tooltip = "The larger the relative divergence value,\nthe more differences are allowed for\nimages to be identified as similar."
+
+        self.similarity_distance_label.bind("<Motion>", lambda event : self_motion_on_widget(event,div_tooltip))
+        self.similarity_distance_label.bind("<Leave>", lambda event : self_widget_leave())
+
+        self.similarity_distance_scale.bind("<Motion>", lambda event : self_motion_on_widget(event,div_tooltip))
+        self.similarity_distance_scale.bind("<Leave>", lambda event : self_widget_leave())
+
+        self.similarity_distance_label_val.bind("<Motion>", lambda event : self_motion_on_widget(event,div_tooltip))
+        self.similarity_distance_label_val.bind("<Leave>", lambda event : self_widget_leave())
+
+
+        self.all_rotations_check = Checkbutton(sf_par3, text = 'Check all rotations' , variable=self.all_rotations)
+        self.all_rotations_check.grid(row=2,column=0,padx=2,pady=2, columnspan=3, sticky='wens')
+
+        self.all_rotations_check.bind("<Motion>", lambda event : self_motion_on_widget(event,"calculate hashes for all (4) image rotations\nIncreases searching time, and resources consumption.\n\nNot implemented yet."))
+        self.all_rotations_check.bind("<Leave>", lambda event : self_widget_leave())
+
+        self.distance_val_set()
+        self.similarity_mode_change()
+
+        sf_par3.grid_columnconfigure(1, weight=1)
+
         skip_button = Checkbutton(self_scan_dialog_area_main,text='log skipped files',variable=self.log_skipped_var)
-        skip_button.grid(row=3,column=0,sticky='news',padx=8,pady=3,columnspan=1)
+        skip_button.grid(row=5,column=0,sticky='news',padx=8,pady=3)
 
         skip_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
         skip_button.bind("<Leave>", lambda event : self_widget_leave())
-
-        similarity_button = Checkbutton(self_scan_dialog_area_main,text='similarity mode',variable=self.similarity_mode_var)
-        similarity_button.grid(row=3,column=2,sticky='news',padx=8,pady=3,columnspan=2)
-
-        similarity_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"image similarity mode\nWARNING !\nEarly development stage !"))
-        similarity_button.bind("<Leave>", lambda event : self_widget_leave())
 
         self.scan_button = Button(self_scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self_scan_wrapper,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
@@ -1106,6 +1185,38 @@ class Gui:
 
         self_main.mainloop()
         #######################################################################
+    def similarity_mode_change(self):
+
+        if self.similarity_mode_var.get():
+            self.similarity_hsize_scale.configure(state='normal')
+            self.similarity_distance_scale.configure(state='normal')
+
+            self.similarity_distance_label.configure(state='normal')
+            self.similarity_distance_label_val.configure(state='normal')
+
+            self.similarity_hsize_label.configure(state='normal')
+            self.similarity_hsize_label_val.configure(state='normal')
+
+            self.all_rotations_check.configure(state='normal')
+
+        else:
+            self.similarity_hsize_scale.configure(state='disabled')
+            self.similarity_distance_scale.configure(state='disabled')
+
+            self.similarity_distance_label.configure(state='disabled')
+            self.similarity_distance_label_val.configure(state='disabled')
+
+            self.similarity_hsize_label.configure(state='disabled')
+            self.similarity_hsize_label_val.configure(state='disabled')
+
+            self.all_rotations_check.configure(state='disabled')
+
+    def distance_val_set(self):
+        self.similarity_distance_var_lab.set(str(self.similarity_distance_var.get())[:4])
+
+    def hsize_val_set(self):
+        self.similarity_hsize_varx2.set(self.similarity_hsize_var.get()*2)
+        self.similarity_hsize_var_lab.set(str(self.similarity_hsize_varx2.get()))
 
     def main_drop(self, data):
         self.scan_dialog_drop(data)
@@ -1233,7 +1344,7 @@ class Gui:
             cb_2.bind("<Leave>", lambda event : self_widget_leave())
 
             (cb_3:=Checkbutton(label_frame, text = '"Cross paths" mode', variable=self.cross_mode)).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            cb_3.bind("<Motion>", lambda event : self_motion_on_widget(event,'Ignore (hide) CRC groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease'))
+            cb_3.bind("<Motion>", lambda event : self_motion_on_widget(event,'Ignore (hide) groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease'))
             cb_3.bind("<Leave>", lambda event : self_widget_leave())
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
@@ -1275,7 +1386,7 @@ class Gui:
             en_2.bind("<Motion>", lambda event : self_motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.'))
             en_2.bind("<Leave>", lambda event : self_widget_leave())
             (cb_2:=Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly') ).grid(row=2, column=2,sticky='ew',padx=3)
-            cb_2.bind("<Motion>", lambda event : self_motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on crc groups\ndefault is 2'))
+            cb_2.bind("<Motion>", lambda event : self_motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on groups\ndefault is 2'))
             cb_2.bind("<Leave>", lambda event : self_widget_leave())
 
             label_frame.grid_columnconfigure(1, weight=1)
@@ -1555,13 +1666,14 @@ class Gui:
     #########################################
 
     def semi_selection(self,tree,item):
-        #print(f'semi_selection:{tree}')
+        #print(f'semi_selection:{tree},{item}')
         if tree==self.main.focus_get():
             tree.focus(item)
         else:
             tree.selection_set(item)
 
         self.selected[tree]=item
+        #print(f'semi_selection:{tree},{item},end')
 
     @catched
     def groups_tree_focus_out(self):
@@ -2029,7 +2141,7 @@ class Gui:
 
     @block
     def goto_next_prev_crc(self,direction):
-        status ='selecting next CRC group' if direction==1 else 'selecting prev CRC group'
+        status ='selecting next group' if direction==1 else 'selecting prev group'
 
         tree=self.groups_tree
         self_sel_item = current_item = self.sel_item
@@ -2373,12 +2485,15 @@ class Gui:
     def groups_tree_sel_change(self,item,force=False,change_status_line=True):
         gc_disable()
 
+        #print('c1',item)
         self.sel_item = item
 
         if change_status_line :
             self.status()
 
         kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self.groups_tree_item_to_data[item]
+
+        #print(kind,size,crc,pathnr,path,file,ctime,dev,inode)
 
         self.sel_file = file
 
@@ -2400,6 +2515,8 @@ class Gui:
             self.set_full_path_to_file()
 
         self.sel_kind = kind
+
+        #print('a1',kind,self.FILE)
 
         if kind==self.FILE:
             self.tree_folder_update()
@@ -2554,7 +2671,7 @@ class Gui:
             c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=any_mark_in_curr_crc_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(22,foreground='red',activeforeground='red')
 
-            pop_add_cascade(label = 'Local (this CRC group)',menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
+            pop_add_cascade(label = 'Local (this group)',menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
             pop_add_separator()
 
             c_all = Menu(pop,tearoff=0,bg=self.bg_color)
@@ -2617,11 +2734,11 @@ class Gui:
             c_nav_add_separator()
             c_nav_add_command(label = 'Go to parent directory'   ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico_empty,compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to next crc group'       ,command = lambda : self.goto_next_prev_crc(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
-            c_nav_add_command(label = 'Go to previous crc group'   ,command = lambda : self.goto_next_prev_crc(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to next group'       ,command = lambda : self.goto_next_prev_crc(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to previous group'   ,command = lambda : self.goto_next_prev_crc(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to first crc group'       ,command = lambda : self.goto_first_last_crc(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
-            c_nav_add_command(label = 'Go to last crc group'   ,command = lambda : self.goto_first_last_crc(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to first group'       ,command = lambda : self.goto_first_last_crc(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = 'Go to last group'   ,command = lambda : self.goto_first_last_crc(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
         else:
             dir_actions_state=('disabled','normal')[self.sel_kind in (self.DIR,self.DIRLINK)]
@@ -3033,80 +3150,66 @@ class Gui:
         #############################
         self_status=self.status=self.status_progress
 
-        self_status('Calculating CRC ...')
-        self_progress_dialog_on_scan.widget.title('CRC calculation')
-
-        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
+        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any groups are found).'
         self_progress_dialog_on_scan.abort_button.configure(image=self.ico['abort'],text='Abort',compound='left')
 
-        if similarity_mode:
-            self_status('Starting data clustering ...')
+        self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
+        self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
-            ih_thread=Thread(target=dude_core.image_hashing,daemon=True)
+        prev_progress_size=0
+        prev_progress_quant=0
+
+        if similarity_mode:
+            self_progress_dialog_on_scan_lab[0].configure(image='',text='')
+            self_progress_dialog_on_scan_lab[1].configure(text='')
+            self_progress_dialog_on_scan_lab[2].configure(text='')
+            self_progress_dialog_on_scan_lab[3].configure(text='')
+            self_progress_dialog_on_scan_lab[4].configure(text='')
+
+            self_progress_dialog_on_scan.widget.title('Images hashing')
+
+            self_status('Starting Images hashing ...')
+
+            hash_size = self.similarity_hsize_varx2.get()
+            all_rotations = self.all_rotations.get()
+
+            ih_thread=Thread(target=lambda : dude_core.image_hashing(hash_size,all_rotations) ,daemon=True)
             ih_thread.start()
 
             ih_thread_is_alive = ih_thread.is_alive
 
+            bytes_to_str_dude_core_sum_size = local_bytes_to_str(dude_core.sum_size)
+
+            self_progress_dialog_on_scan_lab[2].configure(text=dude_core.info_line)
+
             while ih_thread_is_alive():
                 anything_changed=False
 
-                self_progress_dialog_on_scan_lab[2].configure(text=dude_core.info_line)
 
-                #size_progress_info=dude_core.info_size_done_perc
-                #if size_progress_info!=prev_progress_size:
-                #    prev_progress_size=size_progress_info
+                size_progress_info=dude_core.info_size_done_perc
+                #print(f'{size_progress_info=}')
+                if size_progress_info!=prev_progress_size:
+                    prev_progress_size=size_progress_info
 
-                #    self_progress_dialog_on_scan_progr1var_set(size_progress_info)
-                #    self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_bytes_to_str(dude_core.info_size_done),bytes_to_str_dude_core_sum_size))
-                #    anything_changed=True
+                    self_progress_dialog_on_scan_progr1var_set(size_progress_info)
+                    self_progress_dialog_on_scan_lab_r1_config(text='%s / %s' % (local_bytes_to_str(dude_core.info_size_done),bytes_to_str_dude_core_sum_size))
+                    anything_changed=True
 
-                #quant_progress_info=dude_core.info_files_done_perc
-                #if quant_progress_info!=prev_progress_quant:
-                #    prev_progress_quant=quant_progress_info
+                quant_progress_info=dude_core.info_files_done_perc
 
-                #    self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
-                #    self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (fnumber(dude_core.info_files_done),fnumber(dude_core.info_total)))
-                #    anything_changed=True
+                if quant_progress_info!=prev_progress_quant:
+                    prev_progress_quant=quant_progress_info
 
-                #if anything_changed:
-                #    if dude_core.info_found_groups:
-                        #new_data[1]='Results'
-                #        new_data[2]='CRC groups: %s' % fnumber(dude_core.info_found_groups)
-                #        new_data[3]='space: %s' % local_bytes_to_str(dude_core.info_found_dupe_space)
-                #        new_data[4]='folders: %s' % fnumber(dude_core.info_found_folders)
+                    self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
+                    self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (fnumber(dude_core.info_files_done),fnumber(dude_core.info_total)))
+                    anything_changed=True
 
-                #        for i in (2,3,4):
-                #            if new_data[i] != prev_data[i]:
-                #                prev_data[i]=new_data[i]
-                #                self_progress_dialog_on_scan_lab[i].configure(text=new_data[i])
-
-                #    self_progress_dialog_on_scan_area_main_update()
-
-                #now=time()
-                #if anything_changed:
-                #    time_without_busy_sign=now
-                    #info_line = dude_core.info_line if len(dude_core.info_line)<48 else ('...%s' % dude_core.info_line[-48:])
-                    #self_progress_dialog_on_scan_lab[1].configure(text=info_line)
-
-                #    if update_once:
-                #        update_once=False
-                #        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
-                #        self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
-
-                #        self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty)
-                #else :
-                #    if now>time_without_busy_sign+1.0:
-                #        self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
-                #        hr_index=(hr_index+1) % len_self_hg_ico
-
-                #        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='crc calculating:\n%s...' % dude_core.info_line
-                #        self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
-                #        update_once=True
+                    self_progress_dialog_on_scan_area_main_update()
 
                 if dude_core.can_abort:
                     if self.action_abort:
-                        self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
-                        self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
+                        self_progress_dialog_on_scan_lab[0].configure(image='',text='Images hashing aborted')
+                        self_progress_dialog_on_scan_lab[1].configure(text='')
                         self_progress_dialog_on_scan_lab[2].configure(text='')
                         self_progress_dialog_on_scan_lab[3].configure(text='')
                         self_progress_dialog_on_scan_lab[4].configure(text='')
@@ -3114,40 +3217,43 @@ class Gui:
                         dude_core.abort()
                         break
 
+                self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
+                hr_index=(hr_index+1) % len_self_hg_ico
+
                 self_status(dude_core.info)
 
-                self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+                self_main_after(50,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
 
             ih_thread.join()
 
-            #clustering
-            self_status('Starting Images hashing ...')
+            self_progress_dialog_on_scan.widget.title('Data clustering')
 
-            sc_thread=Thread(target=dude_core.similarity_clustering,daemon=True)
+            ####################################################
+            self_progress_dialog_on_scan_lab[0].configure(image='',text='')
+            self_progress_dialog_on_scan_lab[1].configure(text='... Clustering data ...')
+            self_progress_dialog_on_scan_lab[2].configure(text='')
+            self_progress_dialog_on_scan_lab[3].configure(text='')
+            self_progress_dialog_on_scan_lab[4].configure(text='')
+            ####################################################
+
+            #clustering
+            self_status('Data clustering ...')
+
+            distance = self.similarity_distance_var.get()
+
+            sc_thread=Thread(target=lambda : dude_core.similarity_clustering(hash_size,distance,all_rotations),daemon=True)
             sc_thread.start()
 
             sc_thread_is_alive = sc_thread.is_alive
 
+            self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
+
             while sc_thread_is_alive():
-                anything_changed=False
+                self_progress_dialog_on_scan_lab[0].configure(image=self_hg_ico[hr_index],text='')
+                hr_index=(hr_index+1) % len_self_hg_ico
 
-                self_progress_dialog_on_scan_lab[2].configure(text=dude_core.info_line)
-
-                if dude_core.can_abort:
-                    if self.action_abort:
-                        self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
-                        self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
-                        self_progress_dialog_on_scan_lab[2].configure(text='')
-                        self_progress_dialog_on_scan_lab[3].configure(text='')
-                        self_progress_dialog_on_scan_lab[4].configure(text='')
-                        self_progress_dialog_on_scan_area_main_update()
-                        dude_core.abort()
-                        break
-
-                self_status(dude_core.info)
-
-                self_main_after(100,lambda : wait_var_set(not wait_var_get()))
+                self_main_after(50,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
 
             sc_thread.join()
@@ -3166,7 +3272,6 @@ class Gui:
             #############################
 
             #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
-            self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
             self_progress_dialog_on_scan.abort_button.pack_forget()
             self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=''
             self_progress_dialog_on_scan.widget.update()
@@ -3175,6 +3280,10 @@ class Gui:
             ih_thread.join()
 
         else:
+            self_status('Calculating CRC ...')
+
+            self_progress_dialog_on_scan.widget.title('CRC calculation')
+
             self_status('Starting CRC threads ...')
             crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
             crc_thread.start()
@@ -3186,13 +3295,7 @@ class Gui:
             self_progress_dialog_on_scan_lab[3].configure(image='',text='')
             self_progress_dialog_on_scan_lab[4].configure(image='',text='')
 
-
-            prev_progress_size=0
-            prev_progress_quant=0
-
             crc_thread_is_alive = crc_thread.is_alive
-            self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
-            self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
 
             bytes_to_str_dude_core_sum_size = local_bytes_to_str(dude_core.sum_size)
 
@@ -3224,7 +3327,7 @@ class Gui:
                 if anything_changed:
                     if dude_core.info_found_groups:
                         #new_data[1]='Results'
-                        new_data[2]='CRC groups: %s' % fnumber(dude_core.info_found_groups)
+                        new_data[2]='groups: %s' % fnumber(dude_core.info_found_groups)
                         new_data[3]='space: %s' % local_bytes_to_str(dude_core.info_found_dupe_space)
                         new_data[4]='folders: %s' % fnumber(dude_core.info_found_folders)
 
@@ -3243,7 +3346,7 @@ class Gui:
 
                     if update_once:
                         update_once=False
-                        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any CRC groups are found).'
+                        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any groups are found).'
                         self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
                         self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty)
@@ -3480,9 +3583,10 @@ class Gui:
 
     def file_remove_callback(self,size,crc,index_tuple):
         #l_info(f'file_remove_callback {size},{crc},{index_tuple}')
+        rotation = 0
         try:
             (pathnr,path,file_name,ctime,dev,inode)=index_tuple
-            item = self.idfunc(inode,dev)
+            item = self.idfunc(inode,dev,rotation)
 
             self.groups_tree.delete(item)
             self.tagged_discard(item)
@@ -3570,10 +3674,23 @@ class Gui:
 
         self_crc_to_size = self.crc_to_size
 
-        for size,size_dict in dude_core.files_of_size_of_crc_items():
-            for crc,crc_dict in size_dict.items():
-                for pathnr,path,file,ctime,dev,inode in crc_dict:
-                    item_id = self_idfunc(inode,dev)
+        if self.similarity_mode:
+            #for (pathnr,path,file,mtime,ctime,dev,inode,size),imagehash in dude_core.scan_results_images_hashes.items():
+
+            for group_index,items_set in dude_core.files_of_images_groups.items():
+                crc = group_index
+                #size_str_group = ''
+                #size = 0
+                #size_h_group = ''
+                #instances_str = len(items_set)
+
+
+                for pathnr,path,file,mtime,ctime,dev,inode,size,rotation in items_set:
+
+            #for size,size_dict in dude_core.files_of_size_of_crc_items():
+            #    for crc,crc_dict in size_dict.items():
+                    #for pathnr,path,file,ctime,dev,inode in crc_dict:
+                    item_id = self_idfunc(inode,dev,rotation)
                     self_id2crc[item_id]=(crc,ctime)
                     path_index=(pathnr,path)
                     path_stat_size[path_index] = path_stat_size_get(path_index,0) + size
@@ -3583,8 +3700,25 @@ class Gui:
                         self_biggest_file_of_path[path_index]=size
                         self_biggest_file_of_path_id[path_index]=item_id
 
-                if crc not in self_crc_to_size:
-                    print('Qriozum !!!',crc,size)
+                    #if crc not in self_crc_to_size:
+                    #    print('Qriozum !!!',crc,size)
+
+        else:
+            for size,size_dict in dude_core.files_of_size_of_crc_items():
+                for crc,crc_dict in size_dict.items():
+                    for pathnr,path,file,ctime,dev,inode in crc_dict:
+                        item_id = self_idfunc(inode,dev)
+                        self_id2crc[item_id]=(crc,ctime)
+                        path_index=(pathnr,path)
+                        path_stat_size[path_index] = path_stat_size_get(path_index,0) + size
+                        path_stat_quant[path_index] = path_stat_quant_get(path_index,0) + 1
+
+                        if size>self_biggest_file_of_path_get(path_index,0):
+                            self_biggest_file_of_path[path_index]=size
+                            self_biggest_file_of_path_id[path_index]=item_id
+
+                    if crc not in self_crc_to_size:
+                        print('Qriozum !!!',crc,size)
 
         self_tree_children_sub = self.tree_children_sub
 
@@ -3619,7 +3753,11 @@ class Gui:
     def groups_show(self):
         #self.menu_disable()
 
-        self_idfunc=self.idfunc = (lambda i,d : '%s-%s' % (i,d)) if len(dude_core.devs)>1 else (lambda i,d : str(i))
+        if self.similarity_mode:
+            self_idfunc=self.idfunc = (lambda i,d,r : '%s-%s-$s' % (i,d,r)) if len(dude_core.devs)>1 else (lambda i,d,r : '%s-%s' % (i,r))
+        else:
+            self_idfunc=self.idfunc = (lambda i,d,r=0 : '%s-%s' % (i,d)) if len(dude_core.devs)>1 else (lambda i,d,r=0 : str(i))
+
         self_status=self.status
 
         self_status('Cleaning tree...')
@@ -3663,9 +3801,9 @@ class Gui:
                 #kind,crc,(pathnr,path,file,ctime,dev,inode)
                 self_groups_tree_item_to_data[group_item]=(self_CRC,size,crc,(None,None,None,None,None,None) )
 
-                for pathnr,path,file,mtime,ctime,dev,inode,size in items_set:
-                    print(pathnr,path,file,mtime,ctime,dev,inode,size)
-                    iid=self_idfunc(inode,dev)
+                for pathnr,path,file,mtime,ctime,dev,inode,size,rotation in items_set:
+                    #print(pathnr,path,file,mtime,ctime,dev,inode,size)
+                    iid=self_idfunc(inode,dev,rotation)
                     self_iid_to_size[iid]=size
 
                     size_str = str(size)
@@ -3815,6 +3953,8 @@ class Gui:
 
         current_path=arbitrary_path if arbitrary_path else self.sel_path_full
 
+        #print('current_path:',current_path)
+
         if not current_path:
             return False
 
@@ -3863,6 +4003,8 @@ class Gui:
             values=('..','','',self.UPDIR,'',0,'',0,'',0,'')
             folder_items_add((updir_code,sort_val_func(values[sort_index_local]),'0UP','',values,self_DIR,''))
 
+        rotation=0
+        #print('b1')
         #############################################
         try:
             with scandir(current_path) as res:
@@ -3888,7 +4030,7 @@ class Gui:
                                 i+=1
                             elif entry.is_file():
                                 ctime,size_num = stat_res.st_ctime_ns,stat_res.st_size
-                                file_id=self_idfunc(inode,dev)
+                                file_id=self_idfunc(inode,dev,rotation)
 
                                 ctime_h = local_strftime('%Y/%m/%d %H:%M:%S',local_localtime_catched(ctime//1000000000)) #DE_NANO
 
@@ -3926,6 +4068,7 @@ class Gui:
             self.status(str(e))
             return False
 
+        #print('b2')
         ############################################################
 
         if arbitrary_path:
@@ -3954,10 +4097,13 @@ class Gui:
             self.status(str(e))
             l_error(e)
 
+        #print('b3',arbitrary_path)
         if not arbitrary_path:
             try:
+                #print('b3a',self.sel_item,'    ',self.current_folder_items)
                 self.semi_selection(ftree,self.sel_item)
                 ftree.see(self.sel_item)
+                #print('b3b')
             except Exception:
                 pass
 
@@ -4381,7 +4527,7 @@ class Gui:
         if all_groups:
             scope_title='All marked files.'
         else:
-            scope_title='Single CRC group.'
+            scope_title='Single group.'
 
         self_sel_crc = self.sel_crc
         self_tagged = self.tagged
@@ -4444,91 +4590,96 @@ class Gui:
 
         self.status('checking data consistency with filesystem state ...')
 
-        dude_core_check_group_files_state = dude_core.check_group_files_state
+        if self.similarity_mode:
+            self.get_text_info_dialog().show('Similarity mode','Similarity mode is under development.\n\nActions disabled for now for security reasons.' )
 
-        for crc in processed_items:
-            size = self.crc_to_size[crc]
-
-            try:
-                (checkres,tuples_to_remove)=dude_core_check_group_files_state(size,crc)
-            except Exception as e:
-                self.get_text_info_dialog().show('Error. dude_core_check_group_files_state error.',str(e) )
-                return self.CHECK_ERR
-
-            if checkres:
-                self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected CRC group will be reduced. For complete results re-scanning is recommended.')
-                self.store_text_dialog_fields(self.text_info_dialog)
-
-                orglist=self.tree_children[self.groups_tree]
-
-                dude_core.remove_from_data_pool(size,crc,tuples_to_remove,self.file_remove_callback,self.crc_remove_callback)
-
-                self.data_precalc()
-
-                newlist=self.tree_children[self.groups_tree]
-                item_to_sel = self.get_closest_in_crc(orglist,crc,newlist)
-
-                self.reset_sels()
-
-                if item_to_sel:
-                    #crc node moze zniknac - trzeba zupdejtowac SelXxx
-                    self.crc_select_and_focus(item_to_sel,True)
-                else:
-                    self.initial_focus()
-
-                self.calc_mark_stats_groups()
-
-                return self.CHECK_ERR
-
-        self.status('checking selection correctness...')
-
-        incorrect_groups=[]
-        incorrect_groups_append = incorrect_groups.append
-        if action==HARDLINK:
-            for crc in processed_items:
-                if len(processed_items[crc])==1:
-                    incorrect_groups_append(crc)
-            problem_header = 'Single file marked'
-            problem_message = "Mark more files\nor enable option:\n\"Skip groups with invalid selection\""
+            return self.CHECK_ERR
         else:
+            dude_core_check_group_files_state = dude_core.check_group_files_state
+
             for crc in processed_items:
-                if len(remaining_items[crc])==0:
-                    incorrect_groups_append(crc)
+                size = self.crc_to_size[crc]
 
-            problem_header = 'All files marked'
-            if action==SOFTLINK or action==WIN_LNK:
-                problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
+                try:
+                    (checkres,tuples_to_remove)=dude_core_check_group_files_state(size,crc)
+                except Exception as e:
+                    self.get_text_info_dialog().show('Error. dude_core_check_group_files_state error.',str(e) )
+                    return self.CHECK_ERR
+
+                if checkres:
+                    self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected group will be reduced. For complete results re-scanning is recommended.')
+                    self.store_text_dialog_fields(self.text_info_dialog)
+
+                    orglist=self.tree_children[self.groups_tree]
+
+                    dude_core.remove_from_data_pool(size,crc,tuples_to_remove,self.file_remove_callback,self.crc_remove_callback)
+
+                    self.data_precalc()
+
+                    newlist=self.tree_children[self.groups_tree]
+                    item_to_sel = self.get_closest_in_crc(orglist,crc,newlist)
+
+                    self.reset_sels()
+
+                    if item_to_sel:
+                        #crc node moze zniknac - trzeba zupdejtowac SelXxx
+                        self.crc_select_and_focus(item_to_sel,True)
+                    else:
+                        self.initial_focus()
+
+                    self.calc_mark_stats_groups()
+
+                    return self.CHECK_ERR
+
+            self.status('checking selection correctness...')
+
+            incorrect_groups=[]
+            incorrect_groups_append = incorrect_groups.append
+            if action==HARDLINK:
+                for crc in processed_items:
+                    if len(processed_items[crc])==1:
+                        incorrect_groups_append(crc)
+                problem_header = 'Single file marked'
+                problem_message = "Mark more files\nor enable option:\n\"Skip groups with invalid selection\""
             else:
-                problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\""
+                for crc in processed_items:
+                    if len(remaining_items[crc])==0:
+                        incorrect_groups_append(crc)
 
-        if incorrect_groups:
-            if skip_incorrect:
-
-                incorrect_group_str='\n'.join([crc if show_full_crc else crc[:dude_core.crc_cut_len] for crc in incorrect_groups ])
-                header = f'Warning ({NAME[action]}). {problem_header}'
-                message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing CRC groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
-
-                self.get_text_info_dialog().show(header,message)
-                self.store_text_dialog_fields(self.text_info_dialog)
-
-                self.crc_select_and_focus(incorrect_groups[0],True)
-
-                for crc in incorrect_groups:
-                    del processed_items[crc]
-                    del remaining_items[crc]
-
-            else:
-                if action==DELETE and self.cfg_get_bool(CFG_ALLOW_DELETE_ALL):
-                    self.get_text_ask_dialog().show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED')
-                    self.store_text_dialog_fields(self.text_ask_dialog)
-                    if self.text_ask_dialog.res_bool:
-                        return self.CHECK_OK
+                problem_header = 'All files marked'
+                if action==SOFTLINK or action==WIN_LNK:
+                    problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
                 else:
-                    header = f'Error ({NAME[action]}). {problem_header}'
-                    self.get_info_dialog_on_main().show(header,problem_message)
+                    problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\""
 
-                self.crc_select_and_focus(incorrect_groups[0],True)
-                return self.CHECK_ERR
+            if incorrect_groups:
+                if skip_incorrect:
+
+                    incorrect_group_str='\n'.join([crc if show_full_crc else crc[:dude_core.crc_cut_len] for crc in incorrect_groups ])
+                    header = f'Warning ({NAME[action]}). {problem_header}'
+                    message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
+
+                    self.get_text_info_dialog().show(header,message)
+                    self.store_text_dialog_fields(self.text_info_dialog)
+
+                    self.crc_select_and_focus(incorrect_groups[0],True)
+
+                    for crc in incorrect_groups:
+                        del processed_items[crc]
+                        del remaining_items[crc]
+
+                else:
+                    if action==DELETE and self.cfg_get_bool(CFG_ALLOW_DELETE_ALL):
+                        self.get_text_ask_dialog().show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED')
+                        self.store_text_dialog_fields(self.text_ask_dialog)
+                        if self.text_ask_dialog.res_bool:
+                            return self.CHECK_OK
+                    else:
+                        header = f'Error ({NAME[action]}). {problem_header}'
+                        self.get_info_dialog_on_main().show(header,problem_message)
+
+                    self.crc_select_and_focus(incorrect_groups[0],True)
+                    return self.CHECK_ERR
 
         return self.CHECK_OK
 
