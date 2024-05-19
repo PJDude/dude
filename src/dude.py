@@ -36,7 +36,7 @@ from subprocess import Popen
 
 from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
 
-from tkinter.ttk import Checkbutton,Treeview,Scrollbar,Button,Entry,Combobox,Scale,Style
+from tkinter.ttk import Checkbutton,Radiobutton,Treeview,Scrollbar,Button,Entry,Combobox,Scale,Style
 
 from tkinter.filedialog import askdirectory,asksaveasfilename
 
@@ -61,6 +61,8 @@ from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,
 
 from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,split as path_split,exists as path_exists,isdir
 
+from PIL import Image, ImageTk
+
 windows = bool(os_name=='nt')
 
 if windows:
@@ -81,8 +83,10 @@ l_error = logging.error
 ###########################################################################################################################################
 
 CFG_KEY_FULL_CRC='show_full_crc'
+CFG_KEY_SHOW_TOOLTIPS_INFO='show_tooltips_info'
+CFG_KEY_SHOW_TOOLTIPS_HELP='show_tooltips_help'
 CFG_KEY_FULL_PATHS='show_full_paths'
-CFG_KEY_CROSS_MODE='cross_mode'
+CFG_KEY_SHOW_MODE='show_mode'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
 
 CFG_KEY_EXCLUDE_REGEXP='excluderegexpp'
@@ -120,8 +124,10 @@ CFG_KEY_MARK_RE_1 = 'mark_re_1'
 
 cfg_defaults={
     CFG_KEY_FULL_CRC:False,
+    CFG_KEY_SHOW_TOOLTIPS_INFO:True,
+    CFG_KEY_SHOW_TOOLTIPS_HELP:True,
     CFG_KEY_FULL_PATHS:False,
-    CFG_KEY_CROSS_MODE:False,
+    CFG_KEY_SHOW_MODE:'0',
     CFG_KEY_REL_SYMLINKS:True,
     CFG_KEY_EXCLUDE_REGEXP:False,
     CFG_ERASE_EMPTY_DIRS:True,
@@ -197,7 +203,7 @@ class Config:
             l_warning('gettting config key: %s',key)
             l_warning(e)
             res=default
-            if not res:
+            if not res or res=='':
                 res=cfg_defaults[key]
 
             self.set(key,res,section=section)
@@ -396,6 +402,19 @@ class Gui:
         self_main.protocol("WM_DELETE_WINDOW", self.delete_window_wrapper)
         self_main.withdraw()
 
+        self.preview = preview = Toplevel(self_main)
+        preview.minsize(400,300)
+        preview.title('Preview')
+        #set_geometry_by_parent(preview, self.main)
+        preview.withdraw()
+        preview.update()
+        preview.protocol("WM_DELETE_WINDOW", lambda : self.preview.withdraw())
+        preview.bind('<Escape>', lambda event : self.preview.withdraw() )
+        preview.bind('F9', lambda event : self.preview.withdraw() )
+
+        self.preview_label=Label(self.preview)
+        self.preview_label.pack(fill='both',expand=1)
+
         self.main_update = self_main.update
         self.main_update()
 
@@ -477,13 +496,18 @@ class Gui:
         style_configure("TButton", anchor = "center")
         style_configure("TButton", background = self.bg_color)
 
-        style_configure("TCheckbutton", background = self.bg_color)
+        style_configure('TRadiobutton', background=self.bg_color)
+
+        style_map = style.map
+
+        style_configure("TCheckbutton", background = self.bg_color,anchor='center',padding=(4, 0, 4, 0) )
+
+        style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],relief=[('disabled',"flat"),('',"sunken")],foreground=[('disabled',"gray"),('',"black")])
 
         if windows:
             #fix border problem ...
             style_configure("TCombobox",padding=1)
 
-        style_map = style.map
 
         style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
         style_map("TButton",  fg=[('disabled',"gray"),('',"black")] )
@@ -555,15 +579,13 @@ class Gui:
 
         self.status_groups.pack(fill='x',expand=0,side='right')
 
-        self.status_groups.bind("<Motion>", lambda event : self_motion_on_widget(event,'Number of groups with consideration od "cross paths" option'))
-        self.status_groups.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(self.status_groups,'Number of groups with consideration of "Cross paths" or "Same directory" mode')
 
         Label(status_frame_groups,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
         self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
         self.status_path.pack(fill='x',expand=1,side='left')
-        self.status_path.bind("<Motion>", lambda event : self_motion_on_widget(event,'The full path of a directory shown in the bottom panel.'))
-        self.status_path.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(self.status_path,'The full path of a directory shown in the bottom panel.')
 
         self.status_path_configure=self.status_path.configure
         ###############################################################################
@@ -844,8 +866,7 @@ class Gui:
         self.add_path_button = Button(buttons_fr,width=18,image = self_ico['open'], command=self.path_to_scan_add_dialog,underline=0)
         self.add_path_button.pack(side='left',pady=4,padx=4)
 
-        self.add_path_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"Add path to scan"))
-        self.add_path_button.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(self.add_path_button,"Add path to scan")
 
         self.paths_frame.grid_columnconfigure(1, weight=1)
         self.paths_frame.grid_rowconfigure(99, weight=1)
@@ -877,8 +898,7 @@ class Gui:
             remove_path_button=Button(frame,image=self_ico_delete,command=lambda row=row: self_path_to_scan_remove(row),width=3)
             remove_path_button.pack(side='right',padx=2,pady=1,fill='y')
 
-            remove_path_button.bind("<Motion>", lambda event : self_motion_on_widget(event,'Remove path from list.'))
-            remove_path_button.bind("<Leave>", lambda event : self_widget_leave())
+            self.widget_tooltip(remove_path_button,'Remove path from list.')
 
         ##############
         self.exclude_regexp_scan=BooleanVar()
@@ -895,14 +915,12 @@ class Gui:
 
         self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self_ico['open'],command=self.exclude_mask_add_dir)
         self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
-        self.add_exclude_button_dir.bind("<Motion>", lambda event : self_motion_on_widget(event,"Add path as exclude expression ..."))
-        self.add_exclude_button_dir.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(self.add_exclude_button_dir,"Add path as exclude expression ...")
 
         self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
 
         tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
-        self.add_exclude_button.bind("<Motion>", lambda event : self_motion_on_widget(event,tooltip_string))
-        self.add_exclude_button.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(self.add_exclude_button,tooltip_string)
 
         self.add_exclude_button.pack(side='left',pady=4,padx=4)
 
@@ -915,8 +933,7 @@ class Gui:
         similarity_button = Checkbutton(self_scan_dialog_area_main,text='Images similarity mode',variable=self.similarity_mode_var,command=self.similarity_mode_change )
         similarity_button.grid(row=3,column=0,sticky='news',padx=8,pady=3)
 
-        similarity_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"Only image files are processed\n\nFound file groups represent similar images by its content\n\nNOT(!) byte-by-byte identical files"))
-        similarity_button.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(similarity_button,"Only image files are processed\nIdentified groups contain images with similar content\n\nIf not enabled, the classic CRC algorithm is applied\nto files of the same size.")
 
         temp_frame3 = LabelFrame(self_scan_dialog_area_main,text='Similarity mode options',borderwidth=2,bg=self.bg_color,takefocus=False)
         temp_frame3.grid(row=4,column=0,sticky='news',padx=4,pady=4,columnspan=4)
@@ -934,67 +951,58 @@ class Gui:
         self.similarity_hsize_var = IntVar()
         self.similarity_hsize_varx2 = IntVar()
         self.similarity_hsize_var_lab = StringVar()
-        self.similarity_hsize_var.set(4)
-        self.similarity_hsize_varx2.set(8)
+        self.similarity_hsize_var.set(3)
+        self.similarity_hsize_varx2.set(6)
 
-        self.similarity_hsize_label = Label(sf_par3, text='Hash size:',bg=self.bg_color,relief='flat')
-        self.similarity_hsize_label.grid(row=0,column=0,padx=2,pady=2,sticky='w')
+        similarity_hsize_frame = LabelFrame(sf_par3,text='Hash size',borderwidth=2,bg=self.bg_color,takefocus=False)
+        similarity_hsize_frame.grid(row=0,column=0,padx=2,sticky='news')
 
-        self.similarity_hsize_scale = Scale(sf_par3, variable=self.similarity_hsize_var, orient='horizontal',from_=2, to=16,command=lambda x : self.hsize_val_set(),style="TScale",length=160)
-        self.similarity_hsize_scale.grid(row=0,column=1,padx=2,sticky='ew')
+        self.similarity_hsize_scale = Scale(similarity_hsize_frame, variable=self.similarity_hsize_var, orient='horizontal',from_=2, to=16,command=lambda x : self.hsize_val_set(),style="TScale",length=160)
+        self.similarity_hsize_scale.grid(row=0,column=1,padx=4,sticky='ew')
 
-        self.similarity_hsize_label_val = Label(sf_par3, textvariable=self.similarity_hsize_var_lab,bg=self.bg_color,relief='groove',width=5,height=1,borderwidth=2)
-        self.similarity_hsize_label_val.grid(row=0,column=2,padx=2,pady=2)
+        self.similarity_hsize_label_val = Label(similarity_hsize_frame, textvariable=self.similarity_hsize_var_lab,bg=self.bg_color,width=3,height=1,relief='flat')
+        self.similarity_hsize_label_val.grid(row=0,column=2,padx=2)
         self.hsize_val_set()
 
-        hash_tooltip = "The larger the hash size value,\nthe more details of the image\nare taken into consideration."
-        self.similarity_hsize_label.bind("<Motion>", lambda event : self_motion_on_widget(event,hash_tooltip))
-        self.similarity_hsize_label.bind("<Leave>", lambda event : self_widget_leave())
+        similarity_hsize_frame.grid_columnconfigure(1, weight=1)
 
-        self.similarity_hsize_scale.bind("<Motion>", lambda event : self_motion_on_widget(event,hash_tooltip))
-        self.similarity_hsize_scale.bind("<Leave>", lambda event : self_widget_leave())
+        hash_tooltip = "The larger the hash size value,\nthe more details of the image\nare taken into consideration.\nThe default value is 6"
 
-        self.similarity_hsize_label_val.bind("<Motion>", lambda event : self_motion_on_widget(event,hash_tooltip))
-        self.similarity_hsize_label_val.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(self.similarity_hsize_scale,hash_tooltip)
 
+        self.widget_tooltip(self.similarity_hsize_label_val,hash_tooltip)
 
-        self.similarity_distance_label = Label(sf_par3, text='Relative divergence:',bg=self.bg_color,relief='flat')
-        self.similarity_distance_label.grid(row=1,column=0,padx=2,pady=2,sticky='w')
+        similarity_distance_frame = LabelFrame(sf_par3,text='Relative divergence',borderwidth=2,bg=self.bg_color,takefocus=False)
+        similarity_distance_frame.grid(row=0,column=1,padx=2,sticky='news')
 
-        self.similarity_distance_scale = Scale(sf_par3, variable=self.similarity_distance_var, orient='horizontal',from_=0, to=9,command=lambda x : self.distance_val_set(),style="TScale",length=160)
-        self.similarity_distance_scale.grid(row=1,column=1,padx=2,pady=2,sticky='ew')
+        self.similarity_distance_scale = Scale(similarity_distance_frame, variable=self.similarity_distance_var, orient='horizontal',from_=0, to=9,command=lambda x : self.distance_val_set(),style="TScale",length=160)
+        self.similarity_distance_scale.grid(row=0,column=1,padx=4,sticky='ew')
 
-        self.similarity_distance_label_val = Label(sf_par3, textvariable=self.similarity_distance_var_lab,bg=self.bg_color,relief='groove',width=5,height=1,borderwidth=2)
-        self.similarity_distance_label_val.grid(row=1,column=2,padx=2,pady=2)
+        self.similarity_distance_label_val = Label(similarity_distance_frame, textvariable=self.similarity_distance_var_lab,bg=self.bg_color,width=3,height=1,relief='flat')
+        self.similarity_distance_label_val.grid(row=0,column=2,padx=2)
 
-        div_tooltip = "The larger the relative divergence value,\nthe more differences are allowed for\nimages to be identified as similar."
+        similarity_distance_frame.grid_columnconfigure(1, weight=1)
 
-        self.similarity_distance_label.bind("<Motion>", lambda event : self_motion_on_widget(event,div_tooltip))
-        self.similarity_distance_label.bind("<Leave>", lambda event : self_widget_leave())
+        div_tooltip = "The larger the relative divergence value,\nthe more differences are allowed for\nimages to be identified as similar.\nThe default value is 5"
 
-        self.similarity_distance_scale.bind("<Motion>", lambda event : self_motion_on_widget(event,div_tooltip))
-        self.similarity_distance_scale.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(self.similarity_distance_scale,div_tooltip)
 
-        self.similarity_distance_label_val.bind("<Motion>", lambda event : self_motion_on_widget(event,div_tooltip))
-        self.similarity_distance_label_val.bind("<Leave>", lambda event : self_widget_leave())
-
+        self.widget_tooltip(self.similarity_distance_label_val,div_tooltip)
 
         self.all_rotations_check = Checkbutton(sf_par3, text = 'Check all rotations' , variable=self.all_rotations)
-        self.all_rotations_check.grid(row=2,column=0,padx=2,pady=2, columnspan=3, sticky='wens')
+        self.all_rotations_check.grid(row=2,column=0,padx=4,pady=4, columnspan=3, sticky='wens')
 
-        self.all_rotations_check.bind("<Motion>", lambda event : self_motion_on_widget(event,"calculate hashes for all (4) image rotations\nIncreases searching time, and resources consumption.\n\nNot implemented yet."))
-        self.all_rotations_check.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(self.all_rotations_check,"calculate hashes for all (4) image rotations\nSignificantly increases searching time\nand resources consumption.")
 
         self.distance_val_set()
         self.similarity_mode_change()
 
-        sf_par3.grid_columnconfigure(1, weight=1)
+        sf_par3.grid_columnconfigure((0,1), weight=1)
 
         skip_button = Checkbutton(self_scan_dialog_area_main,text='log skipped files',variable=self.log_skipped_var)
         skip_button.grid(row=5,column=0,sticky='news',padx=8,pady=3)
 
-        skip_button.bind("<Motion>", lambda event : self_motion_on_widget(event,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)"))
-        skip_button.bind("<Leave>", lambda event : self_widget_leave())
+        self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
 
         self.scan_button = Button(self_scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self_scan_wrapper,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
@@ -1199,10 +1207,8 @@ class Gui:
             self.similarity_hsize_scale.configure(state='normal')
             self.similarity_distance_scale.configure(state='normal')
 
-            self.similarity_distance_label.configure(state='normal')
             self.similarity_distance_label_val.configure(state='normal')
 
-            self.similarity_hsize_label.configure(state='normal')
             self.similarity_hsize_label_val.configure(state='normal')
 
             self.all_rotations_check.configure(state='normal')
@@ -1211,10 +1217,8 @@ class Gui:
             self.similarity_hsize_scale.configure(state='disabled')
             self.similarity_distance_scale.configure(state='disabled')
 
-            self.similarity_distance_label.configure(state='disabled')
             self.similarity_distance_label_val.configure(state='disabled')
 
-            self.similarity_hsize_label.configure(state='disabled')
             self.similarity_hsize_label_val.configure(state='disabled')
 
             self.all_rotations_check.configure(state='disabled')
@@ -1300,8 +1304,11 @@ class Gui:
             self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show_settings,post_close=self.post_close)
 
             self.show_full_crc = BooleanVar()
+            self.show_tooltips_info = BooleanVar()
+            self.show_tooltips_help = BooleanVar()
+
             self.show_full_paths = BooleanVar()
-            self.cross_mode = BooleanVar()
+            self.show_mode = IntVar()
 
             self.create_relative_symlinks = BooleanVar()
             self.erase_empty_directories = BooleanVar()
@@ -1321,8 +1328,9 @@ class Gui:
 
             self.settings = [
                 (self.show_full_crc,CFG_KEY_FULL_CRC),
+                (self.show_tooltips_info,CFG_KEY_SHOW_TOOLTIPS_INFO),
+                (self.show_tooltips_help,CFG_KEY_SHOW_TOOLTIPS_HELP),
                 (self.show_full_paths,CFG_KEY_FULL_PATHS),
-                (self.cross_mode,CFG_KEY_CROSS_MODE),
                 (self.create_relative_symlinks,CFG_KEY_REL_SYMLINKS),
                 (self.erase_empty_directories,CFG_ERASE_EMPTY_DIRS),
                 (self.abort_on_error,CFG_ABORT_ON_ERROR),
@@ -1334,40 +1342,51 @@ class Gui:
                 (self.allow_delete_non_duplicates,CFG_ALLOW_DELETE_NON_DUPLICATES)
             ]
             self.settings_str = [
+                (self.show_mode,CFG_KEY_SHOW_MODE),
                 (self.file_open_wrapper,CFG_KEY_WRAPPER_FILE),
                 (self.folders_open_wrapper,CFG_KEY_WRAPPER_FOLDERS),
                 (self.folders_open_wrapper_params,CFG_KEY_WRAPPER_FOLDERS_PARAMS)
             ]
 
             row = 0
-            label_frame=LabelFrame(self.settings_dialog.area_main, text="Main panels",borderwidth=2,bg=self.bg_color)
+
+            label_frame=LabelFrame(self.settings_dialog.area_main, text="Results display mode",borderwidth=2,bg=self.bg_color)
+            label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
+
+            (cb_30:=Radiobutton(label_frame, text = 'All (default)', variable=self.show_mode,value=0)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            self.widget_tooltip(cb_30,'Show all results')
+
+            (cb_3:=Radiobutton(label_frame, text = 'Cross paths', variable=self.show_mode,value=1)).grid(row=0,column=1,sticky='wens',padx=3,pady=2)
+            self.widget_tooltip(cb_3,'Ignore (hide) groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease')
+
+            (cb_3a:=Radiobutton(label_frame, text = 'Same directory', variable=self.show_mode,value=2)).grid(row=0,column=2,sticky='wens',padx=3,pady=2)
+            self.widget_tooltip(cb_3a,'Show only groups with result files in the same directory')
+
+            label_frame.grid_columnconfigure((0,1,2), weight=1)
+
+            label_frame=LabelFrame(self.settings_dialog.area_main, text="Main panels and dialogs",borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
             (cb_1:=Checkbutton(label_frame, text = 'Show full CRC', variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            cb_1.bind("<Motion>", lambda event : self_motion_on_widget(event,'If disabled, shortest necessary prefix of full CRC wil be shown'))
-            cb_1.bind("<Leave>", lambda event : self_widget_leave())
+            self.widget_tooltip(cb_1,'If disabled, shortest necessary prefix of full CRC wil be shown')
 
             (cb_2:=Checkbutton(label_frame, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            cb_2.bind("<Motion>", lambda event : self_motion_on_widget(event,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips'))
-            cb_2.bind("<Leave>", lambda event : self_widget_leave())
+            self.widget_tooltip(cb_2,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips')
 
-            (cb_3:=Checkbutton(label_frame, text = '"Cross paths" mode', variable=self.cross_mode)).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            cb_3.bind("<Motion>", lambda event : self_motion_on_widget(event,'Ignore (hide) groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease'))
-            cb_3.bind("<Leave>", lambda event : self_widget_leave())
+            Checkbutton(label_frame, text = 'Show info tooltips', variable=self.show_tooltips_info).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = 'Show help tooltips', variable=self.show_tooltips_help).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
             (cb_3:=Checkbutton(label_frame, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            cb_3.bind("<Motion>", lambda event : self_motion_on_widget(event,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.'))
-            cb_3.bind("<Leave>", lambda event : self_widget_leave())
+            self.widget_tooltip(cb_3,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.')
 
             (cb_4:=Checkbutton(label_frame, text = 'Allow deletion of all copies', variable=self.allow_delete_all,image=self.ico_warning,compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            cb_4.bind("<Motion>", lambda event : self_motion_on_widget(event,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies'))
-            cb_4.bind("<Leave>", lambda event : self_widget_leave())
+            self.widget_tooltip(cb_4,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies')
 
             Checkbutton(label_frame, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = 'Show CRC and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = 'Show CRC/GROUP and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text="Processing",borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
@@ -1386,16 +1405,14 @@ class Gui:
 
             Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
             (en_1:=Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
-            en_1.bind("<Motion>", lambda event : self_motion_on_widget(event,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.'))
-            en_1.bind("<Leave>", lambda event : self_widget_leave())
+            self.widget_tooltip(en_1,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.')
 
             Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=2, column=0,sticky='news')
             (en_2:=Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=2, column=1,sticky='news',padx=3,pady=2)
-            en_2.bind("<Motion>", lambda event : self_motion_on_widget(event,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.'))
-            en_2.bind("<Leave>", lambda event : self_widget_leave())
+            self.widget_tooltip(en_2,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.')
+
             (cb_2:=Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly') ).grid(row=2, column=2,sticky='ew',padx=3)
-            cb_2.bind("<Motion>", lambda event : self_motion_on_widget(event,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on groups\ndefault is 2'))
-            cb_2.bind("<Leave>", lambda event : self_widget_leave())
+            self.widget_tooltip(cb_2,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on groups\ndefault is 2')
 
             label_frame.grid_columnconfigure(1, weight=1)
 
@@ -2314,6 +2331,8 @@ class Gui:
                         self.goto_max_group(1,-1 if shift_pressed else 1)
                     elif key=='F8':
                         self.goto_max_group(0,-1 if shift_pressed else 1)
+                    elif key=='F9':
+                        self.show_preview()
                     elif key=='BackSpace':
                         self.go_to_parent_dir()
                     elif key in ('i','I'):
@@ -2476,6 +2495,26 @@ class Gui:
                 #return "break"
 
         return "break"
+
+    def show_preview(self):
+        self.preview.deiconify()
+        self.preview.update()
+
+        path = self.sel_full_path_to_file
+        print(f'preview {path=}')
+
+        imname = path
+
+        im1 = Image.open(imname).convert("1")
+        size = (im1.width // 4, im1.height // 4)
+
+        im1 = ImageTk.BitmapImage(im1.resize(size))
+        im2 = ImageTk.PhotoImage(Image.open(imname).resize(size))
+
+        self.preview_label.configure(image=im2, bd=10)
+
+        return
+
 
     def set_full_path_to_file_win(self):
         self.sel_full_path_to_file=str(Path(sep.join([self.sel_path_full,self.sel_file]))) if self.sel_path_full and self.sel_file else None
@@ -3052,7 +3091,6 @@ class Gui:
         #self.log_skipped = self.log_skipped_var.get()
 
         self.similarity_mode = similarity_mode = dude_core.similarity_mode = self.similarity_mode_var.get()
-        print(f'{similarity_mode=}')
 
         scan_thread=Thread(target=dude_core.scan,daemon=True)
         scan_thread.start()
@@ -3063,7 +3101,10 @@ class Gui:
         self_progress_dialog_on_scan_progr1var.set(0)
         self_progress_dialog_on_scan_progr2var.set(0)
 
-        self_progress_dialog_on_scan.show('Scanning')
+        if self.similarity_mode:
+            self_progress_dialog_on_scan.show('Scanning for images')
+        else:
+            self_progress_dialog_on_scan.show('Scanning')
 
         update_once=True
 
@@ -3102,8 +3143,8 @@ class Gui:
         wait_var_get = wait_var.get
 
         while scan_thread_is_alive():
-            new_data[3]=local_bytes_to_str(dude_core.info_size_sum)
-            new_data[4]='%s files' % fnumber(dude_core.info_counter)
+            new_data[3]='%s (%s)' % (local_bytes_to_str(dude_core.info_size_sum),local_bytes_to_str(dude_core.info_size_sum_images)) if similarity_mode else local_bytes_to_str(dude_core.info_size_sum)
+            new_data[4]='%s files (%s)' % (fnumber(dude_core.info_counter),fnumber(dude_core.info_counter_images)) if similarity_mode else '%s files' % fnumber(dude_core.info_counter)
 
             anything_changed=False
             for i in (3,4):
@@ -3467,8 +3508,7 @@ class Gui:
                 remove_expression_button=Button(frame,image=self.ico['delete'],command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
                 remove_expression_button.pack(side='right',padx=2,pady=1,fill='y')
 
-                remove_expression_button.bind("<Motion>", lambda event : self.motion_on_widget(event,'Remove expression from list.'))
-                remove_expression_button.bind("<Leave>", lambda event : self.widget_leave())
+                self.widget_tooltip(remove_expression_button,'Remove expression from list.')
 
                 row+=1
 
@@ -3521,13 +3561,19 @@ class Gui:
             update1=True
             update2=True
 
+        if self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_HELP)!=self.show_tooltips_help.get():
+            self.cfg.set_bool(CFG_KEY_SHOW_TOOLTIPS_HELP,self.show_tooltips_help.get())
+
+        if self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_INFO)!=self.show_tooltips_info.get():
+            self.cfg.set_bool(CFG_KEY_SHOW_TOOLTIPS_INFO,self.show_tooltips_info.get())
+
         if self.cfg_get_bool(CFG_KEY_FULL_PATHS)!=self.show_full_paths.get():
             self.cfg.set_bool(CFG_KEY_FULL_PATHS,self.show_full_paths.get())
             update1=True
             update2=True
 
-        if self.cfg_get_bool(CFG_KEY_CROSS_MODE)!=self.cross_mode.get():
-            self.cfg.set_bool(CFG_KEY_CROSS_MODE,self.cross_mode.get())
+        if self.cfg_get(CFG_KEY_SHOW_MODE)!=self.show_mode.get():
+            self.cfg.set(CFG_KEY_SHOW_MODE,self.show_mode.get())
             update0=True
 
         if self.cfg_get_bool(CFG_KEY_REL_SYMLINKS)!=self.create_relative_symlinks.get():
@@ -3588,10 +3634,10 @@ class Gui:
 
     def file_remove_callback(self,size,crc,index_tuple):
         #l_info(f'file_remove_callback {size},{crc},{index_tuple}')
-        rotation = 0
+
         try:
             (pathnr,path,file_name,ctime,dev,inode)=index_tuple
-            item = self.idfunc(inode,dev,rotation)
+            item = self.idfunc(inode,dev)
 
             self.groups_tree.delete(item)
             self.tagged_discard(item)
@@ -3658,7 +3704,7 @@ class Gui:
         self.create_my_prev_next_dicts(self.groups_tree)
         self_tree_children = self.tree_children
 
-        self.status_groups_configure(text=fnumber(len(self_tree_children[self.groups_tree])),image=self.ico['warning' if self.cfg_get_bool(CFG_KEY_CROSS_MODE) else 'empty'],compound='right',width=80,anchor='w')
+        self.status_groups_configure(text=fnumber(len(self_tree_children[self.groups_tree])) + ' ',image=self.ico['warning' if self.cfg_get(CFG_KEY_SHOW_MODE)!='0' else 'empty'],compound='right',width=80,anchor='w')
 
         path_stat_size={}
         path_stat_size_get=path_stat_size.get
@@ -3678,52 +3724,43 @@ class Gui:
         self_idfunc=self.idfunc
 
         self_crc_to_size = self.crc_to_size
+        self_files_of_groups_filtered_by_mode = self.files_of_groups_filtered_by_mode
 
         if self.similarity_mode:
-            #for (pathnr,path,file,mtime,ctime,dev,inode,size),imagehash in dude_core.scan_results_images_hashes.items():
-
             for group_index,items_set in dude_core.files_of_images_groups.items():
                 crc = group_index
-                #size_str_group = ''
-                #size = 0
-                #size_h_group = ''
-                #instances_str = len(items_set)
+                if crc in self_files_of_groups_filtered_by_mode:
 
+                    for pathnr,path,file,mtime,ctime,dev,inode,size in items_set:
+                        if (dev,inode) in self_files_of_groups_filtered_by_mode[crc]:
+                            item_id = self_idfunc(inode,dev)
+                            self_id2crc[item_id]=(crc,ctime)
+                            path_index=(pathnr,path)
+                            path_stat_size[path_index] = path_stat_size_get(path_index,0) + size
+                            path_stat_quant[path_index] = path_stat_quant_get(path_index,0) + 1
 
-                for pathnr,path,file,mtime,ctime,dev,inode,size,rotation in items_set:
-
-            #for size,size_dict in dude_core.files_of_size_of_crc_items():
-            #    for crc,crc_dict in size_dict.items():
-                    #for pathnr,path,file,ctime,dev,inode in crc_dict:
-                    item_id = self_idfunc(inode,dev,rotation)
-                    self_id2crc[item_id]=(crc,ctime)
-                    path_index=(pathnr,path)
-                    path_stat_size[path_index] = path_stat_size_get(path_index,0) + size
-                    path_stat_quant[path_index] = path_stat_quant_get(path_index,0) + 1
-
-                    if size>self_biggest_file_of_path_get(path_index,0):
-                        self_biggest_file_of_path[path_index]=size
-                        self_biggest_file_of_path_id[path_index]=item_id
-
-                    #if crc not in self_crc_to_size:
-                    #    print('Qriozum !!!',crc,size)
+                            if size>self_biggest_file_of_path_get(path_index,0):
+                                self_biggest_file_of_path[path_index]=size
+                                self_biggest_file_of_path_id[path_index]=item_id
 
         else:
             for size,size_dict in dude_core.files_of_size_of_crc_items():
                 for crc,crc_dict in size_dict.items():
-                    for pathnr,path,file,ctime,dev,inode in crc_dict:
-                        item_id = self_idfunc(inode,dev)
-                        self_id2crc[item_id]=(crc,ctime)
-                        path_index=(pathnr,path)
-                        path_stat_size[path_index] = path_stat_size_get(path_index,0) + size
-                        path_stat_quant[path_index] = path_stat_quant_get(path_index,0) + 1
+                    if crc in self_files_of_groups_filtered_by_mode:
+                        for pathnr,path,file,ctime,dev,inode in crc_dict:
+                            if (dev,inode) in self_files_of_groups_filtered_by_mode[crc]:
+                                item_id = self_idfunc(inode,dev)
+                                self_id2crc[item_id]=(crc,ctime)
+                                path_index=(pathnr,path)
+                                path_stat_size[path_index] = path_stat_size_get(path_index,0) + size
+                                path_stat_quant[path_index] = path_stat_quant_get(path_index,0) + 1
 
-                        if size>self_biggest_file_of_path_get(path_index,0):
-                            self_biggest_file_of_path[path_index]=size
-                            self_biggest_file_of_path_id[path_index]=item_id
+                                if size>self_biggest_file_of_path_get(path_index,0):
+                                    self_biggest_file_of_path[path_index]=size
+                                    self_biggest_file_of_path_id[path_index]=item_id
 
-                    if crc not in self_crc_to_size:
-                        print('Qriozum !!!',crc,size)
+                        if crc not in self_crc_to_size:
+                            print('Qriozum !!!',crc,size)
 
         self_tree_children_sub = self.tree_children_sub
 
@@ -3756,17 +3793,14 @@ class Gui:
 
     @block_and_log
     def groups_show(self):
-        #self.menu_disable()
-
-
         if self.similarity_mode:
             self.groups_tree.heading('#0',text='GROUP/Scan Path',anchor='w')
             self.folder_tree.heading('#0',text='GROUP',anchor='w')
-            self_idfunc=self.idfunc = (lambda i,d,r : '%s-%s-%s' % (i,d,r)) if len(dude_core.devs)>1 else (lambda i,d,r : '%s-%s' % (i,r))
         else:
             self.groups_tree.heading('#0',text='CRC/Scan Path',anchor='w')
             self.folder_tree.heading('#0',text='CRC',anchor='w')
-            self_idfunc=self.idfunc = (lambda i,d,r=0 : '%s-%s' % (i,d)) if len(dude_core.devs)>1 else (lambda i,d,r=0 : str(i))
+
+        self_idfunc=self.idfunc = (lambda i,d : '%s-%s' % (i,d)) if len(dude_core.devs)>1 else (lambda i,d : str(i))
 
         self_status=self.status
 
@@ -3778,11 +3812,14 @@ class Gui:
 
         self.selected[self.groups_tree]=None
 
-        cross_mode = self.cfg_get_bool(CFG_KEY_CROSS_MODE)
+        show_mode = self.cfg_get(CFG_KEY_SHOW_MODE)
         show_full_crc=self.cfg_get_bool(CFG_KEY_FULL_CRC)
         show_full_paths=self.cfg_get_bool(CFG_KEY_FULL_PATHS)
 
         self_status('Rendering data...')
+
+        show_mode_cross=bool(show_mode=='1')
+        show_mode_same_dir=bool(show_mode=='2')
 
         self.tagged.clear()
 
@@ -3797,6 +3834,8 @@ class Gui:
         self_icon_nr=self.icon_nr
         local_bytes_to_str = bytes_to_str
 
+        files_of_groups_filtered_by_mode=self.files_of_groups_filtered_by_mode=defaultdict(set)
+
         if self.similarity_mode:
             #####################################################
 
@@ -3807,13 +3846,30 @@ class Gui:
                 size_h_group = ''
                 instances_str = len(items_set)
 
+                if show_mode_cross:
+                    is_cross_group = bool(len({pathnr for pathnr,path,file,mtime,ctime,dev,inode,size in items_set})>1)
+                    if not is_cross_group:
+                        continue
+                elif show_mode_same_dir:
+                    hist=defaultdict(int)
+                    for pathnr,path,file,mtime,ctime,dev,inode,size in items_set:
+                        hist[(pathnr,path)]+=1
+                    if not any([val for val in hist.values() if val>1]):
+                        continue
+
                 group_item=self_groups_tree_insert('','end',crc, values=('','','',size_str_group,size_h_group,'','','',crc,instances_str,instances_str,'',self_CRC),tags=self_CRC,open=True,text = crc)
                 #kind,crc,(pathnr,path,file,ctime,dev,inode)
                 self_groups_tree_item_to_data[group_item]=(self_CRC,size,crc,(None,None,None,None,None,None) )
 
-                for pathnr,path,file,mtime,ctime,dev,inode,size,rotation in items_set:
+                for pathnr,path,file,mtime,ctime,dev,inode,size in sorted(items_set,key=lambda x : (x[7],x[0],x[1],x[2]),reverse=True):
+                    if show_mode_same_dir:
+                        if hist[(pathnr,path)]==1:
+                            continue
+
+                    files_of_groups_filtered_by_mode[group_index].add( (dev,inode) )
+
                     #print(pathnr,path,file,mtime,ctime,dev,inode,size)
-                    iid=self_idfunc(inode,dev,rotation)
+                    iid=self_idfunc(inode,dev)
                     self_iid_to_size[iid]=size
 
                     size_str = str(size)
@@ -3835,7 +3891,6 @@ class Gui:
         else:
             #####################################################
 
-
             sizes_counter=0
 
             dude_core_crc_cut_len=dude_core.crc_cut_len
@@ -3848,9 +3903,15 @@ class Gui:
 
                 sizes_counter+=1
                 for crc,crc_dict in size_dict.items():
-                    if cross_mode:
+                    if show_mode_cross:
                         is_cross_group = bool(len({pathnr for pathnr,path,file,ctime,dev,inode in crc_dict})>1)
                         if not is_cross_group:
+                            continue
+                    elif show_mode_same_dir:
+                        hist=defaultdict(int)
+                        for pathnr,path,file,ctime,dev,inode in crc_dict:
+                            hist[(pathnr,path)]+=1
+                        if not any([val for val in hist.values() if val>1]):
                             continue
 
                     #self_groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
@@ -3862,6 +3923,12 @@ class Gui:
                     self_groups_tree_item_to_data[crc_item]=(self_CRC,size,crc,(None,None,None,None,None,None) )
 
                     for pathnr,path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
+                        if show_mode_same_dir:
+                            if hist[(pathnr,path)]==1:
+                                continue
+
+                        files_of_groups_filtered_by_mode[crc].add( (dev,inode) )
+
                         iid=self_idfunc(inode,dev)
                         self_iid_to_size[iid]=size
 
@@ -3879,7 +3946,6 @@ class Gui:
             self.crc_to_size={crc:size for size,size_dict in dude_core.files_of_size_of_crc.items() for crc in size_dict }
 
         self.data_precalc()
-
 
         #####################################################
 
@@ -3915,7 +3981,6 @@ class Gui:
         for size,size_dict in dude_core.files_of_size_of_crc_items() :
             for crc,crc_dict in size_dict.items():
                 if crc in self_crc_to_size:
-                    #cross_paths
                     if crc in self_groups_tree_item_to_data:# dla cross paths moze nie istniec item crc
                         self_groups_tree_item(crc,text=crc if show_full_crc else crc[:dude_core_crc_cut_len])
                         for pathnr,path,file,ctime,dev,inode in crc_dict:
@@ -4013,7 +4078,6 @@ class Gui:
             values=('..','','',self.UPDIR,'',0,'',0,'',0,'')
             folder_items_add((updir_code,sort_val_func(values[sort_index_local]),'0UP','',values,self_DIR,''))
 
-        rotation=0
         #print('b1')
         #############################################
         try:
@@ -4040,7 +4104,7 @@ class Gui:
                                 i+=1
                             elif entry.is_file():
                                 ctime,size_num = stat_res.st_ctime_ns,stat_res.st_size
-                                file_id=self_idfunc(inode,dev,rotation)
+                                file_id=self_idfunc(inode,dev)
 
                                 ctime_h = local_strftime('%Y/%m/%d %H:%M:%S',local_localtime_catched(ctime//1000000000)) #DE_NANO
 
@@ -4758,7 +4822,7 @@ class Gui:
 
             if self.similarity_mode:
                 if cfg_show_crc_size:
-                    message_append('size:' + bytes_to_str(size) + '|GRAY')
+                    message_append('GROUP:' + crc + 'size:' + bytes_to_str(size) + '|GRAY')
             else:
                 if cfg_show_crc_size:
                     message_append('CRC:' + crc + ' size:' + bytes_to_str(size) + '|GRAY')

@@ -51,7 +51,6 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 
 from send2trash import send2trash
 
-#from PIL import Image
 from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
 from imagehash import average_hash,phash,dhash,whash,colorhash,hex_to_hash
 
@@ -267,10 +266,13 @@ class DudeCore:
     info_path_nr=0
     info_path_to_scan=''
     info_counter=0
+    info_counter_images=0
     info_size_sum=0
 
     log_skipped = False
     similarity_mode = False
+    sum_size=0
+    #sum_size_images=0
 
     scan_update_info_path_nr=None
     def scan(self):
@@ -287,7 +289,14 @@ class DudeCore:
 
         path_nr=0
         self.info_counter=0
+        self.info_counter_images=0
         self.info_size_sum=0
+        self.info_size_sum_images=0
+        self.sum_size=0
+        #self.sum_size_images=0
+
+        self.info_size_done_perc=0
+        self.info_files_done_perc=0
 
         self_scan_results_by_size=self.scan_results_by_size
         self_similarity_mode = self.similarity_mode
@@ -295,15 +304,14 @@ class DudeCore:
         self_scan_results_images = self.scan_results_images = set()
         #############################################################################################
         if self_similarity_mode:
+            supported_extensions = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.eps','.gif','.tga','.tiff','.tif','.webp','.xbm')
+
             self_log_skipped = self.log_skipped
 
             self_exclude_list=self.exclude_list
             any_exclude_list = bool(self_exclude_list)
             self_excl_fn=self.excl_fn
 
-            self.sum_size=0
-            self.info_size_done_perc=0
-            self.info_files_done_perc=0
 
             self_log_info=self.log.info
             skipping_action = lambda *args : self_log_info(*args) if self_log_skipped else None
@@ -311,6 +319,7 @@ class DudeCore:
             self_scan_results_images_add = self_scan_results_images.add
 
             sum_size = 0
+            #sum_size_images = 0
             for path_to_scan in self.paths_to_scan:
                 self.info_path_to_scan=path_to_scan
                 self.info_path_nr=path_nr
@@ -332,7 +341,9 @@ class DudeCore:
                     try:
                         with scandir(path) as res:
                             folder_size=0
+                            folder_size_images=0
                             folder_counter=0
+                            folder_counter_images=0
 
                             for entry in res:
                                 if self.abort_action:
@@ -365,8 +376,12 @@ class DudeCore:
 
                                                 if size:=stat_res.st_size:
                                                     folder_size+=size
-                                                    if extension.lower() in ('.jpeg','.jpg','.png'):
-                                                        sum_size+=size
+                                                    #https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
+                                                    sum_size+=size
+                                                    if extension.lower() in supported_extensions:
+                                                        #sum_size_images+=size
+                                                        folder_counter_images+=1
+                                                        folder_size_images+=size
                                                         subpath=path.replace(path_to_scan,'')
                                                         self_scan_results_images_add( (path_nr,subpath,entry.name,stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino,size) )
 
@@ -375,7 +390,10 @@ class DudeCore:
                                         skipping_action('skipping another:%s',path)
 
                             self.info_size_sum+=folder_size
+                            self.info_size_sum_images+=folder_size_images
+
                             self.info_counter+=folder_counter
+                            self.info_counter_images+=folder_counter_images
 
                     except Exception as e:
                         skipping_action('scandir %s: error:%s',path,e)
@@ -391,6 +409,7 @@ class DudeCore:
 
             #print(f'{self_scan_results_images=}')
             self.sum_size = sum_size
+            #self.sum_size_images = sum_size_images
 
             self.devs=tuple(list({dev for pathnr,path,file_name,mtime,ctime,dev,inode,size in self_scan_results_images}))
 
@@ -405,10 +424,6 @@ class DudeCore:
             self_exclude_list=self.exclude_list
             any_exclude_list = bool(self_exclude_list)
             self_excl_fn=self.excl_fn
-
-            self.sum_size=0
-            self.info_size_done_perc=0
-            self.info_files_done_perc=0
 
             self_log_info=self.log.info
             skipping_action = lambda *args : self_log_info(*args) if self_log_skipped else None
@@ -707,14 +722,8 @@ class DudeCore:
                 images_quantity_need_to_calculate += 1
                 size_to_calculate += size
 
-        #self.images_quantity_need_to_calculate = images_quantity_need_to_calculate
-        #self.images_quantity_cache_read = images_quantity_cache_read
-
         self.info_total = images_quantity_cache_read + images_quantity_need_to_calculate
         self.sum_size = size_from_cache + size_to_calculate
-
-        print(f'{images_quantity_need_to_calculate=}')
-        print(f'{images_quantity_cache_read=}')
 
         self.info = self.info_line = 'Images hashing ...'
 
@@ -729,8 +738,6 @@ class DudeCore:
 
         sto_by_self_info_total = 100.0/self.info_total
         sto_by_self_sum_size = 100.0/self.sum_size
-
-        #self.info = f'Threads:{max_threads}'
 
         while True:
             all_dead=True
@@ -782,27 +789,51 @@ class DudeCore:
         self.info_line = self.info = 'Clustering ...'
 
         model = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1)
-        fit = model.fit(pool)
+        labels = model.fit(pool).labels_
+        del model
 
-        labels = fit.labels_
-
-        unique_labels = set(labels)
-        groups = defaultdict(set)
+        #with rotation variants
+        groups_dict = defaultdict(set)
 
         self.info_line = self.info = 'Separating groups ...'
 
+        groups_sorted_by_quantity_dict = defaultdict(int)
+
         for label,key in zip(labels,keys):
             if label!=-1:
-                groups[label].add(key)
+                groups_dict[label].add(key)
+                groups_sorted_by_quantity_dict[label]=len(keys)
 
-        self_files_of_images_groups = self.files_of_images_groups = defaultdict(set)
+        ##############################################
+        groups_sorted_by_quantity = [ label for label,number in sorted(groups_sorted_by_quantity_dict.items(),key=lambda x : x[1], reverse=True) ]
 
-        for label,lab_keys in groups.items():
-            self_files_of_images_groups_str_label_add = self_files_of_images_groups[str(label)].add
-            for key in lab_keys:
-                self_files_of_images_groups_str_label_add(key)
+        #kazy plik tylko raz
+        self.info_line = self.info = 'Pruning "multiple rotations" data ...'
 
-        del model
+        files_already_in_group=set()
+        files_already_in_group_add = files_already_in_group.add
+
+        pruned_groups_dict = defaultdict(set)
+        for label in groups_sorted_by_quantity:
+            #print(f'{label=}')
+            for key in groups_dict[label]:
+                #print(f'    {key=}')
+
+                (pathnr,path,file_name,mtime,ctime,dev,inode,size,rotation) = key
+                file_key = (dev,inode)
+                key_without_rotation = (pathnr,path,file_name,mtime,ctime,dev,inode,size)
+
+                if file_key not in files_already_in_group:
+                    files_already_in_group_add(file_key)
+                    pruned_groups_dict[label].add(key_without_rotation)
+
+        ##############################################
+        self_files_of_images_groups = self.files_of_images_groups = {}
+        #print(f'{pruned_groups_dict=}')
+
+        for label,keys in pruned_groups_dict.items():
+            if len(keys)>1:
+                self_files_of_images_groups[str(label)] = keys
 
         sys_exit() #thread
 
