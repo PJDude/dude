@@ -356,7 +356,7 @@ class Gui:
         l_warning("Received SIGINT signal")
         self.action_abort=True
 
-    def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None):
+    def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images=False, ihash=6, idivergence=5, rotations=False):
         gc_disable()
 
         self.cwd=cwd
@@ -826,10 +826,10 @@ class Gui:
         self.log_skipped_var.set(False)
 
         self.all_rotations=BooleanVar()
-        self.all_rotations.set(False)
+        self.all_rotations.set(rotations)
 
         self.similarity_mode_var=BooleanVar()
-        self.similarity_mode_var.set(False)
+        self.similarity_mode_var.set(images)
 
         self_scan_dialog_area_main = self_scan_dialog.area_main
 
@@ -946,13 +946,13 @@ class Gui:
 
         self.similarity_distance_var = IntVar()
         self.similarity_distance_var_lab = StringVar()
-        self.similarity_distance_var.set(5)
+        self.similarity_distance_var.set(idivergence)
 
         self.similarity_hsize_var = IntVar()
         self.similarity_hsize_varx2 = IntVar()
         self.similarity_hsize_var_lab = StringVar()
-        self.similarity_hsize_var.set(3)
-        self.similarity_hsize_varx2.set(6)
+        self.similarity_hsize_var.set(ihash//2)
+        self.similarity_hsize_varx2.set(ihash)
 
         similarity_hsize_frame = LabelFrame(sf_par3,text='Hash size',borderwidth=2,bg=self.bg_color,takefocus=False)
         similarity_hsize_frame.grid(row=0,column=0,padx=2,sticky='news')
@@ -3212,10 +3212,10 @@ class Gui:
 
         if similarity_mode:
             self_progress_dialog_on_scan_lab[0].configure(image='',text='')
-            self_progress_dialog_on_scan_lab[1].configure(text='')
-            self_progress_dialog_on_scan_lab[2].configure(text='')
-            self_progress_dialog_on_scan_lab[3].configure(text='')
-            self_progress_dialog_on_scan_lab[4].configure(text='')
+            self_progress_dialog_on_scan_lab[1].configure(image='',text='')
+            self_progress_dialog_on_scan_lab[2].configure(image='',text='')
+            self_progress_dialog_on_scan_lab[3].configure(image='',text='')
+            self_progress_dialog_on_scan_lab[4].configure(image='',text='')
 
             self_progress_dialog_on_scan.widget.title('Images hashing')
 
@@ -3231,7 +3231,7 @@ class Gui:
 
             bytes_to_str_dude_core_sum_size = local_bytes_to_str(dude_core.sum_size)
 
-            self_progress_dialog_on_scan_lab[2].configure(text=dude_core.info_line)
+            #self_progress_dialog_on_scan_lab[2].configure(text=dude_core.info_line)
 
             while ih_thread_is_alive():
                 anything_changed=False
@@ -5683,7 +5683,8 @@ if __name__ == "__main__":
             print('Done')
 
         else:
-            Gui(getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun)
+            images_mode = bool(p_args.images or p_args.ih or p_args.id or p_args.ir)
+            Gui( getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun,images_mode,int(p_args.ih[0]),int(p_args.id[0]),p_args.ir )
 
     except Exception as e_main:
         print(e_main)

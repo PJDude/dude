@@ -650,7 +650,7 @@ class DudeCore:
             if all_rotations:
                 file_rotate = file.rotate
                 try:
-                    result_dict[index_tuple]=( my_hash_combo(file,hash_size),my_hash_combo(file_rotate(90),hash_size),my_hash_combo(file_rotate(180),hash_size),my_hash_combo(file_rotate(270),hash_size) )
+                    result_dict[index_tuple]=( my_hash_combo(file,hash_size),my_hash_combo(file_rotate(90,expand=True),hash_size),my_hash_combo(file_rotate(180,expand=True),hash_size),my_hash_combo(file_rotate(270,expand=True),hash_size) )
 
                 except Exception as e:
                     self.log.error(f'hashing file: {fullpath} error: {e}.')
@@ -788,7 +788,9 @@ class DudeCore:
 
         self.info_line = self.info = 'Clustering ...'
 
-        model = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1)
+        model = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,p=1)
+        #,algorithm='brute'
+
         labels = model.fit(pool).labels_
         del model
 
@@ -802,12 +804,12 @@ class DudeCore:
         for label,key in zip(labels,keys):
             if label!=-1:
                 groups_dict[label].add(key)
-                groups_sorted_by_quantity_dict[label]=len(keys)
+                groups_sorted_by_quantity_dict[label]+=1
 
         ##############################################
         groups_sorted_by_quantity = [ label for label,number in sorted(groups_sorted_by_quantity_dict.items(),key=lambda x : x[1], reverse=True) ]
 
-        #kazy plik tylko raz
+        #kazdy plik tylko raz
         self.info_line = self.info = 'Pruning "multiple rotations" data ...'
 
         files_already_in_group=set()
@@ -815,7 +817,7 @@ class DudeCore:
 
         pruned_groups_dict = defaultdict(set)
         for label in groups_sorted_by_quantity:
-            #print(f'{label=}')
+            #print(f'{label=}',type(label))
             for key in groups_dict[label]:
                 #print(f'    {key=}')
 
