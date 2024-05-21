@@ -56,7 +56,7 @@ import logging
 
 from platform import node
 
-from os import sep,stat,scandir,readlink,rmdir,system,getcwd,name as os_name
+from os import sep,stat,scandir,readlink,rmdir,system,getcwd,name as os_name,environ as os_environ
 from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,set_threshold as gc_set_threshold, get_threshold as gc_get_threshold
 
 from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,split as path_split,exists as path_exists,isdir
@@ -356,7 +356,9 @@ class Gui:
         l_warning("Received SIGINT signal")
         self.action_abort=True
 
-    def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images=False, ihash=6, idivergence=5, rotations=False):
+    def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images_mode_tuple=None):
+        images,ihash,idivergence,rotations = images_mode_tuple if images_mode_tuple else (False,0,0,False)
+
         gc_disable()
 
         self.cwd=cwd
@@ -485,58 +487,73 @@ class Gui:
         ####################################################################
         style = Style()
 
-        style.theme_create("dummy", parent='vista' if windows else 'clam' )
+        #('aqua', 'step', 'clam', 'alt', 'default', 'classic')
 
-        self.bg_color = style.lookup('TFrame', 'background')
+        if env_theme:=os_environ.get('DUDE_THEME'):
+            print(f'{env_theme=}')
+            parent_theme=env_theme
+        else:
+            parent_theme = 'vista' if windows else 'clam'
+
+        try:
+            style.theme_create( "dummy", parent=parent_theme )
+        except Exception as e:
+            print(e)
+            print('Try one of: aqua,step,clam,alt,default,classic')
+            sys.exit(1)
+
+        bg_color = self.bg_color = style.lookup('TFrame', 'background')
 
         style.theme_use("dummy")
-
-        style_configure = style.configure
-
-        style_configure("TButton", anchor = "center")
-        style_configure("TButton", background = self.bg_color)
-
-        style_configure('TRadiobutton', background=self.bg_color)
-
         style_map = style.map
-
-        style_configure("TCheckbutton", background = self.bg_color,anchor='center',padding=(4, 0, 4, 0) )
-
-        style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],relief=[('disabled',"flat"),('',"sunken")],foreground=[('disabled',"gray"),('',"black")])
-
-        if windows:
-            #fix border problem ...
-            style_configure("TCombobox",padding=1)
-
-
-        style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
-        style_map("TButton",  fg=[('disabled',"gray"),('',"black")] )
-
-        style_map("Treeview.Heading",  relief=[('','raised')] )
-        style_configure("Treeview",rowheight=18)
 
         bg_focus='#90DD90'
         bg_focus_off='#90AA90'
         bg_sel='#AAAAAA'
 
+        if env_theme:
+            #bg_color = self.bg_color = 'white'
+            pass
+        else:
+            style_configure = style.configure
+
+            if windows:
+                #fix border problem ...
+                style_configure("TCombobox",padding=1)
+
+            style_map("TButton",  fg=[('disabled',"gray"),('',"black")] )
+
+            style_configure("Treeview",rowheight=18)
+
+            style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],relief=[('disabled',"flat"),('',"sunken")],foreground=[('disabled',"gray"),('',"black")])
+            style_map("Treeview.Heading",  relief=[('','raised')] )
+            style_configure("TCheckbutton",anchor='center',padding=(4, 0, 4, 0) )
+            style_configure("TButton", anchor = "center")
+            style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
+            style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
+            style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
+
+            #works but not for every theme
+            #style_configure("Treeview", fieldbackground=self.bg_color)
+
+            #else:
+                #self.bg_color = 'white'
+
+            style_configure("TButton", background = bg_color)
+            style_configure('TRadiobutton', background=bg_color)
+            style_configure("TCheckbutton", background = bg_color)
+            style_configure("TScale", background=bg_color)
+            style_configure('TScale.slider', background=bg_color)
+            style_configure('TScale.Horizontal.TScale', background=bg_color)
+
         style_map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
 
-        style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
-        style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
-
-        style_configure("TScale", background=self.bg_color)
-        style_configure('TScale.slider', background=self.bg_color)
-        style_configure('TScale.Horizontal.TScale', background=self.bg_color)
-
-        #works but not for every theme
-        #style_configure("Treeview", fieldbackground=self.bg_color)
-
         #######################################################################
-        self.menubar = Menu(self_main,bg=self.bg_color)
+        self.menubar = Menu(self_main,bg=bg_color)
         self_main.config(menu=self.menubar)
         #######################################################################
 
-        self_motion_on_widget = self.motion_on_widget
+        #self_motion_on_widget = self.motion_on_widget
         self_widget_leave = self.widget_leave
 
         self.my_next_dict={}
@@ -551,62 +568,62 @@ class Gui:
         self.menubar_norm = lambda x : self.menubar_entryconfig(x, state="normal")
         self.menubar_disable = lambda x : self.menubar_entryconfig(x, state="disabled")
 
-        self.paned = PanedWindow(self_main,orient='vertical',relief='sunken',showhandle=0,bd=0,bg=self.bg_color,sashwidth=2,sashrelief='flat')
+        self.paned = PanedWindow(self_main,orient='vertical',relief='sunken',showhandle=0,bd=0,bg=bg_color,sashwidth=2,sashrelief='flat')
         self.paned.pack(fill='both',expand=1)
 
-        frame_groups = Frame(self.paned,bg=self.bg_color)
+        frame_groups = Frame(self.paned,bg=bg_color)
         frame_groups.pack(fill='both',expand='yes')
         self.paned.add(frame_groups)
 
-        frame_folder = Frame(self.paned,bg=self.bg_color)
+        frame_folder = Frame(self.paned,bg=bg_color)
         frame_folder.pack(fill='both',expand='yes')
         self.paned.add(frame_folder)
 
-        (status_frame_groups := Frame(frame_groups,bg=self.bg_color)).pack(side='bottom', fill='both')
+        (status_frame_groups := Frame(frame_groups,bg=bg_color)).pack(side='bottom', fill='both')
 
-        self.status_all_quant=Label(status_frame_groups,width=10,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w')
+        self.status_all_quant=Label(status_frame_groups,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_all_quant_configure = self.status_all_quant.configure
 
         self.status_all_quant.pack(fill='x',expand=0,side='right')
-        Label(status_frame_groups,width=16,text="All marked files # ",relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
-        self.status_all_size=Label(status_frame_groups,width=10,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w')
+        Label(status_frame_groups,width=16,text="All marked files # ",relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        self.status_all_size=Label(status_frame_groups,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_all_size.pack(fill='x',expand=0,side='right')
         self.status_all_size_configure=self.status_all_size.configure
 
-        Label(status_frame_groups,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
-        self.status_groups=Label(status_frame_groups,text='0',image=self.ico_empty,width=80,compound='right',borderwidth=2,bg=self.bg_color,relief='groove',anchor='e')
+        Label(status_frame_groups,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        self.status_groups=Label(status_frame_groups,text='0',image=self.ico_empty,width=80,compound='right',borderwidth=2,bg=bg_color,relief='groove',anchor='e')
         self.status_groups_configure = self.status_groups.configure
 
         self.status_groups.pack(fill='x',expand=0,side='right')
 
         self.widget_tooltip(self.status_groups,'Number of groups with consideration of "Cross paths" or "Same directory" mode')
 
-        Label(status_frame_groups,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_groups,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
-        self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=self.bg_color,anchor='w')
+        self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=bg_color,anchor='w')
         self.status_path.pack(fill='x',expand=1,side='left')
         self.widget_tooltip(self.status_path,'The full path of a directory shown in the bottom panel.')
 
         self.status_path_configure=self.status_path.configure
         ###############################################################################
 
-        (status_frame_folder := Frame(frame_folder,bg=self.bg_color)).pack(side='bottom',fill='both')
+        (status_frame_folder := Frame(frame_folder,bg=bg_color)).pack(side='bottom',fill='both')
 
-        self.status_line_lab=Label(status_frame_folder,width=30,image=self_ico['expression'],compound= 'left',text='',borderwidth=2,bg=self.bg_color,relief='groove',anchor='w')
+        self.status_line_lab=Label(status_frame_folder,width=30,image=self_ico['expression'],compound= 'left',text='',borderwidth=2,bg=bg_color,relief='groove',anchor='w')
         self.status_line_lab.pack(fill='x',expand=1,side='left')
         self.status_line_lab_configure = self.status_line_lab.configure
         self.status_line_lab_update = self.status_line_lab.update
 
-        self.status_folder_quant=Label(status_frame_folder,width=10,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w')
+        self.status_folder_quant=Label(status_frame_folder,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_folder_quant.pack(fill='x',expand=0,side='right')
         self.status_folder_quant_configure=self.status_folder_quant.configure
 
-        Label(status_frame_folder,width=16,text='Marked files # ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
-        self.status_folder_size=Label(status_frame_folder,width=10,borderwidth=2,bg=self.bg_color,relief='groove',foreground='red',anchor='w')
+        Label(status_frame_folder,width=16,text='Marked files # ',relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        self.status_folder_size=Label(status_frame_folder,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_folder_size.pack(expand=0,side='right')
         self.status_folder_size_configure=self.status_folder_size.configure
 
-        Label(status_frame_folder,width=18,text='Marked files size: ',relief='groove',borderwidth=2,bg=self.bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_folder,width=18,text='Marked files size: ',relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
         self_main_unbind_class = self.main_unbind_class = self_main.unbind_class
 
@@ -797,11 +814,11 @@ class Gui:
             l_error(e)
             cfg_geometry = None
 
-        self.popup_groups = Menu(self_groups_tree, tearoff=0,bg=self.bg_color)
+        self.popup_groups = Menu(self_groups_tree, tearoff=0,bg=bg_color)
         self.popup_groups_unpost = self.popup_groups.unpost
         self.popup_groups.bind("<FocusOut>",lambda event : self.popup_groups_unpost() )
 
-        self.popup_folder = Menu(self_folder_tree, tearoff=0,bg=self.bg_color)
+        self.popup_folder = Menu(self_folder_tree, tearoff=0,bg=bg_color)
         self.popup_folder_unpost = self.popup_folder.unpost
         self.popup_folder.bind("<FocusOut>",lambda event : self.popup_folder_unpost() )
 
@@ -820,7 +837,7 @@ class Gui:
         #######################################################################
         #scan dialog
 
-        self_scan_dialog = self.scan_dialog=GenericDialog(self_main,self.main_icon_tuple,self.bg_color,'Scan',pre_show=self.pre_show,post_close=self.post_close)
+        self_scan_dialog = self.scan_dialog=GenericDialog(self_main,self.main_icon_tuple,bg_color,'Scan',pre_show=self.pre_show,post_close=self.post_close)
 
         self.log_skipped_var=BooleanVar()
         self.log_skipped_var.set(False)
@@ -851,17 +868,17 @@ class Gui:
         self_scan_dialog_widget_bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
 
         ##############
-        temp_frame = LabelFrame(self_scan_dialog_area_main,text='Paths To scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame = LabelFrame(self_scan_dialog_area_main,text='Paths To scan:',borderwidth=2,bg=bg_color,takefocus=False)
         temp_frame.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        sf_par=SFrame(temp_frame,bg=self.bg_color)
+        sf_par=SFrame(temp_frame,bg=bg_color)
         sf_par.pack(fill='both',expand=True,side='top')
         self.paths_frame=sf_par.frame()
 
-        buttons_fr = Frame(temp_frame,bg=self.bg_color,takefocus=False)
+        buttons_fr = Frame(temp_frame,bg=bg_color,takefocus=False)
         buttons_fr.pack(fill='both',expand=False,side='bottom')
 
-        Label(buttons_fr,relief='flat',text='Specify manually, or drag and drop here, up to 8 paths to scan',bg=self.bg_color,fg='gray').pack(side='right',pady=4,padx=4, fill='x',expand=True)
+        Label(buttons_fr,relief='flat',text='Specify manually, or drag and drop here, up to 8 paths to scan',bg=bg_color,fg='gray').pack(side='right',pady=4,padx=4, fill='x',expand=True)
 
         self.add_path_button = Button(buttons_fr,width=18,image = self_ico['open'], command=self.path_to_scan_add_dialog,underline=0)
         self.add_path_button.pack(side='left',pady=4,padx=4)
@@ -877,7 +894,7 @@ class Gui:
 
         self_paths_frame = self.paths_frame
 
-        self_bg_color = self.bg_color
+        self_bg_color = bg_color
         self_icon_nr = self.icon_nr
 
         self_paths_to_scan_frames = self.paths_to_scan_frames = {}
@@ -903,14 +920,14 @@ class Gui:
         ##############
         self.exclude_regexp_scan=BooleanVar()
 
-        temp_frame2 = LabelFrame(self_scan_dialog_area_main,text='Exclude from scan:',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame2 = LabelFrame(self_scan_dialog_area_main,text='Exclude from scan:',borderwidth=2,bg=bg_color,takefocus=False)
         temp_frame2.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        sf_par2=SFrame(temp_frame2,bg=self.bg_color)
+        sf_par2=SFrame(temp_frame2,bg=bg_color)
         sf_par2.pack(fill='both',expand=True,side='top')
         self.exclude_frame=sf_par2.frame()
 
-        buttons_fr2 = Frame(temp_frame2,bg=self.bg_color,takefocus=False)
+        buttons_fr2 = Frame(temp_frame2,bg=bg_color,takefocus=False)
         buttons_fr2.pack(fill='both',expand=False,side='bottom')
 
         self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self_ico['open'],command=self.exclude_mask_add_dir)
@@ -935,13 +952,13 @@ class Gui:
 
         self.widget_tooltip(similarity_button,"Only image files are processed\nIdentified groups contain images with similar content\n\nIf not enabled, the classic CRC algorithm is applied\nto files of the same size.")
 
-        temp_frame3 = LabelFrame(self_scan_dialog_area_main,text='Similarity mode options',borderwidth=2,bg=self.bg_color,takefocus=False)
+        temp_frame3 = LabelFrame(self_scan_dialog_area_main,text='Similarity mode options',borderwidth=2,bg=bg_color,takefocus=False)
         temp_frame3.grid(row=4,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        sf_par3=Frame(temp_frame3,bg=self.bg_color)
+        sf_par3=Frame(temp_frame3,bg=bg_color)
         sf_par3.pack(fill='both',expand=True,side='top')
 
-        sf_par4=Frame(temp_frame3,bg=self.bg_color)
+        sf_par4=Frame(temp_frame3,bg=bg_color)
         sf_par4.pack(fill='both',expand=True,side='top')
 
         self.similarity_distance_var = IntVar()
@@ -954,13 +971,13 @@ class Gui:
         self.similarity_hsize_var.set(ihash//2)
         self.similarity_hsize_varx2.set(ihash)
 
-        similarity_hsize_frame = LabelFrame(sf_par3,text='Hash size',borderwidth=2,bg=self.bg_color,takefocus=False)
+        similarity_hsize_frame = LabelFrame(sf_par3,text='Hash size',borderwidth=2,bg=bg_color,takefocus=False)
         similarity_hsize_frame.grid(row=0,column=0,padx=2,sticky='news')
 
         self.similarity_hsize_scale = Scale(similarity_hsize_frame, variable=self.similarity_hsize_var, orient='horizontal',from_=2, to=16,command=lambda x : self.hsize_val_set(),style="TScale",length=160)
         self.similarity_hsize_scale.grid(row=0,column=1,padx=4,sticky='ew')
 
-        self.similarity_hsize_label_val = Label(similarity_hsize_frame, textvariable=self.similarity_hsize_var_lab,bg=self.bg_color,width=3,height=1,relief='flat')
+        self.similarity_hsize_label_val = Label(similarity_hsize_frame, textvariable=self.similarity_hsize_var_lab,bg=bg_color,width=3,height=1,relief='flat')
         self.similarity_hsize_label_val.grid(row=0,column=2,padx=2)
         self.hsize_val_set()
 
@@ -972,13 +989,13 @@ class Gui:
 
         self.widget_tooltip(self.similarity_hsize_label_val,hash_tooltip)
 
-        similarity_distance_frame = LabelFrame(sf_par3,text='Relative divergence',borderwidth=2,bg=self.bg_color,takefocus=False)
+        similarity_distance_frame = LabelFrame(sf_par3,text='Relative divergence',borderwidth=2,bg=bg_color,takefocus=False)
         similarity_distance_frame.grid(row=0,column=1,padx=2,sticky='news')
 
         self.similarity_distance_scale = Scale(similarity_distance_frame, variable=self.similarity_distance_var, orient='horizontal',from_=0, to=9,command=lambda x : self.distance_val_set(),style="TScale",length=160)
         self.similarity_distance_scale.grid(row=0,column=1,padx=4,sticky='ew')
 
-        self.similarity_distance_label_val = Label(similarity_distance_frame, textvariable=self.similarity_distance_var_lab,bg=self.bg_color,width=3,height=1,relief='flat')
+        self.similarity_distance_label_val = Label(similarity_distance_frame, textvariable=self.similarity_distance_var_lab,bg=bg_color,width=3,height=1,relief='flat')
         self.similarity_distance_label_val.grid(row=0,column=2,padx=2)
 
         similarity_distance_frame.grid_columnconfigure(1, weight=1)
@@ -1042,7 +1059,7 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
 
-        self.file_cascade= Menu(self.menubar,tearoff=0,bg=self.bg_color,postcommand=file_cascade_post)
+        self.file_cascade= Menu(self.menubar,tearoff=0,bg=bg_color,postcommand=file_cascade_post)
         self.menubar.add_cascade(label = 'File',menu = self.file_cascade,accelerator="Alt+F")
 
         def navi_cascade_post():
@@ -1073,7 +1090,7 @@ class Gui:
                 #self_navi_cascade_add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.goto_max_folder(1,1),accelerator="Backspace",state=item_actions_state)
                 #self_navi_cascade_add_command(label = 'Go to dominant folder (by duplicates/other files quantity ratio)',command = lambda : self.goto_max_folder(0,1), accelerator="Ctrl+Backspace",state=item_actions_state)
 
-        self.navi_cascade= Menu(self.menubar,tearoff=0,bg=self.bg_color,postcommand=navi_cascade_post)
+        self.navi_cascade= Menu(self.menubar,tearoff=0,bg=bg_color,postcommand=navi_cascade_post)
 
         self.menubar.add_cascade(label = 'Navigation',menu = self.navi_cascade)
 
@@ -1096,7 +1113,7 @@ class Gui:
                 self_help_cascade_add_separator()
                 self_help_cascade_add_command(label = 'Open homepage',command=self.show_homepage, image = self_ico['home'],compound='left')
 
-        self.help_cascade= Menu(self.menubar,tearoff=0,bg=self.bg_color,postcommand=help_cascade_post)
+        self.help_cascade= Menu(self.menubar,tearoff=0,bg=bg_color,postcommand=help_cascade_post)
 
         self.menubar.add_cascade(label = 'Help',menu = self.help_cascade)
 
@@ -1269,7 +1286,7 @@ class Gui:
         _ = {var.set(self.cfg_get(key)) for var,key in self.settings_str}
         return self.pre_show(on_main_window_dialog=on_main_window_dialog,new_widget=new_widget)
 
-    def widget_tooltip(self,widget,tooltip):
+    def widget_tooltip(self,widget,tooltip,type_info=False):
         widget.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip))
         widget.bind("<Leave>", lambda event : self.widget_leave())
 
@@ -1296,7 +1313,7 @@ class Gui:
     @block
     def get_settings_dialog(self):
         if not self.settings_dialog_created:
-            self_motion_on_widget = self.motion_on_widget
+            #self_motion_on_widget = self.motion_on_widget
             self_widget_leave = self.widget_leave
 
             self.status("Creating dialog ...")
@@ -1762,9 +1779,13 @@ class Gui:
         self.hide_tooltip()
 
     def motion_on_widget(self,event,message=None):
-        if message:
-            self.tooltip_message[str(event.widget)]=message
-        self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widget(event))
+        show_tooltips_info = self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_INFO)
+        show_tooltips_help = self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_HELP)
+
+        if show_tooltips_help or show_tooltips_info:#TODO:
+            if message:
+                self.tooltip_message[str(event.widget)]=message
+            self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widget(event))
 
     def motion_on_groups_tree(self,event):
         if not self.block_processing_stack:
@@ -2647,11 +2668,14 @@ class Gui:
 
         parent_dir_state = ('disabled','normal')[self.two_dots_condition(self.sel_path_full) and self.sel_kind!=self.CRC]
 
+        crc_mode_only = ('disabled','normal')[self.similarity_mode]
+
         if tree==self.groups_tree:
             self_tagged = self.tagged
 
             any_mark_in_curr_crc = any( {True for item in self.tree_children_sub[self.sel_crc] if item in self_tagged} ) if self.sel_crc else False
             any_mark_in_curr_crc_state = ('disabled','normal')[any_mark_in_curr_crc]
+            any_mark_in_curr_crc_state_and_crc = ('disabled','normal')[any_mark_in_curr_crc and not self.similarity_mode]
 
             any_not_mark_in_curr_crc = any( {True for item in self.tree_children_sub[self.sel_crc] if item not in self_tagged} ) if self.sel_crc else False
             any_not_mark_in_curr_crc_state = ('disabled','normal')[any_not_mark_in_curr_crc]
@@ -2698,9 +2722,11 @@ class Gui:
             nothing_tagged = not anything_tagged
 
             anything_tagged_state=('disabled','normal')[anything_tagged]
+            anything_tagged_state_and_crc=('disabled','normal')[anything_tagged and not self.similarity_mode]
             nothing_tagged_state=('disabled','normal')[nothing_tagged]
 
             anything_tagged_state_win=('disabled','normal')[anything_tagged and windows ]
+            anything_tagged_state_win_and_crc=('disabled','normal')[anything_tagged and windows and not self.similarity_mode]
 
             anything_not_tagged = any( {} )
 
@@ -2712,14 +2738,15 @@ class Gui:
             #nothing_tagged_state_local = ('disabled','normal')[no_mark_in_curr_crc]
 
             anything_tagged_state_win_local=('disabled','normal')[any_mark_in_curr_crc_state and windows ] if self.sel_crc else 'disabled'
+            anything_tagged_state_win_local_and_crc=('disabled','normal')[any_mark_in_curr_crc_state and windows and not self.similarity_mode] if self.sel_crc else 'disabled'
 
             c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=any_mark_in_curr_crc_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(19,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=any_mark_in_curr_crc_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
             c_local_entryconfig(20,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_local, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_local_and_crc, image = self.ico_empty,compound='left')
             c_local_entryconfig(21,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=any_mark_in_curr_crc_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
             c_local_entryconfig(22,foreground='red',activeforeground='red')
 
             pop_add_cascade(label = 'Local (this group)',menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
@@ -2761,11 +2788,11 @@ class Gui:
 
             c_all.add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,1),accelerator="Ctrl+Delete",state=anything_tagged_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(21,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=anything_tagged_state, image = self.ico_empty,compound='left')
+            c_all.add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
             c_all.entryconfig(22,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),accelerator="Ctrl+Alt+Shift+Insert",state=anything_tagged_state_win, image = self.ico_empty,compound='left')
+            c_all.add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),accelerator="Ctrl+Alt+Shift+Insert",state=anything_tagged_state_win_and_crc, image = self.ico_empty,compound='left')
             c_all.entryconfig(23,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=anything_tagged_state, image = self.ico_empty,compound='left')
+            c_all.add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
             c_all.entryconfig(24,foreground='red',activeforeground='red')
 
             pop_add_cascade(label = 'All Files',menu = c_all,state=item_actions_state, image = self.ico_empty,compound='left')
@@ -2793,7 +2820,9 @@ class Gui:
 
         else:
             dir_actions_state=('disabled','normal')[self.sel_kind in (self.DIR,self.DIRLINK)]
+            dir_actions_state_and_crc=('disabled','normal')[self.sel_kind in (self.DIR,self.DIRLINK) and not self.similarity_mode]
             dir_actions_state_win=('disabled','normal')[(self.sel_kind in (self.DIR,self.DIRLINK)) and windows]
+            dir_actions_state_win_and_crc=('disabled','normal')[(self.sel_kind in (self.DIR,self.DIRLINK)) and windows and not self.similarity_mode]
 
             c_local = Menu(pop,tearoff=0,bg=self.bg_color)
             c_local_add_command = c_local.add_command
@@ -2821,11 +2850,14 @@ class Gui:
             c_local_add_separator()
 
             anything_tagged_state=('disabled','normal')[bool(self.current_folder_items_tagged)]
+            anything_tagged_state_and_crc=('disabled','normal')[bool(self.current_folder_items_tagged) and not self.similarity_mode]
+
             anything_tagged_state_win=('disabled','normal')[bool(self.current_folder_items_tagged) and windows]
+            anything_tagged_state_win_and_crc=('disabled','normal')[bool(self.current_folder_items_tagged) and windows and not self.similarity_mode]
 
             c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,0),accelerator="Delete",state=anything_tagged_state, image = self.ico_empty,compound='left')
-            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,0),accelerator="Insert",state=anything_tagged_state, image = self.ico_empty,compound='left')
-            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,0),accelerator="Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
+            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_and_crc, image = self.ico_empty,compound='left')
 
             c_local_entryconfig(8,foreground='red',activeforeground='red')
             c_local_entryconfig(9,foreground='red',activeforeground='red')
@@ -2841,8 +2873,8 @@ class Gui:
             c_sel_sub.add_separator()
 
             c_sel_sub_add_command(label = 'Remove Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,True),accelerator="Delete",state=dir_actions_state, image = self.ico_empty,compound='left')
-            c_sel_sub_add_command(label = 'Softlink Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,True),accelerator="Insert",state=dir_actions_state, image = self.ico_empty,compound='left')
-            c_sel_sub_add_command(label = 'Create *.lnk for Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,True),accelerator="Alt+Shift+Insert",state=dir_actions_state_win, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = 'Softlink Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,True),accelerator="Insert",state=dir_actions_state_and_crc, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = 'Create *.lnk for Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,True),accelerator="Alt+Shift+Insert",state=dir_actions_state_win_and_crc, image = self.ico_empty,compound='left')
 
             c_sel_sub.entryconfig(3,foreground='red',activeforeground='red')
             c_sel_sub.entryconfig(4,foreground='red',activeforeground='red')
@@ -3633,10 +3665,15 @@ class Gui:
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
     def file_remove_callback(self,size,crc,index_tuple):
+        #print('file_remove_callback',size,crc,index_tuple)
         #l_info(f'file_remove_callback {size},{crc},{index_tuple}')
 
         try:
-            (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+            if self.similarity_mode:
+                (pathnr,path,file_name,ctime,dev,inode,size_file)=index_tuple
+            else:
+                (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+
             item = self.idfunc(inode,dev)
 
             self.groups_tree.delete(item)
@@ -3653,8 +3690,9 @@ class Gui:
 
         #l_info('file_remove_callback done')
 
-    def crc_remove_callback(self,size,crc):
-        #l_info(f'crc_remove_callback:{size},{crc}')
+    def crc_remove_callback(self,crc):
+        #print('crc_remove_callback',crc)
+
         try:
             self.groups_tree.delete(crc)
 
@@ -3664,11 +3702,9 @@ class Gui:
 
             #to bedzie przeliczone
             #self.tree_children[self.groups_tree].remove(crc)
-            #l_info('crc_remove_callback done')
         except Exception as e:
             self.selected[self.groups_tree]=None
-            l_error(f'crc_remove_callback,{size},{crc},{e}')
-
+            l_error(f'crc_remove_callback,{crc},{e}')
 
     @catched
     def create_my_prev_next_dicts(self,tree):
@@ -3712,8 +3748,7 @@ class Gui:
         path_stat_quant={}
         path_stat_quant_get=path_stat_quant.get
 
-        self.id2crc = {}
-        self_id2crc = self.id2crc
+        self_id2crc = self.id2crc = {}
 
         self.biggest_file_of_path.clear()
         self.biggest_file_of_path_id.clear()
@@ -3730,8 +3765,7 @@ class Gui:
             for group_index,items_set in dude_core.files_of_images_groups.items():
                 crc = group_index
                 if crc in self_files_of_groups_filtered_by_mode:
-
-                    for pathnr,path,file,mtime,ctime,dev,inode,size in items_set:
+                    for pathnr,path,file,ctime,dev,inode,size in items_set:
                         if (dev,inode) in self_files_of_groups_filtered_by_mode[crc]:
                             item_id = self_idfunc(inode,dev)
                             self_id2crc[item_id]=(crc,ctime)
@@ -3847,12 +3881,12 @@ class Gui:
                 instances_str = len(items_set)
 
                 if show_mode_cross:
-                    is_cross_group = bool(len({pathnr for pathnr,path,file,mtime,ctime,dev,inode,size in items_set})>1)
+                    is_cross_group = bool(len({pathnr for pathnr,path,file,ctime,dev,inode,size in items_set})>1)
                     if not is_cross_group:
                         continue
                 elif show_mode_same_dir:
                     hist=defaultdict(int)
-                    for pathnr,path,file,mtime,ctime,dev,inode,size in items_set:
+                    for pathnr,path,file,ctime,dev,inode,size in items_set:
                         hist[(pathnr,path)]+=1
                     if not any([val for val in hist.values() if val>1]):
                         continue
@@ -3861,7 +3895,7 @@ class Gui:
                 #kind,crc,(pathnr,path,file,ctime,dev,inode)
                 self_groups_tree_item_to_data[group_item]=(self_CRC,size,crc,(None,None,None,None,None,None) )
 
-                for pathnr,path,file,mtime,ctime,dev,inode,size in sorted(items_set,key=lambda x : (x[7],x[0],x[1],x[2]),reverse=True):
+                for pathnr,path,file,ctime,dev,inode,size in sorted(items_set,key=lambda x : (x[6],x[0],x[1],x[2]),reverse=True):
                     if show_mode_same_dir:
                         if hist[(pathnr,path)]==1:
                             continue
@@ -3886,8 +3920,6 @@ class Gui:
                     #kind,crc,index_tuple
                     #kind,crc,(pathnr,path,file,ctime,dev,inode)
                     self_groups_tree_item_to_data[file_item]=(self_FILE,size,crc, (pathnr,path,file,ctime,dev,inode) )
-
-
         else:
             #####################################################
 
@@ -4078,7 +4110,6 @@ class Gui:
             values=('..','','',self.UPDIR,'',0,'',0,'',0,'')
             folder_items_add((updir_code,sort_val_func(values[sort_index_local]),'0UP','',values,self_DIR,''))
 
-        #print('b1')
         #############################################
         try:
             with scandir(current_path) as res:
@@ -4142,7 +4173,6 @@ class Gui:
             self.status(str(e))
             return False
 
-        #print('b2')
         ############################################################
 
         if arbitrary_path:
@@ -4171,13 +4201,10 @@ class Gui:
             self.status(str(e))
             l_error(e)
 
-        #print('b3',arbitrary_path)
         if not arbitrary_path:
             try:
-                #print('b3a',self.sel_item,'    ',self.current_folder_items)
                 self.semi_selection(ftree,self.sel_item)
                 ftree.see(self.sel_item)
-                #print('b3b')
             except Exception:
                 pass
 
@@ -4665,9 +4692,96 @@ class Gui:
         self.status('checking data consistency with filesystem state ...')
 
         if self.similarity_mode:
-            self.get_text_info_dialog().show('Similarity mode','Similarity mode is under development.\n\nActions disabled for now for security reasons.' )
+            ###############################################################
+            self.get_info_dialog_on_main().show('Warning !','Similarity mode !\nFiles in groups are not exact copies !')
 
-            return self.CHECK_ERR
+            dude_core_check_group_files_state = dude_core.check_group_files_state
+
+            for group in processed_items:
+                size = 0
+
+                try:
+                    (checkres,tuples_to_remove)=dude_core_check_group_files_state(size,group,True)
+                except Exception as e:
+                    self.get_text_info_dialog().show('Error. dude_core_check_group_files_state error.',str(e) )
+                    return self.CHECK_ERR
+
+                if checkres:
+                    self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected group will be reduced. For complete results re-scanning is recommended.')
+                    self.store_text_dialog_fields(self.text_info_dialog)
+
+                    orglist=self.tree_children[self.groups_tree]
+
+                    dude_core.remove_from_data_pool(size,group,tuples_to_remove,self.file_remove_callback,self.group_remove_callback)
+
+                    self.data_precalc()
+
+                    newlist=self.tree_children[self.groups_tree]
+                    item_to_sel = self.get_closest_in_group(orglist,group,newlist)
+
+                    self.reset_sels()
+
+                    if item_to_sel:
+                        #group node moze zniknac - trzeba zupdejtowac SelXxx
+                        self.crc_select_and_focus(item_to_sel,True)
+                    else:
+                        self.initial_focus()
+
+                    self.calc_mark_stats_groups()
+
+                    return self.CHECK_ERR
+
+            self.status('checking selection correctness...')
+
+            incorrect_groups=[]
+            incorrect_groups_append = incorrect_groups.append
+            if action==HARDLINK:
+                for group in processed_items:
+                    if len(processed_items[group])==1:
+                        incorrect_groups_append(group)
+                problem_header = 'Single file marked'
+                problem_message = "Mark more files\nor enable option:\n\"Skip groups with invalid selection\""
+            else:
+                for group in processed_items:
+                    if len(remaining_items[group])==0:
+                        incorrect_groups_append(group)
+
+                problem_header = 'All files marked'
+                if action==SOFTLINK or action==WIN_LNK:
+                    problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
+                else:
+                    problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\""
+
+            if incorrect_groups:
+                if skip_incorrect:
+
+                    incorrect_group_str='\n'.join([group if show_full_crc else group[:dude_core.group_cut_len] for group in incorrect_groups ])
+                    header = f'Warning ({NAME[action]}). {problem_header}'
+                    message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
+
+                    self.get_text_info_dialog().show(header,message)
+                    self.store_text_dialog_fields(self.text_info_dialog)
+
+                    self.group_select_and_focus(incorrect_groups[0],True)
+
+                    for group in incorrect_groups:
+                        del processed_items[group]
+                        del remaining_items[group]
+
+                else:
+                    if action==DELETE and self.cfg_get_bool(CFG_ALLOW_DELETE_ALL):
+                        self.get_text_ask_dialog().show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED')
+                        self.store_text_dialog_fields(self.text_ask_dialog)
+                        if self.text_ask_dialog.res_bool:
+                            return self.CHECK_OK
+                    else:
+                        header = f'Error ({NAME[action]}). {problem_header}'
+                        self.get_info_dialog_on_main().show(header,problem_message)
+
+                    self.group_select_and_focus(incorrect_groups[0],True)
+                    return self.CHECK_ERR
+
+            ###############################################################
         else:
             dude_core_check_group_files_state = dude_core.check_group_files_state
 
@@ -4766,23 +4880,42 @@ class Gui:
         self_file_check_state = self.file_check_state
         self_groups_tree_item_to_data = self.groups_tree_item_to_data
 
-        if action==HARDLINK:
-            for crc,items_dict in processed_items.items():
-                #kind,size,crc, (pathnr,path,file,ctime,dev,inode)
-                if len({self_groups_tree_item_to_data[item][3][4] for item in items_dict.values()})>1: #dev
-                    title='Can\'t create hardlinks.'
-                    message=f"Files on multiple devices selected. Crc:{crc}"
-                    l_error(title)
-                    l_error(message)
-                    self.get_info_dialog_on_main().show(title,message)
-                    return self.CHECK_ERR
+        if self.similarity_mode:
+            if action==HARDLINK:
+                for group,items_dict in processed_items.items():
+                    #kind,size,group, (pathnr,path,file,ctime,dev,inode)
+                    if len({self_groups_tree_item_to_data[item][3][4] for item in items_dict.values()})>1: #dev
+                        title='Can\'t create hardlinks.'
+                        message=f"Files on multiple devices selected. Group:{group}"
+                        l_error(title)
+                        l_error(message)
+                        self.get_info_dialog_on_main().show(title,message)
+                        return self.CHECK_ERR
 
-        for crc in processed_items:
-            for item in remaining_items[crc].values():
-                if res:=self_file_check_state(item):
-                    self.get_info_dialog_on_main().show('Error',res+'\n\nNo action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.')
-                    l_error('aborting.')
-                    return self.CHECK_ERR
+            for crc in processed_items:
+                for item in remaining_items[crc].values():
+                    if res:=self_file_check_state(item):
+                        self.get_info_dialog_on_main().show('Error',res+'\n\nNo action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.')
+                        l_error('aborting.')
+                        return self.CHECK_ERR
+        else:
+            if action==HARDLINK:
+                for crc,items_dict in processed_items.items():
+                    #kind,size,crc, (pathnr,path,file,ctime,dev,inode)
+                    if len({self_groups_tree_item_to_data[item][3][4] for item in items_dict.values()})>1: #dev
+                        title='Can\'t create hardlinks.'
+                        message=f"Files on multiple devices selected. Crc:{crc}"
+                        l_error(title)
+                        l_error(message)
+                        self.get_info_dialog_on_main().show(title,message)
+                        return self.CHECK_ERR
+
+            for crc in processed_items:
+                for item in remaining_items[crc].values():
+                    if res:=self_file_check_state(item):
+                        self.get_info_dialog_on_main().show('Error',res+'\n\nNo action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.')
+                        l_error('aborting.')
+                        return self.CHECK_ERR
 
         l_info('remaining files checking complete.')
         return self.CHECK_OK
@@ -4814,64 +4947,114 @@ class Gui:
 
         self_groups_tree_item_to_data = self.groups_tree_item_to_data
         size_sum=0
-        for crc,items_dict in processed_items.items():
 
-            message_append('')
+        if self.similarity_mode:
+            for group,items_dict in processed_items.items():
+                message_append('')
 
-            size=self.crc_to_size[crc]
-
-            if self.similarity_mode:
                 if cfg_show_crc_size:
-                    message_append('GROUP:' + crc + 'size:' + bytes_to_str(size) + '|GRAY')
-            else:
+                    message_append('GROUP:' + group + '|GRAY')
+
+                for index,item in items_dict.items():
+                    kind,size_item,crc_item, (pathnr,path,file,ctime,dev,inode) = self_groups_tree_item_to_data[item]
+                    size_sum += size_item
+
+                    if action_is_win_lnk:
+                        message_append(space_prefix + (self_item_full_path(item) if show_full_path else file) + '(.lnk)|RED' )
+                    else:
+                        message_append(space_prefix + (self_item_full_path(item) if show_full_path else file) + '|RED' )
+
+                if softlink_or_win_lnk:
+                    if remaining_items[crc]:
+                        item = remaining_items[crc][0]
+                        if cfg_show_links_targets:
+                            message_append('> %s' % (self_item_full_path(item) if show_full_path else self_groups_tree_item_to_data[item][3][2]) ) #file
+
+            size_info = "Processed files size sum : " + bytes_to_str(size_sum) + "\n"
+
+            trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No") + "|RED"
+
+            head_info = scope_title + trash_info
+            if action==DELETE:
+                erase_empty_dirs = "\nErase empty directories  : " + ('Yes|RED' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
+                self.get_text_ask_dialog().show('Delete marked files ?','Scope: ' + head_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
+                self.store_text_dialog_fields(self.text_ask_dialog)
+                if not self.text_ask_dialog.res_bool:
+                    return True
+            elif action_is_softlink:
+                self.get_text_ask_dialog().show('Soft-Link marked files to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+                self.store_text_dialog_fields(self.text_ask_dialog)
+                if not self.text_ask_dialog.res_bool:
+                    return True
+            elif action_is_win_lnk:
+                self.get_text_ask_dialog().show('replace marked files with .lnk files pointing to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+                self.store_text_dialog_fields(self.text_ask_dialog)
+                if not self.text_ask_dialog.res_bool:
+                    return True
+            elif action==HARDLINK:
+                self.get_text_ask_dialog().show('Hard-Link marked files together in groups ?','Scope: ' + head_info + '\n\n' + size_info +'\n'+'\n'.join(message))
+                self.store_text_dialog_fields(self.text_ask_dialog)
+                if not self.text_ask_dialog.res_bool:
+                    return True
+
+            _ = {l_warning(line) for line in message}
+            l_warning('###########################################################################################')
+            l_warning('Confirmed.')
+
+        else:
+            for crc,items_dict in processed_items.items():
+                message_append('')
+
+                size=self.crc_to_size[crc]
+
                 if cfg_show_crc_size:
                     message_append('CRC:' + crc + ' size:' + bytes_to_str(size) + '|GRAY')
 
-            for index,item in items_dict.items():
-                size_sum += size
-                kind,size_item,crc_item, (pathnr,path,file,ctime,dev,inode) = self_groups_tree_item_to_data[item]
+                for index,item in items_dict.items():
+                    size_sum += size
+                    kind,size_item,crc_item, (pathnr,path,file,ctime,dev,inode) = self_groups_tree_item_to_data[item]
 
-                if action_is_win_lnk:
-                    message_append(space_prefix + (self_item_full_path(item) if show_full_path else file) + '(.lnk)|RED' )
-                else:
-                    message_append(space_prefix + (self_item_full_path(item) if show_full_path else file) + '|RED' )
+                    if action_is_win_lnk:
+                        message_append(space_prefix + (self_item_full_path(item) if show_full_path else file) + '(.lnk)|RED' )
+                    else:
+                        message_append(space_prefix + (self_item_full_path(item) if show_full_path else file) + '|RED' )
 
-            if softlink_or_win_lnk:
-                if remaining_items[crc]:
-                    item = remaining_items[crc][0]
-                    if cfg_show_links_targets:
-                        message_append('> %s' % (self_item_full_path(item) if show_full_path else self_groups_tree_item_to_data[item][3][2]) ) #file
+                if softlink_or_win_lnk:
+                    if remaining_items[crc]:
+                        item = remaining_items[crc][0]
+                        if cfg_show_links_targets:
+                            message_append('> %s' % (self_item_full_path(item) if show_full_path else self_groups_tree_item_to_data[item][3][2]) ) #file
 
-        size_info = "Processed files size sum : " + bytes_to_str(size_sum) + "\n"
+            size_info = "Processed files size sum : " + bytes_to_str(size_sum) + "\n"
 
-        trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No") + "|RED"
+            trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No") + "|RED"
 
-        head_info = scope_title + trash_info
-        if action==DELETE:
-            erase_empty_dirs = "\nErase empty directories  : " + ('Yes|RED' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
-            self.get_text_ask_dialog().show('Delete marked files ?','Scope: ' + head_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
-            self.store_text_dialog_fields(self.text_ask_dialog)
-            if not self.text_ask_dialog.res_bool:
-                return True
-        elif action_is_softlink:
-            self.get_text_ask_dialog().show('Soft-Link marked files to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
-            self.store_text_dialog_fields(self.text_ask_dialog)
-            if not self.text_ask_dialog.res_bool:
-                return True
-        elif action_is_win_lnk:
-            self.get_text_ask_dialog().show('replace marked files with .lnk files pointing to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
-            self.store_text_dialog_fields(self.text_ask_dialog)
-            if not self.text_ask_dialog.res_bool:
-                return True
-        elif action==HARDLINK:
-            self.get_text_ask_dialog().show('Hard-Link marked files together in groups ?','Scope: ' + head_info + '\n\n' + size_info +'\n'+'\n'.join(message))
-            self.store_text_dialog_fields(self.text_ask_dialog)
-            if not self.text_ask_dialog.res_bool:
-                return True
+            head_info = scope_title + trash_info
+            if action==DELETE:
+                erase_empty_dirs = "\nErase empty directories  : " + ('Yes|RED' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
+                self.get_text_ask_dialog().show('Delete marked files ?','Scope: ' + head_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
+                self.store_text_dialog_fields(self.text_ask_dialog)
+                if not self.text_ask_dialog.res_bool:
+                    return True
+            elif action_is_softlink:
+                self.get_text_ask_dialog().show('Soft-Link marked files to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+                self.store_text_dialog_fields(self.text_ask_dialog)
+                if not self.text_ask_dialog.res_bool:
+                    return True
+            elif action_is_win_lnk:
+                self.get_text_ask_dialog().show('replace marked files with .lnk files pointing to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+                self.store_text_dialog_fields(self.text_ask_dialog)
+                if not self.text_ask_dialog.res_bool:
+                    return True
+            elif action==HARDLINK:
+                self.get_text_ask_dialog().show('Hard-Link marked files together in groups ?','Scope: ' + head_info + '\n\n' + size_info +'\n'+'\n'.join(message))
+                self.store_text_dialog_fields(self.text_ask_dialog)
+                if not self.text_ask_dialog.res_bool:
+                    return True
 
-        _ = {l_warning(line) for line in message}
-        l_warning('###########################################################################################')
-        l_warning('Confirmed.')
+            _ = {l_warning(line) for line in message}
+            l_warning('###########################################################################################')
+            l_warning('Confirmed.')
 
         return False
 
@@ -4962,44 +5145,80 @@ class Gui:
 
         self.process_files_result=('','')
 
-        if action==DELETE:
-            directories_to_check=set()
-            directories_to_check_add = directories_to_check.add
-            for crc,items_dict in processed_items.items():
-                tuples_to_delete=set()
-                tuples_to_delete_add = tuples_to_delete.add
-                size = self.crc_to_size[crc]
+        directories_to_check=set()
+        directories_to_check_add = directories_to_check.add
 
-                self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-                if self.similarity_mode:
-                    self.process_files_core_info1 = f'group:{crc}'
-                else:
+        if action==DELETE:
+            if self.similarity_mode:
+                for group,items_dict in processed_items.items():
+                    tuples_to_delete=set()
+                    tuples_to_delete_add = tuples_to_delete.add
+
+                    #self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
+                    self.process_files_core_info1 = f'group:{group}'
+
+                    for item in items_dict.values():
+                        kind,size,group, index_tuple = self_groups_tree_item_to_data[item]
+                        (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+
+                        index_tuple_extended = pathnr,path,file_name,ctime,dev,inode,size
+
+                        #tuples_to_delete_add(index_tuple)
+                        tuples_to_delete_add(index_tuple_extended)
+
+                        self.process_files_core_info2 = f'{path}{sep}{file_name}'
+
+                        self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
+                        self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
+
+                        self.process_files_counter+=1
+                        self.process_files_size_sum+=size
+
+                        if erase_empty_dirs:
+                            if path:
+                                directories_to_check_add( tuple( [pathnr] + path.strip(sep).split(sep) ) )
+
+                    if resmsg:=dude_core_delete_file_wrapper(size,group,tuples_to_delete,to_trash,self.file_remove_callback,self.crc_remove_callback,True):
+                        resmsg_str='\n'.join(resmsg)
+                        l_error(resmsg_str)
+                        end_message_list_append(resmsg_str)
+
+                        if abort_on_error:
+                            break
+            else:
+                for crc,items_dict in processed_items.items():
+                    tuples_to_delete=set()
+                    tuples_to_delete_add = tuples_to_delete.add
+                    size = self.crc_to_size[crc]
+
+                    self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
                     self.process_files_core_info1 = f'crc:{crc}'
 
-                for item in items_dict.values():
-                    index_tuple=self_groups_tree_item_to_data[item][3]
-                    tuples_to_delete_add(index_tuple)
-                    (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+                    for item in items_dict.values():
+                        index_tuple=self_groups_tree_item_to_data[item][3]
+                        tuples_to_delete_add(index_tuple)
+                        (pathnr,path,file_name,ctime,dev,inode)=index_tuple
 
-                    self.process_files_core_info2 = f'{path}{sep}{file_name}'
+                        self.process_files_core_info2 = f'{path}{sep}{file_name}'
 
-                    self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
-                    self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
+                        self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
+                        self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
-                    self.process_files_counter+=1
-                    self.process_files_size_sum+=size
+                        self.process_files_counter+=1
+                        self.process_files_size_sum+=size
 
-                    if erase_empty_dirs:
-                        if path:
-                            directories_to_check_add( tuple( [pathnr] + path.strip(sep).split(sep) ) )
+                        if erase_empty_dirs:
+                            if path:
+                                directories_to_check_add( tuple( [pathnr] + path.strip(sep).split(sep) ) )
 
-                if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash,self.file_remove_callback,self.crc_remove_callback):
-                    resmsg_str='\n'.join(resmsg)
-                    l_error(resmsg_str)
-                    end_message_list_append(resmsg_str)
+                    if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash,self.file_remove_callback,self.crc_remove_callback):
+                        resmsg_str='\n'.join(resmsg)
+                        l_error(resmsg_str)
+                        end_message_list_append(resmsg_str)
 
-                    if abort_on_error:
-                        break
+                        if abort_on_error:
+                            break
+
 
             if erase_empty_dirs:
 
@@ -5212,7 +5431,15 @@ class Gui:
                 org_sel_file=None
 
         self.process_files_total = len([item for crc,items_dict in processed_items.items() for item in items_dict.values()])
-        self.process_files_total_size = sum([self.crc_to_size[crc] for crc,items_dict in processed_items.items() for item in items_dict.values()])
+
+        if self.similarity_mode:
+            self_groups_tree_item_to_data = self.groups_tree_item_to_data
+            #kind,size_item,crc_item, (pathnr,path,file,ctime,dev,inode) = self_groups_tree_item_to_data[item] for index,item in items_dict.items()
+            self.process_files_total_size = sum([self_groups_tree_item_to_data[item][1] for group,items_dict in processed_items.items() for item in items_dict.values()])
+        else:
+
+            self.process_files_total_size = sum([self.crc_to_size[crc] for crc,items_dict in processed_items.items() for item in items_dict.values()])
+
         self.process_files_total_size_str = bytes_to_str(self.process_files_total_size)
 
         dialog = self.get_progress_dialog_on_main()
@@ -5684,7 +5911,22 @@ if __name__ == "__main__":
 
         else:
             images_mode = bool(p_args.images or p_args.ih or p_args.id or p_args.ir)
-            Gui( getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun,images_mode,int(p_args.ih[0]),int(p_args.id[0]),p_args.ir )
+
+            images_mode_tuple=[images_mode]
+
+            if p_args.ih:
+                images_mode_tuple.append(int(p_args.ih[0]))
+            else:
+                images_mode_tuple.append(8)
+
+            if p_args.id:
+                images_mode_tuple.append(int(p_args.id[0]))
+            else:
+                images_mode_tuple.append(5)
+
+            images_mode_tuple.append(p_args.ir)
+
+            Gui( getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun,images_mode_tuple )
 
     except Exception as e_main:
         print(e_main)

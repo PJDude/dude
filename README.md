@@ -30,9 +30,9 @@ A cross-platform GUI utility for finding duplicated files, delete or link them t
 ## Download:
 Portable executable packages created with [PyInstaller](https://pyinstaller.org/en/stable) for **Linux** and **Windows** can be downloaded from the [Releases](https://github.com/PJDude/dude/releases) site. At the same time, separate builds are created with the [Nuitka](https://github.com/Nuitka/Nuitka) compiler.
 
-## [SOFTPEDIA review](https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml)
+## [Review on SOFTPEDIA](https://www.softpedia.com/get/System/File-Management/Dude-DUplicates-DEtector.shtml)
 
-## [MAJORGEEKS review](https://www.majorgeeks.com/files/details/dude_(duplicates_detector).html)
+## [Review on MAJORGEEKS](https://www.majorgeeks.com/files/details/dude_(duplicates_detector).html)
 
 ## General usage:
 - Scan for duplicate files

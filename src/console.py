@@ -67,8 +67,8 @@ def parse_args(ver):
     run_mode_group.add_argument('-c','--csv' ,nargs=1,help=c_help)
 
     parser.add_argument('-i','--images' ,action='store_true',help='Images similarity mode')
-    parser.add_argument('-ih' ,nargs=1,help='Images similarity mode hash size',choices=('4','6','8','10','12','14','16','18','20','22','24','26','28','30','32'),default='6')
-    parser.add_argument('-id' ,nargs=1,help='Images similarity mode divergence value',choices=('0','1','2','3','4','5','6','7','8','9'),default='5' )
+    parser.add_argument('-ih' ,nargs=1,help='Images similarity mode hash size',choices=('4','6','8','10','12','14','16','18','20','22','24','26','28','30','32'))
+    parser.add_argument('-id' ,nargs=1,help='Images similarity mode divergence value',choices=('0','1','2','3','4','5','6','7','8','9'))
     parser.add_argument('-ir' ,action='store_true',help='Images similarity mode process all rotations')
 
     parser_help=parser.format_help().split('\n')
@@ -103,15 +103,15 @@ if __name__ == "__main__":
     if args.images or args.hash or args.divergence or args.rotations:
         command.append('--images')
 
-    if args.hash:
+    if args.ih:
         command.append('-ih')
         command.append(args.ih)
 
-    if args.divergence:
+    if args.id:
         command.append('-id')
         command.append(args.id)
 
-    if args.rotations:
+    if args.ir:
         command.append('-ir')
 
     if args.paths:

@@ -52,9 +52,9 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 from send2trash import send2trash
 
 from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
-from imagehash import average_hash,phash,dhash,whash,colorhash,hex_to_hash
+from imagehash import average_hash,phash,dhash,whash
 
-from sklearn.cluster import DBSCAN,MiniBatchKMeans
+from sklearn.cluster import DBSCAN
 from numpy import array as numpy_array
 
 DELETE=0
@@ -592,7 +592,6 @@ class DudeCore:
         try:
             with open(sep.join([self.cache_dir,'ihashes.dat']), "rb") as dat_file:
                 self.images_hashes_cache = loads(ZstdDecompressor().decompress(dat_file.read()))
-                #print('ddddd:',self.images_hashes_cache)
         except Exception as e1:
             self.log.warning(e1)
         else:
@@ -630,11 +629,12 @@ class DudeCore:
                 for hash_row in dhash(file,hash_size).hash:
                     seq_hash_extend(hash_row)
 
+                #whash
                 #colorhash(file).hash.tolist()
 
             return tuple(seq_hash)
 
-        for index_tuple,fullpath in sorted(source_dict.items(), key = lambda x : x[0][7], reverse=True):
+        for index_tuple,fullpath in sorted(source_dict.items(), key = lambda x : x[0][6], reverse=True):
             if self.abort_action:
                 break
 
@@ -698,13 +698,14 @@ class DudeCore:
         size_to_calculate = 0
 
         rotations_list = (0,1,2,3) if all_rotations else (0,)
-        for pathnr,path,file_name,mtime,ctime,dev,inode,size in sorted(self.scan_results_images, key = lambda x : x[7], reverse=True):
+        for pathnr,path,file_name,mtime,ctime,dev,inode,size in sorted(self.scan_results_images, key = lambda x : x[6], reverse=True):
             all_rotations_from_cache = True
             for rotation in rotations_list:
                 dict_key = (dev,inode,mtime,hash_size,rotation)
+
                 if dict_key in self.images_hashes_cache:
                     if val := self.images_hashes_cache[dict_key]:
-                        self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size,rotation)] = val
+                        self.scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)] = val
                 else:
                     all_rotations_from_cache = False
                     break
@@ -763,7 +764,7 @@ class DudeCore:
             for (pathnr,path,file_name,mtime,ctime,dev,inode,size),ihash_rotations in imagehash_threads_sets_results[i].items():
                 for rotation,ihash in enumerate(ihash_rotations):
                     if (rotation in rotations_list) and ihash:
-                        self.scan_results_images_hashes[(pathnr,path,file_name,mtime,ctime,dev,inode,size,rotation)]=numpy_array(ihash)
+                        self.scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)]=numpy_array(ihash)
                         self.images_hashes_cache[(dev,inode,mtime,hash_size,rotation)]=ihash
 
                         anything_new=True
@@ -780,7 +781,7 @@ class DudeCore:
 
         self.info_line = self.info = 'Preparing data pool ...'
 
-        for key,imagehash in sorted(self.scan_results_images_hashes.items(), key=lambda x :x[0][7],reverse = True) :
+        for key,imagehash in sorted(self.scan_results_images_hashes.items(), key=lambda x :x[0][6],reverse = True) :
             pool.append(imagehash)
             keys.append( key )
 
@@ -788,11 +789,7 @@ class DudeCore:
 
         self.info_line = self.info = 'Clustering ...'
 
-        model = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,p=1)
-        #,algorithm='brute'
-
-        labels = model.fit(pool).labels_
-        del model
+        labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='manhattan',algorithm='kd_tree').fit(pool).labels_
 
         #with rotation variants
         groups_dict = defaultdict(set)
@@ -815,19 +812,22 @@ class DudeCore:
         files_already_in_group=set()
         files_already_in_group_add = files_already_in_group.add
 
+
         pruned_groups_dict = defaultdict(set)
         for label in groups_sorted_by_quantity:
             #print(f'{label=}',type(label))
             for key in groups_dict[label]:
                 #print(f'    {key=}')
 
-                (pathnr,path,file_name,mtime,ctime,dev,inode,size,rotation) = key
+                (pathnr,path,file_name,ctime,dev,inode,size,rotation) = key
                 file_key = (dev,inode)
-                key_without_rotation = (pathnr,path,file_name,mtime,ctime,dev,inode,size)
+                key_without_rotation = (pathnr,path,file_name,ctime,dev,inode,size)
 
                 if file_key not in files_already_in_group:
                     files_already_in_group_add(file_key)
                     pruned_groups_dict[label].add(key_without_rotation)
+                #else:
+                    #print('pruning file',path,file_name,rotation)
 
         ##############################################
         self_files_of_images_groups = self.files_of_images_groups = {}
@@ -1097,7 +1097,7 @@ class DudeCore:
 
         self.calc_crc_min_len()
 
-    def check_group_files_state(self,size,crc):
+    def check_group_files_state(self,size,crc,similarity_mode=False):
         self.log.info('check_group_files_state: %s %s',size,crc)
 
         self_get_full_path_to_scan = self.get_full_path_to_scan
@@ -1106,30 +1106,60 @@ class DudeCore:
         to_remove=[]
         to_remove_append = to_remove.append
 
-        if self.files_of_size_of_crc[size][crc]:
-            for pathnr,path,file_name,ctime,dev,inode in self.files_of_size_of_crc[size][crc]:
-                full_path=self_get_full_path_to_scan(pathnr,path,file_name)
+        if similarity_mode:
+            group=crc
+            if self.files_of_images_groups[group]:
+                #overwrite size
+                for pathnr,path,file_name,ctime,dev,inode,size in self.files_of_images_groups[group]:
 
-                problem=False
-                try:
-                    stat_res = stat(full_path)
-                except Exception as e:
-                    self.log.error(f'check_group_files_state:{e}')
-                    res_problems_append('%s|RED' % e)
-                    problem=True
-                else:
-                    if stat_res.st_nlink>1:
-                        res_problems_append(f'file became hardlink:{stat_res.st_nlink},{pathnr},{path},{file_name}')
+                    full_path=self_get_full_path_to_scan(pathnr,path,file_name)
+
+                    problem=False
+                    try:
+                        stat_res = stat(full_path)
+                    except Exception as e:
+                        self.log.error(f'check_group_files_state:{e}')
+                        res_problems_append('%s|RED' % e)
                         problem=True
                     else:
-                        if (size,ctime,dev,inode) != (stat_res.st_size,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino):
-                            res_problems_append(f'file changed:{size},{ctime},{dev},{inode},{stat_res.st_size},{stat_res.st_ctime_ns},{stat_res.st_dev},{stat_res.st_ino}' )
+                        if stat_res.st_nlink>1:
+                            res_problems_append(f'file became hardlink:{stat_res.st_nlink},{pathnr},{path},{file_name}')
                             problem=True
-                if problem:
-                    index_tuple=(pathnr,path,file_name,ctime,dev,inode)
-                    to_remove_append(index_tuple)
-        else :
-            res_problems_append('no data')
+                        else:
+                            if (size,ctime,dev,inode) != (stat_res.st_size,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino):
+                                res_problems_append(f'file changed:{size},{ctime},{dev},{inode},{stat_res.st_size},{stat_res.st_ctime_ns},{stat_res.st_dev},{stat_res.st_ino}' )
+                                problem=True
+                    if problem:
+                        index_tuple=(pathnr,path,file_name,ctime,dev,inode)
+                        to_remove_append(index_tuple)
+            else :
+                res_problems_append('no data')
+
+        else:
+            if self.files_of_size_of_crc[size][crc]:
+                for pathnr,path,file_name,ctime,dev,inode in self.files_of_size_of_crc[size][crc]:
+                    full_path=self_get_full_path_to_scan(pathnr,path,file_name)
+
+                    problem=False
+                    try:
+                        stat_res = stat(full_path)
+                    except Exception as e:
+                        self.log.error(f'check_group_files_state:{e}')
+                        res_problems_append('%s|RED' % e)
+                        problem=True
+                    else:
+                        if stat_res.st_nlink>1:
+                            res_problems_append(f'file became hardlink:{stat_res.st_nlink},{pathnr},{path},{file_name}')
+                            problem=True
+                        else:
+                            if (size,ctime,dev,inode) != (stat_res.st_size,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino):
+                                res_problems_append(f'file changed:{size},{ctime},{dev},{inode},{stat_res.st_size},{stat_res.st_ctime_ns},{stat_res.st_dev},{stat_res.st_ino}' )
+                                problem=True
+                    if problem:
+                        index_tuple=(pathnr,path,file_name,ctime,dev,inode)
+                        to_remove_append(index_tuple)
+            else :
+                res_problems_append('no data')
 
         return (res_problems,to_remove)
 
@@ -1149,13 +1179,19 @@ class DudeCore:
                         csv_file_write(',,%s\n' % full_path )
             self.log.info('#######################################################')
 
+    def check_group_pool_and_prune(self,crc,crc_callback=None):
+        if len(self.files_of_images_groups[crc])<2 :
+            del self.files_of_images_groups[crc]
+            if crc_callback:
+                crc_callback(crc)
+
     def check_crc_pool_and_prune(self,size,crc_callback=None):
         if size in self.files_of_size_of_crc:
             for crc in list(self.files_of_size_of_crc[size]):
                 if len(self.files_of_size_of_crc[size][crc])<2 :
                     del self.files_of_size_of_crc[size][crc]
                     if crc_callback:
-                        crc_callback(size,crc)
+                        crc_callback(crc)
 
             if len(self.files_of_size_of_crc[size])==0 :
                 del self.files_of_size_of_crc[size]
@@ -1237,54 +1273,83 @@ class DudeCore:
             self.log.error(e)
             return 'Error on hard linking:%s' % e
 
-    def remove_from_data_pool(self,size,crc,index_tuple_list,file_callback=None,crc_callback=None):
+    def remove_from_data_pool(self,size,crc,index_tuple_list,file_callback=None,crc_callback=None,similarity_mode=False):
         self.log.info('remove_from_data_pool size:%s crc:%s tuples:%s',size,crc,index_tuple_list)
 
-        if size in self.files_of_size_of_crc:
-            if crc in self.files_of_size_of_crc[size]:
-                for index_tuple in index_tuple_list:
-                    try:
-                        self.files_of_size_of_crc[size][crc].remove(index_tuple)
-                        if file_callback(size,crc,index_tuple):
-                            file_callback()
-                    except Exception as e:
-                        self.log.error('  %s',e)
-                        self.log.error('  index_tuple: %s',index_tuple)
-                        self.log.error('  self.files_of_size_of_crc[%s][%s]:%s',size,crc,self.files_of_size_of_crc[size][crc])
+        if similarity_mode:
+            if crc in self.files_of_images_groups:
+                for pathnr,path,file,ctime,dev,inode,size_file in list(self.files_of_images_groups[crc]):
+                    for index_tuple in index_tuple_list:
+                        try:
+                            self.files_of_images_groups[crc].remove(index_tuple)
+                            file_callback(size_file,crc,index_tuple)
+
+                        except Exception as e:
+                            self.log.error('  %s',e)
+                            self.log.error('  index_tuple: %s',index_tuple)
+                            self.log.error('  self.files_of_images_groups[%s]:%s',crc,self.files_of_images_groups[crc])
+                else:
+                    self.log.warning('remove_from_data_pool - crc already removed')
+
+                self.check_group_pool_and_prune(crc,crc_callback)
             else:
-                self.log.warning('remove_from_data_pool - crc already removed')
-
-            self.check_crc_pool_and_prune(size,crc_callback)
+                self.log.warning('remove_from_data_pool - size already removed')
         else:
-            self.log.warning('remove_from_data_pool - size already removed')
+            if size in self.files_of_size_of_crc:
+                if crc in self.files_of_size_of_crc[size]:
+                    for index_tuple in index_tuple_list:
+                        try:
+                            self.files_of_size_of_crc[size][crc].remove(index_tuple)
+                            file_callback(size,crc,index_tuple)
 
-    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash,file_callback=None,crc_callback=None):
+                        except Exception as e:
+                            self.log.error('  %s',e)
+                            self.log.error('  index_tuple: %s',index_tuple)
+                            self.log.error('  self.files_of_size_of_crc[%s][%s]:%s',size,crc,self.files_of_size_of_crc[size][crc])
+                else:
+                    self.log.warning('remove_from_data_pool - crc already removed')
+
+                self.check_crc_pool_and_prune(size,crc_callback)
+            else:
+                self.log.warning('remove_from_data_pool - size already removed')
+
+    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash,file_callback,crc_callback,similarity_mode=False):
         messages=set()
         messages_add = messages.add
 
         index_tuples_list_done=[]
         l_info = self.log.info
         self_get_full_path_scanned = self.get_full_path_scanned
-        self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
+
+        if similarity_mode:
+            pool = self.files_of_images_groups[crc]
+        else:
+            pool = self.files_of_size_of_crc[size][crc]
 
         index_tuples_list_done_append = index_tuples_list_done.append
 
         delete_command = self.delete_file_to_trash if to_trash else self.delete_file
 
+        #print(f'{pool=}')
         for index_tuple in index_tuple_set:
-            (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+            if similarity_mode:
+                (pathnr,path,file_name,ctime,dev,inode,size)=index_tuple
+            else:
+                (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+
             full_file_path=self_get_full_path_scanned(pathnr,path,file_name)
 
-            if index_tuple in self_files_of_size_of_crc_size_crc:
+            #print(f'{index_tuple=}')
+            if index_tuple in pool:
 
                 if message:=delete_command(full_file_path,l_info):
                     messages_add(message)
                 else:
                     index_tuples_list_done_append(index_tuple)
             else:
-                messages_add('delete_file_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path,str(index_tuple)) )
+                messages_add('%s, delete_file_wrapper - Internal Data Inconsistency:%s / %s' % (similarity_mode,full_file_path,str(index_tuple)) )
 
-        self.remove_from_data_pool(size,crc,index_tuples_list_done,file_callback,crc_callback)
+        self.remove_from_data_pool(size,crc,index_tuples_list_done,file_callback,crc_callback,similarity_mode)
 
         return messages
 
