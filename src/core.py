@@ -785,6 +785,7 @@ class DudeCore:
             pool.append(imagehash)
             keys.append( key )
 
+
         de_norm_distance = distance*hash_size*0.33*0.25+0.001
 
         self.info_line = self.info = 'Clustering ...'

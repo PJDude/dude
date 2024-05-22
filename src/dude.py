@@ -34,7 +34,7 @@ from signal import signal,SIGINT
 from configparser import ConfigParser
 from subprocess import Popen
 
-from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
+from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar,Canvas
 
 from tkinter.ttk import Checkbutton,Radiobutton,Treeview,Scrollbar,Button,Entry,Combobox,Scale,Style
 
@@ -85,6 +85,7 @@ l_error = logging.error
 CFG_KEY_FULL_CRC='show_full_crc'
 CFG_KEY_SHOW_TOOLTIPS_INFO='show_tooltips_info'
 CFG_KEY_SHOW_TOOLTIPS_HELP='show_tooltips_help'
+CFG_KEY_PREVIEW_AUTO_UPDATE='preview_auto_update'
 CFG_KEY_FULL_PATHS='show_full_paths'
 CFG_KEY_SHOW_MODE='show_mode'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
@@ -126,6 +127,7 @@ cfg_defaults={
     CFG_KEY_FULL_CRC:False,
     CFG_KEY_SHOW_TOOLTIPS_INFO:True,
     CFG_KEY_SHOW_TOOLTIPS_HELP:True,
+    CFG_KEY_PREVIEW_AUTO_UPDATE:True,
     CFG_KEY_FULL_PATHS:False,
     CFG_KEY_SHOW_MODE:'0',
     CFG_KEY_REL_SYMLINKS:True,
@@ -166,6 +168,7 @@ class Config:
         self.config = ConfigParser()
         self.config.add_section('main')
         self.config.add_section('geometry')
+        #self.config.add_section('preview')
 
         self.path = config_dir
         self.file = self.path + '/cfg.ini'
@@ -356,6 +359,22 @@ class Gui:
         l_warning("Received SIGINT signal")
         self.action_abort=True
 
+    def preview_yscrollcommand(self,v1,v2):
+
+        if v1=='0.0' and v2=='1.0':
+            self.preview_canvas_vbar.grid_forget()
+        else:
+            self.preview_canvas_vbar.set(v1,v2)
+            self.preview_canvas_vbar.grid(row=0,column=1,sticky='ns')
+
+    def preview_xscrollcommand(self,v1,v2):
+
+        if v1=='0.0' and v2=='1.0':
+            self.preview_canvas_hbar.grid_forget()
+        else:
+            self.preview_canvas_hbar.set(v1,v2)
+            self.preview_canvas_hbar.grid(row=1,column=0,sticky='we')
+
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images_mode_tuple=None):
         images,ihash,idivergence,rotations = images_mode_tuple if images_mode_tuple else (False,0,0,False)
 
@@ -404,18 +423,47 @@ class Gui:
         self_main.protocol("WM_DELETE_WINDOW", self.delete_window_wrapper)
         self_main.withdraw()
 
-        self.preview = preview = Toplevel(self_main)
-        preview.minsize(400,300)
-        preview.title('Preview')
-        #set_geometry_by_parent(preview, self.main)
+        ####################################
+        self.preview = preview = Toplevel(self_main,takefocus=False)
+        preview_bind = preview.bind
+        preview.minsize(200,50)
+        preview.title('DUDE - Preview')
+
         preview.withdraw()
         preview.update()
-        preview.protocol("WM_DELETE_WINDOW", lambda : self.preview.withdraw())
-        preview.bind('<Escape>', lambda event : self.preview.withdraw() )
-        preview.bind('F9', lambda event : self.preview.withdraw() )
+        preview.protocol("WM_DELETE_WINDOW", lambda : self.hide_preview())
+        preview_bind('<Escape>', lambda event : self.hide_preview() )
 
-        self.preview_label=Label(self.preview)
-        self.preview_label.pack(fill='both',expand=1)
+        preview_frame=Frame(preview)
+        #preview_frame_parent=SFrame(preview,'red')
+        #preview_frame=preview_frame_parent.frame()
+
+        preview_bind('F11', lambda event : self.hide_preview() )
+        preview_bind('<FocusIn>', lambda event : self.preview_focusin() )
+        preview_bind('<Configure>', lambda event : self.preview_conf() )
+
+        ####################################
+        preview_frame.grid_columnconfigure(0, weight=1)
+        preview_frame.grid_rowconfigure(0, weight=1)
+
+        self.preview_canvas = Canvas(preview_frame)
+        self.preview_canvas.grid(row=0,column=0,sticky='news')
+
+        self.preview_canvas_image=self.preview_canvas.create_image(0, 0, anchor="nw")
+        self.preview_canvas.config(scrollregion=self.preview_canvas.bbox('all'))
+
+        self.preview_canvas_vbar = Scrollbar(preview_frame, orient='vertical', command=self.preview_canvas.yview)
+        self.preview_canvas_vbar.grid(row=0,column=1,sticky='ns')
+
+        self.preview_canvas_hbar = Scrollbar(preview_frame, orient='horizontal', command=self.preview_canvas.xview)
+        self.preview_canvas_hbar.grid(row=1,column=0,sticky='we')
+
+        self.preview_canvas.config(yscrollcommand=self.preview_yscrollcommand, xscrollcommand=self.preview_xscrollcommand)
+
+        ####################################
+        self.preview_label_txt=Label(preview,relief='groove',bd=2,anchor='w')
+        self.preview_label_txt.pack(fill='x',side='top',anchor='nw',padx=1,pady=1)
+        preview_frame.pack(fill='both',side='top',anchor="nw",expand=1)
 
         self.main_update = self_main.update
         self.main_update()
@@ -454,6 +502,7 @@ class Gui:
         self.main_icon_tuple = (self.ico_dude,self.ico_dude_small)
 
         self_main.iconphoto(True, *self.main_icon_tuple)
+        preview.iconphoto(True, *self.main_icon_tuple)
 
         self.MARK='M'
         self.UPDIR='0'
@@ -503,6 +552,8 @@ class Gui:
             sys.exit(1)
 
         bg_color = self.bg_color = style.lookup('TFrame', 'background')
+        preview.configure(bg=bg_color)
+        preview_frame.configure(bg=bg_color)
 
         style.theme_use("dummy")
         style_map = style.map
@@ -553,7 +604,6 @@ class Gui:
         self_main.config(menu=self.menubar)
         #######################################################################
 
-        #self_motion_on_widget = self.motion_on_widget
         self_widget_leave = self.widget_leave
 
         self.my_next_dict={}
@@ -984,9 +1034,7 @@ class Gui:
         similarity_hsize_frame.grid_columnconfigure(1, weight=1)
 
         hash_tooltip = "The larger the hash size value,\nthe more details of the image\nare taken into consideration.\nThe default value is 6"
-
         self.widget_tooltip(self.similarity_hsize_scale,hash_tooltip)
-
         self.widget_tooltip(self.similarity_hsize_label_val,hash_tooltip)
 
         similarity_distance_frame = LabelFrame(sf_par3,text='Relative divergence',borderwidth=2,bg=bg_color,takefocus=False)
@@ -1001,9 +1049,7 @@ class Gui:
         similarity_distance_frame.grid_columnconfigure(1, weight=1)
 
         div_tooltip = "The larger the relative divergence value,\nthe more differences are allowed for\nimages to be identified as similar.\nThe default value is 5"
-
         self.widget_tooltip(self.similarity_distance_scale,div_tooltip)
-
         self.widget_tooltip(self.similarity_distance_label_val,div_tooltip)
 
         self.all_rotations_check = Checkbutton(sf_par3, text = 'Check all rotations' , variable=self.all_rotations)
@@ -1050,6 +1096,9 @@ class Gui:
                 self_file_cascade_add_command(label = 'Scan ...',command = self.scan_dialog_show, accelerator="S",image = self_ico['scan'],compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Settings ...',command=lambda : self.get_settings_dialog().show(), accelerator="F2",image = self_ico['settings'],compound='left')
+                self_file_cascade_add_separator()
+                self_file_cascade_add_command(label = 'Show preview window',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = 'Hide preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
@@ -1191,6 +1240,8 @@ class Gui:
 
         self_main.deiconify()
 
+        self.preview_auto_update_bool = self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE)
+
         self.paned.update()
         self.paned.sash_place(0,0,self.cfg_get('sash_coord',400,section='geometry'))
 
@@ -1286,8 +1337,10 @@ class Gui:
         _ = {var.set(self.cfg_get(key)) for var,key in self.settings_str}
         return self.pre_show(on_main_window_dialog=on_main_window_dialog,new_widget=new_widget)
 
-    def widget_tooltip(self,widget,tooltip,type_info=False):
-        widget.bind("<Motion>", lambda event : self.motion_on_widget(event,tooltip))
+    type_info_or_help={}
+    def widget_tooltip(self,widget,message,type_info_or_help=True):
+        self.type_info_or_help[widget,message] = type_info_or_help
+        widget.bind("<Motion>", lambda event : self.motion_on_widget(event,message))
         widget.bind("<Leave>", lambda event : self.widget_leave())
 
     def fix_text_dialog(self,dialog):
@@ -1313,9 +1366,6 @@ class Gui:
     @block
     def get_settings_dialog(self):
         if not self.settings_dialog_created:
-            #self_motion_on_widget = self.motion_on_widget
-            self_widget_leave = self.widget_leave
-
             self.status("Creating dialog ...")
 
             self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show_settings,post_close=self.post_close)
@@ -1323,6 +1373,7 @@ class Gui:
             self.show_full_crc = BooleanVar()
             self.show_tooltips_info = BooleanVar()
             self.show_tooltips_help = BooleanVar()
+            self.preview_auto_update = BooleanVar()
 
             self.show_full_paths = BooleanVar()
             self.show_mode = IntVar()
@@ -1347,6 +1398,7 @@ class Gui:
                 (self.show_full_crc,CFG_KEY_FULL_CRC),
                 (self.show_tooltips_info,CFG_KEY_SHOW_TOOLTIPS_INFO),
                 (self.show_tooltips_help,CFG_KEY_SHOW_TOOLTIPS_HELP),
+                (self.preview_auto_update,CFG_KEY_PREVIEW_AUTO_UPDATE),
                 (self.show_full_paths,CFG_KEY_FULL_PATHS),
                 (self.create_relative_symlinks,CFG_KEY_REL_SYMLINKS),
                 (self.erase_empty_directories,CFG_ERASE_EMPTY_DIRS),
@@ -1370,14 +1422,15 @@ class Gui:
             label_frame=LabelFrame(self.settings_dialog.area_main, text="Results display mode",borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
+            self_widget_tooltip = self.widget_tooltip
             (cb_30:=Radiobutton(label_frame, text = 'All (default)', variable=self.show_mode,value=0)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            self.widget_tooltip(cb_30,'Show all results')
+            self_widget_tooltip(cb_30,'Show all results')
 
             (cb_3:=Radiobutton(label_frame, text = 'Cross paths', variable=self.show_mode,value=1)).grid(row=0,column=1,sticky='wens',padx=3,pady=2)
-            self.widget_tooltip(cb_3,'Ignore (hide) groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease')
+            self_widget_tooltip(cb_3,'Ignore (hide) groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease')
 
             (cb_3a:=Radiobutton(label_frame, text = 'Same directory', variable=self.show_mode,value=2)).grid(row=0,column=2,sticky='wens',padx=3,pady=2)
-            self.widget_tooltip(cb_3a,'Show only groups with result files in the same directory')
+            self_widget_tooltip(cb_3a,'Show only groups with result files in the same directory')
 
             label_frame.grid_columnconfigure((0,1,2), weight=1)
 
@@ -1385,22 +1438,25 @@ class Gui:
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
             (cb_1:=Checkbutton(label_frame, text = 'Show full CRC', variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            self.widget_tooltip(cb_1,'If disabled, shortest necessary prefix of full CRC wil be shown')
+            self_widget_tooltip(cb_1,'If disabled, shortest necessary prefix of full CRC wil be shown')
 
             (cb_2:=Checkbutton(label_frame, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            self.widget_tooltip(cb_2,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips')
+            self_widget_tooltip(cb_2,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips')
 
             Checkbutton(label_frame, text = 'Show info tooltips', variable=self.show_tooltips_info).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
             Checkbutton(label_frame, text = 'Show help tooltips', variable=self.show_tooltips_help).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+
+            (preview_auto_update_cb:=Checkbutton(label_frame, text = 'Preview auto update', variable=self.preview_auto_update)).grid(row=4,column=0,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(preview_auto_update_cb,'If enabled, any change of the selection\nwill automatically update the preview\nwindow (if the format is supported)')
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
             (cb_3:=Checkbutton(label_frame, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            self.widget_tooltip(cb_3,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.')
+            self_widget_tooltip(cb_3,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.')
 
             (cb_4:=Checkbutton(label_frame, text = 'Allow deletion of all copies', variable=self.allow_delete_all,image=self.ico_warning,compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            self.widget_tooltip(cb_4,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies')
+            self_widget_tooltip(cb_4,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies')
 
             Checkbutton(label_frame, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
             Checkbutton(label_frame, text = 'Show CRC/GROUP and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
@@ -1422,14 +1478,14 @@ class Gui:
 
             Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
             (en_1:=Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
-            self.widget_tooltip(en_1,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.')
+            self_widget_tooltip(en_1,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.')
 
             Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=2, column=0,sticky='news')
             (en_2:=Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=2, column=1,sticky='news',padx=3,pady=2)
-            self.widget_tooltip(en_2,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.')
+            self_widget_tooltip(en_2,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.')
 
             (cb_2:=Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly') ).grid(row=2, column=2,sticky='ew',padx=3)
-            self.widget_tooltip(cb_2,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on groups\ndefault is 2')
+            self_widget_tooltip(cb_2,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on groups\ndefault is 2')
 
             label_frame.grid_columnconfigure(1, weight=1)
 
@@ -1779,21 +1835,32 @@ class Gui:
         self.hide_tooltip()
 
     def motion_on_widget(self,event,message=None):
-        show_tooltips_info = self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_INFO)
-        show_tooltips_help = self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_HELP)
+        widget = event.widget
 
-        if show_tooltips_help or show_tooltips_info:#TODO:
+        try:
+            if self.type_info_or_help[widget,message]==False:
+                #info
+                allowed=self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_INFO)
+            else:
+                #help
+                allowed=self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_HELP)
+        except:
+            allowed=False
+
+        if allowed:
             if message:
-                self.tooltip_message[str(event.widget)]=message
-            self.tooltip_show_after_widget = event.widget.after(1, self.show_tooltip_widget(event))
+                self.tooltip_message[str(widget)]=message
+            self.tooltip_show_after_widget = widget.after(1, self.show_tooltip_widget(event))
 
     def motion_on_groups_tree(self,event):
         if not self.block_processing_stack:
-            self.tooltip_show_after_groups = event.widget.after(1, self.show_tooltip_groups(event))
+            if self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_INFO):
+                self.tooltip_show_after_groups = event.widget.after(1, self.show_tooltip_groups(event))
 
     def motion_on_folder_tree(self,event):
         if not self.block_processing_stack:
-            self.tooltip_show_after_folder = event.widget.after(1, self.show_tooltip_folder(event))
+            if self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_INFO):
+                self.tooltip_show_after_folder = event.widget.after(1, self.show_tooltip_folder(event))
 
     def configure_tooltip(self,widget):
         self.tooltip_lab_configure(text=self.tooltip_message[str(widget)])
@@ -1840,8 +1907,9 @@ class Gui:
             colname=tree.column(col,'id')
             if tree.identify("region", event.x, event.y) == 'heading':
                 if colname in ('path','size_h','file','instances_h','ctime_h'):
-                    self.tooltip_lab_configure(text='Sort by %s' % self.org_label[colname])
-                    self.tooltip_deiconify()
+                    if self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_HELP):
+                        self.tooltip_lab_configure(text='Sort by %s' % self.org_label[colname])
+                        self.tooltip_deiconify()
                 else:
                     self.hide_tooltip()
 
@@ -1893,8 +1961,9 @@ class Gui:
             colname=tree.column(col,'id')
             if tree.identify("region", event.x, event.y) == 'heading':
                 if colname in ('size_h','file','instances_h','ctime_h'):
-                    self.tooltip_lab_configure(text='Sort by %s' % self.org_label[colname])
-                    self.tooltip_deiconify()
+                    if self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_HELP):
+                        self.tooltip_lab_configure(text='Sort by %s' % self.org_label[colname])
+                        self.tooltip_deiconify()
                 else:
                     self.hide_tooltip()
             elif item := tree.identify('item', event.x, event.y):
@@ -2000,6 +2069,7 @@ class Gui:
         try:
             self.cfg.set('main',str(self.main.geometry()),section='geometry')
             coords=self.paned.sash_coord(0)
+            self.hide_preview()
             self.cfg.set('sash_coord',str(coords[1]),section='geometry')
             self.cfg.write()
         except Exception as e:
@@ -2354,6 +2424,8 @@ class Gui:
                         self.goto_max_group(0,-1 if shift_pressed else 1)
                     elif key=='F9':
                         self.show_preview()
+                    elif key=='F11':
+                        self.hide_preview()
                     elif key=='BackSpace':
                         self.go_to_parent_dir()
                     elif key in ('i','I'):
@@ -2517,25 +2589,74 @@ class Gui:
 
         return "break"
 
+    preview_photo_image_cache={}
+    preview_photo_image_limit=64
+    preview_photo_image_list=[]
+    preview_shown=False
+
+    def preview_conf(self):
+        if self.preview_shown:
+            self.cfg.set('preview',str(self.preview.geometry()),section='geometry')
+
+    def preview_focusin(self):
+        self.main.focus_set()
+        self.sel_tree.focus_set()
+
     def show_preview(self):
-        self.preview.deiconify()
-        self.preview.update()
+        self.preview_shown=True
 
-        path = self.sel_full_path_to_file
-        print(f'preview {path=}')
+        self_preview = self.preview
+        if cfg_geometry:=self.cfg_get('preview','100x200',section='geometry'):
+            self_preview.geometry(cfg_geometry)
 
-        imname = path
+        self.update_preview()
+        self_preview.deiconify()
 
-        im1 = Image.open(imname).convert("1")
-        size = (im1.width // 4, im1.height // 4)
+        self_preview.lift()
+        self.main.focus_set()
+        self.sel_tree.focus_set()
 
-        im1 = ImageTk.BitmapImage(im1.resize(size))
-        im2 = ImageTk.PhotoImage(Image.open(imname).resize(size))
+    def update_preview(self):
+        if self.preview_shown:
+            path = self.sel_full_path_to_file
 
-        self.preview_label.configure(image=im2, bd=10)
+            if path:
+                try:
+                    if path not in self.preview_photo_image_cache:
+                        im1 = Image.open(path)
 
-        return
+                        width = im1.width
+                        height = im1.height
 
+                        size = (width // 4, height // 4)
+
+                        self.preview_photo_image_cache[path]=(ImageTk.PhotoImage(im1.resize(size)),f'{width} x {height}' )
+                        self.preview_photo_image_list.append(path)
+                        if len(self.preview_photo_image_list)>self.preview_photo_image_limit:
+                            del self.preview_photo_image_cache[self.preview_photo_image_list.pop(0)]
+
+                    self.preview_canvas.itemconfig(self.preview_canvas_image, image=self.preview_photo_image_cache[path][0])
+                    self.preview_canvas.config(scrollregion=self.preview_canvas.bbox('all'))
+
+                    self.preview_label_txt.configure(text=self.preview_photo_image_cache[path][1])
+                except Exception as e:
+                    self.preview_canvas.itemconfig(self.preview_canvas_image, image='')
+                    self.preview_label_txt.configure(text=str(e))
+            else:
+                self.preview_canvas.itemconfig(self.preview_canvas_image, image='')
+                self.preview_label_txt.configure(text='')
+
+    def hide_preview(self):
+        self_preview = self.preview
+
+        if self.preview_shown:
+            self.cfg.set('preview',str(self_preview.geometry()),section='geometry')
+
+        self.preview_shown=False
+
+        self_preview.withdraw()
+        self.preview_photo_image_cache={}
+        self.preview_photo_image_list=[]
 
     def set_full_path_to_file_win(self):
         self.sel_full_path_to_file=str(Path(sep.join([self.sel_path_full,self.sel_file]))) if self.sel_path_full and self.sel_file else None
@@ -2588,6 +2709,9 @@ class Gui:
 
         self.sel_kind = kind
 
+        if self.preview_auto_update_bool:
+            self.update_preview()
+
         #print('a1',kind,self.FILE)
 
         if kind==self.FILE:
@@ -2631,6 +2755,9 @@ class Gui:
             self.folder_tree.update()
 
             self.groups_tree_update_none()
+
+        if self.preview_auto_update_bool:
+            self.update_preview()
 
         gc_enable()
 
@@ -2913,6 +3040,9 @@ class Gui:
         pop_add_separator()
         pop_add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
         pop_add_command(label = 'Settings ...',  command = lambda : self.get_settings_dialog().show(),accelerator='F2',image = self.ico['settings'],compound='left')
+        pop_add_separator()
+        pop_add_command(label = 'Show preview window',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Hide preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left')
         pop_add_separator()
         pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico_empty,compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
@@ -3599,6 +3729,10 @@ class Gui:
         if self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_INFO)!=self.show_tooltips_info.get():
             self.cfg.set_bool(CFG_KEY_SHOW_TOOLTIPS_INFO,self.show_tooltips_info.get())
 
+        if self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE)!=self.preview_auto_update.get():
+            self.cfg.set_bool(CFG_KEY_PREVIEW_AUTO_UPDATE,self.preview_auto_update.get())
+            self.preview_auto_update_bool = self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE)
+
         if self.cfg_get_bool(CFG_KEY_FULL_PATHS)!=self.show_full_paths.get():
             self.cfg.set_bool(CFG_KEY_FULL_PATHS,self.show_full_paths.get())
             update1=True
@@ -4078,6 +4212,7 @@ class Gui:
         self_id2crc=self.id2crc
         dude_core_crc_cut_len=dude_core.crc_cut_len
         dude_core_files_of_size_of_crc=dude_core.files_of_size_of_crc
+        dude_core_files_of_images_groups = dude_core.files_of_images_groups
 
         NONE_ICON=''
         FOLDER_ICON=self.ico_folder
@@ -4110,6 +4245,7 @@ class Gui:
             values=('..','','',self.UPDIR,'',0,'',0,'',0,'')
             folder_items_add((updir_code,sort_val_func(values[sort_index_local]),'0UP','',values,self_DIR,''))
 
+        similarity_mode = self.similarity_mode
         #############################################
         try:
             with scandir(current_path) as res:
@@ -4148,7 +4284,7 @@ class Gui:
                                     if ctime != core_ctime:
                                         item_rocognized=False
                                     else:
-                                        values = (name,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
+                                        values = (name,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_images_groups[crc]) if similarity_mode else len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
                                         in_tagged=bool(file_id in self_tagged)
                                         if in_tagged:
                                             self_current_folder_items_tagged_add(file_id)
