@@ -3,7 +3,7 @@
 A cross-platform GUI utility for finding duplicated files, delete or link them to save space.
 
 ## Features:
-- Scanning for duplicate files in **multiple designated folders** (up to 8). Optional "Cross paths" mode
+- Scanning for duplicate files in **multiple designated folders** (up to 8). Optional **"Cross paths"** display mode
 - Optional **command line parameters** to start scanning immediately or integrate **Dude** with your favorite file manager
 - Two **synchronized** panels:
   - groups of duplicates
@@ -14,7 +14,13 @@ A cross-platform GUI utility for finding duplicated files, delete or link them t
 - Support for **regular expressions** or **glob** expressions syntax
 - Searching for duplicates based on the **hash** of the file content. Different filenames or extensions do not affect the search results
 - Works on **Linux** and **Windows**
+ 
 
+💥 Major news in 2.x version:
+- **Images similarity mode**, with caching, sensitivity parameters and rotated images detection
+- **preview window** for images and text files
+- **"Same directory"** display mode
+ 
 ## Why another anti-duplicate application ?
 - Because you need to see the context of removed files, and use such application clearly,safely and easily.
 
@@ -72,6 +78,8 @@ dude --help
 ## Portability
 **Dude** writes log files, configuration and cache files in runtime. Default location for these files is **dude.data** folder, created next to the **dude executable** file. If there are no write access rights to such folder, platform-specific folders are used for cache, settings and logs (provided by **appdirs** module). You can use --appdirs command line switch to force that behavior even when **dude.data** is accessible.
 
+## Dude is BIG 💥 
+Well, unfortunately, the 2.x version has much larger distribution package than v1. This is mainly because necessity of importing [NumPy](https://numpy.org/) and [SciPy](https://scipy.org/) packages for image hashing and clustering. I apologize for the inconvenience.
 
 ## Technical information
 - Scanning process analyzes selected paths and groups files with the same size. **Dude** compare files by calculated **SHA1** hash of file content. CRC calculation is done in separate threads for every identified device (drive). Number of active threads is limited by available CPU cores. Aborting of CRC calculation gives only partial results - not all files may be identified as duplicates. Restarted scanning process will use cached data. The CRC is always calculated based on the entire contents of the file.
@@ -85,6 +93,7 @@ dude --help
 - ***Soft links*** to **directories** are skipped during the scanning process. ***Soft links*** to **files** are ignored during scanning. Both appear in the bottom "folders" pane.
 - ***Hard links*** (files with stat.st_nlink>1) currently are ignored during the scanning process and will not be identified as duplicates (within the same inode obviously, as with other inodes). No action can be performed on them. They will only appear in the bottom "folders" pane. This may change in the future versions.
 - the "delete" action moves files to **Recycle Bin / Trash** or deletes them permanently according to option settings.
+- 💥 Image similarity mode is based on the libraries: [PIL](https://python-pillow.org/), [ImageHash](https://pypi.org/project/ImageHash/), and the [DBSCAN](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html) data clustering algorithm from [scikit-learn](https://scikit-learn.org/stable/index.html). For maximum performance, image hashing utilizes all available CPU cores with multiple threads and the DBSCAN algorithm implementation is multi-threaded internally. Key parameters of clustering are available to set on the scan dialog.
 
 ###### Manual build (linux):
 ```
@@ -111,3 +120,5 @@ python ./src/dude.py
 
 ## Licensing
 - **dude** is licensed under **[MIT license](./LICENSE)**
+
+### Check out my [homepage](https://github.com/PJDude) for other projects.

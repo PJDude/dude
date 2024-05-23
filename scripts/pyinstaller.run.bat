@@ -21,7 +21,7 @@
 
 @echo.
 @echo running-pyinstaller-stage_dude
-pyinstaller --version-file=version.pi.dude.txt --noconfirm --clean --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --windowed --contents-directory=internal --name dude --additional-hooks-dir=. --collect-binaries tkinterdnd2 dude.py || exit /b 2
+pyinstaller --version-file=version.pi.dude.txt --noconfirm --clean --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --windowed --contents-directory=internal --name dude --additional-hooks-dir=. --collect-binaries tkinterdnd2 --hidden-import="PIL._tkinter_finder" dude.py || exit /b 2
 
 @echo.
 @echo running-pyinstaller-dudecmd

@@ -51,11 +51,11 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 
 from send2trash import send2trash
 
+from numpy import array as numpy_array
 from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
-from imagehash import average_hash,phash,dhash,whash
+from imagehash import average_hash,phash,dhash
 
 from sklearn.cluster import DBSCAN
-from numpy import array as numpy_array
 
 DELETE=0
 SOFTLINK=1
@@ -628,9 +628,6 @@ class DudeCore:
 
                 for hash_row in dhash(file,hash_size).hash:
                     seq_hash_extend(hash_row)
-
-                #whash
-                #colorhash(file).hash.tolist()
 
             return tuple(seq_hash)
 

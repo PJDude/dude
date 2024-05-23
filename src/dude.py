@@ -59,9 +59,11 @@ from platform import node
 from os import sep,stat,scandir,readlink,rmdir,system,getcwd,name as os_name,environ as os_environ
 from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,set_threshold as gc_set_threshold, get_threshold as gc_get_threshold
 
-from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,split as path_split,exists as path_exists,isdir
+from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,split as path_split,exists as path_exists,isdir, splitext as path_splitext
 
 from PIL import Image, ImageTk
+from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+from PIL.Image import NEAREST,BILINEAR,open as image_open
 
 windows = bool(os_name=='nt')
 
@@ -360,20 +362,18 @@ class Gui:
         self.action_abort=True
 
     def preview_yscrollcommand(self,v1,v2):
-
         if v1=='0.0' and v2=='1.0':
-            self.preview_canvas_vbar.grid_forget()
+            self.preview_text_vbar.grid_forget()
         else:
-            self.preview_canvas_vbar.set(v1,v2)
-            self.preview_canvas_vbar.grid(row=0,column=1,sticky='ns')
+            self.preview_text_vbar.set(v1,v2)
+            self.preview_text_vbar.grid(row=0,column=1,sticky='ns')
 
     def preview_xscrollcommand(self,v1,v2):
-
         if v1=='0.0' and v2=='1.0':
-            self.preview_canvas_hbar.grid_forget()
+            self.preview_text_hbar.grid_forget()
         else:
-            self.preview_canvas_hbar.set(v1,v2)
-            self.preview_canvas_hbar.grid(row=1,column=0,sticky='we')
+            self.preview_text_hbar.set(v1,v2)
+            self.preview_text_hbar.grid(row=1,column=0,sticky='we')
 
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images_mode_tuple=None):
         images,ihash,idivergence,rotations = images_mode_tuple if images_mode_tuple else (False,0,0,False)
@@ -426,7 +426,7 @@ class Gui:
         ####################################
         self.preview = preview = Toplevel(self_main,takefocus=False)
         preview_bind = preview.bind
-        preview.minsize(200,50)
+        preview.minsize(200,200)
         preview.title('DUDE - Preview')
 
         preview.withdraw()
@@ -434,36 +434,34 @@ class Gui:
         preview.protocol("WM_DELETE_WINDOW", lambda : self.hide_preview())
         preview_bind('<Escape>', lambda event : self.hide_preview() )
 
-        preview_frame=Frame(preview)
-        #preview_frame_parent=SFrame(preview,'red')
-        #preview_frame=preview_frame_parent.frame()
+        preview_frame_txt=self.preview_frame_txt=Frame(preview)
 
         preview_bind('F11', lambda event : self.hide_preview() )
         preview_bind('<FocusIn>', lambda event : self.preview_focusin() )
-        preview_bind('<Configure>', lambda event : self.preview_conf() )
+        preview_bind('<Configure>', self.preview_conf)
 
         ####################################
-        preview_frame.grid_columnconfigure(0, weight=1)
-        preview_frame.grid_rowconfigure(0, weight=1)
+        preview_frame_txt.grid_columnconfigure(0, weight=1)
+        preview_frame_txt.grid_rowconfigure(0, weight=1)
 
-        self.preview_canvas = Canvas(preview_frame)
-        self.preview_canvas.grid(row=0,column=0,sticky='news')
+        self.preview_text = Text(preview_frame_txt, bg='white',relief='groove',bd=2,wrap='none')
+        self.preview_text.grid(row=0,column=0,sticky='news')
 
-        self.preview_canvas_image=self.preview_canvas.create_image(0, 0, anchor="nw")
-        self.preview_canvas.config(scrollregion=self.preview_canvas.bbox('all'))
+        self.preview_text_vbar = Scrollbar(preview_frame_txt, orient='vertical', command=self.preview_text.yview)
+        self.preview_text_vbar.grid(row=0,column=1,sticky='ns')
 
-        self.preview_canvas_vbar = Scrollbar(preview_frame, orient='vertical', command=self.preview_canvas.yview)
-        self.preview_canvas_vbar.grid(row=0,column=1,sticky='ns')
+        self.preview_text_hbar = Scrollbar(preview_frame_txt, orient='horizontal', command=self.preview_text.xview)
+        self.preview_text_hbar.grid(row=1,column=0,sticky='we')
 
-        self.preview_canvas_hbar = Scrollbar(preview_frame, orient='horizontal', command=self.preview_canvas.xview)
-        self.preview_canvas_hbar.grid(row=1,column=0,sticky='we')
-
-        self.preview_canvas.config(yscrollcommand=self.preview_yscrollcommand, xscrollcommand=self.preview_xscrollcommand)
+        self.preview_text.config(yscrollcommand=self.preview_yscrollcommand, xscrollcommand=self.preview_xscrollcommand)
 
         ####################################
         self.preview_label_txt=Label(preview,relief='groove',bd=2,anchor='w')
-        self.preview_label_txt.pack(fill='x',side='top',anchor='nw',padx=1,pady=1)
-        preview_frame.pack(fill='both',side='top',anchor="nw",expand=1)
+        self.preview_label_img=Label(preview,bd=2,anchor='nw')
+
+        self.preview_label_txt.pack(fill='x',side='top',anchor='nw')
+        self.preview_label_img.pack(fill='both',side='top',anchor='nw')
+        preview_frame_txt.pack(fill='both',side='top',anchor="nw",expand=1)
 
         self.main_update = self_main.update
         self.main_update()
@@ -553,7 +551,7 @@ class Gui:
 
         bg_color = self.bg_color = style.lookup('TFrame', 'background')
         preview.configure(bg=bg_color)
-        preview_frame.configure(bg=bg_color)
+        self.preview_frame_txt.configure(bg=bg_color)
 
         style.theme_use("dummy")
         style_map = style.map
@@ -884,6 +882,9 @@ class Gui:
         self.selected={}
         self.selected[self.groups_tree]=None
         self.selected[self.folder_tree]=None
+
+        self.sel_full_path_to_file=None
+
         #######################################################################
         #scan dialog
 
@@ -2593,10 +2594,30 @@ class Gui:
     preview_photo_image_limit=64
     preview_photo_image_list=[]
     preview_shown=False
+    preview_size=(1,1)
 
-    def preview_conf(self):
+    def preview_conf(self,event):
         if self.preview_shown:
+            #print('preview_conf',event)
+
             self.cfg.set('preview',str(self.preview.geometry()),section='geometry')
+
+            new_preview_size = (event.width,event.height)
+            new_preview_size = (event.width,event.height)
+
+            if self.preview_size!=new_preview_size:
+                self.txt_label_heigh = self.preview_label_txt.winfo_height()
+
+                #print('preview_conf - real')
+                self.preview_size=new_preview_size
+
+                self.preview_photo_image_cache={}
+                self.preview_photo_image_list=[]
+
+                self.update_preview()
+            else:
+                #print('preview_conf - skipped')
+                pass
 
     def preview_focusin(self):
         self.main.focus_set()
@@ -2606,44 +2627,88 @@ class Gui:
         self.preview_shown=True
 
         self_preview = self.preview
-        if cfg_geometry:=self.cfg_get('preview','100x200',section='geometry'):
+        if cfg_geometry:=self.cfg_get('preview','200x200',section='geometry'):
             self_preview.geometry(cfg_geometry)
 
         self.update_preview()
         self_preview.deiconify()
 
         self_preview.lift()
+        self_preview.attributes('-topmost',True)
+        self_preview.after_idle(self_preview.attributes,'-topmost',False)
+
         self.main.focus_set()
         self.sel_tree.focus_set()
 
+    text_extensions = ('.txt','.bat','.sh','.md','.html','.py','.cpp','.h','.ini','.tcl','.xml','.url')
+    pic_extensions = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.eps','.gif','.tga','.tiff','.tif','.webp','.xbm')
     def update_preview(self):
         if self.preview_shown:
             path = self.sel_full_path_to_file
 
             if path:
-                try:
-                    if path not in self.preview_photo_image_cache:
-                        im1 = Image.open(path)
+                head,ext = path_splitext(path)
 
-                        width = im1.width
-                        height = im1.height
+                if ext.lower() in self.text_extensions:
+                    self.preview_label_img.pack_forget()
+                    try:
 
-                        size = (width // 4, height // 4)
+                        with open(path, 'r') as file:
+                            self.preview_text.delete(1.0, 'end')
+                            self.preview_text.insert('end', file.read())
 
-                        self.preview_photo_image_cache[path]=(ImageTk.PhotoImage(im1.resize(size)),f'{width} x {height}' )
-                        self.preview_photo_image_list.append(path)
-                        if len(self.preview_photo_image_list)>self.preview_photo_image_limit:
-                            del self.preview_photo_image_cache[self.preview_photo_image_list.pop(0)]
+                        self.preview_label_txt.configure(text=path)
 
-                    self.preview_canvas.itemconfig(self.preview_canvas_image, image=self.preview_photo_image_cache[path][0])
-                    self.preview_canvas.config(scrollregion=self.preview_canvas.bbox('all'))
+                    except Exception as e:
+                        self.preview_label_txt.configure(text=str(e))
+                    else:
+                        self.preview_frame_txt.pack(fill='both',expand=1)
 
-                    self.preview_label_txt.configure(text=self.preview_photo_image_cache[path][1])
-                except Exception as e:
-                    self.preview_canvas.itemconfig(self.preview_canvas_image, image='')
-                    self.preview_label_txt.configure(text=str(e))
+                elif ext.lower() in self.pic_extensions:
+                    self.preview_frame_txt.pack_forget()
+
+                    try:
+                        self_preview_photo_image_cache = self.preview_photo_image_cache
+                        if path not in self_preview_photo_image_cache:
+                            im1 = Image.open(path)
+
+                            preview_size_width,preview_size_height = self.preview_size
+                            #print(f'{preview_size_width=},{preview_size_height=}')
+
+                            height = im1.height
+                            ratio_y = height/(preview_size_height-self.txt_label_heigh)
+
+                            width = im1.width
+                            ratio_x = width/preview_size_width
+
+                            #print(f'{width=},{height=}')
+
+                            biggest_ratio = max(ratio_x,ratio_y,1)
+                            #print(f'{biggest_ratio=}')
+
+                            size = ( int (width/biggest_ratio), int(height/biggest_ratio))
+
+                            self_preview_photo_image_cache[path]=(ImageTk_PhotoImage(im1.resize(size,BILINEAR)),f'{width} x {height}',round(biggest_ratio,2) )
+                            self_preview_photo_image_list = self.preview_photo_image_list
+                            self_preview_photo_image_list.append(path)
+                            if len(self_preview_photo_image_list)>self.preview_photo_image_limit:
+                                del self_preview_photo_image_cache[self_preview_photo_image_list.pop(0)]
+
+                        self.preview_label_img.configure(image=self_preview_photo_image_cache[path][0])
+                        self.preview_label_txt.configure(text=self_preview_photo_image_cache[path][1] + f' (factor: {self_preview_photo_image_cache[path][2]})')
+                    except Exception as e:
+                        self.preview_label_txt.configure(text=str(e))
+                    else:
+                        self.preview_label_img.pack(fill='both',expand=1)
+
+                else:
+                    self.preview_frame_txt.pack_forget()
+                    self.preview_label_img.pack_forget()
+                    self.preview_label_txt.configure(text='')
+
             else:
-                self.preview_canvas.itemconfig(self.preview_canvas_image, image='')
+                self.preview_frame_txt.pack_forget()
+                self.preview_label_img.pack_forget()
                 self.preview_label_txt.configure(text='')
 
     def hide_preview(self):
@@ -3201,6 +3266,7 @@ class Gui:
         self.status('Scanning...')
         self.cfg.write()
 
+        self.hide_preview()
         dude_core.reset()
         self.status_path_configure(text='')
         self.groups_show()

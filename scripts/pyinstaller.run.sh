@@ -21,7 +21,7 @@ echo pyinstaller `pyinstaller --version` >> distro.info.txt
 
 echo ''
 echo running-pyinstaller-stage_dude
-pyinstaller --strip --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir --additional-hooks-dir=. --collect-binaries tkinterdnd2 ./dude.py
+pyinstaller --strip --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir --additional-hooks-dir=. --collect-binaries tkinterdnd2 --hidden-import='PIL._tkinter_finder' ./dude.py
 
 echo ''
 echo packing
