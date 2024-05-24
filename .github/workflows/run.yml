@@ -259,7 +259,7 @@ jobs:
         tag_name: ${{ steps.version.outputs.version }}
         name: Dude ${{ steps.version.outputs.version }}
         draft: false
-        prerelease: true
+        prerelease: false
         files: |
             dude.${{ steps.version.outputs.version }}.linux.portable.zip
             dude.${{ steps.version.outputs.version }}.linux.nuitka.portable.zip

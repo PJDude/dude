@@ -427,7 +427,16 @@ class Gui:
         self.preview = preview = Toplevel(self_main,takefocus=False)
         preview_bind = preview.bind
         preview.minsize(200,200)
-        preview.title('DUDE - Preview')
+
+        if windows:
+            preview.wm_attributes("-toolwindow", True)
+
+        try:
+            preview.attributes('-type', 'dialog')
+        except:
+            pass
+
+        preview.transient(self_main)
 
         preview.withdraw()
         preview.update()
@@ -1098,8 +1107,8 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Settings ...',command=lambda : self.get_settings_dialog().show(), accelerator="F2",image = self_ico['settings'],compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Show preview window',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left')
-                self_file_cascade_add_command(label = 'Hide preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = 'Show/Update Preview',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = 'Hide Preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
@@ -1821,6 +1830,18 @@ class Gui:
         if self.main_locked_by_child:
             self.main_locked_by_child.focus_set()
 
+        self_main = self.main
+        self_main.lift()
+        self_main.attributes('-topmost',True)
+        self_main.after_idle(self.main.attributes,'-topmost',False)
+
+        if self.preview_shown:
+            self_preview = self.preview
+
+            self_preview.lift()
+            self_preview.attributes('-topmost',True)
+            self_preview.after_idle(self_preview.attributes,'-topmost',False)
+
     def unpost(self):
         self.hide_tooltip()
         self.menubar_unpost()
@@ -2409,12 +2430,13 @@ class Gui:
                         else:
                             self.process_files_in_folder_wrapper(DELETE,self.sel_kind in (self.DIR,self.DIRLINK))
                     elif key == "Insert":
-                        action = WIN_LNK if shift_pressed and alt_pressed and windows else HARDLINK if shift_pressed else SOFTLINK
+                        if not self.similarity_mode:
+                            action = WIN_LNK if shift_pressed and alt_pressed and windows else HARDLINK if shift_pressed else SOFTLINK
 
-                        if tree==self.groups_tree:
-                            self.process_files_in_groups_wrapper(action,ctrl_pressed)
-                        else:
-                            self.process_files_in_folder_wrapper(action,self.sel_kind in (self.DIR,self.DIRLINK))
+                            if tree==self.groups_tree:
+                                self.process_files_in_groups_wrapper(action,ctrl_pressed)
+                            else:
+                                self.process_files_in_folder_wrapper(action,self.sel_kind in (self.DIR,self.DIRLINK))
                     elif key=='F5':
                         self.goto_max_folder(1,-1 if shift_pressed else 1)
                     elif key=='F6':
@@ -2624,23 +2646,26 @@ class Gui:
         self.sel_tree.focus_set()
 
     def show_preview(self):
-        self.preview_shown=True
-
         self_preview = self.preview
-        if cfg_geometry:=self.cfg_get('preview','200x200',section='geometry'):
-            self_preview.geometry(cfg_geometry)
+
+        if self.preview_shown:
+            self_preview.lift()
+            self_preview.attributes('-topmost',True)
+            self_preview.after_idle(self_preview.attributes,'-topmost',False)
+        else:
+            self.preview_shown=True
+
+            if cfg_geometry:=self.cfg_get('preview','200x200',section='geometry'):
+                self_preview.geometry(cfg_geometry)
+
+            self_preview.deiconify()
 
         self.update_preview()
-        self_preview.deiconify()
-
-        self_preview.lift()
-        self_preview.attributes('-topmost',True)
-        self_preview.after_idle(self_preview.attributes,'-topmost',False)
 
         self.main.focus_set()
         self.sel_tree.focus_set()
 
-    text_extensions = ('.txt','.bat','.sh','.md','.html','.py','.cpp','.h','.ini','.tcl','.xml','.url')
+    text_extensions = ('.txt','.bat','.sh','.md','.html','.py','.cpp','.h','.ini','.tcl','.xml','.url','.lnk','.diz','.lng','.log','.rc','.csv','.ps1','.js','.v','.sv','.do')
     pic_extensions = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.eps','.gif','.tga','.tiff','.tif','.webp','.xbm')
     def update_preview(self):
         if self.preview_shown:
@@ -2653,7 +2678,7 @@ class Gui:
                     self.preview_label_img.pack_forget()
                     try:
 
-                        with open(path, 'r') as file:
+                        with open(path,'rt', encoding='utf-8', errors='ignore') as file:
                             self.preview_text.delete(1.0, 'end')
                             self.preview_text.insert('end', file.read())
 
@@ -2661,8 +2686,10 @@ class Gui:
 
                     except Exception as e:
                         self.preview_label_txt.configure(text=str(e))
+                        self.preview.title('Dude - Preview')
                     else:
                         self.preview_frame_txt.pack(fill='both',expand=1)
+                        self.preview.title(path)
 
                 elif ext.lower() in self.pic_extensions:
                     self.preview_frame_txt.pack_forget()
@@ -2670,10 +2697,12 @@ class Gui:
                     try:
                         self_preview_photo_image_cache = self.preview_photo_image_cache
                         if path not in self_preview_photo_image_cache:
-                            im1 = Image.open(path)
+
+                            im1 = image_open(path)
+                            if im1.mode != 'RGBA':
+                                im1 = im1.convert("RGBA")
 
                             preview_size_width,preview_size_height = self.preview_size
-                            #print(f'{preview_size_width=},{preview_size_height=}')
 
                             height = im1.height
                             ratio_y = height/(preview_size_height-self.txt_label_heigh)
@@ -2681,35 +2710,37 @@ class Gui:
                             width = im1.width
                             ratio_x = width/preview_size_width
 
-                            #print(f'{width=},{height=}')
-
                             biggest_ratio = max(ratio_x,ratio_y,1)
-                            #print(f'{biggest_ratio=}')
 
                             size = ( int (width/biggest_ratio), int(height/biggest_ratio))
 
-                            self_preview_photo_image_cache[path]=(ImageTk_PhotoImage(im1.resize(size,BILINEAR)),f'{width} x {height}',round(biggest_ratio,2) )
+                            self_preview_photo_image_cache[path]=(ImageTk_PhotoImage(im1.resize(size,BILINEAR)),f'{width} x {height} pixels' + (f' ({round(100.0/biggest_ratio)}%)' if biggest_ratio>1 else '') )
                             self_preview_photo_image_list = self.preview_photo_image_list
                             self_preview_photo_image_list.append(path)
                             if len(self_preview_photo_image_list)>self.preview_photo_image_limit:
                                 del self_preview_photo_image_cache[self_preview_photo_image_list.pop(0)]
 
                         self.preview_label_img.configure(image=self_preview_photo_image_cache[path][0])
-                        self.preview_label_txt.configure(text=self_preview_photo_image_cache[path][1] + f' (factor: {self_preview_photo_image_cache[path][2]})')
+
+                        self.preview_label_txt.configure(text=self_preview_photo_image_cache[path][1])
                     except Exception as e:
                         self.preview_label_txt.configure(text=str(e))
+                        self.preview.title('Dude - Preview')
                     else:
                         self.preview_label_img.pack(fill='both',expand=1)
+                        self.preview.title(path)
 
                 else:
                     self.preview_frame_txt.pack_forget()
                     self.preview_label_img.pack_forget()
                     self.preview_label_txt.configure(text='')
+                    self.preview.title('Dude - Preview')
 
             else:
                 self.preview_frame_txt.pack_forget()
                 self.preview_label_img.pack_forget()
                 self.preview_label_txt.configure(text='')
+                self.preview.title('Dude - Preview')
 
     def hide_preview(self):
         self_preview = self.preview
@@ -2727,6 +2758,7 @@ class Gui:
         self.sel_full_path_to_file=str(Path(sep.join([self.sel_path_full,self.sel_file]))) if self.sel_path_full and self.sel_file else None
 
     def set_full_path_to_file_lin(self):
+        #print('set_full_path_to_file_lin')
         self.sel_full_path_to_file=(self.sel_path_full+self.sel_file if self.sel_path_full=='/' else sep.join([self.sel_path_full,self.sel_file])) if self.sel_path_full and self.sel_file else None
 
     set_full_path_to_file = set_full_path_to_file_win if windows else set_full_path_to_file_lin
@@ -2743,7 +2775,6 @@ class Gui:
     def groups_tree_sel_change(self,item,force=False,change_status_line=True):
         gc_disable()
 
-        #print('c1',item)
         self.sel_item = item
 
         if change_status_line :
@@ -2770,14 +2801,13 @@ class Gui:
             else :
                 self.sel_pathnr,self.sel_path = None,None
                 self.sel_path_set(None)
-            self.set_full_path_to_file()
+
+        self.set_full_path_to_file()
 
         self.sel_kind = kind
 
         if self.preview_auto_update_bool:
             self.update_preview()
-
-        #print('a1',kind,self.FILE)
 
         if kind==self.FILE:
             self.tree_folder_update()
@@ -3106,8 +3136,8 @@ class Gui:
         pop_add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
         pop_add_command(label = 'Settings ...',  command = lambda : self.get_settings_dialog().show(),accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
-        pop_add_command(label = 'Show preview window',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left')
-        pop_add_command(label = 'Hide preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Show/Update Preview',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Hide Preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
         pop_add_separator()
         pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico_empty,compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
@@ -4846,7 +4876,6 @@ class Gui:
                         index+=1
 
         self.process_files(action,processed_items,scope_title)
-        #return
 
     @block_and_log
     def process_files_in_folder_wrapper(self,action,on_dir_action=False):
@@ -5152,6 +5181,7 @@ class Gui:
 
         if self.similarity_mode:
             for group,items_dict in processed_items.items():
+                crc = group
                 message_append('')
 
                 if cfg_show_crc_size:
@@ -5350,6 +5380,9 @@ class Gui:
         directories_to_check=set()
         directories_to_check_add = directories_to_check.add
 
+        self_file_remove_callback = self.file_remove_callback
+        self_crc_remove_callback = self.crc_remove_callback
+
         if action==DELETE:
             if self.similarity_mode:
                 for group,items_dict in processed_items.items():
@@ -5380,7 +5413,7 @@ class Gui:
                             if path:
                                 directories_to_check_add( tuple( [pathnr] + path.strip(sep).split(sep) ) )
 
-                    if resmsg:=dude_core_delete_file_wrapper(size,group,tuples_to_delete,to_trash,self.file_remove_callback,self.crc_remove_callback,True):
+                    if resmsg:=dude_core_delete_file_wrapper(size,group,tuples_to_delete,to_trash,self_file_remove_callback,self_crc_remove_callback,True):
                         resmsg_str='\n'.join(resmsg)
                         l_error(resmsg_str)
                         end_message_list_append(resmsg_str)
@@ -5413,7 +5446,7 @@ class Gui:
                             if path:
                                 directories_to_check_add( tuple( [pathnr] + path.strip(sep).split(sep) ) )
 
-                    if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash,self.file_remove_callback,self.crc_remove_callback):
+                    if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash,self_file_remove_callback,self_crc_remove_callback):
                         resmsg_str='\n'.join(resmsg)
                         l_error(resmsg_str)
                         end_message_list_append(resmsg_str)
@@ -5449,32 +5482,61 @@ class Gui:
 
         elif action==SOFTLINK:
             do_rel_symlink = self.cfg_get_bool(CFG_KEY_REL_SYMLINKS)
-            for crc,items_dict in processed_items.items():
 
-                self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
-                self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
+            if self.similarity_mode:
+                for group,items_dict in processed_items.items():
+                    self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
+                    self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
-                self.process_files_counter+=1
 
-                to_keep_item=remaining_items[crc][0]
+                    #for item in items_dict.values():
+                    #    kind,size,group, index_tuple = self_groups_tree_item_to_data[item]
+                    #    (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+                    #    index_tuple_extended = pathnr,path,file_name,ctime,dev,inode,size
 
-                index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
-                size=self_groups_tree_item_to_data[to_keep_item][1]
-                self.process_files_size_sum+=size
 
-                self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-                if self.similarity_mode:
-                    self.process_files_core_info1 = f'group:{crc}'
-                else:
+                    self.process_files_counter+=1
+
+                    to_keep_item=remaining_items[group][0]
+
+                    index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
+                    size=self_groups_tree_item_to_data[to_keep_item][1]
+                    self.process_files_size_sum+=size
+
+                    self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
+                    self.process_files_core_info1 = f'group:{group}'
+
+                    if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,group, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
+                        l_error(resmsg)
+
+                        end_message_list_append(resmsg)
+
+                        if abort_on_error:
+                            break
+            else:
+                for crc,items_dict in processed_items.items():
+                    self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
+                    self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
+
+                    self.process_files_counter+=1
+
+                    to_keep_item=remaining_items[crc][0]
+
+                    index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
+                    size=self_groups_tree_item_to_data[to_keep_item][1]
+                    self.process_files_size_sum+=size
+
+                    self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
+
                     self.process_files_core_info1 = f'crc:{crc}'
 
-                if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
-                    l_error(resmsg)
+                    if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
+                        l_error(resmsg)
 
-                    end_message_list_append(resmsg)
+                        end_message_list_append(resmsg)
 
-                    if abort_on_error:
-                        break
+                        if abort_on_error:
+                            break
 
         elif action==WIN_LNK:
 
@@ -5497,7 +5559,7 @@ class Gui:
                 else:
                     self.process_files_core_info1 = f'crc:{crc}'
 
-                if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)
@@ -5523,7 +5585,7 @@ class Gui:
                 else:
                     self.process_files_core_info1 = f'crc:{crc}'
 
-                if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],to_trash,self.file_remove_callback,self.crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)

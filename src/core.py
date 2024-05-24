@@ -1353,7 +1353,7 @@ class DudeCore:
 
     def link_wrapper(self,\
             kind,relative,size,crc,\
-            index_tuple_ref,index_tuple_list,to_trash,file_callback=None,crc_callback=None):
+            index_tuple_ref,index_tuple_list,to_trash,file_callback,crc_callback,similarity_mode=False):
 
         l_info = self.log.info
         delete_command = self.delete_file_to_trash if to_trash else self.delete_file
@@ -1363,7 +1363,13 @@ class DudeCore:
         (path_nr_keep,path_keep,file_keep,ctime_keep,dev_keep,inode_keep)=index_tuple_ref
 
         self_get_full_path_scanned = self.get_full_path_scanned
-        self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
+        #self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
+
+        if similarity_mode:
+            pool = self.files_of_images_groups[crc]
+        else:
+            pool = self.files_of_size_of_crc[size][crc]
+
 
         self_rename_file = self.rename_file
 
@@ -1371,8 +1377,8 @@ class DudeCore:
 
         link_command = (lambda p : self.do_soft_link(full_file_path_keep,p,relative,l_info)) if kind==SOFTLINK else (lambda p : self.do_win_lnk_link(full_file_path_keep,str(p) + ".lnk",l_info)) if kind==WIN_LNK else (lambda p : self.do_hard_link(full_file_path_keep,p,l_info))
 
-        if index_tuple_ref not in self_files_of_size_of_crc_size_crc:
-            return 'link_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path_keep,index_tuple_ref)
+        if index_tuple_ref not in pool:
+            return 'link_wrapper - Internal Data Inconsistency (1):%s / %s' % (full_file_path_keep,index_tuple_ref)
 
         res=[]
         tuples_to_remove = set()
@@ -1380,8 +1386,8 @@ class DudeCore:
             (pathnr,path,file_name,ctime,dev,inode)=index_tuple
             full_file_path=self_get_full_path_scanned(pathnr,path,file_name)
 
-            if index_tuple not in self_files_of_size_of_crc_size_crc:
-                res.append('link_wrapper - Internal Data Inconsistency:%s / %s' % (full_file_path,index_tuple))
+            if index_tuple not in pool:
+                res.append('link_wrapper - Internal Data Inconsistency (2):%s / %s' % (full_file_path,index_tuple))
                 break
 
             temp_file='%s.dude_pre_delete_temp' % full_file_path
