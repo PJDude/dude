@@ -31,23 +31,15 @@ from re import search
 
 from signal import signal,SIGINT
 
-from configparser import ConfigParser
-from subprocess import Popen
-
-from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar,Canvas
-
+from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
 from tkinter.ttk import Checkbutton,Radiobutton,Treeview,Scrollbar,Button,Entry,Combobox,Scale,Style
-
 from tkinter.filedialog import askdirectory,asksaveasfilename
-
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from collections import defaultdict
-from threading import Thread
 from traceback import format_stack
 
 from fnmatch import fnmatch
-from shutil import rmtree
 
 from time import sleep,strftime,time,perf_counter
 
@@ -61,9 +53,13 @@ from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,
 
 from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,split as path_split,exists as path_exists,isdir, splitext as path_splitext
 
-from PIL import Image, ImageTk
-from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
-from PIL.Image import NEAREST,BILINEAR,open as image_open
+#lazyfied
+#from configparser import ConfigParser
+#from subprocess import Popen
+#from shutil import rmtree
+#from PIL import Image, ImageTk
+#from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+#from PIL.Image import NEAREST,BILINEAR,open as image_open
 
 windows = bool(os_name=='nt')
 
@@ -162,10 +158,14 @@ NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink',WIN_LNK:'.lnk file
 
 HOMEPAGE='https://github.com/PJDude/dude'
 
+TEXT_EXTENSIONS = ('.txt','.bat','.sh','.md','.html','.py','.cpp','.h','.ini','.tcl','.xml','.url','.lnk','.diz','.lng','.log','.rc','.csv','.ps1','.js','.v','.sv','.do')
+
 #DE_NANO = 1_000_000_000
 
 class Config:
     def __init__(self,config_dir):
+        from configparser import ConfigParser
+
         #l_debug('Initializing config: %s', config_dir)
         self.config = ConfigParser()
         self.config.add_section('main')
@@ -1107,14 +1107,14 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Settings ...',command=lambda : self.get_settings_dialog().show(), accelerator="F2",image = self_ico['settings'],compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Show/Update Preview',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = 'Show/Update Preview',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
                 self_file_cascade_add_command(label = 'Hide Preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Erase CRC Cache',command = self.cache_clean,image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = 'Erase Cache',command = self.cache_clean,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
 
@@ -2620,17 +2620,15 @@ class Gui:
 
     def preview_conf(self,event):
         if self.preview_shown:
-            #print('preview_conf',event)
+            #z eventu czasami idzie lewizna (start bez obrazka)
+            geometry = self.preview.geometry()
+            self.cfg.set('preview',str(geometry),section='geometry')
 
-            self.cfg.set('preview',str(self.preview.geometry()),section='geometry')
-
-            new_preview_size = (event.width,event.height)
-            new_preview_size = (event.width,event.height)
+            new_preview_size = tuple([int(x) for x in geometry.split('+')[0].split('x')])
 
             if self.preview_size!=new_preview_size:
                 self.txt_label_heigh = self.preview_label_txt.winfo_height()
 
-                #print('preview_conf - real')
                 self.preview_size=new_preview_size
 
                 self.preview_photo_image_cache={}
@@ -2665,67 +2663,80 @@ class Gui:
         self.main.focus_set()
         self.sel_tree.focus_set()
 
-    text_extensions = ('.txt','.bat','.sh','.md','.html','.py','.cpp','.h','.ini','.tcl','.xml','.url','.lnk','.diz','.lng','.log','.rc','.csv','.ps1','.js','.v','.sv','.do')
-    pic_extensions = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.eps','.gif','.tga','.tiff','.tif','.webp','.xbm')
+    last_image_read = ''
+    last_image_read_path = ''
+
     def update_preview(self):
         if self.preview_shown:
+            from PIL import Image, ImageTk
+            from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+            from PIL.Image import NEAREST,BILINEAR,open as image_open
+
             path = self.sel_full_path_to_file
 
             if path:
                 head,ext = path_splitext(path)
+                ext_lower = ext.lower()
 
-                if ext.lower() in self.text_extensions:
+                if ext_lower in TEXT_EXTENSIONS:
                     self.preview_label_img.pack_forget()
                     try:
 
                         with open(path,'rt', encoding='utf-8', errors='ignore') as file:
                             self.preview_text.delete(1.0, 'end')
-                            self.preview_text.insert('end', file.read())
 
-                        self.preview_label_txt.configure(text=path)
+                            cont_lines=file.readlines()
+                            self.preview_label_txt.configure(text=f'lines:{fnumber(len(cont_lines))}')
+                            self.preview_text.insert('end', ''.join(cont_lines))
 
                     except Exception as e:
                         self.preview_label_txt.configure(text=str(e))
-                        self.preview.title('Dude - Preview')
+                        self.preview.title(f'Dude - Preview {e}')
                     else:
                         self.preview_frame_txt.pack(fill='both',expand=1)
                         self.preview.title(path)
 
-                elif ext.lower() in self.pic_extensions:
+                elif ext_lower in IMAGES_EXTENSIONS:
                     self.preview_frame_txt.pack_forget()
 
                     try:
                         self_preview_photo_image_cache = self.preview_photo_image_cache
+                        self_preview_photo_image_list = self.preview_photo_image_list
                         if path not in self_preview_photo_image_cache:
 
-                            im1 = image_open(path)
-                            if im1.mode != 'RGBA':
-                                im1 = im1.convert("RGBA")
+                            if path != self.last_image_read_path:
+                                self.last_image_read = image_open(path)
+                                if self.last_image_read.mode != 'RGBA':
+                                    self.last_image_read = self.last_image_read.convert("RGBA")
+                                self.last_image_read_path = path
 
                             preview_size_width,preview_size_height = self.preview_size
 
-                            height = im1.height
+                            height = self.last_image_read.height
                             ratio_y = height/(preview_size_height-self.txt_label_heigh)
 
-                            width = im1.width
+                            width = self.last_image_read.width
                             ratio_x = width/preview_size_width
 
                             biggest_ratio = max(ratio_x,ratio_y,1)
 
                             size = ( int (width/biggest_ratio), int(height/biggest_ratio))
 
-                            self_preview_photo_image_cache[path]=(ImageTk_PhotoImage(im1.resize(size,BILINEAR)),f'{width} x {height} pixels' + (f' ({round(100.0/biggest_ratio)}%)' if biggest_ratio>1 else '') )
-                            self_preview_photo_image_list = self.preview_photo_image_list
-                            self_preview_photo_image_list.append(path)
+                            self_preview_photo_image_cache[path]=(ImageTk_PhotoImage(self.last_image_read.resize(size,BILINEAR)),f'{width} x {height} pixels' + (f' ({round(100.0/biggest_ratio)}%)' if biggest_ratio>1 else '') )
+
                             if len(self_preview_photo_image_list)>self.preview_photo_image_limit:
                                 del self_preview_photo_image_cache[self_preview_photo_image_list.pop(0)]
+                        else:
+                            self_preview_photo_image_list.remove(path)
+
+                        self_preview_photo_image_list.append(path)
 
                         self.preview_label_img.configure(image=self_preview_photo_image_cache[path][0])
-
                         self.preview_label_txt.configure(text=self_preview_photo_image_cache[path][1])
+
                     except Exception as e:
                         self.preview_label_txt.configure(text=str(e))
-                        self.preview.title('Dude - Preview')
+                        self.preview.title(f'Dude - Preview {e}')
                     else:
                         self.preview_label_img.pack(fill='both',expand=1)
                         self.preview.title(path)
@@ -2734,13 +2745,13 @@ class Gui:
                     self.preview_frame_txt.pack_forget()
                     self.preview_label_img.pack_forget()
                     self.preview_label_txt.configure(text='')
-                    self.preview.title('Dude - Preview')
+                    self.preview.title('Dude - Preview (format)')
 
             else:
                 self.preview_frame_txt.pack_forget()
                 self.preview_label_img.pack_forget()
                 self.preview_label_txt.configure(text='')
-                self.preview.title('Dude - Preview')
+                self.preview.title('Dude - Preview (no path)')
 
     def hide_preview(self):
         self_preview = self.preview
@@ -3136,7 +3147,7 @@ class Gui:
         pop_add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
         pop_add_command(label = 'Settings ...',  command = lambda : self.get_settings_dialog().show(),accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
-        pop_add_command(label = 'Show/Update Preview',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left')
+        pop_add_command(label = 'Show/Update Preview',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
         pop_add_command(label = 'Hide Preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
         pop_add_separator()
         pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico_empty,compound='left')
@@ -3237,7 +3248,7 @@ class Gui:
         self_tree_sort_item = self.tree_sort_item
 
         if tree==self.groups_tree:
-            if colname in ('path','file','ctime_h'):
+            if colname in ('path','file','ctime_h') or (self.similarity_mode and colname=='size_h'):
                 for crc in self.tree_children[tree]:
                     self_tree_sort_item(tree,crc,False)
             else:
@@ -3293,6 +3304,8 @@ class Gui:
     @restore_status_line
     @logwrapper
     def scan(self):
+        from threading import Thread
+
         self.status('Scanning...')
         self.cfg.write()
 
@@ -3401,8 +3414,8 @@ class Gui:
         wait_var_get = wait_var.get
 
         while scan_thread_is_alive():
-            new_data[3]='%s (%s)' % (local_bytes_to_str(dude_core.info_size_sum),local_bytes_to_str(dude_core.info_size_sum_images)) if similarity_mode else local_bytes_to_str(dude_core.info_size_sum)
-            new_data[4]='%s files (%s)' % (fnumber(dude_core.info_counter),fnumber(dude_core.info_counter_images)) if similarity_mode else '%s files' % fnumber(dude_core.info_counter)
+            new_data[3]=local_bytes_to_str(dude_core.info_size_sum)
+            new_data[4]=fnumber(dude_core.info_counter)
 
             anything_changed=False
             for i in (3,4):
@@ -3419,6 +3432,10 @@ class Gui:
 
             if anything_changed:
                 time_without_busy_sign=now
+
+                if similarity_mode:
+                    self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(dude_core.info_size_sum_images))
+                    self_progress_dialog_on_scan_lab_r2_config(text=fnumber(dude_core.info_counter_images))
 
                 if update_once:
                     update_once=False
@@ -3469,7 +3486,7 @@ class Gui:
         self_get_hg_ico = self.get_hg_ico
 
         if similarity_mode:
-            self_progress_dialog_on_scan_lab[0].configure(image='',text='')
+            self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty,text='')
             self_progress_dialog_on_scan_lab[1].configure(image='',text='')
             self_progress_dialog_on_scan_lab[2].configure(image='',text='')
             self_progress_dialog_on_scan_lab[3].configure(image='',text='')
@@ -3487,16 +3504,14 @@ class Gui:
 
             ih_thread_is_alive = ih_thread.is_alive
 
-            bytes_to_str_dude_core_sum_size = local_bytes_to_str(dude_core.sum_size)
+            bytes_to_str_dude_core_sum_size = local_bytes_to_str(dude_core.info_size_sum_images)
+            fnumber_dude_core_info_counter_images = fnumber(dude_core.info_counter_images)
 
-            #self_progress_dialog_on_scan_lab[2].configure(text=dude_core.info_line)
-
+            aborted=False
             while ih_thread_is_alive():
                 anything_changed=False
 
-
                 size_progress_info=dude_core.info_size_done_perc
-                #print(f'{size_progress_info=}')
                 if size_progress_info!=prev_progress_size:
                     prev_progress_size=size_progress_info
 
@@ -3505,26 +3520,19 @@ class Gui:
                     anything_changed=True
 
                 quant_progress_info=dude_core.info_files_done_perc
-
                 if quant_progress_info!=prev_progress_quant:
                     prev_progress_quant=quant_progress_info
 
                     self_progress_dialog_on_scan_progr2var_set(quant_progress_info)
-                    self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (fnumber(dude_core.info_files_done),fnumber(dude_core.info_total)))
+                    self_progress_dialog_on_scan_lab_r2_config(text='%s / %s' % (fnumber(dude_core.info_files_done),fnumber_dude_core_info_counter_images))
                     anything_changed=True
 
                     self_progress_dialog_on_scan_area_main_update()
 
-                if dude_core.can_abort:
-                    if self.action_abort:
-                        self_progress_dialog_on_scan_lab[0].configure(text='',image='')
-                        self_progress_dialog_on_scan_lab[1].configure(image='',text='Images hashing aborted')
-                        self_progress_dialog_on_scan_lab[2].configure(text='')
-                        self_progress_dialog_on_scan_lab[3].configure(text='')
-                        self_progress_dialog_on_scan_lab[4].configure(text='')
-                        self_progress_dialog_on_scan_area_main_update()
-                        dude_core.abort()
-                        break
+                if dude_core.can_abort and self.action_abort and not dude_core.abort_action:
+                    dude_core.abort_action = True
+                    self_progress_dialog_on_scan_lab[3].configure(image='',text='Aborted')
+                    self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
 
                 self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
 
@@ -3535,10 +3543,17 @@ class Gui:
 
             ih_thread.join()
 
+            self_progress_dialog_on_scan_progr1var_set(100)
+            self_progress_dialog_on_scan_progr2var_set(100)
+
+            self_progress_dialog_on_scan_lab_r1_config(text='-')
+            self_progress_dialog_on_scan_lab_r2_config(text='-')
+
             self_progress_dialog_on_scan.widget.title('Data clustering')
+            self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
 
             ####################################################
-            self_progress_dialog_on_scan_lab[0].configure(image='',text='')
+            self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty,text='')
             self_progress_dialog_on_scan_lab[1].configure(text='... Clustering data ...')
             self_progress_dialog_on_scan_lab[2].configure(text='')
             self_progress_dialog_on_scan_lab[3].configure(text='')
@@ -3555,10 +3570,10 @@ class Gui:
 
             sc_thread_is_alive = sc_thread.is_alive
 
-            self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
-
             while sc_thread_is_alive():
                 self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
+
+                self_progress_dialog_on_scan_lab[1].configure(image='',text=dude_core.info_line)
 
                 self_main_after(50,lambda : wait_var_set(not wait_var_get()))
                 self_main_wait_variable(wait_var)
@@ -3568,14 +3583,13 @@ class Gui:
             self_progress_dialog_on_scan.widget.config(cursor="watch")
 
             if not self.action_abort:
-                self_progress_dialog_on_scan_lab[0].configure(image='',text='Finished.')
+                self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty,text='Finished.')
                 self_progress_dialog_on_scan_lab[1].configure(image='',text='... Rendering data ...')
                 self_progress_dialog_on_scan_lab[2].configure(image='',text='')
                 self_progress_dialog_on_scan_lab[3].configure(image='',text='')
                 self_progress_dialog_on_scan_lab[4].configure(image='',text='')
                 self_progress_dialog_on_scan_area_main_update()
 
-            #self_status('Finishing CRC Thread...')
             #############################
 
             #self_progress_dialog_on_scan.label.configure(text='\n\nrendering data ...\n')
@@ -3594,7 +3608,7 @@ class Gui:
             crc_thread.start()
 
             update_once=True
-            self_progress_dialog_on_scan_lab[0].configure(image='',text='')
+            self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty,text='')
             self_progress_dialog_on_scan_lab[1].configure(image='',text='')
             self_progress_dialog_on_scan_lab[2].configure(image='',text='')
             self_progress_dialog_on_scan_lab[3].configure(image='',text='')
@@ -5488,12 +5502,10 @@ class Gui:
                     self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
                     self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
-
                     #for item in items_dict.values():
                     #    kind,size,group, index_tuple = self_groups_tree_item_to_data[item]
                     #    (pathnr,path,file_name,ctime,dev,inode)=index_tuple
                     #    index_tuple_extended = pathnr,path,file_name,ctime,dev,inode,size
-
 
                     self.process_files_counter+=1
 
@@ -5902,6 +5914,7 @@ class Gui:
 
     @logwrapper
     def cache_clean(self):
+        from shutil import rmtree
         try:
             rmtree(CACHE_DIR)
         except Exception as e:
@@ -5982,6 +5995,8 @@ class Gui:
 
     @logwrapper
     def open_folder(self):
+        from subprocess import Popen
+
         tree=self.sel_tree
 
         params=[]
@@ -5998,6 +6013,7 @@ class Gui:
             return
 
         if wrapper:=self.cfg_get(CFG_KEY_WRAPPER_FOLDERS):
+
             params_num = self.cfg_get(CFG_KEY_WRAPPER_FOLDERS_PARAMS)
 
             num = 1024 if params_num=='all' else int(params_num)
@@ -6011,6 +6027,8 @@ class Gui:
 
     @logwrapper
     def open_file(self):
+        from subprocess import Popen
+
         if self.sel_path_full and self.sel_file:
             file_to_open = sep.join([self.sel_path_full,self.sel_file])
 

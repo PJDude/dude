@@ -33,14 +33,11 @@ from pathlib import Path
 from fnmatch import fnmatch
 from re import search
 
-from time import sleep,strftime,localtime,time
-from hashlib import sha1
+from time import sleep,strftime,localtime,time,perf_counter
 
 from os import stat,scandir,sep,symlink,link,cpu_count,name as os_name,rename as os_rename,remove as os_remove
 
 from os.path import dirname,relpath,normpath,join as path_join,abspath as abspath,exists as path_exists,isdir as path_isdir
-
-from subprocess import run as subprocess_run
 
 if os_name=='nt':
     from subprocess import CREATE_NO_WINDOW
@@ -49,18 +46,23 @@ from sys import exit as sys_exit
 from pickle import dumps,loads
 from zstandard import ZstdCompressor,ZstdDecompressor
 
-from send2trash import send2trash
+#lazyfied
+#from hashlib import sha1
+#from subprocess import run as subprocess_run
+#from send2trash import send2trash
 
-from numpy import array as numpy_array
-from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
-from imagehash import average_hash,phash,dhash
+#from numpy import array as numpy_array
+#from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
+#from imagehash import average_hash,phash,dhash
 
-from sklearn.cluster import DBSCAN
+#from sklearn.cluster import DBSCAN
 
 DELETE=0
 SOFTLINK=1
 HARDLINK=2
 WIN_LNK=3
+
+IMAGES_EXTENSIONS = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.gif','.tga','.tiff','.tif','.webp','.xbm')
 
 def localtime_catched(t):
     try:
@@ -115,6 +117,8 @@ class CRCThreadedCalc:
         self.abort_action=True
 
     def calc(self):
+        from hashlib import sha1
+
         CRC_BUFFER_SIZE=4*1024*1024
         buf = bytearray(CRC_BUFFER_SIZE)
         view = memoryview(buf)
@@ -304,7 +308,7 @@ class DudeCore:
         self_scan_results_images = self.scan_results_images = set()
         #############################################################################################
         if self_similarity_mode:
-            supported_extensions = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.eps','.gif','.tga','.tiff','.tif','.webp','.xbm')
+            supported_extensions = IMAGES_EXTENSIONS
 
             self_log_skipped = self.log_skipped
 
@@ -616,6 +620,9 @@ class DudeCore:
         self.info=''
 
     def imagehsh_calc_in_thread(self,i,hash_size,all_rotations,source_dict,result_dict):
+        from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
+        from imagehash import average_hash,phash,dhash
+
         def my_hash_combo(file,hash_size):
             seq_hash = []
             seq_hash_extend = seq_hash.extend
@@ -637,8 +644,11 @@ class DudeCore:
 
             try:
                 file = image_open(fullpath)
-                if file.mode == 'RGBA':
-                    file = image_alpha_composite(image_new('RGBA', file.size, (255,255,255)), file)
+
+                if file.mode != 'RGBA':
+                    file = file.convert("RGBA")
+
+                file = image_alpha_composite(image_new('RGBA', file.size, (255,255,255)), file)
 
             except Exception as e:
                 self.log.error(f'opening file: {fullpath} error: {e}.')
@@ -664,6 +674,9 @@ class DudeCore:
 
     info=''
     def image_hashing(self,hash_size,all_rotations):
+        #musi tu byc - inaczej pyinstaller & nuitka nie dzialaja
+        from numpy import array as numpy_array
+
         self.images_hashes_cache_read()
         self.scanned_paths=self.paths_to_scan.copy()
 
@@ -742,6 +755,7 @@ class DudeCore:
             for i in range(max_threads):
                 if imagehash_threads[i].is_alive():
                     all_dead=False
+                    break
 
             if all_dead:
                 break
@@ -751,7 +765,9 @@ class DudeCore:
 
                 self.info_size_done_perc = sto_by_self_sum_size*self.info_size_done
                 self.info_files_done_perc = sto_by_self_info_total*self.info_files_done
-                sleep(0.02)
+                sleep(0.05)
+
+        self.info = self.info_line = 'Joining threads ...'
 
         for i in range(max_threads):
             imagehash_threads[i].join()
@@ -773,6 +789,8 @@ class DudeCore:
         sys_exit() #thread
 
     def similarity_clustering(self,hash_size,distance,all_rotations):
+        from sklearn.cluster import DBSCAN
+
         pool = []
         keys = []
 
@@ -787,7 +805,11 @@ class DudeCore:
 
         self.info_line = self.info = 'Clustering ...'
 
+        t0=perf_counter()
+        self.log.info(f'start DBSCAN')
         labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='manhattan',algorithm='kd_tree').fit(pool).labels_
+        t1=perf_counter()
+        self.log.info(f'DBSCAN end. Time:{t1-t0}')
 
         #with rotation variants
         groups_dict = defaultdict(set)
@@ -810,7 +832,6 @@ class DudeCore:
         files_already_in_group=set()
         files_already_in_group_add = files_already_in_group.add
 
-
         pruned_groups_dict = defaultdict(set)
         for label in groups_sorted_by_quantity:
             #print(f'{label=}',type(label))
@@ -829,11 +850,14 @@ class DudeCore:
 
         ##############################################
         self_files_of_images_groups = self.files_of_images_groups = {}
-        #print(f'{pruned_groups_dict=}')
 
-        for label,keys in pruned_groups_dict.items():
+        groups_digits=len(str(len(pruned_groups_dict)))
+
+        relabel_nr=0
+        for label,keys in sorted(pruned_groups_dict.items(), key = lambda x : max([y[6] for y in x[1]]),reverse=True ):
             if len(keys)>1:
-                self_files_of_images_groups[str(label)] = keys
+                self_files_of_images_groups[f'G{str(relabel_nr).zfill(groups_digits)}'] = keys
+                relabel_nr+=1
 
         sys_exit() #thread
 
@@ -1225,6 +1249,8 @@ class DudeCore:
             return f'Deletion error:{e}'
 
     def delete_file_to_trash(self,file_name,l_info):
+        from send2trash import send2trash
+
         l_info(f'deleting file to trash:{file_name}')
         try:
             send2trash(file_name)
@@ -1248,6 +1274,8 @@ class DudeCore:
             return 'Error on soft linking:%s' % e
 
     def do_win_lnk_link(self,src,dest,l_info):
+        from subprocess import run as subprocess_run
+
         l_info('win-lnk-linking %s<-%s',src,dest)
         try:
             powershell_cmd = f'$ol=(New-Object -ComObject WScript.Shell).CreateShortcut("{dest}")\n\r$ol.TargetPath="{src}"\n\r$ol.Save()'
