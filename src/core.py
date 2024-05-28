@@ -62,7 +62,7 @@ SOFTLINK=1
 HARDLINK=2
 WIN_LNK=3
 
-IMAGES_EXTENSIONS = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.gif','.tga','.tiff','.tif','.webp','.xbm')
+IMAGES_EXTENSIONS = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.gif','.tga','.tiff','.tif','.webp','.xbm','.ico')
 
 def localtime_catched(t):
     try:
@@ -279,7 +279,9 @@ class DudeCore:
     #sum_size_images=0
 
     scan_update_info_path_nr=None
-    def scan(self):
+    def scan(self,image_min_size_pixels=0,image_max_size_pixels=0):
+        from PIL.Image import open as image_open
+
         self.log.info('')
         self.log.info('SCANNING')
         self.log.info('paths to scan: %s',' '.join(self.paths_to_scan))
@@ -309,6 +311,11 @@ class DudeCore:
         #############################################################################################
         if self_similarity_mode:
             supported_extensions = IMAGES_EXTENSIONS
+
+            use_min_size_pixels = bool(image_min_size_pixels!=0)
+            use_max_size_pixels = bool(image_max_size_pixels!=0)
+
+            use_size_pixels = use_min_size_pixels or use_max_size_pixels
 
             self_log_skipped = self.log_skipped
 
@@ -374,7 +381,7 @@ class DudeCore:
                                             if nlink>1:
                                                 skipping_action('scan skipp - hardlinks %s - %s,%s,%s',nlink,path_nr,path,entry.name)
                                             else:
-                                                entry.name
+                                                #entry.name
                                                 extension = Path(entry).suffix
                                                 #print('extension:',extension,entry.name)
 
@@ -383,6 +390,21 @@ class DudeCore:
                                                     #https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
                                                     sum_size+=size
                                                     if extension.lower() in supported_extensions:
+                                                        if use_size_pixels:
+                                                            image_file = image_open(Path(entry))
+                                                            width = image_file.width
+                                                            height = image_file.height
+
+                                                            if use_min_size_pixels:
+                                                                min_dimension = min(width,height)
+                                                                if min_dimension<image_min_size_pixels:
+                                                                    continue
+
+                                                            if use_max_size_pixels:
+                                                                max_dimension = max(width,height)
+                                                                if max_dimension>image_max_size_pixels:
+                                                                    continue
+
                                                         #sum_size_images+=size
                                                         folder_counter_images+=1
                                                         folder_size_images+=size

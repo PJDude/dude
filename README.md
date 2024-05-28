@@ -16,7 +16,7 @@ A cross-platform GUI utility for finding duplicated files, delete or link them t
 - Works on **Linux** and **Windows**
  
 
-💥 Major news in 2.x version:
+### 💥 Major news in 2.x version:
 - **Images similarity mode**, with caching, sensitivity parameters and rotated images detection
 - **preview window** for images and text files
 - **"Same directory"** display mode
@@ -74,6 +74,8 @@ dude.exe c:\ --exclude *windows* --csv result.csv
 ```
 dude --help
 ```
+## False positives issue
+[Reference to potential problems with Windows Defender and other antivirus programs](https://github.com/PJDude/dude/discussions/9).
 
 ## Portability
 **Dude** writes log files, configuration and cache files in runtime. Default location for these files is **dude.data** folder, created next to the **dude executable** file. If there are no write access rights to such folder, platform-specific folders are used for cache, settings and logs (provided by **appdirs** module). You can use --appdirs command line switch to force that behavior even when **dude.data** is accessible.

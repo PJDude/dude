@@ -120,6 +120,7 @@ CFG_KEY_MARK_STRING_1 = 'mark_string_1'
 CFG_KEY_MARK_RE_0 = 'mark_re_0'
 CFG_KEY_MARK_RE_1 = 'mark_re_1'
 
+CFG_KEY_SHOW_PREVIEW = 'preview_shown'
 
 cfg_defaults={
     CFG_KEY_FULL_CRC:False,
@@ -151,7 +152,8 @@ cfg_defaults={
     CFG_KEY_MARK_STRING_0:'*',
     CFG_KEY_MARK_STRING_1:'*',
     CFG_KEY_MARK_RE_0:False,
-    CFG_KEY_MARK_RE_1:False
+    CFG_KEY_MARK_RE_1:False,
+    CFG_KEY_SHOW_PREVIEW:False
 }
 
 NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink',WIN_LNK:'.lnk file'}
@@ -182,7 +184,7 @@ class Config:
             with open(self.file, 'w',encoding='utf-8') as configfile:
                 self.config.write(configfile)
         except Exception as e:
-                l_error(e)
+            l_error(e)
 
     def read(self):
         l_info('reading config')
@@ -376,12 +378,14 @@ class Gui:
             self.preview_text_hbar.grid(row=1,column=0,sticky='we')
 
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images_mode_tuple=None):
-        images,ihash,idivergence,rotations = images_mode_tuple if images_mode_tuple else (False,0,0,False)
+        images,ihash,idivergence,rotations,imin,imax = images_mode_tuple if images_mode_tuple else (False,0,0,False,0,0)
 
         gc_disable()
 
         self.cwd=cwd
         self.last_dir=self.cwd
+
+        self.preview_shown=False
 
         self.cfg = Config(CONFIG_DIR)
         self.cfg.read()
@@ -441,7 +445,6 @@ class Gui:
         preview.withdraw()
         preview.update()
         preview.protocol("WM_DELETE_WINDOW", lambda : self.hide_preview())
-        preview_bind('<Escape>', lambda event : self.hide_preview() )
 
         preview_frame_txt=self.preview_frame_txt=Frame(preview)
 
@@ -590,6 +593,8 @@ class Gui:
             style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
             style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
             style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
+
+            style_map("TEntry", foreground=[("disabled",'darkgray'),('','black')],relief=[("disabled",'flat'),('','sunken')],borderwidth=[("disabled",0),('',2)],fieldbackground=[("disabled",self.bg_color),('','white')])
 
             #works but not for every theme
             #style_configure("Treeview", fieldbackground=self.bg_color)
@@ -755,8 +760,8 @@ class Gui:
         def self_groups_tree_yview(*args):
             if self.block_processing_stack:
                 return "break"
-            else:
-                self_groups_tree.yview(*args)
+
+            self_groups_tree.yview(*args)
 
         self.vsb1 = Scrollbar(frame_groups, orient='vertical', command=self_groups_tree_yview,takefocus=False)
 
@@ -814,8 +819,8 @@ class Gui:
         def self_folder_tree_yview(*args):
             if self.block_processing_stack:
                 return "break"
-            else:
-                self_folder_tree.yview(*args)
+
+            self_folder_tree.yview(*args)
 
         self.vsb2 = Scrollbar(frame_folder, orient='vertical', command=self_folder_tree_yview,takefocus=False)
 
@@ -1022,8 +1027,20 @@ class Gui:
         sf_par4.pack(fill='both',expand=True,side='top')
 
         self.similarity_distance_var = IntVar()
-        self.similarity_distance_var_lab = StringVar()
         self.similarity_distance_var.set(idivergence)
+
+        self.similarity_distance_var_lab = StringVar()
+        self.image_min_size_var = StringVar()
+        self.image_max_size_var = StringVar()
+
+        self.image_min_size_check_var = BooleanVar()
+        self.image_max_size_check_var = BooleanVar()
+
+        self.image_min_size_var.set(imin)
+        self.image_max_size_var.set(imax)
+
+        self.image_min_size_check_var.set(bool(imin))
+        self.image_max_size_check_var.set(bool(imax))
 
         self.similarity_hsize_var = IntVar()
         self.similarity_hsize_varx2 = IntVar()
@@ -1062,8 +1079,31 @@ class Gui:
         self.widget_tooltip(self.similarity_distance_scale,div_tooltip)
         self.widget_tooltip(self.similarity_distance_label_val,div_tooltip)
 
+        size_range_frame = LabelFrame(sf_par3,text='Image size range (pixels)',borderwidth=2,bg=bg_color,takefocus=False)
+        size_range_frame.grid(row=2,column=0,padx=2,sticky='news',columnspan=2)
+
+        self.image_min_check = Checkbutton(size_range_frame, text = 'use min size:' , variable=self.image_min_size_check_var,command=self.use_size_min_change)
+        self.image_min_check.grid(row=0,column=0,padx=4,pady=4, sticky='wens')
+
+        self.image_min_Entry = Entry(size_range_frame, textvariable=self.image_min_size_var,width=10)
+        self.image_min_Entry.grid(row=0,column=1,sticky='news',padx=2,pady=2)
+
+        self.image_max_check = Checkbutton(size_range_frame, text = 'use max size:' , variable=self.image_max_size_check_var,command=self.use_size_max_change)
+        self.image_max_check.grid(row=0,column=2,padx=4,pady=4, sticky='wens')
+
+        self.image_max_Entry = Entry(size_range_frame, textvariable=self.image_max_size_var,width=10)
+        self.image_max_Entry.grid(row=0,column=3,sticky='news',padx=2,pady=2)
+
+        min_tooltip = "Limit the search pool to images with\nboth dimensions (width and height)\nequal or greater to the specified value\nin pixels (e.g. 512)"
+        max_tooltip = "Limit the search pool to images with\nboth dimensions (width and height)\nsmaller or equal to the specified value\nin pixels (e.g. 4096)"
+        self.widget_tooltip(self.image_min_check,min_tooltip)
+        self.widget_tooltip(self.image_min_Entry,min_tooltip)
+
+        self.widget_tooltip(self.image_max_check,max_tooltip)
+        self.widget_tooltip(self.image_max_Entry,max_tooltip)
+
         self.all_rotations_check = Checkbutton(sf_par3, text = 'Check all rotations' , variable=self.all_rotations)
-        self.all_rotations_check.grid(row=2,column=0,padx=4,pady=4, columnspan=3, sticky='wens')
+        self.all_rotations_check.grid(row=3,column=0,padx=4,pady=4, columnspan=4, sticky='wens')
 
         self.widget_tooltip(self.all_rotations_check,"calculate hashes for all (4) image rotations\nSignificantly increases searching time\nand resources consumption.")
 
@@ -1265,6 +1305,9 @@ class Gui:
 
         self_groups_tree.focus_set()
 
+        if self.cfg.get_bool(CFG_KEY_SHOW_PREVIEW):
+            self.show_preview()
+
         gc_collect()
         gc_enable()
 
@@ -1279,6 +1322,12 @@ class Gui:
         self.hg_index=(self.hg_index+1) % self.hg_ico_len
         return self.hg_ico[self.hg_index]
 
+    def use_size_min_change(self):
+        self.image_min_Entry.configure(state='normal' if self.image_min_size_check_var.get() else 'disabled')
+
+    def use_size_max_change(self):
+        self.image_max_Entry.configure(state='normal' if self.image_max_size_check_var.get() else 'disabled')
+
     def similarity_mode_change(self):
 
         if self.similarity_mode_var.get():
@@ -1290,7 +1339,11 @@ class Gui:
             self.similarity_hsize_label_val.configure(state='normal')
 
             self.all_rotations_check.configure(state='normal')
+            self.image_min_check.configure(state='normal')
+            self.image_max_check.configure(state='normal')
 
+            self.use_size_min_change()
+            self.use_size_max_change()
         else:
             self.similarity_hsize_scale.configure(state='disabled')
             self.similarity_distance_scale.configure(state='disabled')
@@ -1300,6 +1353,10 @@ class Gui:
             self.similarity_hsize_label_val.configure(state='disabled')
 
             self.all_rotations_check.configure(state='disabled')
+            self.image_min_Entry.configure(state='disabled')
+            self.image_min_check.configure(state='disabled')
+            self.image_max_check.configure(state='disabled')
+            self.image_max_Entry.configure(state='disabled')
 
     def distance_val_set(self):
         self.similarity_distance_var_lab.set(str(self.similarity_distance_var.get())[:4])
@@ -1386,7 +1443,7 @@ class Gui:
             self.preview_auto_update = BooleanVar()
 
             self.show_full_paths = BooleanVar()
-            self.show_mode = IntVar()
+            self.show_mode = StringVar()
 
             self.create_relative_symlinks = BooleanVar()
             self.erase_empty_directories = BooleanVar()
@@ -1433,13 +1490,13 @@ class Gui:
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
             self_widget_tooltip = self.widget_tooltip
-            (cb_30:=Radiobutton(label_frame, text = 'All (default)', variable=self.show_mode,value=0)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            (cb_30:=Radiobutton(label_frame, text = 'All (default)', variable=self.show_mode,value='0')).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_30,'Show all results')
 
-            (cb_3:=Radiobutton(label_frame, text = 'Cross paths', variable=self.show_mode,value=1)).grid(row=0,column=1,sticky='wens',padx=3,pady=2)
+            (cb_3:=Radiobutton(label_frame, text = 'Cross paths', variable=self.show_mode,value='1')).grid(row=0,column=1,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_3,'Ignore (hide) groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease')
 
-            (cb_3a:=Radiobutton(label_frame, text = 'Same directory', variable=self.show_mode,value=2)).grid(row=0,column=2,sticky='wens',padx=3,pady=2)
+            (cb_3a:=Radiobutton(label_frame, text = 'Same directory', variable=self.show_mode,value='2')).grid(row=0,column=2,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_3a,'Show only groups with result files in the same directory')
 
             label_frame.grid_columnconfigure((0,1,2), weight=1)
@@ -2091,7 +2148,7 @@ class Gui:
         try:
             self.cfg.set('main',str(self.main.geometry()),section='geometry')
             coords=self.paned.sash_coord(0)
-            self.hide_preview()
+            self.hide_preview(False)
             self.cfg.set('sash_coord',str(coords[1]),section='geometry')
             self.cfg.write()
         except Exception as e:
@@ -2267,7 +2324,7 @@ class Gui:
                 except Exception :
                     pass
             elif tree_set(item,'kind')==self_CRC:
-                self.tag_toggle_selected(tree, *tree_children_sub[item] )
+                self.tag_toggle_selected(tree, *self.tree_children_sub[item] )
 
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
@@ -2643,7 +2700,7 @@ class Gui:
         self.main.focus_set()
         self.sel_tree.focus_set()
 
-    def show_preview(self):
+    def show_preview(self,user_action=True):
         self_preview = self.preview
 
         if self.preview_shown:
@@ -2657,6 +2714,9 @@ class Gui:
                 self_preview.geometry(cfg_geometry)
 
             self_preview.deiconify()
+
+        if user_action:
+            self.cfg.set_bool(CFG_KEY_SHOW_PREVIEW,True)
 
         self.update_preview()
 
@@ -2678,23 +2738,16 @@ class Gui:
                 head,ext = path_splitext(path)
                 ext_lower = ext.lower()
 
-                if ext_lower in TEXT_EXTENSIONS:
+                try:
+                    file_size = stat(path).st_size
+                except:
+                    file_size = None
+
+                if isdir(path) or not file_size:
+                    self.preview_frame_txt.pack_forget()
                     self.preview_label_img.pack_forget()
-                    try:
-
-                        with open(path,'rt', encoding='utf-8', errors='ignore') as file:
-                            self.preview_text.delete(1.0, 'end')
-
-                            cont_lines=file.readlines()
-                            self.preview_label_txt.configure(text=f'lines:{fnumber(len(cont_lines))}')
-                            self.preview_text.insert('end', ''.join(cont_lines))
-
-                    except Exception as e:
-                        self.preview_label_txt.configure(text=str(e))
-                        self.preview.title(f'Dude - Preview {e}')
-                    else:
-                        self.preview_frame_txt.pack(fill='both',expand=1)
-                        self.preview.title(path)
+                    self.preview_label_txt.configure(text='')
+                    self.preview.title('Dude - Preview')
 
                 elif ext_lower in IMAGES_EXTENSIONS:
                     self.preview_frame_txt.pack_forget()
@@ -2736,16 +2789,56 @@ class Gui:
 
                     except Exception as e:
                         self.preview_label_txt.configure(text=str(e))
-                        self.preview.title(f'Dude - Preview {e}')
+                        self.preview.title(path)
+                        self.preview_text.delete(1.0, 'end')
                     else:
                         self.preview_label_img.pack(fill='both',expand=1)
+                        self.preview.title(path)
+
+                elif ext_lower in TEXT_EXTENSIONS:
+                    self.preview_label_img.pack_forget()
+                    self.preview_text.delete(1.0, 'end')
+                    try:
+                        with open(path,'rt', encoding='utf-8', errors='ignore') as file:
+
+                            cont_lines=file.readlines()
+                            self.preview_label_txt.configure(text=f'lines:{fnumber(len(cont_lines))}')
+                            self.preview_text.insert('end', ''.join(cont_lines))
+                    except Exception as e:
+                        self.preview_label_txt.configure(text=str(e))
+                        self.preview.title(path)
+                        self.preview_frame_txt.pack_forget()
+                    else:
+                        self.preview_frame_txt.pack(fill='both',expand=1)
+                        self.preview.title(path)
+
+                elif file_size<1024*1024*10:
+                    self.preview_label_img.pack_forget()
+                    self.preview_text.delete(1.0, 'end')
+
+                    try:
+                        with open(path,'rt', encoding='utf-8') as file:
+
+                            cont_lines=file.readlines()
+                            self.preview_label_txt.configure(text=f'lines:{fnumber(len(cont_lines))}')
+                            self.preview_text.insert('end', ''.join(cont_lines))
+                    except UnicodeDecodeError:
+                        self.preview_label_txt.configure(text='Non-UTF.')
+                        self.preview.title(path)
+                        self.preview_frame_txt.pack_forget()
+                    except Exception as e:
+                        self.preview_label_txt.configure(text=str(e))
+                        self.preview.title(path)
+                        self.preview_frame_txt.pack_forget()
+                    else:
+                        self.preview_frame_txt.pack(fill='both',expand=1)
                         self.preview.title(path)
 
                 else:
                     self.preview_frame_txt.pack_forget()
                     self.preview_label_img.pack_forget()
-                    self.preview_label_txt.configure(text='')
-                    self.preview.title('Dude - Preview (format)')
+                    self.preview_label_txt.configure(text='wrong format')
+                    self.preview.title(path)
 
             else:
                 self.preview_frame_txt.pack_forget()
@@ -2753,11 +2846,14 @@ class Gui:
                 self.preview_label_txt.configure(text='')
                 self.preview.title('Dude - Preview (no path)')
 
-    def hide_preview(self):
+    def hide_preview(self,user_action=True):
         self_preview = self.preview
 
         if self.preview_shown:
             self.cfg.set('preview',str(self_preview.geometry()),section='geometry')
+
+            if user_action:
+                self.cfg.set_bool(CFG_KEY_SHOW_PREVIEW,False)
 
         self.preview_shown=False
 
@@ -3309,7 +3405,7 @@ class Gui:
         self.status('Scanning...')
         self.cfg.write()
 
-        self.hide_preview()
+        self.hide_preview(False)
         dude_core.reset()
         self.status_path_configure(text='')
         self.groups_show()
@@ -3363,7 +3459,23 @@ class Gui:
 
         self.similarity_mode = similarity_mode = dude_core.similarity_mode = self.similarity_mode_var.get()
 
-        scan_thread=Thread(target=dude_core.scan,daemon=True)
+        image_min_size_int = 0
+        if image_min_size := self.image_min_size_var.get():
+            try:
+                image_min_size_int = int(image_min_size)
+            except Exception as e:
+                self.get_info_dialog_on_scan().show('Min size value error',f'fix: "{image_min_size}"')
+                return
+
+        image_max_size_int = 0
+        if image_max_size := self.image_max_size_var.get():
+            try:
+                image_max_size_int = int(image_max_size)
+            except Exception as e:
+                self.get_info_dialog_on_scan().show('Max size value error',f'fix: "{image_max_size}"')
+                return
+
+        scan_thread=Thread(target=lambda : dude_core.scan(image_min_size_int,image_max_size_int),daemon=True)
         scan_thread.start()
 
         self_progress_dialog_on_scan.lab_l1.configure(text='Total space:')
@@ -3723,6 +3835,9 @@ class Gui:
 
         if self.action_abort:
             self.get_info_dialog_on_scan().show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
+
+        if self.cfg.get_bool(CFG_KEY_SHOW_PREVIEW):
+            self.show_preview(False)
 
         return True
 
@@ -4132,7 +4247,7 @@ class Gui:
                     hist=defaultdict(int)
                     for pathnr,path,file,ctime,dev,inode,size in items_set:
                         hist[(pathnr,path)]+=1
-                    if not any([val for val in hist.values() if val>1]):
+                    if not any(val for val in hist.values() if val>1):
                         continue
 
                 group_item=self_groups_tree_insert('','end',crc, values=('','','',size_str_group,size_h_group,'','','',crc,instances_str,instances_str,'',self_CRC),tags=self_CRC,open=True,text = crc)
@@ -4187,7 +4302,7 @@ class Gui:
                         hist=defaultdict(int)
                         for pathnr,path,file,ctime,dev,inode in crc_dict:
                             hist[(pathnr,path)]+=1
-                        if not any([val for val in hist.values() if val>1]):
+                        if not any(val for val in hist.values() if val>1):
                             continue
 
                     #self_groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
@@ -4957,7 +5072,7 @@ class Gui:
 
                     orglist=self.tree_children[self.groups_tree]
 
-                    dude_core.remove_from_data_pool(size,group,tuples_to_remove,self.file_remove_callback,self.group_remove_callback)
+                    dude_core.remove_from_data_pool(size,group,tuples_to_remove,self.file_remove_callback,self.crc_remove_callback)
 
                     self.data_precalc()
 
@@ -4992,7 +5107,7 @@ class Gui:
                         incorrect_groups_append(group)
 
                 problem_header = 'All files marked'
-                if action==SOFTLINK or action==WIN_LNK:
+                if action in (SOFTLINK,WIN_LNK):
                     problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
                 else:
                     problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\""
@@ -5000,14 +5115,14 @@ class Gui:
             if incorrect_groups:
                 if skip_incorrect:
 
-                    incorrect_group_str='\n'.join([group if show_full_crc else group[:dude_core.group_cut_len] for group in incorrect_groups ])
+                    incorrect_group_str='\n'.join([group if show_full_crc else group[:dude_core.crc_cut_len] for group in incorrect_groups ])
                     header = f'Warning ({NAME[action]}). {problem_header}'
                     message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
 
                     self.get_text_info_dialog().show(header,message)
                     self.store_text_dialog_fields(self.text_info_dialog)
 
-                    self.group_select_and_focus(incorrect_groups[0],True)
+                    self.crc_select_and_focus(incorrect_groups[0],True)
 
                     for group in incorrect_groups:
                         del processed_items[group]
@@ -5023,7 +5138,7 @@ class Gui:
                         header = f'Error ({NAME[action]}). {problem_header}'
                         self.get_info_dialog_on_main().show(header,problem_message)
 
-                    self.group_select_and_focus(incorrect_groups[0],True)
+                    self.crc_select_and_focus(incorrect_groups[0],True)
                     return self.CHECK_ERR
 
             ###############################################################
@@ -5080,7 +5195,7 @@ class Gui:
                         incorrect_groups_append(crc)
 
                 problem_header = 'All files marked'
-                if action==SOFTLINK or action==WIN_LNK:
+                if action in (SOFTLINK,WIN_LNK):
                     problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
                 else:
                     problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\""
@@ -5641,7 +5756,8 @@ class Gui:
         self_tree_children_sub = self.tree_children_sub
 
         for crc in processed_items:
-            remaining_items[crc]={index:item for index,item in enumerate( [item for item in self_tree_children_sub[crc] if item not in self_tagged] ) }
+            remaining_items[crc]=dict(enumerate([item for item in self_tree_children_sub[crc] if item not in self_tagged]))
+            #{index:item for index,item in enumerate( [item for item in self_tree_children_sub[crc] if item not in self_tagged] ) }
 
         check=self.process_files_check_correctness(action,processed_items,remaining_items)
 
@@ -6192,7 +6308,7 @@ if __name__ == "__main__":
             print('Done')
 
         else:
-            images_mode = bool(p_args.images or p_args.ih or p_args.id or p_args.ir)
+            images_mode = bool(p_args.images or p_args.ih or p_args.id or p_args.ir or p_args.imin or p_args.imax)
 
             images_mode_tuple=[images_mode]
 
@@ -6207,6 +6323,16 @@ if __name__ == "__main__":
                 images_mode_tuple.append(5)
 
             images_mode_tuple.append(p_args.ir)
+
+            if p_args.imin:
+                images_mode_tuple.append(int(p_args.imin[0]))
+            else:
+                images_mode_tuple.append(0)
+
+            if p_args.imax:
+                images_mode_tuple.append(int(p_args.imax[0]))
+            else:
+                images_mode_tuple.append(0)
 
             Gui( getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun,images_mode_tuple )
 
