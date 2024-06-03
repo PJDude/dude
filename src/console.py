@@ -72,6 +72,7 @@ def parse_args(ver):
     parser.add_argument('-ir' ,action='store_true',help='Images similarity mode process all rotations')
     parser.add_argument('-imin' ,nargs=1,help='Images similarity mode minimum image size (pixels)',type=int)
     parser.add_argument('-imax' ,nargs=1,help='Images similarity mode maximum image size (pixels)',type=int)
+    parser.add_argument('-igps' ,action='store_true',help='Images GPS proximity mode')
 
     parser_help=parser.format_help().split('\n')
     help_parts=[parser_help[0]] + parser_help[7::]
@@ -102,7 +103,7 @@ if __name__ == "__main__":
         command.append('--log')
         command.append(args.log)
 
-    if args.images or args.hash or args.divergence or args.rotations:
+    if args.images or args.ih or args.id or args.ir:
         command.append('--images')
 
     if args.ih:
@@ -123,6 +124,10 @@ if __name__ == "__main__":
     if args.imax:
         command.append('-imax')
         command.append(args.imax)
+
+    if args.igps:
+        command.append('-igps')
+        command.append(args.igps)
 
     if args.paths:
         command.extend(args.paths)

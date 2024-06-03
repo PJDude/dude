@@ -44,6 +44,7 @@ from fnmatch import fnmatch
 from time import sleep,strftime,time,perf_counter
 
 import sys
+from sys import exit as sys_exit
 import logging
 
 from platform import node
@@ -59,7 +60,7 @@ from os.path import abspath,normpath,dirname,join as path_join,isfile as path_is
 #from shutil import rmtree
 #from PIL import Image, ImageTk
 #from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
-#from PIL.Image import NEAREST,BILINEAR,open as image_open
+#from PIL.Image import BILINEAR,open as image_open
 
 windows = bool(os_name=='nt')
 
@@ -230,6 +231,210 @@ class Config:
             return res
 
 ###########################################################
+def measure(func):
+    def wrapper(*args,**kwargs):
+        t0=perf_counter()
+        res = func(*args,**kwargs)
+        t1=perf_counter()
+
+        print(f'timed {func.__name__}:',t1-t0)
+        return res
+
+    return wrapper
+###########################################################
+class photo_image_cache:
+    def __init__(self ):
+        from threading import Thread
+
+        self.init_all()
+
+        self.pre_and_next_range=4
+
+        if env_dude_preload:=os_environ.get('DUDE_PRELOAD'):
+            print(f'{env_dude_preload=}')
+            try:
+                env_dude_preload_int = int(env_dude_preload)
+            except Exception as e:
+                print('DUDE_PRELOAD Error:',e)
+                sys_exit(5)
+            else:
+                if env_dude_preload_int>0:
+                    self.pre_and_next_range=env_dude_preload_int
+                else:
+                    print('DUDE_PRELOAD !<0:',e)
+                    sys_exit(6)
+
+
+        self.limit_full=2*self.pre_and_next_range
+        self.limit_scaled=self.limit_full
+        self.limit_scaled_photoimage=self.limit_scaled
+        #print('self.limit_full:',self.limit_full)
+
+        self.window_size = (100,100)
+        self.txt_label_heigh = 0
+
+        self.current_ratio = 1.0
+        self.read_ahead_enabled = True
+        self.thread_keeep_looping = True
+
+        self.read_ahead_thread=Thread(target=self.read_ahead_threaded_loop,daemon=True)
+        self.read_ahead_thread.start()
+
+    def init_all(self):
+        from collections import deque
+
+        self.cache_full={}
+        self.cache_scaled={}
+        self.cache_scaled_photoimage={}
+
+        self.cache_full_deque=deque()
+        self.cache_scaled_deque=deque()
+        self.cache_scaled_photoimage_deque=deque()
+
+        self.read_ahead_deque=deque()
+
+    def end(self):
+        self.init_all()
+        self.thread_keeep_looping=False
+        self.read_ahead_thread.join()
+
+    def set_window_size(self,window_size,txt_label_heigh):
+        from collections import deque
+
+        if self.window_size != window_size or self.txt_label_heigh != txt_label_heigh:
+            self.window_size = window_size
+            self.txt_label_heigh = txt_label_heigh
+
+            self.cache_scaled={}
+            self.cache_scaled_photoimage={}
+            self.cache_scaled_deque=deque()
+            self.cache_scaled_photoimage_deque=deque()
+
+    def reset_read_ahead(self):
+        self.read_ahead_deque.clear()
+
+    def add_image_to_read_ahead(self, path):
+        self.read_ahead_deque.append(path)
+
+    def read_ahead_threaded_loop(self):
+        self_read_ahead_deque_pop = self.read_ahead_deque.pop
+        self_get_cached_scaled_image = self.get_cached_scaled_image
+
+        while self.thread_keeep_looping:
+            try:
+                if self.read_ahead_enabled and self.read_ahead_deque:
+                    if path := self_read_ahead_deque_pop():
+                        self_get_cached_scaled_image(path)
+                        #print('cached:',path,len(self.read_ahead_deque))
+                        continue
+                    else:
+                        sleep(0.1)
+                else:
+                    sleep(0.01)
+            except Exception as e:
+                print(e)
+                sleep(1)
+
+        sys_exit()
+
+    def get_cached_full_image(self,path):
+        from PIL.Image import open as image_open
+
+        if not path_isfile(path):
+            return None
+
+        self_cache_full = self.cache_full
+        if path not in self_cache_full:
+            try:
+                image = image_open(path)
+                if image.mode != 'RGBA':
+                    image = image.convert("RGBA")
+
+                self_cache_full_deque = self.cache_full_deque
+                if len(self_cache_full_deque)>self.limit_full:
+                    path_to_remove = self_cache_full_deque.popleft()
+                    del self_cache_full[path_to_remove]
+
+                self_cache_full_deque.append(path)
+
+                self_cache_full[path]=image
+
+                return image
+            except Exception as e:
+                print('get_cached_full_image Error:',e)
+                return None
+        else:
+            return self_cache_full[path]
+
+    def get_cached_scaled_image(self,path):
+        from PIL.Image import BILINEAR
+        from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+
+        self_cache_scaled = self.cache_scaled
+
+        if path not in self_cache_scaled:
+            if full_image:=self.get_cached_full_image(path):
+                window_size_width,window_size_height = self.window_size
+
+                height = full_image.height
+                ratio_y = height/(window_size_height-self.txt_label_heigh)
+
+                width = full_image.width
+                ratio_x = width/window_size_width
+
+                self_cache_scaled_deque = self.cache_scaled_deque
+                if self_cache_scaled_deque and len(self_cache_scaled_deque)>self.limit_scaled:
+                    path_to_remove = self_cache_scaled_deque.popleft()
+                    del self_cache_scaled[path_to_remove]
+
+                current_ratio = max(ratio_x,ratio_y,1)
+                self_cache_scaled[path] = image_combo = full_image if current_ratio==1 else full_image.resize( ( int (width/current_ratio), int(height/current_ratio)) ,BILINEAR),width,height,current_ratio
+                self_cache_scaled_deque.append(path)
+
+                return image_combo
+            else:
+                return None,0,0,1
+        else:
+            return self_cache_scaled[path]
+
+    def get_cached_scaled_photo_image(self,path):
+        from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+
+        self_cache_scaled_photoimage = self.cache_scaled_photoimage
+
+        if path not in self_cache_scaled_photoimage:
+            if scaled_image_combo:=self.get_cached_scaled_image(path):
+                scaled_image,width,height,ratio = scaled_image_combo
+
+                self_cache_scaled_photoimage_deque = self.cache_scaled_photoimage_deque
+                if self_cache_scaled_photoimage_deque and len(self_cache_scaled_photoimage_deque)>self.limit_scaled_photoimage:
+                    path_to_remove = self_cache_scaled_photoimage_deque.popleft()
+                    del self_cache_scaled_photoimage[path_to_remove]
+
+                self_cache_scaled_photoimage_deque.append(path)
+
+                self_cache_scaled_photoimage[path] = photoimage_combo = ImageTk_PhotoImage(scaled_image),width,height,ratio
+                #self_cache_scaled_photoimage[path] = photoimage_combo = scaled_image,width,height,ratio
+
+                return photoimage_combo
+            else:
+                return None,0,0,1
+        else:
+            return self_cache_scaled_photoimage[path]
+
+    read_ahead_enabled=True
+
+    def get_photo_image(self,path):
+        self.read_ahead_enabled=False
+        scaled_image,width,height,current_ratio=self.get_cached_scaled_photo_image(path)
+        self.read_ahead_enabled=True
+
+        if scaled_image:
+            return scaled_image,f'{width} x {height} pixels' + (f' ({round(100.0/current_ratio)}%)' if current_ratio>1 else '')
+        else:
+            return None,'error1'
+
+###########################################################
 
 class Gui:
     MAX_PATHS=8
@@ -378,7 +583,7 @@ class Gui:
             self.preview_text_hbar.grid(row=1,column=0,sticky='we')
 
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images_mode_tuple=None):
-        images,ihash,idivergence,rotations,imin,imax = images_mode_tuple if images_mode_tuple else (False,0,0,False,0,0)
+        images,ihash,idivergence,rotations,imin,imax,igps = images_mode_tuple if images_mode_tuple else (False,0,0,False,0,0,False)
 
         gc_disable()
 
@@ -413,7 +618,7 @@ class Gui:
         self.current_folder_items_tagged_discard=self.current_folder_items_tagged.discard
         self.current_folder_items_tagged_add=self.current_folder_items_tagged.add
 
-        self.similarity_mode = False
+        self.operation_mode = MODE_CRC
         ####################################################################
         #self_main = self.main = Tk()
         self_main = self.main = TkinterDnD.Tk()
@@ -469,7 +674,10 @@ class Gui:
 
         ####################################
         self.preview_label_txt=Label(preview,relief='groove',bd=2,anchor='w')
+        self.preview_label_txt_configure = self.preview_label_txt.configure
+
         self.preview_label_img=Label(preview,bd=2,anchor='nw')
+        self.preview_label_img_configure = self.preview_label_img.configure
 
         self.preview_label_txt.pack(fill='x',side='top',anchor='nw')
         self.preview_label_img.pack(fill='both',side='top',anchor='nw')
@@ -559,7 +767,7 @@ class Gui:
         except Exception as e:
             print(e)
             print('Try one of: aqua,step,clam,alt,default,classic')
-            sys.exit(1)
+            sys_exit(1)
 
         bg_color = self.bg_color = style.lookup('TFrame', 'background')
         preview.configure(bg=bg_color)
@@ -910,8 +1118,8 @@ class Gui:
         self.all_rotations=BooleanVar()
         self.all_rotations.set(rotations)
 
-        self.similarity_mode_var=BooleanVar()
-        self.similarity_mode_var.set(images)
+        self.operation_mode_var=IntVar()
+        self.operation_mode_var.set(MODE_SIMILARITY if images else MODE_GPS if igps else MODE_CRC)
 
         self_scan_dialog_area_main = self_scan_dialog.area_main
 
@@ -1012,10 +1220,25 @@ class Gui:
         self.exclude_frame.grid_rowconfigure(99, weight=1)
         ##############
 
-        similarity_button = Checkbutton(self_scan_dialog_area_main,text='Images similarity mode',variable=self.similarity_mode_var,command=self.similarity_mode_change )
-        similarity_button.grid(row=3,column=0,sticky='news',padx=8,pady=3)
+        operation_mode_frame = LabelFrame(self_scan_dialog_area_main,text='Operation mode',borderwidth=2,bg=bg_color,takefocus=False)
+        operation_mode_frame.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        self.widget_tooltip(similarity_button,"Only image files are processed\nIdentified groups contain images with similar content\n\nIf not enabled, the classic CRC algorithm is applied\nto files of the same size.")
+        crc_button = Radiobutton(operation_mode_frame,text='CRC                  ',variable=self.operation_mode_var,value=MODE_CRC,command=self.operation_mode_change )
+        crc_button.grid(row=0,column=0,sticky='news',padx=8,pady=3)
+
+        self.widget_tooltip(crc_button,"the classic CRC algorithm is applied\nto groups of files of the same size.")
+
+        similarity_button = Radiobutton(operation_mode_frame,text='Images similarity      ',variable=self.operation_mode_var,value=MODE_SIMILARITY,command=self.operation_mode_change )
+        similarity_button.grid(row=0,column=1,sticky='news',padx=8,pady=3)
+
+        self.widget_tooltip(similarity_button,"Only image files are processed\nIdentified groups contain\nimages with similar content")
+
+        gps_button = Radiobutton(operation_mode_frame,text='Images GPS data proximity',variable=self.operation_mode_var,value=MODE_GPS,command=self.operation_mode_change )
+        gps_button.grid(row=0,column=2,sticky='news',padx=8,pady=3)
+
+        self.widget_tooltip(gps_button,"Only image files with EXIF GPS\ndata are processed. Identified groups\ncontain images with GPS coordinates\nwith close proximity to each other")
+
+        operation_mode_frame.grid_columnconfigure( (0,1,2), weight=1)
 
         temp_frame3 = LabelFrame(self_scan_dialog_area_main,text='Similarity mode options',borderwidth=2,bg=bg_color,takefocus=False)
         temp_frame3.grid(row=4,column=0,sticky='news',padx=4,pady=4,columnspan=4)
@@ -1082,13 +1305,13 @@ class Gui:
         size_range_frame = LabelFrame(sf_par3,text='Image size range (pixels)',borderwidth=2,bg=bg_color,takefocus=False)
         size_range_frame.grid(row=2,column=0,padx=2,sticky='news',columnspan=2)
 
-        self.image_min_check = Checkbutton(size_range_frame, text = 'use min size:' , variable=self.image_min_size_check_var,command=self.use_size_min_change)
+        self.image_min_check = Checkbutton(size_range_frame, text = 'Min size:' , variable=self.image_min_size_check_var,command=self.use_size_min_change)
         self.image_min_check.grid(row=0,column=0,padx=4,pady=4, sticky='wens')
 
         self.image_min_Entry = Entry(size_range_frame, textvariable=self.image_min_size_var,width=10)
         self.image_min_Entry.grid(row=0,column=1,sticky='news',padx=2,pady=2)
 
-        self.image_max_check = Checkbutton(size_range_frame, text = 'use max size:' , variable=self.image_max_size_check_var,command=self.use_size_max_change)
+        self.image_max_check = Checkbutton(size_range_frame, text = 'Max size:' , variable=self.image_max_size_check_var,command=self.use_size_max_change)
         self.image_max_check.grid(row=0,column=2,padx=4,pady=4, sticky='wens')
 
         self.image_max_Entry = Entry(size_range_frame, textvariable=self.image_max_size_var,width=10)
@@ -1108,12 +1331,12 @@ class Gui:
         self.widget_tooltip(self.all_rotations_check,"calculate hashes for all (4) image rotations\nSignificantly increases searching time\nand resources consumption.")
 
         self.distance_val_set()
-        self.similarity_mode_change()
+        self.operation_mode_change()
 
         sf_par3.grid_columnconfigure((0,1), weight=1)
 
         skip_button = Checkbutton(self_scan_dialog_area_main,text='log skipped files',variable=self.log_skipped_var)
-        skip_button.grid(row=5,column=0,sticky='news',padx=8,pady=3)
+        skip_button.grid(row=6,column=0,sticky='news',padx=8,pady=3)
 
         self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
 
@@ -1328,9 +1551,22 @@ class Gui:
     def use_size_max_change(self):
         self.image_max_Entry.configure(state='normal' if self.image_max_size_check_var.get() else 'disabled')
 
-    def similarity_mode_change(self):
+    def operation_mode_change(self):
+        operation_mode = self.operation_mode_var.get()
+        if operation_mode==MODE_CRC:
+            self.similarity_hsize_scale.configure(state='disabled')
+            self.similarity_distance_scale.configure(state='disabled')
 
-        if self.similarity_mode_var.get():
+            self.similarity_distance_label_val.configure(state='disabled')
+
+            self.similarity_hsize_label_val.configure(state='disabled')
+
+            self.all_rotations_check.configure(state='disabled')
+            self.image_min_Entry.configure(state='disabled')
+            self.image_min_check.configure(state='disabled')
+            self.image_max_check.configure(state='disabled')
+            self.image_max_Entry.configure(state='disabled')
+        elif operation_mode==MODE_SIMILARITY:
             self.similarity_hsize_scale.configure(state='normal')
             self.similarity_distance_scale.configure(state='normal')
 
@@ -1344,19 +1580,22 @@ class Gui:
 
             self.use_size_min_change()
             self.use_size_max_change()
-        else:
+        elif operation_mode==MODE_GPS:
             self.similarity_hsize_scale.configure(state='disabled')
-            self.similarity_distance_scale.configure(state='disabled')
+            self.similarity_distance_scale.configure(state='normal')
 
-            self.similarity_distance_label_val.configure(state='disabled')
+            self.similarity_distance_label_val.configure(state='normal')
 
             self.similarity_hsize_label_val.configure(state='disabled')
 
             self.all_rotations_check.configure(state='disabled')
-            self.image_min_Entry.configure(state='disabled')
-            self.image_min_check.configure(state='disabled')
-            self.image_max_check.configure(state='disabled')
-            self.image_max_Entry.configure(state='disabled')
+            self.image_min_check.configure(state='normal')
+            self.image_max_check.configure(state='normal')
+
+            self.use_size_min_change()
+            self.use_size_max_change()
+        else:
+            print('unknown operation_mode:',operation_mode)
 
     def distance_val_set(self):
         self.similarity_distance_var_lab.set(str(self.similarity_distance_var.get())[:4])
@@ -1865,6 +2104,8 @@ class Gui:
                 tree.selection_remove(item)
                 self.groups_tree_sel_change(item,True)
 
+                self.preview_preload_groups_tree(item)
+
             tree.configure(style='semi_focus.Treeview')
             self.other_tree[tree].configure(style='no_focus.Treeview')
         except Exception as e:
@@ -1877,6 +2118,7 @@ class Gui:
             if item:=self.selected[tree]:
                 tree.focus(item)
                 tree.selection_remove(item)
+                self.preview_preload_folder_tree(item)
 
             tree.configure(style='semi_focus.Treeview')
             self.other_tree[tree].configure(style='no_focus.Treeview')
@@ -2007,7 +2249,7 @@ class Gui:
                                 self.tooltip_deiconify()
                             else:
                                 crc=item
-                                if self.similarity_mode:
+                                if self.operation_mode:
                                     self.tooltip_lab_configure(text='GROUP: %s' % crc )
                                 else:
                                     self.tooltip_lab_configure(text='CRC: %s' % crc )
@@ -2487,7 +2729,7 @@ class Gui:
                         else:
                             self.process_files_in_folder_wrapper(DELETE,self.sel_kind in (self.DIR,self.DIRLINK))
                     elif key == "Insert":
-                        if not self.similarity_mode:
+                        if not self.operation_mode:
                             action = WIN_LNK if shift_pressed and alt_pressed and windows else HARDLINK if shift_pressed else SOFTLINK
 
                             if tree==self.groups_tree:
@@ -2669,27 +2911,20 @@ class Gui:
 
         return "break"
 
-    preview_photo_image_cache={}
-    preview_photo_image_limit=64
-    preview_photo_image_list=[]
-    preview_shown=False
-    preview_size=(1,1)
+    preview_photo_image_cache=None
 
-    def preview_conf(self,event):
+    def preview_conf(self,event=None):
         if self.preview_shown:
+            #print('preview_conf')
+
             #z eventu czasami idzie lewizna (start bez obrazka)
             geometry = self.preview.geometry()
             self.cfg.set('preview',str(geometry),section='geometry')
 
-            new_preview_size = tuple([int(x) for x in geometry.split('+')[0].split('x')])
+            new_window_size = tuple([int(x) for x in geometry.split('+')[0].split('x')])
 
-            if self.preview_size!=new_preview_size:
-                self.txt_label_heigh = self.preview_label_txt.winfo_height()
-
-                self.preview_size=new_preview_size
-
-                self.preview_photo_image_cache={}
-                self.preview_photo_image_list=[]
+            if self.preview_photo_image_cache:
+                self.preview_photo_image_cache.set_window_size(new_window_size,self.preview_label_txt.winfo_height())
 
                 self.update_preview()
             else:
@@ -2701,12 +2936,15 @@ class Gui:
         self.sel_tree.focus_set()
 
     def show_preview(self,user_action=True):
+
         self_preview = self.preview
+        self.preview_photo_image_cache = photo_image_cache()
 
         if self.preview_shown:
             self_preview.lift()
             self_preview.attributes('-topmost',True)
             self_preview.after_idle(self_preview.attributes,'-topmost',False)
+            self_preview.after_idle(self.preview_conf)
         else:
             self.preview_shown=True
 
@@ -2723,14 +2961,11 @@ class Gui:
         self.main.focus_set()
         self.sel_tree.focus_set()
 
-    last_image_read = ''
-    last_image_read_path = ''
-
     def update_preview(self):
         if self.preview_shown:
-            from PIL import Image, ImageTk
-            from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
-            from PIL.Image import NEAREST,BILINEAR,open as image_open
+            #from PIL import Image, ImageTk
+            #from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+            #from PIL.Image import BILINEAR,open as image_open
 
             path = self.sel_full_path_to_file
 
@@ -2746,49 +2981,20 @@ class Gui:
                 if isdir(path) or not file_size:
                     self.preview_frame_txt.pack_forget()
                     self.preview_label_img.pack_forget()
-                    self.preview_label_txt.configure(text='')
+                    self.preview_label_txt_configure(text='')
                     self.preview.title('Dude - Preview')
 
                 elif ext_lower in IMAGES_EXTENSIONS:
                     self.preview_frame_txt.pack_forget()
 
                     try:
-                        self_preview_photo_image_cache = self.preview_photo_image_cache
-                        self_preview_photo_image_list = self.preview_photo_image_list
-                        if path not in self_preview_photo_image_cache:
+                        cache_res = self.preview_photo_image_cache.get_photo_image(path)
 
-                            if path != self.last_image_read_path:
-                                self.last_image_read = image_open(path)
-                                if self.last_image_read.mode != 'RGBA':
-                                    self.last_image_read = self.last_image_read.convert("RGBA")
-                                self.last_image_read_path = path
-
-                            preview_size_width,preview_size_height = self.preview_size
-
-                            height = self.last_image_read.height
-                            ratio_y = height/(preview_size_height-self.txt_label_heigh)
-
-                            width = self.last_image_read.width
-                            ratio_x = width/preview_size_width
-
-                            biggest_ratio = max(ratio_x,ratio_y,1)
-
-                            size = ( int (width/biggest_ratio), int(height/biggest_ratio))
-
-                            self_preview_photo_image_cache[path]=(ImageTk_PhotoImage(self.last_image_read.resize(size,BILINEAR)),f'{width} x {height} pixels' + (f' ({round(100.0/biggest_ratio)}%)' if biggest_ratio>1 else '') )
-
-                            if len(self_preview_photo_image_list)>self.preview_photo_image_limit:
-                                del self_preview_photo_image_cache[self_preview_photo_image_list.pop(0)]
-                        else:
-                            self_preview_photo_image_list.remove(path)
-
-                        self_preview_photo_image_list.append(path)
-
-                        self.preview_label_img.configure(image=self_preview_photo_image_cache[path][0])
-                        self.preview_label_txt.configure(text=self_preview_photo_image_cache[path][1])
+                        self.preview_label_img_configure(image=cache_res[0])
+                        self.preview_label_txt_configure(text=cache_res[1])
 
                     except Exception as e:
-                        self.preview_label_txt.configure(text=str(e))
+                        self.preview_label_txt_configure(text=str(e))
                         self.preview.title(path)
                         self.preview_text.delete(1.0, 'end')
                     else:
@@ -2802,10 +3008,10 @@ class Gui:
                         with open(path,'rt', encoding='utf-8', errors='ignore') as file:
 
                             cont_lines=file.readlines()
-                            self.preview_label_txt.configure(text=f'lines:{fnumber(len(cont_lines))}')
+                            self.preview_label_txt_configure(text=f'lines:{fnumber(len(cont_lines))}')
                             self.preview_text.insert('end', ''.join(cont_lines))
                     except Exception as e:
-                        self.preview_label_txt.configure(text=str(e))
+                        self.preview_label_txt_configure(text=str(e))
                         self.preview.title(path)
                         self.preview_frame_txt.pack_forget()
                     else:
@@ -2820,14 +3026,14 @@ class Gui:
                         with open(path,'rt', encoding='utf-8') as file:
 
                             cont_lines=file.readlines()
-                            self.preview_label_txt.configure(text=f'lines:{fnumber(len(cont_lines))}')
+                            self.preview_label_txt_configure(text=f'lines:{fnumber(len(cont_lines))}')
                             self.preview_text.insert('end', ''.join(cont_lines))
                     except UnicodeDecodeError:
-                        self.preview_label_txt.configure(text='Non-UTF.')
+                        self.preview_label_txt_configure(text='Non-UTF.')
                         self.preview.title(path)
                         self.preview_frame_txt.pack_forget()
                     except Exception as e:
-                        self.preview_label_txt.configure(text=str(e))
+                        self.preview_label_txt_configure(text=str(e))
                         self.preview.title(path)
                         self.preview_frame_txt.pack_forget()
                     else:
@@ -2837,13 +3043,13 @@ class Gui:
                 else:
                     self.preview_frame_txt.pack_forget()
                     self.preview_label_img.pack_forget()
-                    self.preview_label_txt.configure(text='wrong format')
+                    self.preview_label_txt_configure(text='wrong format')
                     self.preview.title(path)
 
             else:
                 self.preview_frame_txt.pack_forget()
                 self.preview_label_img.pack_forget()
-                self.preview_label_txt.configure(text='')
+                self.preview_label_txt_configure(text='')
                 self.preview.title('Dude - Preview (no path)')
 
     def hide_preview(self,user_action=True):
@@ -2855,11 +3061,19 @@ class Gui:
             if user_action:
                 self.cfg.set_bool(CFG_KEY_SHOW_PREVIEW,False)
 
+            self.preview_photo_image_cache.end()
+            del self.preview_photo_image_cache
+            self.preview_photo_image_cache = None
+
+        self.preview_label_txt_configure(text='')
+        self.preview_label_img_configure(image='')
+        self.preview_text.delete(1.0, 'end')
+        self.preview_frame_txt.pack_forget()
+        self.preview_label_img.pack_forget()
+
         self.preview_shown=False
 
         self_preview.withdraw()
-        self.preview_photo_image_cache={}
-        self.preview_photo_image_list=[]
 
     def set_full_path_to_file_win(self):
         self.sel_full_path_to_file=str(Path(sep.join([self.sel_path_full,self.sel_file]))) if self.sel_path_full and self.sel_file else None
@@ -2877,6 +3091,50 @@ class Gui:
             self.status_path_configure(text=self.sel_path_full)
 
             self.dominant_groups_folder={0:-1,1:-1}
+
+    def pass_to_images_cache(self, item,group_tree=True):
+        #print('pass_to_images_cache', item, group_tree)
+
+        if group_tree:
+            kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self.groups_tree_item_to_data[item]
+        else:
+            file,kind,crc = self.current_folder_items_dict[item]
+
+        if file and not isdir(file):
+            head,ext = path_splitext(file)
+            ext_lower = ext.lower()
+
+            if ext_lower in IMAGES_EXTENSIONS:
+                try:
+                    if group_tree:
+                        path_full = self.item_full_path(item)
+                    else:
+                        path_full = normpath(abspath(self.sel_path_full + sep + file))
+
+                    self.preview_photo_image_cache.add_image_to_read_ahead(path_full)
+                except Exception as e:
+                    print('pass_to_images_cache',e)
+
+    @catched
+    def preview_preload_groups_tree(self,item):
+        if self.preview_auto_update_bool:
+            self.update_preview()
+
+            if self.preview_photo_image_cache:
+                self_my_next_dict_groups_tree = self.my_next_dict[self.groups_tree]
+                self_my_prev_dict_groups_tree = self.my_prev_dict[self.groups_tree]
+
+                self_pass_to_images_cache = self.pass_to_images_cache
+                self.preview_photo_image_cache.reset_read_ahead()
+
+                prev_item = next_item = item
+                for i in range(int(self.preview_photo_image_cache.pre_and_next_range/2)):
+                    #print('  ',i)
+                    next_item = self_my_next_dict_groups_tree[next_item]
+                    self_pass_to_images_cache(next_item)
+
+                    prev_item = self_my_prev_dict_groups_tree[prev_item]
+                    self_pass_to_images_cache(prev_item)
 
     @catched
     def groups_tree_sel_change(self,item,force=False,change_status_line=True):
@@ -2913,8 +3171,8 @@ class Gui:
 
         self.sel_kind = kind
 
-        if self.preview_auto_update_bool:
-            self.update_preview()
+        self.preview_preload_groups_tree(item)
+
 
         if kind==self.FILE:
             self.tree_folder_update()
@@ -2924,7 +3182,29 @@ class Gui:
         gc_enable()
 
     @catched
+    def preview_preload_folder_tree(self,item):
+        if self.preview_auto_update_bool:
+            self.update_preview()
+
+            if self.preview_photo_image_cache:
+                self_my_next_dict_folder_tree = self.my_next_dict[self.folder_tree]
+                self_my_prev_dict_folder_tree = self.my_prev_dict[self.folder_tree]
+
+                self_pass_to_images_cache = self.pass_to_images_cache
+                self.preview_photo_image_cache.reset_read_ahead()
+
+                prev_item = next_item = item
+                for i in range(int(self.preview_photo_image_cache.pre_and_next_range/2)):
+                    next_item = self_my_next_dict_folder_tree[next_item]
+                    self_pass_to_images_cache(next_item,False)
+
+                    prev_item = self_my_prev_dict_folder_tree[prev_item]
+                    self_pass_to_images_cache(prev_item,False)
+
+    @catched
     def folder_tree_sel_change(self,item,change_status_line=True):
+        #print('folder_tree_sel_change',item,change_status_line)
+
         gc_disable()
 
         self.sel_item = item
@@ -2958,8 +3238,7 @@ class Gui:
 
             self.groups_tree_update_none()
 
-        if self.preview_auto_update_bool:
-            self.update_preview()
+        self.preview_preload_folder_tree(item)
 
         gc_enable()
 
@@ -2997,14 +3276,14 @@ class Gui:
 
         parent_dir_state = ('disabled','normal')[self.two_dots_condition(self.sel_path_full) and self.sel_kind!=self.CRC]
 
-        crc_mode_only = ('disabled','normal')[self.similarity_mode]
+        crc_mode_only = ('disabled','normal')[self.operation_mode]
 
         if tree==self.groups_tree:
             self_tagged = self.tagged
 
             any_mark_in_curr_crc = any( {True for item in self.tree_children_sub[self.sel_crc] if item in self_tagged} ) if self.sel_crc else False
             any_mark_in_curr_crc_state = ('disabled','normal')[any_mark_in_curr_crc]
-            any_mark_in_curr_crc_state_and_crc = ('disabled','normal')[any_mark_in_curr_crc and not self.similarity_mode]
+            any_mark_in_curr_crc_state_and_crc = ('disabled','normal')[any_mark_in_curr_crc and not self.operation_mode]
 
             any_not_mark_in_curr_crc = any( {True for item in self.tree_children_sub[self.sel_crc] if item not in self_tagged} ) if self.sel_crc else False
             any_not_mark_in_curr_crc_state = ('disabled','normal')[any_not_mark_in_curr_crc]
@@ -3051,11 +3330,11 @@ class Gui:
             nothing_tagged = not anything_tagged
 
             anything_tagged_state=('disabled','normal')[anything_tagged]
-            anything_tagged_state_and_crc=('disabled','normal')[anything_tagged and not self.similarity_mode]
+            anything_tagged_state_and_crc=('disabled','normal')[anything_tagged and not self.operation_mode]
             nothing_tagged_state=('disabled','normal')[nothing_tagged]
 
             anything_tagged_state_win=('disabled','normal')[anything_tagged and windows ]
-            anything_tagged_state_win_and_crc=('disabled','normal')[anything_tagged and windows and not self.similarity_mode]
+            anything_tagged_state_win_and_crc=('disabled','normal')[anything_tagged and windows and not self.operation_mode]
 
             anything_not_tagged = any( {} )
 
@@ -3067,7 +3346,7 @@ class Gui:
             #nothing_tagged_state_local = ('disabled','normal')[no_mark_in_curr_crc]
 
             anything_tagged_state_win_local=('disabled','normal')[any_mark_in_curr_crc_state and windows ] if self.sel_crc else 'disabled'
-            anything_tagged_state_win_local_and_crc=('disabled','normal')[any_mark_in_curr_crc_state and windows and not self.similarity_mode] if self.sel_crc else 'disabled'
+            anything_tagged_state_win_local_and_crc=('disabled','normal')[any_mark_in_curr_crc_state and windows and not self.operation_mode] if self.sel_crc else 'disabled'
 
             c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=any_mark_in_curr_crc_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(19,foreground='red',activeforeground='red')
@@ -3149,9 +3428,9 @@ class Gui:
 
         else:
             dir_actions_state=('disabled','normal')[self.sel_kind in (self.DIR,self.DIRLINK)]
-            dir_actions_state_and_crc=('disabled','normal')[self.sel_kind in (self.DIR,self.DIRLINK) and not self.similarity_mode]
+            dir_actions_state_and_crc=('disabled','normal')[self.sel_kind in (self.DIR,self.DIRLINK) and not self.operation_mode]
             dir_actions_state_win=('disabled','normal')[(self.sel_kind in (self.DIR,self.DIRLINK)) and windows]
-            dir_actions_state_win_and_crc=('disabled','normal')[(self.sel_kind in (self.DIR,self.DIRLINK)) and windows and not self.similarity_mode]
+            dir_actions_state_win_and_crc=('disabled','normal')[(self.sel_kind in (self.DIR,self.DIRLINK)) and windows and not self.operation_mode]
 
             c_local = Menu(pop,tearoff=0,bg=self.bg_color)
             c_local_add_command = c_local.add_command
@@ -3179,10 +3458,10 @@ class Gui:
             c_local_add_separator()
 
             anything_tagged_state=('disabled','normal')[bool(self.current_folder_items_tagged)]
-            anything_tagged_state_and_crc=('disabled','normal')[bool(self.current_folder_items_tagged) and not self.similarity_mode]
+            anything_tagged_state_and_crc=('disabled','normal')[bool(self.current_folder_items_tagged) and not self.operation_mode]
 
             anything_tagged_state_win=('disabled','normal')[bool(self.current_folder_items_tagged) and windows]
-            anything_tagged_state_win_and_crc=('disabled','normal')[bool(self.current_folder_items_tagged) and windows and not self.similarity_mode]
+            anything_tagged_state_win_and_crc=('disabled','normal')[bool(self.current_folder_items_tagged) and windows and not self.operation_mode]
 
             c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,0),accelerator="Delete",state=anything_tagged_state, image = self.ico_empty,compound='left')
             c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,0),accelerator="Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
@@ -3344,7 +3623,7 @@ class Gui:
         self_tree_sort_item = self.tree_sort_item
 
         if tree==self.groups_tree:
-            if colname in ('path','file','ctime_h') or (self.similarity_mode and colname=='size_h'):
+            if colname in ('path','file','ctime_h') or (self.operation_mode and colname=='size_h'):
                 for crc in self.tree_children[tree]:
                     self_tree_sort_item(tree,crc,False)
             else:
@@ -3457,25 +3736,27 @@ class Gui:
         dude_core.log_skipped = self.log_skipped_var.get()
         #self.log_skipped = self.log_skipped_var.get()
 
-        self.similarity_mode = similarity_mode = dude_core.similarity_mode = self.similarity_mode_var.get()
+        self.operation_mode = operation_mode = self.operation_mode_var.get()
 
         image_min_size_int = 0
-        if image_min_size := self.image_min_size_var.get():
-            try:
-                image_min_size_int = int(image_min_size)
-            except Exception as e:
-                self.get_info_dialog_on_scan().show('Min size value error',f'fix: "{image_min_size}"')
-                return
+        if self.image_min_size_check_var.get():
+            if image_min_size := self.image_min_size_var.get():
+                try:
+                    image_min_size_int = int(image_min_size)
+                except Exception as e:
+                    self.get_info_dialog_on_scan().show('Min size value error',f'fix: "{image_min_size}"')
+                    return
 
         image_max_size_int = 0
-        if image_max_size := self.image_max_size_var.get():
-            try:
-                image_max_size_int = int(image_max_size)
-            except Exception as e:
-                self.get_info_dialog_on_scan().show('Max size value error',f'fix: "{image_max_size}"')
-                return
+        if self.image_max_size_check_var.get():
+            if image_max_size := self.image_max_size_var.get():
+                try:
+                    image_max_size_int = int(image_max_size)
+                except Exception as e:
+                    self.get_info_dialog_on_scan().show('Max size value error',f'fix: "{image_max_size}"')
+                    return
 
-        scan_thread=Thread(target=lambda : dude_core.scan(image_min_size_int,image_max_size_int),daemon=True)
+        scan_thread=Thread(target=lambda : dude_core.scan(operation_mode),daemon=True)
         scan_thread.start()
 
         self_progress_dialog_on_scan.lab_l1.configure(text='Total space:')
@@ -3484,7 +3765,7 @@ class Gui:
         self_progress_dialog_on_scan_progr1var.set(0)
         self_progress_dialog_on_scan_progr2var.set(0)
 
-        if self.similarity_mode:
+        if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             self_progress_dialog_on_scan.show('Scanning for images')
         else:
             self_progress_dialog_on_scan.show('Scanning')
@@ -3545,7 +3826,7 @@ class Gui:
             if anything_changed:
                 time_without_busy_sign=now
 
-                if similarity_mode:
+                if operation_mode in (MODE_SIMILARITY,MODE_GPS):
                     self_progress_dialog_on_scan_lab_r1_config(text=local_bytes_to_str(dude_core.info_size_sum_images))
                     self_progress_dialog_on_scan_lab_r2_config(text=fnumber(dude_core.info_counter_images))
 
@@ -3584,6 +3865,7 @@ class Gui:
             self.get_info_dialog_on_scan().show('Cannot Proceed.','No Duplicates.')
             return False
         #############################
+
         self_status=self.status=self.status_progress
 
         self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any groups are found).'
@@ -3597,12 +3879,13 @@ class Gui:
 
         self_get_hg_ico = self.get_hg_ico
 
-        if similarity_mode:
+        if operation_mode in (MODE_SIMILARITY,MODE_GPS):
             self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty,text='')
             self_progress_dialog_on_scan_lab[1].configure(image='',text='')
             self_progress_dialog_on_scan_lab[2].configure(image='',text='')
             self_progress_dialog_on_scan_lab[3].configure(image='',text='')
             self_progress_dialog_on_scan_lab[4].configure(image='',text='')
+
 
             self_progress_dialog_on_scan.widget.title('Images hashing')
 
@@ -3611,7 +3894,7 @@ class Gui:
             hash_size = self.similarity_hsize_varx2.get()
             all_rotations = self.all_rotations.get()
 
-            ih_thread=Thread(target=lambda : dude_core.image_hashing(hash_size,all_rotations) ,daemon=True)
+            ih_thread=Thread(target=lambda : dude_core.images_processing(operation_mode,hash_size,all_rotations,image_min_size_int,image_max_size_int) ,daemon=True)
             ih_thread.start()
 
             ih_thread_is_alive = ih_thread.is_alive
@@ -3672,25 +3955,47 @@ class Gui:
             self_progress_dialog_on_scan_lab[4].configure(text='')
             ####################################################
 
-            #clustering
-            self_status('Data clustering ...')
+            if operation_mode==MODE_SIMILARITY:
+                #clustering
+                self_status('Data clustering ...')
 
-            distance = self.similarity_distance_var.get()
+                distance = self.similarity_distance_var.get()
 
-            sc_thread=Thread(target=lambda : dude_core.similarity_clustering(hash_size,distance,all_rotations),daemon=True)
-            sc_thread.start()
+                sc_thread=Thread(target=lambda : dude_core.similarity_clustering(hash_size,distance,all_rotations),daemon=True)
+                sc_thread.start()
 
-            sc_thread_is_alive = sc_thread.is_alive
+                sc_thread_is_alive = sc_thread.is_alive
 
-            while sc_thread_is_alive():
-                self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
+                while sc_thread_is_alive():
+                    self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
 
-                self_progress_dialog_on_scan_lab[1].configure(image='',text=dude_core.info_line)
+                    self_progress_dialog_on_scan_lab[1].configure(image='',text=dude_core.info_line)
 
-                self_main_after(50,lambda : wait_var_set(not wait_var_get()))
-                self_main_wait_variable(wait_var)
+                    self_main_after(50,lambda : wait_var_set(not wait_var_get()))
+                    self_main_wait_variable(wait_var)
 
-            sc_thread.join()
+                sc_thread.join()
+
+            else:
+                #gps clustering
+                self_status('Data clustering ...')
+
+                distance = self.similarity_distance_var.get()
+
+                gpsc_thread=Thread(target=lambda : dude_core.gps_clustering(distance),daemon=True)
+                gpsc_thread.start()
+
+                gpsc_thread_is_alive = gpsc_thread.is_alive
+
+                while gpsc_thread_is_alive():
+                    self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
+
+                    self_progress_dialog_on_scan_lab[1].configure(image='',text=dude_core.info_line)
+
+                    self_main_after(50,lambda : wait_var_set(not wait_var_get()))
+                    self_main_wait_variable(wait_var)
+
+                gpsc_thread.join()
 
             self_progress_dialog_on_scan.widget.config(cursor="watch")
 
@@ -4028,7 +4333,7 @@ class Gui:
         #l_info(f'file_remove_callback {size},{crc},{index_tuple}')
 
         try:
-            if self.similarity_mode:
+            if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
                 (pathnr,path,file_name,ctime,dev,inode,size_file)=index_tuple
             else:
                 (pathnr,path,file_name,ctime,dev,inode)=index_tuple
@@ -4120,7 +4425,7 @@ class Gui:
         self_crc_to_size = self.crc_to_size
         self_files_of_groups_filtered_by_mode = self.files_of_groups_filtered_by_mode
 
-        if self.similarity_mode:
+        if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             for group_index,items_set in dude_core.files_of_images_groups.items():
                 crc = group_index
                 if crc in self_files_of_groups_filtered_by_mode:
@@ -4186,7 +4491,7 @@ class Gui:
 
     @block_and_log
     def groups_show(self):
-        if self.similarity_mode:
+        if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             self.groups_tree.heading('#0',text='GROUP/Scan Path',anchor='w')
             self.folder_tree.heading('#0',text='GROUP',anchor='w')
         else:
@@ -4229,7 +4534,7 @@ class Gui:
 
         files_of_groups_filtered_by_mode=self.files_of_groups_filtered_by_mode=defaultdict(set)
 
-        if self.similarity_mode:
+        if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             #####################################################
 
             for group_index,items_set in dude_core.files_of_images_groups.items():
@@ -4470,7 +4775,9 @@ class Gui:
             values=('..','','',self.UPDIR,'',0,'',0,'',0,'')
             folder_items_add((updir_code,sort_val_func(values[sort_index_local]),'0UP','',values,self_DIR,''))
 
-        similarity_mode = self.similarity_mode
+        operation_mode = self.operation_mode
+        operation_mode_images = bool(operation_mode in (MODE_SIMILARITY,MODE_GPS))
+        operation_mode_images_gps = bool(operation_mode==MODE_GPS)
         #############################################
         try:
             with scandir(current_path) as res:
@@ -4509,7 +4816,7 @@ class Gui:
                                     if ctime != core_ctime:
                                         item_rocognized=False
                                     else:
-                                        values = (name,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_images_groups[crc]) if similarity_mode else len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
+                                        values = (name,str(dev),str(inode),self_FILE,crc,str(size_num),size_h,str(ctime),ctime_h,instances_both := str(len(dude_core_files_of_images_groups[crc]) if operation_mode_images else len(dude_core_files_of_size_of_crc[size_num][crc])),instances_both)
                                         in_tagged=bool(file_id in self_tagged)
                                         if in_tagged:
                                             self_current_folder_items_tagged_add(file_id)
@@ -5051,7 +5358,7 @@ class Gui:
 
         self.status('checking data consistency with filesystem state ...')
 
-        if self.similarity_mode:
+        if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             ###############################################################
             self.get_info_dialog_on_main().show('Warning !','Similarity mode !\nFiles in groups are not exact copies !')
 
@@ -5240,7 +5547,7 @@ class Gui:
         self_file_check_state = self.file_check_state
         self_groups_tree_item_to_data = self.groups_tree_item_to_data
 
-        if self.similarity_mode:
+        if self.operation_mode in(MODE_SIMILARITY,MODE_GPS):
             if action==HARDLINK:
                 for group,items_dict in processed_items.items():
                     #kind,size,group, (pathnr,path,file,ctime,dev,inode)
@@ -5308,7 +5615,7 @@ class Gui:
         self_groups_tree_item_to_data = self.groups_tree_item_to_data
         size_sum=0
 
-        if self.similarity_mode:
+        if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             for group,items_dict in processed_items.items():
                 crc = group
                 message_append('')
@@ -5513,7 +5820,7 @@ class Gui:
         self_crc_remove_callback = self.crc_remove_callback
 
         if action==DELETE:
-            if self.similarity_mode:
+            if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
                 for group,items_dict in processed_items.items():
                     tuples_to_delete=set()
                     tuples_to_delete_add = tuples_to_delete.add
@@ -5611,64 +5918,7 @@ class Gui:
 
         elif action==SOFTLINK:
             do_rel_symlink = self.cfg_get_bool(CFG_KEY_REL_SYMLINKS)
-
-            if self.similarity_mode:
-                for group,items_dict in processed_items.items():
-                    self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
-                    self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
-
-                    #for item in items_dict.values():
-                    #    kind,size,group, index_tuple = self_groups_tree_item_to_data[item]
-                    #    (pathnr,path,file_name,ctime,dev,inode)=index_tuple
-                    #    index_tuple_extended = pathnr,path,file_name,ctime,dev,inode,size
-
-                    self.process_files_counter+=1
-
-                    to_keep_item=remaining_items[group][0]
-
-                    index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
-                    size=self_groups_tree_item_to_data[to_keep_item][1]
-                    self.process_files_size_sum+=size
-
-                    self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-                    self.process_files_core_info1 = f'group:{group}'
-
-                    if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,group, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
-                        l_error(resmsg)
-
-                        end_message_list_append(resmsg)
-
-                        if abort_on_error:
-                            break
-            else:
-                for crc,items_dict in processed_items.items():
-                    self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
-                    self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
-
-                    self.process_files_counter+=1
-
-                    to_keep_item=remaining_items[crc][0]
-
-                    index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
-                    size=self_groups_tree_item_to_data[to_keep_item][1]
-                    self.process_files_size_sum+=size
-
-                    self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-
-                    self.process_files_core_info1 = f'crc:{crc}'
-
-                    if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
-                        l_error(resmsg)
-
-                        end_message_list_append(resmsg)
-
-                        if abort_on_error:
-                            break
-
-        elif action==WIN_LNK:
-
             for crc,items_dict in processed_items.items():
-
                 self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
                 self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
 
@@ -5681,10 +5931,32 @@ class Gui:
                 self.process_files_size_sum+=size
 
                 self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-                if self.similarity_mode:
-                    self.process_files_core_info1 = f'group:{crc}'
-                else:
-                    self.process_files_core_info1 = f'crc:{crc}'
+
+                self.process_files_core_info1 = f'crc:{crc}'
+
+                if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
+                    l_error(resmsg)
+
+                    end_message_list_append(resmsg)
+
+                    if abort_on_error:
+                        break
+
+        elif action==WIN_LNK:
+            for crc,items_dict in processed_items.items():
+                self.process_files_core_perc_1 = self.process_files_size_sum*100/self.process_files_total_size
+                self.process_files_core_perc_2 = self.process_files_counter*100/self.process_files_total
+
+                self.process_files_counter+=1
+
+                to_keep_item=remaining_items[crc][0]
+
+                index_tuple_ref=self_groups_tree_item_to_data[to_keep_item][3]
+                size=self_groups_tree_item_to_data[to_keep_item][1]
+                self.process_files_size_sum+=size
+
+                self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
+                self.process_files_core_info1 = f'crc:{crc}'
 
                 if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
                     l_error(resmsg)
@@ -5707,10 +5979,7 @@ class Gui:
                 self.process_files_size_sum+=size
 
                 self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
-                if self.similarity_mode:
-                    self.process_files_core_info1 = f'group:{crc}'
-                else:
-                    self.process_files_core_info1 = f'crc:{crc}'
+                self.process_files_core_info1 = f'crc:{crc}'
 
                 if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
                     l_error(resmsg)
@@ -5824,7 +6093,7 @@ class Gui:
 
         self.process_files_total = len([item for crc,items_dict in processed_items.items() for item in items_dict.values()])
 
-        if self.similarity_mode:
+        if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             self_groups_tree_item_to_data = self.groups_tree_item_to_data
             #kind,size_item,crc_item, (pathnr,path,file,ctime,dev,inode) = self_groups_tree_item_to_data[item] for index,item in items_dict.items()
             self.process_files_total_size = sum([self_groups_tree_item_to_data[item][1] for group,items_dict in processed_items.items() for item in items_dict.values()])
@@ -6309,6 +6578,7 @@ if __name__ == "__main__":
 
         else:
             images_mode = bool(p_args.images or p_args.ih or p_args.id or p_args.ir or p_args.imin or p_args.imax)
+            #
 
             images_mode_tuple=[images_mode]
 
@@ -6333,6 +6603,11 @@ if __name__ == "__main__":
                 images_mode_tuple.append(int(p_args.imax[0]))
             else:
                 images_mode_tuple.append(0)
+
+            if p_args.igps:
+                images_mode_tuple.append(True)
+            else:
+                images_mode_tuple.append(False)
 
             Gui( getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun,images_mode_tuple )
 

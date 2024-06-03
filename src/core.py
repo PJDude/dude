@@ -181,6 +181,10 @@ class CRCThreadedCalc:
         self.log.info('CRCThreadedCalc %s join',self)
         self.thread.join()
 
+MODE_CRC = 0
+MODE_SIMILARITY = 1
+MODE_GPS = 2
+
 class DudeCore:
     def handle_sigint(self):
         print("Received SIGINT signal")
@@ -271,15 +275,53 @@ class DudeCore:
     info_path_to_scan=''
     info_counter=0
     info_counter_images=0
+    info_size_sum_images=0
     info_size_sum=0
 
     log_skipped = False
-    similarity_mode = False
+    operation_mode = MODE_CRC
     sum_size=0
     #sum_size_images=0
 
+
+    gps_keys = ('GPS GPSLatitudeRef', 'GPS GPSLatitude', 'GPS GPSLongitudeRef', 'GPS GPSLongitude')
+    def get_gps_data(self,exif_data):
+        from numpy import array as numpy_array
+
+        def convert_to_degrees(value):
+            d = float(value[0].num) / float(value[0].den)
+            #print(value[0],value[0].num,value[0].den)
+            #degrees
+            m = float(value[1].num) / float(value[1].den)
+            #print(value[1],value[0].num,value[1].den)
+            #minutes
+            s = float(value[2].num) / float(value[2].den)
+            #print(value[2],value[0].num,value[2].den,'\n')
+            #seconds
+            return d + (m / 60.0) + (s / 3600.0)
+
+        if all(key in exif_data for key in self.gps_keys):
+            gps_data = {}
+            gps_data['LatitudeRef'] = exif_data['GPS GPSLatitudeRef'].printable
+            gps_data['Latitude'] = exif_data['GPS GPSLatitude'].values
+            gps_data['LongitudeRef'] = exif_data['GPS GPSLongitudeRef'].printable
+            gps_data['Longitude'] = exif_data['GPS GPSLongitude'].values
+
+            lat = convert_to_degrees(gps_data['Latitude'])
+            if gps_data['LatitudeRef'] != 'N':
+                lat = -lat
+
+            lon = convert_to_degrees(gps_data['Longitude'])
+            if gps_data['LongitudeRef'] != 'E':
+                lon = -lon
+
+            #return numpy_array([lat, lon])
+            return (lat, lon)
+
+        return None
+
     scan_update_info_path_nr=None
-    def scan(self,image_min_size_pixels=0,image_max_size_pixels=0):
+    def scan(self,operation_mode):
         from PIL.Image import open as image_open
 
         self.log.info('')
@@ -305,17 +347,16 @@ class DudeCore:
         self.info_files_done_perc=0
 
         self_scan_results_by_size=self.scan_results_by_size
-        self_similarity_mode = self.similarity_mode
+        self.operation_mode = operation_mode
 
         self_scan_results_images = self.scan_results_images = set()
+        self_scan_results_image_to_gps = self.scan_results_image_to_gps = {}
+
         #############################################################################################
-        if self_similarity_mode:
+        if operation_mode in (MODE_SIMILARITY,MODE_GPS):
+
+
             supported_extensions = IMAGES_EXTENSIONS
-
-            use_min_size_pixels = bool(image_min_size_pixels!=0)
-            use_max_size_pixels = bool(image_max_size_pixels!=0)
-
-            use_size_pixels = use_min_size_pixels or use_max_size_pixels
 
             self_log_skipped = self.log_skipped
 
@@ -390,21 +431,6 @@ class DudeCore:
                                                     #https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
                                                     sum_size+=size
                                                     if extension.lower() in supported_extensions:
-                                                        if use_size_pixels:
-                                                            image_file = image_open(Path(entry))
-                                                            width = image_file.width
-                                                            height = image_file.height
-
-                                                            if use_min_size_pixels:
-                                                                min_dimension = min(width,height)
-                                                                if min_dimension<image_min_size_pixels:
-                                                                    continue
-
-                                                            if use_max_size_pixels:
-                                                                max_dimension = max(width,height)
-                                                                if max_dimension>image_max_size_pixels:
-                                                                    continue
-
                                                         #sum_size_images+=size
                                                         folder_counter_images+=1
                                                         folder_size_images+=size
@@ -609,41 +635,50 @@ class DudeCore:
     info_speed=0
     info_threads='?'
 
-    def images_hashes_cache_read(self):
+    def images_data_cache_read(self):
         self.info='image hashes cache read'
 
-        self.images_hashes_cache = {}
+        self.images_data_cache = defaultdict(dict)
 
         self.log.info('reading image hashes cache')
         try:
-            with open(sep.join([self.cache_dir,'ihashes.dat']), "rb") as dat_file:
-                self.images_hashes_cache = loads(ZstdDecompressor().decompress(dat_file.read()))
+            with open(sep.join([self.cache_dir,'imagescache.dat']), "rb") as dat_file:
+                self.images_data_cache = loads(ZstdDecompressor().decompress(dat_file.read()))
         except Exception as e1:
             self.log.warning(e1)
         else:
             self.log.info(f'image hashes cache loaded.')
         self.info=''
 
-    def images_hashes_cache_write(self):
+    def images_data_cache_write(self):
         self.info='Writing ih cache ...'
 
         Path(self.cache_dir).mkdir(parents=True,exist_ok=True)
 
         self.log.info(f'writing images hashes cache')
         try:
-            with open(sep.join([self.cache_dir,'ihashes.dat']), "wb") as dat_file:
-                dat_file.write(ZstdCompressor(level=9,threads=-1).compress(dumps(self.images_hashes_cache)))
+            with open(sep.join([self.cache_dir,'imagescache.dat']), "wb") as dat_file:
+                dat_file.write(ZstdCompressor(level=9,threads=-1).compress(dumps(self.images_data_cache)))
                 self.log.info('writing images hashes cache')
         except Exception as e:
             self.log.error(f'writing images hashes cache error: {e}.')
 
-        del self.images_hashes_cache
+        del self.images_data_cache
 
         self.info=''
 
-    def imagehsh_calc_in_thread(self,i,hash_size,all_rotations,source_dict,result_dict):
+    ##################################################################################################################
+    def images_processing_in_thread(self,i,hash_size,all_rotations,source_dict,result_dict,image_min_size_pixels,image_max_size_pixels,gps_mode):
+        #print('images_processing_in_thread',i,hash_size,all_rotations,image_min_size_pixels,image_max_size_pixels,gps_mode)
+        #result_dict_dimensions,result_dict_gps
+
         from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
         from imagehash import average_hash,phash,dhash
+        from exifread import process_file as exifread_process_file
+
+        use_min_size_pixels = bool(image_min_size_pixels!=0)
+        use_max_size_pixels = bool(image_max_size_pixels!=0)
+        use_size_pixels = use_min_size_pixels or use_max_size_pixels
 
         def my_hash_combo(file,hash_size):
             seq_hash = []
@@ -660,12 +695,43 @@ class DudeCore:
 
             return tuple(seq_hash)
 
+        self_get_gps_data = self.get_gps_data
+
         for index_tuple,fullpath in sorted(source_dict.items(), key = lambda x : x[0][6], reverse=True):
             if self.abort_action:
                 break
 
+            #width height gps hashes
+            curr_res = result_dict[index_tuple]=[0,0,None,None]
+
             try:
                 file = image_open(fullpath)
+
+                if use_size_pixels:
+                    width = file.width
+                    height = file.height
+
+                    curr_res[0]=width
+                    curr_res[1]=height
+
+                    if use_min_size_pixels:
+                        if min(width,height)<image_min_size_pixels:
+                            continue
+
+                    if use_max_size_pixels:
+                        if max(width,height)>image_max_size_pixels:
+                            continue
+
+                if gps_mode:
+                    try:
+                        with open(fullpath, 'rb') as image_file:
+                            curr_res[2] = self_get_gps_data(exifread_process_file(image_file)) #brak danych rowniez cache'ujemy
+                            #curr_res[2]=gps_data
+                    except Exception as e_gps:
+                        print('images_processing_in_thread error:',e_gps)
+                        #continue
+
+                    continue
 
                 if file.mode != 'RGBA':
                     file = file.convert("RGBA")
@@ -679,14 +745,14 @@ class DudeCore:
             if all_rotations:
                 file_rotate = file.rotate
                 try:
-                    result_dict[index_tuple]=( my_hash_combo(file,hash_size),my_hash_combo(file_rotate(90,expand=True),hash_size),my_hash_combo(file_rotate(180,expand=True),hash_size),my_hash_combo(file_rotate(270,expand=True),hash_size) )
+                    curr_res[3]=( my_hash_combo(file,hash_size),my_hash_combo(file_rotate(90,expand=True),hash_size),my_hash_combo(file_rotate(180,expand=True),hash_size),my_hash_combo(file_rotate(270,expand=True),hash_size) )
 
                 except Exception as e:
                     self.log.error(f'hashing file: {fullpath} error: {e}.')
                     continue
             else:
                 try:
-                    result_dict[index_tuple]=(my_hash_combo(file,hash_size),None,None,None)
+                    curr_res[3]=(my_hash_combo(file,hash_size),None,None,None)
 
                 except Exception as e:
                     self.log.error(f'hashing file: {fullpath} error: {e}.')
@@ -695,11 +761,20 @@ class DudeCore:
         sys_exit() #thread
 
     info=''
-    def image_hashing(self,hash_size,all_rotations):
+    ##################################################################################################################
+    def images_processing(self,operation_mode,hash_size,all_rotations,image_min_size_pixels=0,image_max_size_pixels=0):
+        print('images_processing',operation_mode,hash_size,all_rotations,image_min_size_pixels,image_max_size_pixels)
         #musi tu byc - inaczej pyinstaller & nuitka nie dzialaja
         from numpy import array as numpy_array
 
-        self.images_hashes_cache_read()
+        use_min_size_pixels = bool(image_min_size_pixels!=0)
+        use_max_size_pixels = bool(image_max_size_pixels!=0)
+        use_size_pixels = use_min_size_pixels or use_max_size_pixels
+
+        gps_mode = bool(operation_mode==MODE_GPS)
+        similarity_mode = bool(operation_mode==MODE_SIMILARITY)
+
+        self.images_data_cache_read()
         self.scanned_paths=self.paths_to_scan.copy()
 
         self.info_size_done=0
@@ -717,9 +792,13 @@ class DudeCore:
 
         max_threads = cpu_count()
 
-        imagehash_threads_sets_source = {i:{} for i in range(max_threads)}
-        imagehash_threads_sets_results = {i:{} for i in range(max_threads)}
-        imagehash_threads = {i:Thread(target=lambda iloc=i: self.imagehsh_calc_in_thread(iloc,hash_size,all_rotations,imagehash_threads_sets_source[iloc],imagehash_threads_sets_results[iloc]),daemon=True) for i in range(max_threads)}
+        images_processing_threads_source = {i:{} for i in range(max_threads)}
+        images_processing_threads_results = {i:{} for i in range(max_threads)}
+
+        images_processing_threads = {i:Thread(target=lambda iloc=i: self.images_processing_in_thread(iloc,hash_size,all_rotations,
+                            images_processing_threads_source[iloc],
+                            images_processing_threads_results[iloc],
+                            image_min_size_pixels,image_max_size_pixels,gps_mode),daemon=True) for i in range(max_threads)}
 
         thread_index=0
 
@@ -729,39 +808,65 @@ class DudeCore:
         size_from_cache = 0
         size_to_calculate = 0
 
+        self_scan_results_image_to_gps = self.scan_results_image_to_gps
+
         rotations_list = (0,1,2,3) if all_rotations else (0,)
+
+        self_get_full_path_to_scan = self.get_full_path_to_scan
+
         for pathnr,path,file_name,mtime,ctime,dev,inode,size in sorted(self.scan_results_images, key = lambda x : x[6], reverse=True):
-            all_rotations_from_cache = True
-            for rotation in rotations_list:
-                dict_key = (dev,inode,mtime,hash_size,rotation)
+            if use_size_pixels:
+                dict_key_dimensions = (dev,inode,mtime)
+                if dict_key_dimensions in self.images_data_cache['dimensions']:
+                    if val := self.images_data_cache['dimensions'][dict_key_dimensions]:
+                        width,height = val
+                        if use_min_size_pixels:
+                            if min(width,height)<image_min_size_pixels:
+                                continue
+                        if use_max_size_pixels:
+                            if max(width,height)>image_max_size_pixels:
+                                continue
 
-                if dict_key in self.images_hashes_cache:
-                    if val := self.images_hashes_cache[dict_key]:
-                        self.scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)] = val
-                else:
-                    all_rotations_from_cache = False
-                    break
+            if gps_mode:
+                dict_key_proximity = (dev,inode,mtime)
+                if dict_key_proximity in self.images_data_cache['gps']:
+                    if val := self.images_data_cache['gps'][dict_key_proximity]:
+                        self_scan_results_image_to_gps[(dev,inode,mtime)] = val
 
-            if all_rotations_from_cache:
-                images_quantity_cache_read+=1
-                size_from_cache += size
-            else:
-                fullpath=self.get_full_path_to_scan(pathnr,path,file_name)
+                    continue
 
-                imagehash_threads_sets_source[thread_index][(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=fullpath
-
+                images_processing_threads_source[thread_index][(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=self_get_full_path_to_scan(pathnr,path,file_name)
                 thread_index = (thread_index+1) % max_threads
 
-                images_quantity_need_to_calculate += 1
-                size_to_calculate += size
+            elif similarity_mode:
+                all_rotations_from_cache = True
+                for rotation in rotations_list:
+                    dict_key = (dev,inode,mtime,hash_size,rotation)
+
+                    if dict_key in self.images_data_cache['hashes']:
+                        if val := self.images_data_cache['hashes'][dict_key]:
+                            self.scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)] = val
+                    else:
+                        all_rotations_from_cache = False
+                        break
+
+                if all_rotations_from_cache:
+                    images_quantity_cache_read+=1
+                    size_from_cache += size
+                else:
+                    images_processing_threads_source[thread_index][(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=self_get_full_path_to_scan(pathnr,path,file_name)
+                    thread_index = (thread_index+1) % max_threads
+
+                    images_quantity_need_to_calculate += 1
+                    size_to_calculate += size
 
         self.info_total = images_quantity_cache_read + images_quantity_need_to_calculate
         self.sum_size = size_from_cache + size_to_calculate
 
-        self.info = self.info_line = 'Images hashing ...'
+        self.info = self.info_line = 'gathering images gps data ...' if gps_mode else 'Images hashing ...'
 
         for i in range(max_threads):
-            imagehash_threads[i].start()
+            images_processing_threads[i].start()
 
         self.info_size_done=0
         self.info_files_done=0
@@ -769,21 +874,21 @@ class DudeCore:
         self.info_size_done_perc = 0
         self.info_files_done_perc = 0
 
-        sto_by_self_info_total = 100.0/self.info_total
-        sto_by_self_sum_size = 100.0/self.sum_size
+        sto_by_self_info_total = 100.0/self.info_total if self.info_total else 0.0
+        sto_by_self_sum_size = 100.0/self.sum_size if self.sum_size else 0.0
 
         while True:
             all_dead=True
             for i in range(max_threads):
-                if imagehash_threads[i].is_alive():
+                if images_processing_threads[i].is_alive():
                     all_dead=False
                     break
 
             if all_dead:
                 break
             else:
-                self.info_size_done = size_from_cache + sum([size for pathnr,path,file_name,mtime,ctime,dev,inode,size in imagehash_threads_sets_results[i] for i in range(max_threads)])
-                self.info_files_done = images_quantity_cache_read + sum([len(imagehash_threads_sets_results[i]) for i in range(max_threads)])
+                self.info_size_done = size_from_cache + sum([size for pathnr,path,file_name,mtime,ctime,dev,inode,size in images_processing_threads_results[i] for i in range(max_threads)])
+                self.info_files_done = images_quantity_cache_read + sum([len(images_processing_threads_results[i]) for i in range(max_threads)])
 
                 self.info_size_done_perc = sto_by_self_sum_size*self.info_size_done
                 self.info_files_done_perc = sto_by_self_info_total*self.info_files_done
@@ -792,23 +897,33 @@ class DudeCore:
         self.info = self.info_line = 'Joining threads ...'
 
         for i in range(max_threads):
-            imagehash_threads[i].join()
+            images_processing_threads[i].join()
 
         self.info = self.info_line = 'Data merging ...'
-        for i in range(max_threads):
-            for (pathnr,path,file_name,mtime,ctime,dev,inode,size),ihash_rotations in imagehash_threads_sets_results[i].items():
-                for rotation,ihash in enumerate(ihash_rotations):
-                    if (rotation in rotations_list) and ihash:
-                        self.scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)]=numpy_array(ihash)
-                        self.images_hashes_cache[(dev,inode,mtime,hash_size,rotation)]=ihash
 
-                        anything_new=True
+        for i in range(max_threads):
+            for (pathnr,path,file_name,mtime,ctime,dev,inode,size),(width,height,gps,ihash_rotations) in images_processing_threads_results[i].items():
+                if ihash_rotations:
+                    for rotation,ihash in enumerate(ihash_rotations):
+                        if (rotation in rotations_list) and ihash:
+                            self.scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)]=numpy_array(ihash)
+                            self.images_data_cache['hashes'][(dev,inode,mtime,hash_size,rotation)]=ihash
+                            anything_new=True
+                if gps_mode: # and gps brak danych gps tez mozna cacheowac
+                    self.images_data_cache['gps'][(dev,inode,mtime)]=gps
+                    self_scan_results_image_to_gps[(dev,inode,mtime)] = gps
+                    anything_new=True
+
+                if width and height:
+                    self.images_data_cache['dimensions'][(dev,inode,mtime)]=(width,height)
+                    anything_new=True
 
         if anything_new:
             self.info = self.info_line = 'Writing cache ...'
-            self.images_hashes_cache_write()
+            self.images_data_cache_write()
 
         sys_exit() #thread
+    ##################################################################################################################
 
     def similarity_clustering(self,hash_size,distance,all_rotations):
         from sklearn.cluster import DBSCAN
@@ -822,64 +937,154 @@ class DudeCore:
             pool.append(imagehash)
             keys.append( key )
 
-
-        de_norm_distance = distance*hash_size*0.33*0.25+0.001
-
-        self.info_line = self.info = 'Clustering ...'
-
-        t0=perf_counter()
-        self.log.info(f'start DBSCAN')
-        labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='manhattan',algorithm='kd_tree').fit(pool).labels_
-        t1=perf_counter()
-        self.log.info(f'DBSCAN end. Time:{t1-t0}')
-
-        #with rotation variants
-        groups_dict = defaultdict(set)
-
-        self.info_line = self.info = 'Separating groups ...'
-
-        groups_sorted_by_quantity_dict = defaultdict(int)
-
-        for label,key in zip(labels,keys):
-            if label!=-1:
-                groups_dict[label].add(key)
-                groups_sorted_by_quantity_dict[label]+=1
-
-        ##############################################
-        groups_sorted_by_quantity = [ label for label,number in sorted(groups_sorted_by_quantity_dict.items(),key=lambda x : x[1], reverse=True) ]
-
-        #kazdy plik tylko raz
-        self.info_line = self.info = 'Pruning "multiple rotations" data ...'
-
-        files_already_in_group=set()
-        files_already_in_group_add = files_already_in_group.add
-
-        pruned_groups_dict = defaultdict(set)
-        for label in groups_sorted_by_quantity:
-            #print(f'{label=}',type(label))
-            for key in groups_dict[label]:
-                #print(f'    {key=}')
-
-                (pathnr,path,file_name,ctime,dev,inode,size,rotation) = key
-                file_key = (dev,inode)
-                key_without_rotation = (pathnr,path,file_name,ctime,dev,inode,size)
-
-                if file_key not in files_already_in_group:
-                    files_already_in_group_add(file_key)
-                    pruned_groups_dict[label].add(key_without_rotation)
-                #else:
-                    #print('pruning file',path,file_name,rotation)
-
-        ##############################################
         self_files_of_images_groups = self.files_of_images_groups = {}
 
-        groups_digits=len(str(len(pruned_groups_dict)))
+        if pool:
+            de_norm_distance = distance*hash_size*0.33*0.25+0.001
 
-        relabel_nr=0
-        for label,keys in sorted(pruned_groups_dict.items(), key = lambda x : max([y[6] for y in x[1]]),reverse=True ):
-            if len(keys)>1:
-                self_files_of_images_groups[f'G{str(relabel_nr).zfill(groups_digits)}'] = keys
-                relabel_nr+=1
+            self.info_line = self.info = 'Clustering ...'
+
+            t0=perf_counter()
+            self.log.info(f'start DBSCAN')
+            labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='manhattan',algorithm='kd_tree').fit(pool).labels_
+            t1=perf_counter()
+            self.log.info(f'DBSCAN end. Time:{t1-t0}')
+
+            #with rotation variants
+            groups_dict = defaultdict(set)
+
+            self.info_line = self.info = 'Separating groups ...'
+
+            groups_sorted_by_quantity_dict = defaultdict(int)
+
+            for label,key in zip(labels,keys):
+                if label!=-1:
+                    groups_dict[label].add(key)
+                    groups_sorted_by_quantity_dict[label]+=1
+
+            ##############################################
+            groups_sorted_by_quantity = [ label for label,number in sorted(groups_sorted_by_quantity_dict.items(),key=lambda x : x[1], reverse=True) ]
+
+            #kazdy plik tylko raz
+            self.info_line = self.info = 'Pruning "multiple rotations" data ...'
+
+            files_already_in_group=set()
+            files_already_in_group_add = files_already_in_group.add
+
+            pruned_groups_dict = defaultdict(set)
+            for label in groups_sorted_by_quantity:
+                #print(f'{label=}',type(label))
+                for key in groups_dict[label]:
+                    #print(f'    {key=}')
+
+                    (pathnr,path,file_name,ctime,dev,inode,size,rotation) = key
+                    file_key = (dev,inode)
+                    key_without_rotation = (pathnr,path,file_name,ctime,dev,inode,size)
+
+                    if file_key not in files_already_in_group:
+                        files_already_in_group_add(file_key)
+                        pruned_groups_dict[label].add(key_without_rotation)
+                    #else:
+                        #print('pruning file',path,file_name,rotation)
+
+            ##############################################
+
+            groups_digits=len(str(len(pruned_groups_dict)))
+
+            relabel_nr=0
+            for label,keys in sorted(pruned_groups_dict.items(), key = lambda x : max([y[6] for y in x[1]]),reverse=True ):
+                if len(keys)>1:
+                    self_files_of_images_groups[f'G{str(relabel_nr).zfill(groups_digits)}'] = keys
+                    relabel_nr+=1
+
+        sys_exit() #thread
+
+    def gps_clustering(self,distance):
+        from sklearn.cluster import DBSCAN
+        from numpy import array as numpy_array
+
+        self.scanned_paths=self.paths_to_scan.copy()
+
+        pool = []
+        keys = []
+
+        self.info_line = self.info = 'Preparing data pool ...'
+        #pathnr,path,file_name,ctime,dev,inode,size,
+
+        #self_scan_results_images_add( (path_nr,subpath,entry.name,st_mtime_ns,st_ctime_ns,st_dev,st_ino,size) )
+        #self_scan_results_image_to_gps[stat_res.st_dev,stat_res.st_ino] = gps_data
+
+        self_scan_results_images = self.scan_results_images
+        #print(f'{self_scan_results_images=}')
+        self_scan_results_image_to_gps = self.scan_results_image_to_gps
+        #print(f'{self_scan_results_image_to_gps=}')
+
+        for (path_nr,subpath,name,mtime,ctime,dev,ino,size) in sorted(self.scan_results_images, key=lambda x :[6],reverse = True) :
+            dict_key = (dev,ino,mtime)
+            #print(f'{self_scan_results_image_to_gps=}')
+            if dict_key in self_scan_results_image_to_gps:
+                pool.append( numpy_array(self_scan_results_image_to_gps[(dev,ino,mtime)] ) )
+                keys.append( (path_nr,subpath,name,ctime,dev,ino,size) )
+
+        self_files_of_images_groups = self.files_of_images_groups = {}
+
+        if pool:
+            de_norm_distance = 0.0000001*(10**distance)+0.00000000001
+
+            self.info_line = self.info = 'Clustering ...'
+
+            t0=perf_counter()
+            self.log.info(f'start DBSCAN')
+            labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='euclidean',algorithm='auto').fit(pool).labels_
+            t1=perf_counter()
+            self.log.info(f'DBSCAN end. Time:{t1-t0}')
+
+            #with rotation variants
+            groups_dict = defaultdict(set)
+
+            self.info_line = self.info = 'Separating groups ...'
+
+            groups_sorted_by_quantity_dict = defaultdict(int)
+
+            for label,key in zip(labels,keys):
+                if label!=-1:
+                    groups_dict[label].add(key)
+                    groups_sorted_by_quantity_dict[label]+=1
+
+            ##############################################
+            groups_sorted_by_quantity = [ label for label,number in sorted(groups_sorted_by_quantity_dict.items(),key=lambda x : x[1], reverse=True) ]
+
+            #kazdy plik tylko raz
+            self.info_line = self.info = 'Pruning "multiple rotations" data ...'
+
+            #files_already_in_group=set()
+            #files_already_in_group_add = files_already_in_group.add
+
+            pruned_groups_dict = defaultdict(set)
+            for label in groups_sorted_by_quantity:
+                #print(f'{label=}',type(label))
+                for key in groups_dict[label]:
+                    #print(f'    {key=}')
+
+                    (pathnr,path,file_name,ctime,dev,inode,size) = key
+                    #file_key = (dev,inode)
+                    #key_without_rotation = (pathnr,path,file_name,ctime,dev,inode,size)
+
+                    pruned_groups_dict[label].add(key)
+                    #if file_key not in files_already_in_group:
+                        #files_already_in_group_add(file_key)
+                    #else:
+                        #print('pruning file',path,file_name,rotation)
+
+            ##############################################
+
+            groups_digits=len(str(len(pruned_groups_dict)))
+
+            relabel_nr=0
+            for label,keys in sorted(pruned_groups_dict.items(), key = lambda x : max([y[6] for y in x[1]]),reverse=True ):
+                if len(keys)>1:
+                    self_files_of_images_groups[f'G{str(relabel_nr).zfill(groups_digits)}'] = keys
+                    relabel_nr+=1
 
         sys_exit() #thread
 
@@ -956,8 +1161,8 @@ class DudeCore:
         for size in scan_results_sizes:
             self.files_of_size_of_crc[size]=defaultdict(set)
 
-        sto_by_self_sum_size = 100.0/self.sum_size
-        sto_by_self_info_total = 100.0/self.info_total
+        sto_by_self_sum_size = 100.0/self.sum_size if self.sum_size else 0.0
+        sto_by_self_info_total = 100.0/self.info_total if self.info_total else 0.0
 
         #########################################################################################################
 
@@ -1141,7 +1346,7 @@ class DudeCore:
 
         self.calc_crc_min_len()
 
-    def check_group_files_state(self,size,crc,similarity_mode=False):
+    def check_group_files_state(self,size,crc,operation_mode=MODE_CRC):
         self.log.info('check_group_files_state: %s %s',size,crc)
 
         self_get_full_path_to_scan = self.get_full_path_to_scan
@@ -1150,7 +1355,7 @@ class DudeCore:
         to_remove=[]
         to_remove_append = to_remove.append
 
-        if similarity_mode:
+        if operation_mode in (MODE_SIMILARITY,MODE_GPS):
             group=crc
             if self.files_of_images_groups[group]:
                 #overwrite size
@@ -1321,10 +1526,10 @@ class DudeCore:
             self.log.error(e)
             return 'Error on hard linking:%s' % e
 
-    def remove_from_data_pool(self,size,crc,index_tuple_list,file_callback=None,crc_callback=None,similarity_mode=False):
+    def remove_from_data_pool(self,size,crc,index_tuple_list,file_callback=None,crc_callback=None,operation_mode=MODE_CRC):
         self.log.info('remove_from_data_pool size:%s crc:%s tuples:%s',size,crc,index_tuple_list)
 
-        if similarity_mode:
+        if operation_mode in (MODE_SIMILARITY,MODE_GPS):
             if crc in self.files_of_images_groups:
                 for pathnr,path,file,ctime,dev,inode,size_file in list(self.files_of_images_groups[crc]):
                     for index_tuple in index_tuple_list:
@@ -1361,7 +1566,7 @@ class DudeCore:
             else:
                 self.log.warning('remove_from_data_pool - size already removed')
 
-    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash,file_callback,crc_callback,similarity_mode=False):
+    def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash,file_callback,crc_callback,operation_mode=MODE_CRC):
         messages=set()
         messages_add = messages.add
 
@@ -1369,7 +1574,7 @@ class DudeCore:
         l_info = self.log.info
         self_get_full_path_scanned = self.get_full_path_scanned
 
-        if similarity_mode:
+        if operation_mode in (MODE_SIMILARITY,MODE_GPS):
             pool = self.files_of_images_groups[crc]
         else:
             pool = self.files_of_size_of_crc[size][crc]
@@ -1380,7 +1585,7 @@ class DudeCore:
 
         #print(f'{pool=}')
         for index_tuple in index_tuple_set:
-            if similarity_mode:
+            if operation_mode in (MODE_SIMILARITY,MODE_GPS):
                 (pathnr,path,file_name,ctime,dev,inode,size)=index_tuple
             else:
                 (pathnr,path,file_name,ctime,dev,inode)=index_tuple
@@ -1395,15 +1600,15 @@ class DudeCore:
                 else:
                     index_tuples_list_done_append(index_tuple)
             else:
-                messages_add('%s, delete_file_wrapper - Internal Data Inconsistency:%s / %s' % (similarity_mode,full_file_path,str(index_tuple)) )
+                messages_add('%s, delete_file_wrapper - Internal Data Inconsistency:%s / %s' % (operation_mode,full_file_path,str(index_tuple)) )
 
-        self.remove_from_data_pool(size,crc,index_tuples_list_done,file_callback,crc_callback,similarity_mode)
+        self.remove_from_data_pool(size,crc,index_tuples_list_done,file_callback,crc_callback,operation_mode)
 
         return messages
 
     def link_wrapper(self,\
             kind,relative,size,crc,\
-            index_tuple_ref,index_tuple_list,to_trash,file_callback,crc_callback,similarity_mode=False):
+            index_tuple_ref,index_tuple_list,to_trash,file_callback,crc_callback,operation_mode=MODE_CRC):
 
         l_info = self.log.info
         delete_command = self.delete_file_to_trash if to_trash else self.delete_file
@@ -1415,7 +1620,8 @@ class DudeCore:
         self_get_full_path_scanned = self.get_full_path_scanned
         #self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
 
-        if similarity_mode:
+        if operation_mode in (MODE_SIMILARITY,MODE_GPS):
+            print('imposible1')
             pool = self.files_of_images_groups[crc]
         else:
             pool = self.files_of_size_of_crc[size][crc]
