@@ -242,13 +242,19 @@ def measure(func):
 
     return wrapper
 ###########################################################
-class photo_image_cache:
-    def __init__(self ):
+class Image_Cache:
+    def __init__(self,tkwindow):
         from threading import Thread
+        from queue import Queue
+
+        print('Image_Cache init')
+
+        self.paths_queue = Queue()
+        self.scaled_images_data_queue = Queue()
 
         self.init_all()
 
-        self.pre_and_next_range=4
+        self.pre_and_next_range=10
 
         if env_dude_preload:=os_environ.get('DUDE_PRELOAD'):
             print(f'{env_dude_preload=}')
@@ -264,10 +270,9 @@ class photo_image_cache:
                     print('DUDE_PRELOAD !<0:',e)
                     sys_exit(6)
 
-
-        self.limit_full=2*self.pre_and_next_range
-        self.limit_scaled=self.limit_full
-        self.limit_scaled_photoimage=self.limit_scaled
+        #self.limit_full=2*self.pre_and_next_range
+        #self.limit_scaled=self.limit_full
+        #self.limit_scaled_photoimage=self.limit_scaled
         #print('self.limit_full:',self.limit_full)
 
         self.window_size = (100,100)
@@ -275,28 +280,153 @@ class photo_image_cache:
 
         self.current_ratio = 1.0
         self.read_ahead_enabled = True
-        self.thread_keeep_looping = True
+        self.threads_keeep_looping = True
 
-        self.read_ahead_thread=Thread(target=self.read_ahead_threaded_loop,daemon=True)
-        self.read_ahead_thread.start()
+        max_threads = cpu_count()
+
+        self.read_ahead_threads = {}
+
+        #self.scaled_images_dict={}
+        #self.scaled_photo_images_dict={}
+
+        for i in range(max_threads):
+            self.read_ahead_threads[i] = Thread(target=lambda i = i : self.read_ahead_threaded_loop(i),daemon=True)
+            self.read_ahead_threads[i].start()
+
+        #self.eternal_photo_imagination(tkwindow)
+        tkwindow.after(10,lambda : self.eternal_photo_imagination(tkwindow))
 
     def init_all(self):
         from collections import deque
+        from queue import Queue
 
         self.cache_full={}
         self.cache_scaled={}
         self.cache_scaled_photoimage={}
 
-        self.cache_full_deque=deque()
-        self.cache_scaled_deque=deque()
-        self.cache_scaled_photoimage_deque=deque()
+        #self.cache_full_deque=deque()
+        #self.cache_scaled_deque=deque()
+        #self.cache_scaled_photoimage_deque=deque()
 
-        self.read_ahead_deque=deque()
+        self.read_ahead_queue=Queue()
+
+    ###############################################################
+    #def threaded_paths_queue_processor(self):
+    #    self_paths_queue_get = self.paths_queue.get
+    #    self_paths_queue_task_done = self.paths_queue.task_done
+    #    self_scaled_images_data_queue_put = self.scaled_images_data_queue.put
+    #    while self.threads_keeep_looping:
+    #        path = self_paths_queue_get()
+    #        try:
+    #            scaled_image,width,height,ratio = self.read_scale_convert(path)
+    #            if scaled_image:
+    #                print('threaded_paths_queue_processor put',path)
+    #                self_scaled_images_data_queue_put(path,scaled_image,width,height,ratio)
+    #        except Exception as e:
+    #            print('threaded_paths_queue_processor error:',e)
+    #        self_paths_queue_task_done()
+    #    sys_exit()
+
+    def read_ahead_threaded_loop(self,thread_id):
+        from queue import Empty
+        #print('read_ahead_threaded_loop started',thread_id)
+        #self_read_ahead_queue_get = self.read_ahead_queue.get
+        #self_read_ahead_queue_task_done = self.read_ahead_queue.task_done
+
+        #self_get_cached_scaled_image = self.get_cached_scaled_image
+
+        self_scaled_images_data_queue_put = self.scaled_images_data_queue.put
+        self_cache_scaled_photoimage = self.cache_scaled_photoimage
+
+        while self.threads_keeep_looping:
+            try:
+                if self.read_ahead_enabled:
+
+                    try:
+                        path = self.read_ahead_queue.get(True,0.01)
+                    except Empty:
+                        #print('ra q empty')
+                        #sleep(0.1)
+                        pass
+                    else:
+                        #print(thread_id,'processing - done:',path)
+                        self.read_ahead_queue.task_done()
+
+                        if path:
+                            if path not in self_cache_scaled_photoimage:
+                                scaled_image,width,height,ratio = self.read_scale_convert(path)
+
+                                if scaled_image:
+                                    #print('self_scaled_images_data_queue_put',path,width,height)
+                                    self_scaled_images_data_queue_put( (path,scaled_image,width,height,ratio) )
+                                    continue
+                                else:
+                                    print('no scaled_image')
+
+                                #self_get_cached_scaled_image(path)
+                                #print('cached:',path,len(self.read_ahead_queue))
+                        else:
+                            sleep(0.1)
+                else:
+                    print('not enabled')
+                    sleep(0.01)
+            except Exception as e:
+                print('read_ahead_threaded_loop error',e)
+                sleep(1)
+
+        #print('read_ahead_threaded_loop ended')
+        sys_exit()
+
+    def eternal_photo_imagination(self,tkwindow):
+        from queue import Empty
+
+        #print('eternal_photo_imagination')
+
+        from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+        self_cache_scaled_photoimage = self.cache_scaled_photoimage
+
+        #wait_var=BooleanVar()
+        #wait_var_set = wait_var.set
+        #wait_var_set(False)
+
+        tkwindow_after = tkwindow.after
+
+        self_scaled_images_data_queue_get = self.scaled_images_data_queue.get
+
+        if self.threads_keeep_looping:
+            #print('a0',self.scaled_images_data_queue )
+
+            try:
+                got = self_scaled_images_data_queue_get(True,0.01)
+            except Empty:
+                tkwindow_after(50,lambda : self.eternal_photo_imagination(tkwindow))
+            else:
+                #print('a2',got,':')
+                path,scaled_image,width,height,ratio = got
+                #print('a3')
+                self.photo_imagining_in_progress=True
+                self_cache_scaled_photoimage[path] = ImageTk_PhotoImage(scaled_image),width,height,ratio
+                self.eternal_photo_imagination(tkwindow)
+                self.photo_imagining_in_progress=False
+
+                #print('a4')
+                #tkwindow_after(1,lambda : self.eternal_photo_imagination(tkwindow))
+                #print('a5')
+
+
+            #print('a5')
+
+            #print('a6')
+            #self_main_wait_variable(wait_var)
+    ###############################################################
 
     def end(self):
+        print('Image_Cache END')
         self.init_all()
-        self.thread_keeep_looping=False
-        self.read_ahead_thread.join()
+        self.threads_keeep_looping=False
+
+        for thread in self.read_ahead_threads.values():
+            thread.join()
 
     def set_window_size(self,window_size,txt_label_heigh):
         from collections import deque
@@ -307,132 +437,157 @@ class photo_image_cache:
 
             self.cache_scaled={}
             self.cache_scaled_photoimage={}
-            self.cache_scaled_deque=deque()
-            self.cache_scaled_photoimage_deque=deque()
+            #self.cache_scaled_deque=deque()
+            #self.cache_scaled_photoimage_deque=deque()
 
     def reset_read_ahead(self):
-        self.read_ahead_deque.clear()
+        from queue import Queue
+
+        #print('reset_read_ahead')
+        #self.read_ahead_queue.clear()
+        self.read_ahead_queue=Queue()
 
     def add_image_to_read_ahead(self, path):
-        self.read_ahead_deque.append(path)
+        #print('add_image_to_read_ahead',path)
+        self.read_ahead_queue.put(path)
 
-    def read_ahead_threaded_loop(self):
-        self_read_ahead_deque_pop = self.read_ahead_deque.pop
-        self_get_cached_scaled_image = self.get_cached_scaled_image
+    ##############################################################################
 
-        while self.thread_keeep_looping:
-            try:
-                if self.read_ahead_enabled and self.read_ahead_deque:
-                    if path := self_read_ahead_deque_pop():
-                        self_get_cached_scaled_image(path)
-                        #print('cached:',path,len(self.read_ahead_deque))
-                        continue
-                    else:
-                        sleep(0.1)
-                else:
-                    sleep(0.01)
-            except Exception as e:
-                print(e)
-                sleep(1)
+    #def get_cached_full_image(self,path):
+    #    from PIL.Image import open as image_open
 
-        sys_exit()
+    #    if not path_isfile(path):
+    #        return None
 
-    def get_cached_full_image(self,path):
+    #    self_cache_full = self.cache_full
+    #    if path not in self_cache_full:
+    #        try:
+    #            image = image_open(path)
+    #            if image.mode != 'RGBA':
+    #                image = image.convert("RGBA")
+
+    #            self_cache_full_deque = self.cache_full_deque
+    #            if len(self_cache_full_deque)>self.limit_full:
+    #                path_to_remove = self_cache_full_deque.popleft()
+    #                del self_cache_full[path_to_remove]
+
+    #            self_cache_full_deque.append(path)
+
+    #            self_cache_full[path]=image
+
+    #            return image
+    #        except Exception as e:
+    #            print('get_cached_full_image Error:',e)
+    #            return None
+    #    else:
+    #        return self_cache_full[path]
+
+    #def get_cached_scaled_image(self,path):
+    #    from PIL.Image import BILINEAR
+        #from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+
+    #    self_cache_scaled = self.cache_scaled
+
+    #    if path not in self_cache_scaled:
+    #        if full_image:=self.get_cached_full_image(path):
+    #            window_size_width,window_size_height = self.window_size
+
+    #            height = full_image.height
+    #            ratio_y = height/(window_size_height-self.txt_label_heigh)
+
+    #            width = full_image.width
+    #            ratio_x = width/window_size_width
+
+    #            self_cache_scaled_deque = self.cache_scaled_deque
+    #            if self_cache_scaled_deque and len(self_cache_scaled_deque)>self.limit_scaled:
+    #                path_to_remove = self_cache_scaled_deque.popleft()
+    #                del self_cache_scaled[path_to_remove]
+
+    #            current_ratio = max(ratio_x,ratio_y,1)
+    #            self_cache_scaled[path] = image_combo = full_image if current_ratio==1 else full_image.resize( ( int (width/current_ratio), int(height/current_ratio)) ,BILINEAR),width,height,current_ratio
+    #            self_cache_scaled_deque.append(path)
+
+    #            return image_combo
+    #        else:
+    #            return None,0,0,1
+    #    else:
+    #        return self_cache_scaled[path]
+
+    photo_imagining_in_progress = False
+    def get_cached_scaled_photo_image(self,path,tkwindow):
+        #from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+
+        self_cache_scaled_photoimage = self.cache_scaled_photoimage
+
+        while True:
+            if path in self_cache_scaled_photoimage:
+                return self_cache_scaled_photoimage[path]
+            else:
+                if self.photo_imagining_in_progress:
+                    print('...wait photo_imagining_in_progress')
+                    tkwindow.after(100)
+
+                    continue
+
+                #if scaled_image_combo:=self.get_cached_scaled_image(path):
+                    #scaled_image,width,height,ratio = scaled_image_combo
+
+                    #self_cache_scaled_photoimage_deque = self.cache_scaled_photoimage_deque
+                    #if self_cache_scaled_photoimage_deque and len(self_cache_scaled_photoimage_deque)>self.limit_scaled_photoimage:
+                    #    path_to_remove = self_cache_scaled_photoimage_deque.popleft()
+                    #    del self_cache_scaled_photoimage[path_to_remove]
+
+                    #self_cache_scaled_photoimage_deque.append(path)
+
+                    #self_cache_scaled_photoimage[path] = photoimage_combo = ImageTk_PhotoImage(scaled_image),width,height,ratio
+                    #self_cache_scaled_photoimage[path] = photoimage_combo = scaled_image,width,height,ratio
+
+                    #return photoimage_combo
+                #else:
+                return None,0,0,1
+
+    def read_scale_convert(self,path):
         from PIL.Image import open as image_open
+        from PIL.Image import BILINEAR
+        #from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
 
         if not path_isfile(path):
             return None
 
-        self_cache_full = self.cache_full
-        if path not in self_cache_full:
-            try:
-                image = image_open(path)
-                if image.mode != 'RGBA':
-                    image = image.convert("RGBA")
+        window_size_width,window_size_height = self.window_size
 
-                self_cache_full_deque = self.cache_full_deque
-                if len(self_cache_full_deque)>self.limit_full:
-                    path_to_remove = self_cache_full_deque.popleft()
-                    del self_cache_full[path_to_remove]
+        try:
+            full_image = image_open(path)
+            if full_image.mode != 'RGBA':
+                full_image = full_image.convert("RGBA")
 
-                self_cache_full_deque.append(path)
+            height = full_image.height
+            ratio_y = height/(window_size_height-self.txt_label_heigh)
 
-                self_cache_full[path]=image
+            width = full_image.width
+            ratio_x = width/window_size_width
 
-                return image
-            except Exception as e:
-                print('get_cached_full_image Error:',e)
-                return None
-        else:
-            return self_cache_full[path]
+            ratio = max(ratio_x,ratio_y,1)
 
-    def get_cached_scaled_image(self,path):
-        from PIL.Image import BILINEAR
-        from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
+            return full_image if ratio==1 else full_image.resize( ( int (width/ratio), int(height/ratio)) ,BILINEAR),width,height,ratio
 
-        self_cache_scaled = self.cache_scaled
+        except Exception as e:
+            print('get_cached_full_image Error:',e)
+            return None,None,None,None
 
-        if path not in self_cache_scaled:
-            if full_image:=self.get_cached_full_image(path):
-                window_size_width,window_size_height = self.window_size
+    #read_ahead_enabled=True
 
-                height = full_image.height
-                ratio_y = height/(window_size_height-self.txt_label_heigh)
+    def get_photo_image(self,path,tkwindow):
+        #print('get_photo_image',path)
 
-                width = full_image.width
-                ratio_x = width/window_size_width
-
-                self_cache_scaled_deque = self.cache_scaled_deque
-                if self_cache_scaled_deque and len(self_cache_scaled_deque)>self.limit_scaled:
-                    path_to_remove = self_cache_scaled_deque.popleft()
-                    del self_cache_scaled[path_to_remove]
-
-                current_ratio = max(ratio_x,ratio_y,1)
-                self_cache_scaled[path] = image_combo = full_image if current_ratio==1 else full_image.resize( ( int (width/current_ratio), int(height/current_ratio)) ,BILINEAR),width,height,current_ratio
-                self_cache_scaled_deque.append(path)
-
-                return image_combo
-            else:
-                return None,0,0,1
-        else:
-            return self_cache_scaled[path]
-
-    def get_cached_scaled_photo_image(self,path):
-        from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
-
-        self_cache_scaled_photoimage = self.cache_scaled_photoimage
-
-        if path not in self_cache_scaled_photoimage:
-            if scaled_image_combo:=self.get_cached_scaled_image(path):
-                scaled_image,width,height,ratio = scaled_image_combo
-
-                self_cache_scaled_photoimage_deque = self.cache_scaled_photoimage_deque
-                if self_cache_scaled_photoimage_deque and len(self_cache_scaled_photoimage_deque)>self.limit_scaled_photoimage:
-                    path_to_remove = self_cache_scaled_photoimage_deque.popleft()
-                    del self_cache_scaled_photoimage[path_to_remove]
-
-                self_cache_scaled_photoimage_deque.append(path)
-
-                self_cache_scaled_photoimage[path] = photoimage_combo = ImageTk_PhotoImage(scaled_image),width,height,ratio
-                #self_cache_scaled_photoimage[path] = photoimage_combo = scaled_image,width,height,ratio
-
-                return photoimage_combo
-            else:
-                return None,0,0,1
-        else:
-            return self_cache_scaled_photoimage[path]
-
-    read_ahead_enabled=True
-
-    def get_photo_image(self,path):
-        self.read_ahead_enabled=False
-        scaled_image,width,height,current_ratio=self.get_cached_scaled_photo_image(path)
-        self.read_ahead_enabled=True
+        #self.read_ahead_enabled=False
+        scaled_image,width,height,current_ratio=self.get_cached_scaled_photo_image(path,tkwindow)
+        #self.read_ahead_enabled=True
 
         if scaled_image:
             return scaled_image,f'{width} x {height} pixels' + (f' ({round(100.0/current_ratio)}%)' if current_ratio>1 else '')
         else:
-            return None,'error1'
+            return None,f'get_photo_image error:1 {width},{height},{current_ratio}'
 
 ###########################################################
 
@@ -2936,9 +3091,8 @@ class Gui:
         self.sel_tree.focus_set()
 
     def show_preview(self,user_action=True):
-
         self_preview = self.preview
-        self.preview_photo_image_cache = photo_image_cache()
+        self.preview_photo_image_cache = Image_Cache(self.main)
 
         if self.preview_shown:
             self_preview.lift()
@@ -2988,7 +3142,7 @@ class Gui:
                     self.preview_frame_txt.pack_forget()
 
                     try:
-                        cache_res = self.preview_photo_image_cache.get_photo_image(path)
+                        cache_res = self.preview_photo_image_cache.get_photo_image(path,self.main)
 
                         self.preview_label_img_configure(image=cache_res[0])
                         self.preview_label_txt_configure(text=cache_res[1])
@@ -3092,8 +3246,8 @@ class Gui:
 
             self.dominant_groups_folder={0:-1,1:-1}
 
-    def pass_to_images_cache(self, item,group_tree=True):
-        #print('pass_to_images_cache', item, group_tree)
+    def read_ahead_by_image_cache(self, item,group_tree=True):
+        #print('read_ahead_by_image_cache', group_tree)
 
         if group_tree:
             kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self.groups_tree_item_to_data[item]
@@ -3113,7 +3267,7 @@ class Gui:
 
                     self.preview_photo_image_cache.add_image_to_read_ahead(path_full)
                 except Exception as e:
-                    print('pass_to_images_cache',e)
+                    print('read_ahead_by_image_cache error',e)
 
     @catched
     def preview_preload_groups_tree(self,item):
@@ -3124,17 +3278,17 @@ class Gui:
                 self_my_next_dict_groups_tree = self.my_next_dict[self.groups_tree]
                 self_my_prev_dict_groups_tree = self.my_prev_dict[self.groups_tree]
 
-                self_pass_to_images_cache = self.pass_to_images_cache
+                self_read_ahead_by_image_cache = self.read_ahead_by_image_cache
                 self.preview_photo_image_cache.reset_read_ahead()
 
                 prev_item = next_item = item
-                for i in range(int(self.preview_photo_image_cache.pre_and_next_range/2)):
+                for i in range(self.preview_photo_image_cache.pre_and_next_range):
                     #print('  ',i)
                     next_item = self_my_next_dict_groups_tree[next_item]
-                    self_pass_to_images_cache(next_item)
+                    self_read_ahead_by_image_cache(next_item)
 
                     prev_item = self_my_prev_dict_groups_tree[prev_item]
-                    self_pass_to_images_cache(prev_item)
+                    self_read_ahead_by_image_cache(prev_item)
 
     @catched
     def groups_tree_sel_change(self,item,force=False,change_status_line=True):
@@ -3190,16 +3344,16 @@ class Gui:
                 self_my_next_dict_folder_tree = self.my_next_dict[self.folder_tree]
                 self_my_prev_dict_folder_tree = self.my_prev_dict[self.folder_tree]
 
-                self_pass_to_images_cache = self.pass_to_images_cache
+                self_read_ahead_by_image_cache = self.read_ahead_by_image_cache
                 self.preview_photo_image_cache.reset_read_ahead()
 
                 prev_item = next_item = item
-                for i in range(int(self.preview_photo_image_cache.pre_and_next_range/2)):
+                for i in range(self.preview_photo_image_cache.pre_and_next_range):
                     next_item = self_my_next_dict_folder_tree[next_item]
-                    self_pass_to_images_cache(next_item,False)
+                    self_read_ahead_by_image_cache(next_item,False)
 
                     prev_item = self_my_prev_dict_folder_tree[prev_item]
-                    self_pass_to_images_cache(prev_item,False)
+                    self_read_ahead_by_image_cache(prev_item,False)
 
     @catched
     def folder_tree_sel_change(self,item,change_status_line=True):
@@ -4509,6 +4663,7 @@ class Gui:
         self_groups_tree.delete(*self.tree_children[self_groups_tree])
 
         self.selected[self.groups_tree]=None
+        self.sel_full_path_to_file=''
 
         show_mode = self.cfg_get(CFG_KEY_SHOW_MODE)
         show_full_crc=self.cfg_get_bool(CFG_KEY_FULL_CRC)

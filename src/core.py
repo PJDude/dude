@@ -763,7 +763,7 @@ class DudeCore:
     info=''
     ##################################################################################################################
     def images_processing(self,operation_mode,hash_size,all_rotations,image_min_size_pixels=0,image_max_size_pixels=0):
-        print('images_processing',operation_mode,hash_size,all_rotations,image_min_size_pixels,image_max_size_pixels)
+        #print('images_processing',operation_mode,hash_size,all_rotations,image_min_size_pixels,image_max_size_pixels)
         #musi tu byc - inaczej pyinstaller & nuitka nie dzialaja
         from numpy import array as numpy_array
 
