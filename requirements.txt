@@ -1,8 +1,8 @@
-pyinstaller==6.7.0
+pyinstaller==6.8.0
 appdirs==1.4.4
 send2trash==1.8.3
 zstandard==0.22.0
-nuitka==2.3
+nuitka==2.3.7
 tkinterdnd2==0.3.0
 imagehash==4.3.1
 pillow==10.3.0
