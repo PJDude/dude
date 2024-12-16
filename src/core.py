@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2022-2024 Piotr Jochymek
+#  Copyright (c) 2022-2025 Piotr Jochymek
 #
 #  MIT License
 #
@@ -89,6 +89,18 @@ def bytes_to_str(num):
             return "%s%s" % (s_main,unit)
 
     return "BIG"
+
+def str_to_bytes(string):
+    try:
+        string = string.replace(' ','').lower().rstrip('b')
+        string_endswith = string.endswith
+        for suffix,weight in ( ('k',1024),('m',1024*1024),('g',1024*1024*1024),('t',1024*1024*1024*1024) ):
+            if string_endswith(suffix):
+                return int(string[0:-1]) * weight #no decimal point
+
+        return int(string)
+    except:
+        return -1
 
 def fnumber(num):
     return str(format(num,',d').replace(',',' '))
@@ -321,7 +333,7 @@ class DudeCore:
         return None
 
     scan_update_info_path_nr=None
-    def scan(self,operation_mode):
+    def scan(self,operation_mode,file_min_size_int=0,file_max_size_int=0):
         from PIL.Image import open as image_open
 
         self.log.info('')
@@ -352,9 +364,12 @@ class DudeCore:
         self_scan_results_images = self.scan_results_images = set()
         self_scan_results_image_to_gps = self.scan_results_image_to_gps = {}
 
+        use_min_size = bool(file_min_size_int!=0)
+        use_max_size = bool(file_max_size_int!=0)
+        use_size = use_min_size or use_max_size
+
         #############################################################################################
         if operation_mode in (MODE_SIMILARITY,MODE_GPS):
-
 
             supported_extensions = IMAGES_EXTENSIONS
 
@@ -430,6 +445,17 @@ class DudeCore:
                                                     folder_size+=size
                                                     #https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
                                                     sum_size+=size
+
+                                                    if use_size:
+                                                        if use_min_size:
+                                                            if size<file_min_size_int:
+                                                                skipping_action(f'size<min {size},{file_min_size_int},{path},{entry.name}' )
+                                                                continue
+                                                        if use_max_size:
+                                                            if size>file_max_size_int:
+                                                                skipping_action(f'size>max {size},{file_max_size_int},{path},{entry.name}' )
+                                                                continue
+
                                                     if extension.lower() in supported_extensions:
                                                         #sum_size_images+=size
                                                         folder_counter_images+=1
@@ -531,6 +557,15 @@ class DudeCore:
                                                 if size:=stat_res.st_size:
                                                     folder_size+=size
 
+                                                    if use_size:
+                                                        if use_min_size:
+                                                            if size<file_min_size_int:
+                                                                skipping_action(f'size<min {size},{file_min_size_int},{path},{entry.name}' )
+                                                                continue
+                                                        if use_max_size:
+                                                            if size>file_max_size_int:
+                                                                skipping_action(f'size>max {size},{file_max_size_int},{path},{entry.name}' )
+                                                                continue
                                                     subpath=path.replace(path_to_scan,'')
                                                     self_scan_results_by_size[size].add( (path_nr,subpath,entry.name,stat_res.st_mtime_ns,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino) )
 

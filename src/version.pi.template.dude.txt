@@ -33,7 +33,7 @@ VSVersionInfo(
         StringStruct(u'FileDescription', u'Dude'),
         StringStruct(u'FileVersion', u'0.0.0.0'),
         StringStruct(u'InternalName', u'Dude'),
-        StringStruct(u'LegalCopyright', u'Piotr Jochymek 2022-2024'),
+        StringStruct(u'LegalCopyright', u'Piotr Jochymek 2022-2025'),
         StringStruct(u'OriginalFilename', u'dude.exe'),
         StringStruct(u'ProductName', u'Dude'),
         StringStruct(u'ProductVersion', u'VER_TO_REPLACE')])

@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2022-2024 Piotr Jochymek
+#  Copyright (c) 2022-2025 Piotr Jochymek
 #
 #  MIT License
 #
@@ -247,8 +247,6 @@ class Image_Cache:
         from threading import Thread
         from queue import Queue
 
-        print('Image_Cache init')
-
         self.paths_queue = Queue()
         self.scaled_images_data_queue = Queue()
 
@@ -421,7 +419,6 @@ class Image_Cache:
     ###############################################################
 
     def end(self):
-        print('Image_Cache END')
         self.init_all()
         self.threads_keeep_looping=False
 
@@ -737,7 +734,7 @@ class Gui:
             self.preview_text_hbar.set(v1,v2)
             self.preview_text_hbar.grid(row=1,column=0,sticky='we')
 
-    def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images_mode_tuple=None):
+    def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images_mode_tuple=None,size_min_str=0,size_max_str=0):
         images,ihash,idivergence,rotations,imin,imax,igps = images_mode_tuple if images_mode_tuple else (False,0,0,False,0,0,False)
 
         gc_disable()
@@ -1375,6 +1372,18 @@ class Gui:
         self.exclude_frame.grid_rowconfigure(99, weight=1)
         ##############
 
+        self.file_min_size_check_var = BooleanVar()
+        self.file_max_size_check_var = BooleanVar()
+
+        self.file_min_size_var = StringVar()
+        self.file_max_size_var = StringVar()
+
+        self.file_min_size_var.set(size_min_str)
+        self.file_max_size_var.set(size_max_str)
+
+        self.file_min_size_check_var.set(bool(size_min_str))
+        self.file_max_size_check_var.set(bool(size_max_str))
+
         operation_mode_frame = LabelFrame(self_scan_dialog_area_main,text='Operation mode',borderwidth=2,bg=bg_color,takefocus=False)
         operation_mode_frame.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
@@ -1391,12 +1400,46 @@ class Gui:
         gps_button = Radiobutton(operation_mode_frame,text='Images GPS data proximity',variable=self.operation_mode_var,value=MODE_GPS,command=self.operation_mode_change )
         gps_button.grid(row=0,column=2,sticky='news',padx=8,pady=3)
 
+        gps_button.columnconfigure( (0,1,2), weight=1, uniform=2)
+
         self.widget_tooltip(gps_button,"Only image files with EXIF GPS\ndata are processed. Identified groups\ncontain images with GPS coordinates\nwith close proximity to each other")
 
         operation_mode_frame.grid_columnconfigure( (0,1,2), weight=1)
 
+        temp_frame3a = LabelFrame(self_scan_dialog_area_main,text='File size range',borderwidth=2,bg=bg_color,takefocus=False)
+        temp_frame3a.grid(row=4,column=0,sticky='news',padx=4,pady=4,columnspan=4)
+
+        self.file_min_check = Checkbutton(temp_frame3a, text = 'Min:' , variable=self.file_min_size_check_var,command=self.use_size_min_change_file)
+        self.file_min_check.grid(row=0,column=0,padx=4,pady=4, sticky='wens')
+
+        self.file_min_Entry = Entry(temp_frame3a, textvariable=self.file_min_size_var,width=10)
+        self.file_min_Entry.grid(row=0,column=1,sticky='news',padx=2,pady=2)
+
+        self.file_min_Space = Label(temp_frame3a)
+        self.file_min_Space.grid(row=0,column=2,sticky='news',padx=2,pady=2)
+
+        self.file_max_check = Checkbutton(temp_frame3a, text = 'Max:' , variable=self.file_max_size_check_var,command=self.use_size_max_change_file)
+        self.file_max_check.grid(row=0,column=3,padx=4,pady=4, sticky='wens')
+
+        self.file_max_Entry = Entry(temp_frame3a, textvariable=self.file_max_size_var,width=10)
+        self.file_max_Entry.grid(row=0,column=4,sticky='news',padx=2,pady=2)
+
+        self.file_max_Space = Label(temp_frame3a)
+        self.file_max_Space.grid(row=0,column=5,sticky='news',padx=2,pady=2)
+
+        temp_frame3a.grid_columnconfigure((2,5), weight=1)
+
+        size_min_tooltip = "Limit the search pool to files with\nsize equal or greater to the specified\n (e.g. 112kB, 1MB ...)"
+        size_max_tooltip = "Limit the search pool to files with\nsize smaller or equal to the specified\n (e.g. 10MB, 1GB ...)"
+        self.widget_tooltip(self.file_min_check,size_min_tooltip)
+        self.widget_tooltip(self.file_min_Entry,size_min_tooltip)
+
+        self.widget_tooltip(self.file_max_check,size_max_tooltip)
+        self.widget_tooltip(self.file_max_Entry,size_max_tooltip)
+
+
         temp_frame3 = LabelFrame(self_scan_dialog_area_main,text='Similarity mode options',borderwidth=2,bg=bg_color,takefocus=False)
-        temp_frame3.grid(row=4,column=0,sticky='news',padx=4,pady=4,columnspan=4)
+        temp_frame3.grid(row=5,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
         sf_par3=Frame(temp_frame3,bg=bg_color)
         sf_par3.pack(fill='both',expand=True,side='top')
@@ -1460,17 +1503,27 @@ class Gui:
         size_range_frame = LabelFrame(sf_par3,text='Image size range (pixels)',borderwidth=2,bg=bg_color,takefocus=False)
         size_range_frame.grid(row=2,column=0,padx=2,sticky='news',columnspan=2)
 
-        self.image_min_check = Checkbutton(size_range_frame, text = 'Min size:' , variable=self.image_min_size_check_var,command=self.use_size_min_change)
+        self.image_min_check = Checkbutton(size_range_frame, text = 'Min:' , variable=self.image_min_size_check_var,command=self.use_size_min_change)
         self.image_min_check.grid(row=0,column=0,padx=4,pady=4, sticky='wens')
 
         self.image_min_Entry = Entry(size_range_frame, textvariable=self.image_min_size_var,width=10)
         self.image_min_Entry.grid(row=0,column=1,sticky='news',padx=2,pady=2)
 
-        self.image_max_check = Checkbutton(size_range_frame, text = 'Max size:' , variable=self.image_max_size_check_var,command=self.use_size_max_change)
-        self.image_max_check.grid(row=0,column=2,padx=4,pady=4, sticky='wens')
+        self.image_min_Space = Label(size_range_frame)
+        self.image_min_Space.grid(row=0,column=2,sticky='news',padx=2,pady=2)
+
+
+        self.image_max_check = Checkbutton(size_range_frame, text = 'Max:' , variable=self.image_max_size_check_var,command=self.use_size_max_change)
+        self.image_max_check.grid(row=0,column=3,padx=4,pady=4, sticky='wens')
 
         self.image_max_Entry = Entry(size_range_frame, textvariable=self.image_max_size_var,width=10)
-        self.image_max_Entry.grid(row=0,column=3,sticky='news',padx=2,pady=2)
+        self.image_max_Entry.grid(row=0,column=4,sticky='news',padx=2,pady=2)
+
+        self.image_min_Space = Label(size_range_frame)
+        self.image_min_Space.grid(row=0,column=5,sticky='news',padx=2,pady=2)
+
+        size_range_frame.grid_columnconfigure((2,5), weight=1)
+
 
         min_tooltip = "Limit the search pool to images with\nboth dimensions (width and height)\nequal or greater to the specified value\nin pixels (e.g. 512)"
         max_tooltip = "Limit the search pool to images with\nboth dimensions (width and height)\nsmaller or equal to the specified value\nin pixels (e.g. 4096)"
@@ -1706,6 +1759,12 @@ class Gui:
     def use_size_max_change(self):
         self.image_max_Entry.configure(state='normal' if self.image_max_size_check_var.get() else 'disabled')
 
+    def use_size_min_change_file(self):
+        self.file_min_Entry.configure(state='normal' if self.file_min_size_check_var.get() else 'disabled')
+
+    def use_size_max_change_file(self):
+        self.file_max_Entry.configure(state='normal' if self.file_max_size_check_var.get() else 'disabled')
+
     def operation_mode_change(self):
         operation_mode = self.operation_mode_var.get()
         if operation_mode==MODE_CRC:
@@ -1751,6 +1810,9 @@ class Gui:
             self.use_size_max_change()
         else:
             print('unknown operation_mode:',operation_mode)
+
+        self.use_size_min_change_file()
+        self.use_size_max_change_file()
 
     def distance_val_set(self):
         self.similarity_distance_var_lab.set(str(self.similarity_distance_var.get())[:4])
@@ -3102,7 +3164,7 @@ class Gui:
         else:
             self.preview_shown=True
 
-            if cfg_geometry:=self.cfg_get('preview','200x200',section='geometry'):
+            if cfg_geometry:=self.cfg_get('preview','800x600',section='geometry'):
                 self_preview.geometry(cfg_geometry)
 
             self_preview.deiconify()
@@ -3898,7 +3960,7 @@ class Gui:
                 try:
                     image_min_size_int = int(image_min_size)
                 except Exception as e:
-                    self.get_info_dialog_on_scan().show('Min size value error',f'fix: "{image_min_size}"')
+                    self.get_info_dialog_on_scan().show('Image Min size value error',f'fix: "{image_min_size}"')
                     return
 
         image_max_size_int = 0
@@ -3907,10 +3969,30 @@ class Gui:
                 try:
                     image_max_size_int = int(image_max_size)
                 except Exception as e:
-                    self.get_info_dialog_on_scan().show('Max size value error',f'fix: "{image_max_size}"')
+                    self.get_info_dialog_on_scan().show('Image Max size value error',f'fix: "{image_max_size}"')
                     return
 
-        scan_thread=Thread(target=lambda : dude_core.scan(operation_mode),daemon=True)
+        ##################
+        file_min_size_int = 0
+        if self.file_min_size_check_var.get():
+            if file_min_size := self.file_min_size_var.get():
+                file_min_size_int = str_to_bytes(file_min_size)
+
+                if file_min_size_int==-1:
+                    self.get_info_dialog_on_scan().show('File Min size value error',f'fix: "{file_min_size}"')
+                    return
+
+        file_max_size_int = 0
+        if self.file_max_size_check_var.get():
+            if file_max_size := self.file_max_size_var.get():
+                file_max_size_int = str_to_bytes(file_max_size)
+
+                if file_max_size_int==-1:
+                    self.get_info_dialog_on_scan().show('File Max size value error',f'fix: "{file_max_size}"')
+                    return
+        #################
+
+        scan_thread=Thread(target=lambda : dude_core.scan(operation_mode,file_min_size_int,file_max_size_int),daemon=True)
         scan_thread.start()
 
         self_progress_dialog_on_scan.lab_l1.configure(text='Total space:')
@@ -6764,7 +6846,26 @@ if __name__ == "__main__":
             else:
                 images_mode_tuple.append(False)
 
-            Gui( getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun,images_mode_tuple )
+
+            size_min=0
+            if p_args.sizemin:
+                size_min_cand = str_to_bytes(p_args.sizemin[0])
+                if size_min_cand == -1:
+                    print(f"cannot parse sizemin value:'{p_args.sizemin[0]}'")
+                    sys.exit(2)
+                else:
+                    size_min=p_args.sizemin[0]
+
+            size_max=0
+            if p_args.sizemax:
+                size_max_cand = str_to_bytes(p_args.sizemax[0])
+                if size_max_cand == -1:
+                    print(f"cannot parse sizemax value:'{p_args.sizemax[0]}'")
+                    sys.exit(2)
+                else:
+                    size_max=p_args.sizemax[0]
+
+            Gui( getcwd(),p_args.paths,p_args.exclude,p_args.exclude_regexp,p_args.norun,images_mode_tuple,size_min,size_max )
 
     except Exception as e_main:
         print(e_main)

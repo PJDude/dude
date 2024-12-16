@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2022-2024 Piotr Jochymek
+#  Copyright (c) 2022-2025 Piotr Jochymek
 #
 #  MIT License
 #
@@ -48,7 +48,7 @@ def parse_args(ver):
     parser = argparse.ArgumentParser(
             formatter_class=argparse.RawTextHelpFormatter,
             prog = 'dude.exe' if (os.name=='nt') else 'dude',
-            description = f"dude version {ver}\nCopyright (c) 2022-2024 Piotr Jochymek\n\nhttps://github.com/PJDude/dude",
+            description = f"dude version {ver}\nCopyright (c) 2022-2025 Piotr Jochymek\n\nhttps://github.com/PJDude/dude",
             )
 
     parser.add_argument('paths',nargs='*',help='path to scan')
@@ -73,6 +73,9 @@ def parse_args(ver):
     parser.add_argument('-imin' ,nargs=1,help='Images similarity mode minimum image size (pixels)',type=int)
     parser.add_argument('-imax' ,nargs=1,help='Images similarity mode maximum image size (pixels)',type=int)
     parser.add_argument('-igps' ,action='store_true',help='Images GPS proximity mode')
+
+    parser.add_argument('-sizemin' ,nargs=1,help='minimum file size')
+    parser.add_argument('-sizemax' ,nargs=1,help='maximum file size')
 
     parser_help=parser.format_help().split('\n')
     help_parts=[parser_help[0]] + parser_help[7::]
