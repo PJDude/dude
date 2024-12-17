@@ -1385,10 +1385,12 @@ class DudeCore:
         self.log.info('check_group_files_state: %s %s',size,crc)
 
         self_get_full_path_to_scan = self.get_full_path_to_scan
-        res_problems=[]
-        res_problems_append = res_problems.append
-        to_remove=[]
-        to_remove_append = to_remove.append
+
+        res_problems_count=0
+        res_problems_dict={}
+
+        to_remove_dict={}
+        to_remove_dict_count=0
 
         if operation_mode in (MODE_SIMILARITY,MODE_GPS):
             group=crc
@@ -1403,21 +1405,26 @@ class DudeCore:
                         stat_res = stat(full_path)
                     except Exception as e:
                         self.log.error(f'check_group_files_state:{e}')
-                        res_problems_append('%s|RED' % e)
+                        res_problems_dict[res_problems_count]=f'{e}|RED'
+                        res_problems_count+=1
                         problem=True
                     else:
                         if stat_res.st_nlink>1:
-                            res_problems_append(f'file became hardlink:{stat_res.st_nlink},{pathnr},{path},{file_name}')
+                            res_problems_dict[res_problems_count]=f'file became hardlink:{stat_res.st_nlink},{pathnr},{path},{file_name}'
+                            res_problems_count+=1
                             problem=True
                         else:
                             if (size,ctime,dev,inode) != (stat_res.st_size,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino):
-                                res_problems_append(f'file changed:{size},{ctime},{dev},{inode},{stat_res.st_size},{stat_res.st_ctime_ns},{stat_res.st_dev},{stat_res.st_ino}' )
+                                res_problems_dict[res_problems_count]=f'file changed:{pathnr},{path},{file_name},{size=},{ctime=},{dev=},{inode=},{stat_res.st_size=},{stat_res.st_ctime_ns=},{stat_res.st_dev=},{stat_res.st_ino=}'
+                                res_problems_count+=1
                                 problem=True
                     if problem:
                         index_tuple=(pathnr,path,file_name,ctime,dev,inode)
-                        to_remove_append(index_tuple)
+                        to_remove_dict[to_remove_dict_count]=index_tuple
+                        to_remove_dict_count+=1
             else :
-                res_problems_append('no data')
+                res_problems_dict[res_problems_count]='no data'
+                res_problems_count+=1
 
         else:
             if self.files_of_size_of_crc[size][crc]:
@@ -1429,23 +1436,28 @@ class DudeCore:
                         stat_res = stat(full_path)
                     except Exception as e:
                         self.log.error(f'check_group_files_state:{e}')
-                        res_problems_append('%s|RED' % e)
+                        res_problems_dict[res_problems_count]=f'{e}|RED'
+                        res_problems_count+=1
                         problem=True
                     else:
                         if stat_res.st_nlink>1:
-                            res_problems_append(f'file became hardlink:{stat_res.st_nlink},{pathnr},{path},{file_name}')
+                            res_problems_dict[res_problems_count]=f'file became hardlink:{stat_res.st_nlink},{pathnr},{path},{file_name}'
+                            res_problems_count+=1
                             problem=True
                         else:
                             if (size,ctime,dev,inode) != (stat_res.st_size,stat_res.st_ctime_ns,stat_res.st_dev,stat_res.st_ino):
-                                res_problems_append(f'file changed:{size},{ctime},{dev},{inode},{stat_res.st_size},{stat_res.st_ctime_ns},{stat_res.st_dev},{stat_res.st_ino}' )
+                                res_problems_dict[res_problems_count]=f'file changed:{pathnr},{path},{file_name},{size=},{ctime=},{dev=},{inode=},{stat_res.st_size=},{stat_res.st_ctime_ns=},{stat_res.st_dev=},{stat_res.st_ino=}'
+                                res_problems_count+=1
                                 problem=True
                     if problem:
                         index_tuple=(pathnr,path,file_name,ctime,dev,inode)
-                        to_remove_append(index_tuple)
+                        to_remove_dict[to_remove_dict_count]=index_tuple
+                        to_remove_dict_count+=1
             else :
-                res_problems_append('no data')
+                res_problems_dict[res_problems_count]='no data'
+                res_problems_count+=1
 
-        return (res_problems,to_remove)
+        return [val for key,val in sorted(res_problems_dict.items(),key=lambda x: x[1]) ],[val for key,val in to_remove_dict.items() ]
 
     def write_csv(self,file_name):
         self.log.info('writing csv file: %s',file_name)

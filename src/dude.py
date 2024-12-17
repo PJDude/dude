@@ -5595,45 +5595,55 @@ class Gui:
 
         self.status('checking data consistency with filesystem state ...')
 
+        dude_core_check_group_files_state = dude_core.check_group_files_state
+
+        checkres_dict={}
+        tuples_to_remove_dict={}
+
         if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             ###############################################################
             self.get_info_dialog_on_main().show('Warning !','Similarity mode !\nFiles in groups are not exact copies !')
 
-            dude_core_check_group_files_state = dude_core.check_group_files_state
-
             for group in processed_items:
                 size = 0
+                checkres_dict_any = False
 
                 try:
-                    (checkres,tuples_to_remove)=dude_core_check_group_files_state(size,group,True)
+                    #(checkres,tuples_to_remove)=dude_core_check_group_files_state(size,group,True)
+                    (checkres_dict[group],tuples_to_remove_dict[group])=dude_core_check_group_files_state(size,group,True)
+                    if checkres_dict[crc]:
+                        checkres_dict_any = True
+
                 except Exception as e:
                     self.get_text_info_dialog().show('Error. dude_core_check_group_files_state error.',str(e) )
                     return self.CHECK_ERR
 
-                if checkres:
-                    self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected group will be reduced. For complete results re-scanning is recommended.')
-                    self.store_text_dialog_fields(self.text_info_dialog)
+            if checkres_dict_any:
+                self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join( sum(checkres_dict.values(),[]) ) + '\n\nSelected group will be reduced. For complete results re-scanning is recommended.')
+                self.store_text_dialog_fields(self.text_info_dialog)
 
-                    orglist=self.tree_children[self.groups_tree]
+                orglist=self.tree_children[self.groups_tree]
 
-                    dude_core.remove_from_data_pool(size,group,tuples_to_remove,self.file_remove_callback,self.crc_remove_callback)
+                for group in processed_items:
+                    size = 0
+                    dude_core.remove_from_data_pool(size,group,tuples_to_remove_dict[group],self.file_remove_callback,self.crc_remove_callback)
 
-                    self.data_precalc()
+                self.data_precalc()
 
-                    newlist=self.tree_children[self.groups_tree]
-                    item_to_sel = self.get_closest_in_group(orglist,group,newlist)
+                newlist=self.tree_children[self.groups_tree]
+                item_to_sel = self.get_closest_in_group(orglist,group,newlist)
 
-                    self.reset_sels()
+                self.reset_sels()
 
-                    if item_to_sel:
-                        #group node moze zniknac - trzeba zupdejtowac SelXxx
-                        self.crc_select_and_focus(item_to_sel,True)
-                    else:
-                        self.initial_focus()
+                if item_to_sel:
+                    #group node moze zniknac - trzeba zupdejtowac SelXxx
+                    self.crc_select_and_focus(item_to_sel,True)
+                else:
+                    self.initial_focus()
 
-                    self.calc_mark_stats_groups()
+                self.calc_mark_stats_groups()
 
-                    return self.CHECK_ERR
+                return self.CHECK_ERR
 
             self.status('checking selection correctness...')
 
@@ -5687,41 +5697,47 @@ class Gui:
 
             ###############################################################
         else:
-            dude_core_check_group_files_state = dude_core.check_group_files_state
-
             for crc in processed_items:
                 size = self.crc_to_size[crc]
 
+                checkres_dict_any = False
                 try:
-                    (checkres,tuples_to_remove)=dude_core_check_group_files_state(size,crc)
+                    #(checkres,tuples_to_remove)=dude_core_check_group_files_state(size,crc)
+                    (checkres_dict[crc],tuples_to_remove_dict[crc])=dude_core_check_group_files_state(size,crc)
+
+                    if checkres_dict[crc]:
+                        checkres_dict_any = True
                 except Exception as e:
                     self.get_text_info_dialog().show('Error. dude_core_check_group_files_state error.',str(e) )
                     return self.CHECK_ERR
 
-                if checkres:
-                    self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join(checkres) + '\n\nSelected group will be reduced. For complete results re-scanning is recommended.')
-                    self.store_text_dialog_fields(self.text_info_dialog)
+            if checkres_dict_any:
+                self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join( sum(checkres_dict.values(),[]) ) + '\n\nSelected group will be reduced. For complete results re-scanning is recommended.')
+                self.store_text_dialog_fields(self.text_info_dialog)
 
-                    orglist=self.tree_children[self.groups_tree]
+                orglist=self.tree_children[self.groups_tree]
 
-                    dude_core.remove_from_data_pool(size,crc,tuples_to_remove,self.file_remove_callback,self.crc_remove_callback)
+                for crc in processed_items:
+                    size = self.crc_to_size[crc]
 
-                    self.data_precalc()
+                    dude_core.remove_from_data_pool(size,crc,tuples_to_remove_dict[crc],self.file_remove_callback,self.crc_remove_callback)
 
-                    newlist=self.tree_children[self.groups_tree]
-                    item_to_sel = self.get_closest_in_crc(orglist,crc,newlist)
+                self.data_precalc()
 
-                    self.reset_sels()
+                newlist=self.tree_children[self.groups_tree]
+                item_to_sel = self.get_closest_in_crc(orglist,crc,newlist)
 
-                    if item_to_sel:
-                        #crc node moze zniknac - trzeba zupdejtowac SelXxx
-                        self.crc_select_and_focus(item_to_sel,True)
-                    else:
-                        self.initial_focus()
+                self.reset_sels()
 
-                    self.calc_mark_stats_groups()
+                if item_to_sel:
+                    #crc node moze zniknac - trzeba zupdejtowac SelXxx
+                    self.crc_select_and_focus(item_to_sel,True)
+                else:
+                    self.initial_focus()
 
-                    return self.CHECK_ERR
+                self.calc_mark_stats_groups()
+
+                return self.CHECK_ERR
 
             self.status('checking selection correctness...')
 
