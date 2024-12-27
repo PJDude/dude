@@ -257,6 +257,7 @@ class Image_Cache:
         self.init_all()
 
         self.max_threads = cpu_count()
+        self.max_cache=4*self.max_threads
 
         self.pre_and_next_range=max(floor(self.max_threads/2),1)
 
@@ -286,8 +287,6 @@ class Image_Cache:
 
         self.read_ahead_pools_insert_index=0
 
-        self.cache_scaled_file_scheduled_clear=False
-
         for i in range(self.max_threads):
             self.read_ahead_pools[i]={}
             self.read_ahead_threads[i] = Thread(target=lambda i = i : self.read_ahead_threaded_loop(i),daemon=True)
@@ -302,10 +301,8 @@ class Image_Cache:
     def init_all(self):
         #print('init all')
         self.cache_scaled_file={}
-        #self.last_shown_path=None
 
     def read_ahead_threaded_loop(self,thread_id):
-
         #self_cache_scaled_file = self.cache_scaled_file
 
         this_thread_pool = self.read_ahead_pools[thread_id]
@@ -329,29 +326,36 @@ class Image_Cache:
                 sleep(0.1)
                 continue
 
-            if path not in self.cache_scaled_file:
-                window_size_width,window_size_height = self.window_size
+            window_width,window_height = self.window_size
 
-                try:
-                    full_image = self.image_open(path)
-                    if full_image.mode != 'RGBA':
-                        full_image = full_image.convert("RGBA")
+            try:
+                timestamp_key_done,scaled_image_done,width_done,height_done,ratio_done,window_width_done,window_height_done = self.cache_scaled_file[path]
 
-                    height = full_image.height
-                    ratio_y = height/(window_size_height-self.txt_label_heigh)
+                if window_width==window_width_done and window_height==window_height_done:
+                    continue
+            except:
+                pass
 
-                    width = full_image.width
-                    ratio_x = width/window_size_width
+            try:
+                full_image = self.image_open(path)
+                if full_image.mode != 'RGBA':
+                    full_image = full_image.convert("RGBA")
 
-                    ratio = max(ratio_x,ratio_y,1)
+                height = full_image.height
+                ratio_y = height/(window_height-self.txt_label_heigh)
 
-                    scaled_image = full_image if ratio==1 else full_image.resize( ( int (width/ratio), int(height/ratio)) ,self.BILINEAR)
+                width = full_image.width
+                ratio_x = width/window_width
 
-                    self.cache_scaled_file[path] = first_timestamp_key,scaled_image,width,height,ratio
+                ratio = max(ratio_x,ratio_y,1)
 
-                except Exception as e:
-                    print('get_cached_full_image Error:',e)
-                    self.cache_scaled_file[path] = None,None,None,None,None
+                scaled_image = full_image if ratio==1 else full_image.resize( ( int (width/ratio), int(height/ratio)) ,self.BILINEAR)
+
+                self.cache_scaled_file[path] = first_timestamp_key,scaled_image,width,height,ratio,window_width,window_height
+
+            except Exception as e:
+                print('get_cached_full_image Error:',e)
+                self.cache_scaled_file[path] = first_timestamp_key,None,0,0,1,0,0
 
         sys_exit()
 
@@ -367,47 +371,35 @@ class Image_Cache:
             self.window_size = window_size
             self.txt_label_heigh = txt_label_heigh
 
-            #print('set window size')
-
-            self.cache_scaled_file_scheduled_clear=True
-            #self.cache_scaled_file.clear()
-
-            #if self.last_shown_path:
-            #    self.read_ahead_pools_insert(self.last_shown_path)
-
-    def reset_read_ahead(self):
-        pass
-        #print('reset_read_ahead - no action')
-
-        #for i in range(self.max_threads):
-        #    self.read_ahead_pools[i].clear()
-
-        #self.cache_scaled_file.clear()
-        #self.cache_scaled_file={}
-
     def get_photo_image(self,path,tkwindow):
         while True:
             try:
-                timestamp_key,scaled_image,width,height,ratio = self.cache_scaled_file[path]
+                timestamp_key,scaled_image,width,height,ratio,window_width,window_height = self.cache_scaled_file[path]
 
                 if scaled_image:
-                    #podbicie timestamp ?
                     self.scaled_photoimage = self.ImageTk_PhotoImage(scaled_image)
-                    #self.last_shown_path=path
 
                     #self ! - bo zniknie
+                    self.cache_scaled_file[path] = perf_counter_ns(),scaled_image,width,height,ratio,window_width,window_height
+
+                    if len(self.cache_scaled_file.items())>self.max_cache:
+                        temp_time_dict = {update_time:path for path,(update_time,scaled_image_var,width_var,height_var,ratio_var,window_width_var,window_height_var) in self.cache_scaled_file.items()}
+                        min_time = min({update_time for update_time in temp_time_dict.keys()})
+                        oldest_path=temp_time_dict[min_time]
+
+                        del self.cache_scaled_file[oldest_path]
+
                     return self.scaled_photoimage,f'{width} x {height} pixels' + (f' ({round(100.0/ratio)}%)' if ratio>1 else '')
                 else:
                     self.scaled_photoimage,width,height,ratio = None,0,0,1
             except:
                 if any(self.read_ahead_pools):
-                    tkwindow.after(1)
+                    tkwindow.after(10)
                     continue
 
                 self.scaled_photoimage,width,height,ratio = None,0,0,1
                 break
 
-        #self.last_shown_path=None
         return None,f'get_photo_image error:1'
 
 ###########################################################
@@ -2956,7 +2948,7 @@ class Gui:
 
     def preview_conf(self,event=None):
         if self.preview_shown:
-            #print('preview_conf:',event)
+            self.preview.update()
 
             #z eventu czasami idzie lewizna (start bez obrazka)
             geometry = self.preview.geometry()
@@ -2967,13 +2959,7 @@ class Gui:
             if self.preview_photo_image_cache:
                 self.preview_photo_image_cache.set_window_size(new_window_size,self.preview_label_txt.winfo_height())
 
-                #if self.sel_path_full:
-                #    self.preview_photo_image_cache.read_ahead_pools_insert(self.sel_path_full)
-
-                self.update_preview(True)
-            #else:
-                #print('preview_conf - skipped')
-            #    pass
+            self.update_preview()
 
     def preview_focusin(self):
         self.main.focus_set()
@@ -2987,7 +2973,7 @@ class Gui:
             self_preview.lift()
             #self_preview.attributes('-topmost',True)
             #self_preview.after_idle(self_preview.attributes,'-topmost',False)
-            #self_preview.after_idle(self.preview_conf)
+            self_preview.after_idle(self.preview_conf)
         else:
             self.preview_shown=True
 
@@ -3004,7 +2990,17 @@ class Gui:
         self.main.focus_set()
         self.sel_tree.focus_set()
 
-    def update_preview(self,call_from_conf=False):
+    def read_image_now(self,path):
+        if self.preview_photo_image_cache:
+            self.preview_photo_image_cache.read_ahead_pools_insert(path)
+
+            while True:
+                if path in self.preview_photo_image_cache.cache_scaled_file:
+                    break
+
+                self.preview.after(10)
+
+    def update_preview(self):
         if self.preview_shown:
 
             path = self.sel_full_path_to_file
@@ -3027,19 +3023,13 @@ class Gui:
                 elif ext_lower in IMAGES_EXTENSIONS:
                     self.preview_frame_txt.pack_forget()
 
+                    self.read_image_now(path)
+
                     try:
-                        if call_from_conf:
-                            #cache_res = self.preview_photo_image_cache.get_photo_image(path,self.main)
+                        image,text = self.preview_photo_image_cache.get_photo_image(path,self.main)
 
-                            self.preview_label_img_configure(image='')
-                            self.preview_label_txt_configure(text='resized')
-
-                            #self.preview_photo_image_cache.cache_scaled_file.clear()
-                        else:
-                            image,text = self.preview_photo_image_cache.get_photo_image(path,self.main)
-
-                            self.preview_label_img_configure(image=image)
-                            self.preview_label_txt_configure(text=text)
+                        self.preview_label_img_configure(image=image)
+                        self.preview_label_txt_configure(text=text)
 
                     except Exception as e:
                         self.preview_label_txt_configure(text=str(e))
@@ -3143,10 +3133,13 @@ class Gui:
     def read_ahead_by_image_cache(self, item,group_tree=True):
         #print('read_ahead_by_image_cache',item,group_tree)
 
-        if group_tree:
-            kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self.groups_tree_item_to_data[item]
-        else:
-            file,kind,crc = self.current_folder_items_dict[item]
+        try:
+            if group_tree:
+                kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self.groups_tree_item_to_data[item]
+            else:
+                file,kind,crc = self.current_folder_items_dict[item]
+        except:
+            return None
 
         if file and not isdir(file):
             head,ext = path_splitext(file)
@@ -3160,20 +3153,30 @@ class Gui:
                         path_full = normpath(abspath(self.sel_path_full + sep + file))
 
                     self.preview_photo_image_cache.read_ahead_pools_insert(path_full)
+
+                    return path_full
                 except Exception as e:
                     print('read_ahead_by_image_cache error',e)
+                    return None
+
+        return None
 
     @catched
     def preview_preload_groups_tree(self,item):
         if self.preview_auto_update_bool:
-            self.update_preview()
-
             if self.preview_photo_image_cache:
                 self_my_next_dict_groups_tree = self.my_next_dict[self.groups_tree]
                 self_my_prev_dict_groups_tree = self.my_prev_dict[self.groups_tree]
 
                 self_read_ahead_by_image_cache = self.read_ahead_by_image_cache
-                self.preview_photo_image_cache.reset_read_ahead()
+                #self.preview_photo_image_cache.reset_read_ahead()
+
+                path_full = self_read_ahead_by_image_cache(item)
+
+                if path_full:
+                    self.read_image_now(path_full)
+
+                    #self.update_preview()
 
                 prev_item = next_item = item
                 for i in range(self.preview_photo_image_cache.pre_and_next_range):
@@ -3183,6 +3186,8 @@ class Gui:
 
                     prev_item = self_my_prev_dict_groups_tree[prev_item]
                     self_read_ahead_by_image_cache(prev_item)
+
+        self.update_preview()
 
     @catched
     def groups_tree_sel_change(self,item,force=False,change_status_line=True):
@@ -3231,14 +3236,19 @@ class Gui:
     @catched
     def preview_preload_folder_tree(self,item):
         if self.preview_auto_update_bool:
-            self.update_preview()
-
             if self.preview_photo_image_cache:
                 self_my_next_dict_folder_tree = self.my_next_dict[self.folder_tree]
                 self_my_prev_dict_folder_tree = self.my_prev_dict[self.folder_tree]
 
                 self_read_ahead_by_image_cache = self.read_ahead_by_image_cache
-                self.preview_photo_image_cache.reset_read_ahead()
+                #self.preview_photo_image_cache.reset_read_ahead()
+
+                path_full = self_read_ahead_by_image_cache(item,False)
+
+                if path_full:
+                    self.read_image_now(path_full)
+
+                    #self.update_preview()
 
                 prev_item = next_item = item
                 for i in range(self.preview_photo_image_cache.pre_and_next_range):
@@ -3247,6 +3257,8 @@ class Gui:
 
                     prev_item = self_my_prev_dict_folder_tree[prev_item]
                     self_read_ahead_by_image_cache(prev_item,False)
+
+        self.update_preview()
 
     @catched
     def folder_tree_sel_change(self,item,change_status_line=True):
