@@ -72,12 +72,17 @@ from send2trash import send2trash
 from core import *
 import console
 from dialogs import *
+from text import LANGUAGES
 
 from dude_images import dude_image
 
 l_info = logging.info
 l_warning = logging.warning
 l_error = logging.error
+
+langs=LANGUAGES()
+
+STR=langs.STR
 
 ###########################################################################################################################################
 
@@ -123,6 +128,8 @@ CFG_KEY_MARK_RE_1 = 'mark_re_1'
 
 CFG_KEY_SHOW_PREVIEW = 'preview_shown'
 
+CFG_lang = 'lang'
+
 cfg_defaults={
     CFG_KEY_FULL_CRC:False,
     CFG_KEY_SHOW_TOOLTIPS_INFO:True,
@@ -154,7 +161,8 @@ cfg_defaults={
     CFG_KEY_MARK_STRING_1:'*',
     CFG_KEY_MARK_RE_0:False,
     CFG_KEY_MARK_RE_1:False,
-    CFG_KEY_SHOW_PREVIEW:False
+    CFG_KEY_SHOW_PREVIEW:False,
+    CFG_lang:'English'
 }
 
 NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink',WIN_LNK:'.lnk file'}
@@ -418,7 +426,7 @@ class Gui:
 
         disable = lambda menu : self.menubar_entryconfig(menu, state="disabled")
 
-        _ = {disable(menu) for menu in ("File","Navigation","Help") }
+        _ = {disable(menu) for menu in (STR("File"),STR("Navigation"),STR("Help")) }
 
         self.menubar_config(cursor='watch')
         self.main_config(cursor='watch')
@@ -429,7 +437,7 @@ class Gui:
         if not self.block_processing_stack:
             norm = lambda menu : self.menubar_entryconfig(menu, state="normal")
 
-            _ = {norm(menu) for menu in ("File","Navigation","Help") }
+            _ = {norm(menu) for menu in (STR("File"),STR("Navigation"),STR("Help")) }
 
             self.main_config(cursor='')
             self.menubar_config(cursor='')
@@ -550,6 +558,8 @@ class Gui:
             self.preview_text_hbar.set(v1,v2)
             self.preview_text_hbar.grid(row=1,column=0,sticky='we')
 
+    lang_dict={'English':'en','Polski':'pl'}
+
     def __init__(self,cwd,paths_to_add=None,exclude=None,exclude_regexp=None,norun=None,images_mode_tuple=None,size_min_str=0,size_max_str=0):
         images,ihash,idivergence,rotations,imin,imax,igps = images_mode_tuple if images_mode_tuple else (False,0,0,False,0,0,False)
 
@@ -565,6 +575,8 @@ class Gui:
 
         self.cfg_get_bool=self.cfg.get_bool
         self.cfg_get=self.cfg.get
+
+        langs.set( self.lang_dict[self.cfg_get(CFG_lang)] )
 
         self.exclude_frames=[]
 
@@ -891,11 +903,11 @@ class Gui:
         self.org_label={}
         self_org_label = self.org_label
 
-        self_org_label['path']='Subpath'
-        self_org_label['file']='File'
-        self_org_label['size_h']='Size'
-        self_org_label['instances_h']='Copies'
-        self_org_label['ctime_h']='Change Time'
+        self_org_label['path']=STR('Subpath')
+        self_org_label['file']=STR('File')
+        self_org_label['size_h']=STR('Size')
+        self_org_label['instances_h']=STR('Copies')
+        self_org_label['ctime_h']=STR('Change Time')
 
         self_groups_tree["columns"]=('pathnr','path','file','size','size_h','ctime','dev','inode','crc','instances','instances_h','ctime_h','kind')
         self_groups_tree["displaycolumns"]=('path','file','size_h','instances_h','ctime_h')
@@ -986,7 +998,7 @@ class Gui:
                 if col in self_org_label:
                     tree_heading(col,text=self_org_label[col])
 
-        self_folder_tree_heading('file', text='File \u25B2')
+        self_folder_tree_heading('file', text=STR('File') + ' \u25B2')
 
         self_folder_tree.bind('<MouseWheel>', mouse_scroll)
         self_folder_tree.bind('<Button-4>', mouse_scroll)
@@ -1109,7 +1121,7 @@ class Gui:
         self_scan_dialog_widget_bind('<Alt_L><e>',lambda event : self.exclude_mask_add_dialog())
 
         ##############
-        temp_frame = LabelFrame(self_scan_dialog_area_main,text='Paths To scan:',borderwidth=2,bg=bg_color,takefocus=False)
+        temp_frame = LabelFrame(self_scan_dialog_area_main,text=STR('Paths To scan:'),borderwidth=2,bg=bg_color,takefocus=False)
         temp_frame.grid(row=0,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
         sf_par=SFrame(temp_frame,bg=bg_color)
@@ -1119,12 +1131,12 @@ class Gui:
         buttons_fr = Frame(temp_frame,bg=bg_color,takefocus=False)
         buttons_fr.pack(fill='both',expand=False,side='bottom')
 
-        Label(buttons_fr,relief='flat',text='Specify manually, or drag and drop here, up to 8 paths to scan',bg=bg_color,fg='gray').pack(side='right',pady=4,padx=4, fill='x',expand=True)
+        Label(buttons_fr,relief='flat',text=STR('Specify manually, or drag and drop here, up to 8 paths to scan'),bg=bg_color,fg='gray').pack(side='right',pady=4,padx=4, fill='x',expand=True)
 
         self.add_path_button = Button(buttons_fr,width=18,image = self_ico['open'], command=self.path_to_scan_add_dialog,underline=0)
         self.add_path_button.pack(side='left',pady=4,padx=4)
 
-        self.widget_tooltip(self.add_path_button,"Add path to scan")
+        self.widget_tooltip(self.add_path_button,STR("Add path to scan"))
 
         self.paths_frame.grid_columnconfigure(1, weight=1)
         self.paths_frame.grid_rowconfigure(99, weight=1)
@@ -1156,12 +1168,12 @@ class Gui:
             remove_path_button=Button(frame,image=self_ico_delete,command=lambda row=row: self_path_to_scan_remove(row),width=3)
             remove_path_button.pack(side='right',padx=2,pady=1,fill='y')
 
-            self.widget_tooltip(remove_path_button,'Remove path from list.')
+            self.widget_tooltip(remove_path_button,STR('Remove path from list.'))
 
         ##############
         self.exclude_regexp_scan=BooleanVar()
 
-        temp_frame2 = LabelFrame(self_scan_dialog_area_main,text='Exclude from scan:',borderwidth=2,bg=bg_color,takefocus=False)
+        temp_frame2 = LabelFrame(self_scan_dialog_area_main,text=STR('Exclude from scan:'),borderwidth=2,bg=bg_color,takefocus=False)
         temp_frame2.grid(row=1,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
         sf_par2=SFrame(temp_frame2,bg=bg_color)
@@ -1173,7 +1185,7 @@ class Gui:
 
         self.add_exclude_button_dir = Button(buttons_fr2,width=18,image = self_ico['open'],command=self.exclude_mask_add_dir)
         self.add_exclude_button_dir.pack(side='left',pady=4,padx=4)
-        self.widget_tooltip(self.add_exclude_button_dir,"Add path as exclude expression ...")
+        self.widget_tooltip(self.add_exclude_button_dir,STR("Add path as exclude expression ..."))
 
         self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
 
@@ -1182,7 +1194,7 @@ class Gui:
 
         self.add_exclude_button.pack(side='left',pady=4,padx=4)
 
-        Checkbutton(buttons_fr2,text='treat as a regular expression',variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
+        Checkbutton(buttons_fr2,text=STR('treat as a regular expression'),variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
 
         self.exclude_frame.grid_columnconfigure(1, weight=1)
         self.exclude_frame.grid_rowconfigure(99, weight=1)
@@ -1200,29 +1212,29 @@ class Gui:
         self.file_min_size_check_var.set(bool(size_min_str))
         self.file_max_size_check_var.set(bool(size_max_str))
 
-        operation_mode_frame = LabelFrame(self_scan_dialog_area_main,text='Operation mode',borderwidth=2,bg=bg_color,takefocus=False)
+        operation_mode_frame = LabelFrame(self_scan_dialog_area_main,text=STR('Operation mode'),borderwidth=2,bg=bg_color,takefocus=False)
         operation_mode_frame.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
         crc_button = Radiobutton(operation_mode_frame,text='CRC                  ',variable=self.operation_mode_var,value=MODE_CRC,command=self.operation_mode_change )
         crc_button.grid(row=0,column=0,sticky='news',padx=8,pady=3)
 
-        self.widget_tooltip(crc_button,"the classic CRC algorithm is applied\nto groups of files of the same size.")
+        self.widget_tooltip(crc_button,STR('TOOLTIP_CRC'))
 
-        similarity_button = Radiobutton(operation_mode_frame,text='Images similarity      ',variable=self.operation_mode_var,value=MODE_SIMILARITY,command=self.operation_mode_change )
+        similarity_button = Radiobutton(operation_mode_frame,text=STR('Images similarity') + '      ',variable=self.operation_mode_var,value=MODE_SIMILARITY,command=self.operation_mode_change )
         similarity_button.grid(row=0,column=1,sticky='news',padx=8,pady=3)
 
-        self.widget_tooltip(similarity_button,"Only image files are processed\nIdentified groups contain\nimages with similar content")
+        self.widget_tooltip(similarity_button,"TOOLTIP_SIMILARITY")
 
-        gps_button = Radiobutton(operation_mode_frame,text='Images GPS data proximity',variable=self.operation_mode_var,value=MODE_GPS,command=self.operation_mode_change )
+        gps_button = Radiobutton(operation_mode_frame,text=STR('Images GPS data proximity'),variable=self.operation_mode_var,value=MODE_GPS,command=self.operation_mode_change )
         gps_button.grid(row=0,column=2,sticky='news',padx=8,pady=3)
 
         gps_button.columnconfigure( (0,1,2), weight=1, uniform=2)
 
-        self.widget_tooltip(gps_button,"Only image files with EXIF GPS\ndata are processed. Identified groups\ncontain images with GPS coordinates\nwith close proximity to each other")
+        self.widget_tooltip(gps_button,STR('TOOLTIP_GPS'))
 
         operation_mode_frame.grid_columnconfigure( (0,1,2), weight=1)
 
-        temp_frame3a = LabelFrame(self_scan_dialog_area_main,text='File size range',borderwidth=2,bg=bg_color,takefocus=False)
+        temp_frame3a = LabelFrame(self_scan_dialog_area_main,text=STR('File size range'),borderwidth=2,bg=bg_color,takefocus=False)
         temp_frame3a.grid(row=4,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
         self.file_min_check = Checkbutton(temp_frame3a, text = 'Min:' , variable=self.file_min_size_check_var,command=self.use_size_min_change_file)
@@ -1245,8 +1257,8 @@ class Gui:
 
         temp_frame3a.grid_columnconfigure((2,5), weight=1)
 
-        size_min_tooltip = "Limit the search pool to files with\nsize equal or greater to the specified\n (e.g. 112kB, 1MB ...)"
-        size_max_tooltip = "Limit the search pool to files with\nsize smaller or equal to the specified\n (e.g. 10MB, 1GB ...)"
+        size_min_tooltip = STR('TOOLTIP_MIN_SIZE')
+        size_max_tooltip = STR('TOOLTIP_MAX_SIZE')
         self.widget_tooltip(self.file_min_check,size_min_tooltip)
         self.widget_tooltip(self.file_min_Entry,size_min_tooltip)
 
@@ -1254,7 +1266,7 @@ class Gui:
         self.widget_tooltip(self.file_max_Entry,size_max_tooltip)
 
 
-        temp_frame3 = LabelFrame(self_scan_dialog_area_main,text='Similarity mode options',borderwidth=2,bg=bg_color,takefocus=False)
+        temp_frame3 = LabelFrame(self_scan_dialog_area_main,text=STR('Similarity mode options'),borderwidth=2,bg=bg_color,takefocus=False)
         temp_frame3.grid(row=5,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
         sf_par3=Frame(temp_frame3,bg=bg_color)
@@ -1297,11 +1309,11 @@ class Gui:
 
         similarity_hsize_frame.grid_columnconfigure(1, weight=1)
 
-        hash_tooltip = "The larger the hash size value,\nthe more details of the image\nare taken into consideration.\nThe default value is 6"
+        hash_tooltip = STR('TOOLTIP_HASH')
         self.widget_tooltip(self.similarity_hsize_scale,hash_tooltip)
         self.widget_tooltip(self.similarity_hsize_label_val,hash_tooltip)
 
-        similarity_distance_frame = LabelFrame(sf_par3,text='Relative divergence',borderwidth=2,bg=bg_color,takefocus=False)
+        similarity_distance_frame = LabelFrame(sf_par3,text=STR('Relative divergence'),borderwidth=2,bg=bg_color,takefocus=False)
         similarity_distance_frame.grid(row=0,column=1,padx=2,sticky='news')
 
         self.similarity_distance_scale = Scale(similarity_distance_frame, variable=self.similarity_distance_var, orient='horizontal',from_=0, to=9,command=lambda x : self.distance_val_set(),style="TScale",length=160)
@@ -1312,11 +1324,11 @@ class Gui:
 
         similarity_distance_frame.grid_columnconfigure(1, weight=1)
 
-        div_tooltip = "The larger the relative divergence value,\nthe more differences are allowed for\nimages to be identified as similar.\nThe default value is 5"
+        div_tooltip = STR('TOOLTIP_DIV')
         self.widget_tooltip(self.similarity_distance_scale,div_tooltip)
         self.widget_tooltip(self.similarity_distance_label_val,div_tooltip)
 
-        size_range_frame = LabelFrame(sf_par3,text='Image size range (pixels)',borderwidth=2,bg=bg_color,takefocus=False)
+        size_range_frame = LabelFrame(sf_par3,text=STR('Image size range (pixels)'),borderwidth=2,bg=bg_color,takefocus=False)
         size_range_frame.grid(row=2,column=0,padx=2,sticky='news',columnspan=2)
 
         self.image_min_check = Checkbutton(size_range_frame, text = 'Min:' , variable=self.image_min_size_check_var,command=self.use_size_min_change)
@@ -1341,33 +1353,33 @@ class Gui:
         size_range_frame.grid_columnconfigure((2,5), weight=1)
 
 
-        min_tooltip = "Limit the search pool to images with\nboth dimensions (width and height)\nequal or greater to the specified value\nin pixels (e.g. 512)"
-        max_tooltip = "Limit the search pool to images with\nboth dimensions (width and height)\nsmaller or equal to the specified value\nin pixels (e.g. 4096)"
+        min_tooltip = STR('TOOLTIP_MIN_IMAGE')
+        max_tooltip = STR('TOOLTIP_MAX_IMAGE')
         self.widget_tooltip(self.image_min_check,min_tooltip)
         self.widget_tooltip(self.image_min_Entry,min_tooltip)
 
         self.widget_tooltip(self.image_max_check,max_tooltip)
         self.widget_tooltip(self.image_max_Entry,max_tooltip)
 
-        self.all_rotations_check = Checkbutton(sf_par3, text = 'Check all rotations' , variable=self.all_rotations)
+        self.all_rotations_check = Checkbutton(sf_par3, text = STR('Check all rotations') , variable=self.all_rotations)
         self.all_rotations_check.grid(row=3,column=0,padx=4,pady=4, columnspan=4, sticky='wens')
 
-        self.widget_tooltip(self.all_rotations_check,"calculate hashes for all (4) image rotations\nSignificantly increases searching time\nand resources consumption.")
+        self.widget_tooltip(self.all_rotations_check,STR('TOOLTIP_ALL_ROTATIONS'))
 
         self.distance_val_set()
         self.operation_mode_change()
 
         sf_par3.grid_columnconfigure((0,1), weight=1)
 
-        skip_button = Checkbutton(self_scan_dialog_area_main,text='log skipped files',variable=self.log_skipped_var)
+        skip_button = Checkbutton(self_scan_dialog_area_main,text=STR('log skipped files'),variable=self.log_skipped_var)
         skip_button.grid(row=6,column=0,sticky='news',padx=8,pady=3)
 
-        self.widget_tooltip(skip_button,"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)")
+        self.widget_tooltip(skip_button,STR('TOOLTIP_SKIP') )
 
-        self.scan_button = Button(self_scan_dialog.area_buttons,width=12,text="Scan",image=self_ico['scan'],compound='left',command=self_scan_wrapper,underline=0)
+        self.scan_button = Button(self_scan_dialog.area_buttons,width=12,text=STR("Scan"),image=self_ico['scan'],compound='left',command=self_scan_wrapper,underline=0)
         self.scan_button.pack(side='right',padx=4,pady=4)
 
-        self.scan_cancel_button = Button(self_scan_dialog.area_buttons,width=12,text="Cancel",image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
+        self.scan_cancel_button = Button(self_scan_dialog.area_buttons,width=12,text=STR("Cancel"),image=self_ico['cancel'],compound='left',command=self.scan_dialog_hide_wrapper,underline=0)
         self.scan_cancel_button.pack(side='left',padx=4,pady=4)
 
         self_scan_dialog.focus=self.scan_cancel_button
@@ -1390,23 +1402,23 @@ class Gui:
                 self_file_cascade_add_separator = self.file_cascade.add_separator
 
                 item_actions_state=('disabled','normal')[self.sel_item is not None]
-                self_file_cascade_add_command(label = 'Scan ...',command = self.scan_dialog_show, accelerator="S",image = self_ico['scan'],compound='left')
+                self_file_cascade_add_command(label = STR('Scan') + ' ...',command = self.scan_dialog_show, accelerator="S",image = self_ico['scan'],compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Settings ...',command=lambda : self.get_settings_dialog().show(), accelerator="F2",image = self_ico['settings'],compound='left')
+                self_file_cascade_add_command(label = STR('Settings') + ' ...',command=lambda : self.get_settings_dialog().show(), accelerator="F2",image = self_ico['settings'],compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Show/Update Preview',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
-                self_file_cascade_add_command(label = 'Hide Preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
+                self_file_cascade_add_command(label = STR('Show/Update Preview'),  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
+                self_file_cascade_add_command(label = STR('Hide Preview window'),  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Remove empty folders in specified directory ...',command=self.empty_folder_remove_ask,image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = STR('Remove empty folders in specified directory ...'),command=self.empty_folder_remove_ask,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Save CSV',command = self.csv_save,state=item_actions_state,image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = STR('Save CSV'),command = self.csv_save,state=item_actions_state,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Erase Cache',command = self.cache_clean,image = self.ico_empty,compound='left')
+                self_file_cascade_add_command(label = STR('Erase Cache'),command = self.cache_clean,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = 'Exit',command = self.exit,image = self_ico['exit'],compound='left')
+                self_file_cascade_add_command(label = STR('Exit'),command = self.exit,image = self_ico['exit'],compound='left')
 
         self.file_cascade= Menu(self.menubar,tearoff=0,bg=bg_color,postcommand=file_cascade_post)
-        self.menubar.add_cascade(label = 'File',menu = self.file_cascade,accelerator="Alt+F")
+        self.menubar.add_cascade(label = STR('File'),menu = self.file_cascade,accelerator="Alt+F")
 
         def navi_cascade_post():
             self.hide_tooltip()
@@ -1420,17 +1432,17 @@ class Gui:
                 self_navi_cascade_add_command = self.navi_cascade.add_command
                 self_navi_cascade_add_separator = self.navi_cascade.add_separator
 
-                self_navi_cascade_add_command(label = 'Go to dominant group (by size sum)',command = lambda : self.goto_max_group(1), accelerator="F7",state=item_actions_state, image = self_ico['dominant_size'],compound='left')
-                self_navi_cascade_add_command(label = 'Go to dominant group (by quantity)',command = lambda : self.goto_max_group(0), accelerator="F8",state=item_actions_state, image = self_ico['dominant_quant'],compound='left')
+                self_navi_cascade_add_command(label = STR('Go to dominant group (by size sum)'),command = lambda : self.goto_max_group(1), accelerator="F7",state=item_actions_state, image = self_ico['dominant_size'],compound='left')
+                self_navi_cascade_add_command(label = STR('Go to dominant group (by quantity)'),command = lambda : self.goto_max_group(0), accelerator="F8",state=item_actions_state, image = self_ico['dominant_quant'],compound='left')
                 self_navi_cascade_add_separator()
-                self_navi_cascade_add_command(label = 'Go to dominant folder (by size sum)',command = lambda : self.goto_max_folder(1),accelerator="F5",state=item_actions_state, image = self_ico['dominant_size'],compound='left')
-                self_navi_cascade_add_command(label = 'Go to dominant folder (by quantity)',command = lambda : self.goto_max_folder(0), accelerator="F6",state=item_actions_state, image = self_ico['dominant_quant'],compound='left')
+                self_navi_cascade_add_command(label = STR('Go to dominant folder (by size sum)'),command = lambda : self.goto_max_folder(1),accelerator="F5",state=item_actions_state, image = self_ico['dominant_size'],compound='left')
+                self_navi_cascade_add_command(label = STR('Go to dominant folder (by quantity)'),command = lambda : self.goto_max_folder(0), accelerator="F6",state=item_actions_state, image = self_ico['dominant_quant'],compound='left')
                 self_navi_cascade_add_separator()
-                self_navi_cascade_add_command(label = 'Go to next marked file'       ,command = lambda : self.goto_next_mark_menu(1,0),accelerator="Right",state=item_actions_state, image = self_ico['next_marked'],compound='left')
-                self_navi_cascade_add_command(label = 'Go to previous marked file'   ,command = lambda : self.goto_next_mark_menu(-1,0), accelerator="Left",state=item_actions_state, image = self_ico['prev_marked'],compound='left')
+                self_navi_cascade_add_command(label = STR('Go to next marked file')       ,command = lambda : self.goto_next_mark_menu(1,0),accelerator="Right",state=item_actions_state, image = self_ico['next_marked'],compound='left')
+                self_navi_cascade_add_command(label = STR('Go to previous marked file')   ,command = lambda : self.goto_next_mark_menu(-1,0), accelerator="Left",state=item_actions_state, image = self_ico['prev_marked'],compound='left')
                 self_navi_cascade_add_separator()
-                self_navi_cascade_add_command(label = 'Go to next not marked file'       ,command = lambda : self.goto_next_mark_menu(1,1),accelerator="Shift+Right",state=item_actions_state, image = self_ico['next_unmarked'],compound='left')
-                self_navi_cascade_add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark_menu(-1,1), accelerator="Shift+Left",state=item_actions_state, image = self_ico['prev_unmarked'],compound='left')
+                self_navi_cascade_add_command(label = STR('Go to next not marked file')       ,command = lambda : self.goto_next_mark_menu(1,1),accelerator="Shift+Right",state=item_actions_state, image = self_ico['next_unmarked'],compound='left')
+                self_navi_cascade_add_command(label = STR('Go to previous not marked file')   ,command = lambda : self.goto_next_mark_menu(-1,1), accelerator="Shift+Left",state=item_actions_state, image = self_ico['prev_unmarked'],compound='left')
 
                 #self_navi_cascade_add_separator()
                 #self_navi_cascade_add_command(label = 'Go to dominant folder (by duplicates/other files size ratio)',command = lambda : self.goto_max_folder(1,1),accelerator="Backspace",state=item_actions_state)
@@ -1438,7 +1450,7 @@ class Gui:
 
         self.navi_cascade= Menu(self.menubar,tearoff=0,bg=bg_color,postcommand=navi_cascade_post)
 
-        self.menubar.add_cascade(label = 'Navigation',menu = self.navi_cascade)
+        self.menubar.add_cascade(label = STR('Navigation'),menu = self.navi_cascade)
 
         def help_cascade_post():
             self.hide_tooltip()
@@ -1451,17 +1463,17 @@ class Gui:
                 self_help_cascade_add_command = self.help_cascade.add_command
                 self_help_cascade_add_separator = self.help_cascade.add_separator
 
-                self_help_cascade_add_command(label = 'About',command=lambda : self.get_about_dialog().show(),accelerator="F1", image = self_ico['about'],compound='left')
-                self_help_cascade_add_command(label = 'License',command=lambda : self.get_license_dialog().show(), image = self_ico['license'],compound='left')
+                self_help_cascade_add_command(label = STR('About'),command=lambda : self.get_about_dialog().show(),accelerator="F1", image = self_ico['about'],compound='left')
+                self_help_cascade_add_command(label = STR('License'),command=lambda : self.get_license_dialog().show(), image = self_ico['license'],compound='left')
                 self_help_cascade_add_separator()
-                self_help_cascade_add_command(label = 'Open current Log',command=self.show_log, image = self_ico['log'],compound='left')
-                self_help_cascade_add_command(label = 'Open logs directory',command=self.show_logs_dir, image = self_ico['logs'],compound='left')
+                self_help_cascade_add_command(label = STR('Open current Log'),command=self.show_log, image = self_ico['log'],compound='left')
+                self_help_cascade_add_command(label = STR('Open logs directory'),command=self.show_logs_dir, image = self_ico['logs'],compound='left')
                 self_help_cascade_add_separator()
-                self_help_cascade_add_command(label = 'Open homepage',command=self.show_homepage, image = self_ico['home'],compound='left')
+                self_help_cascade_add_command(label = STR('Open homepage'),command=self.show_homepage, image = self_ico['home'],compound='left')
 
         self.help_cascade= Menu(self.menubar,tearoff=0,bg=bg_color,postcommand=help_cascade_post)
 
-        self.menubar.add_cascade(label = 'Help',menu = self.help_cascade)
+        self.menubar.add_cascade(label = STR('Help'),menu = self.help_cascade)
 
         #######################################################################
         self.reset_sels()
@@ -1651,7 +1663,7 @@ class Gui:
                 else:
                     self.path_to_scan_add(dirname(p_path))
             else:
-                self.get_info_dialog_on_main().show('Path does not exist',str(p_path))
+                self.get_info_dialog_on_main().show(STR('Path does not exist'),str(p_path))
 
     def pre_show(self,on_main_window_dialog=True,new_widget=None):
         self.processing_off(f'pre_show:{new_widget}')
@@ -1683,14 +1695,14 @@ class Gui:
         widget.bind("<Leave>", lambda event : self.widget_leave())
 
     def fix_text_dialog(self,dialog):
-        dialog.find_lab.configure(image=self.ico_search_text,text=' Search:',compound='left',bg=self.bg_color)
+        dialog.find_lab.configure(image=self.ico_search_text,text=STR(' Search:'),compound='left',bg=self.bg_color)
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
-        self.widget_tooltip(dialog.find_prev_butt,'Find Prev (Shift+F3)')
-        self.widget_tooltip(dialog.find_next_butt,'Find Next (F3)')
-        self.widget_tooltip(dialog.find_cs,'Case Sensitive')
-        self.widget_tooltip(dialog.find_info_lab,'index of the selected search result / search results total ')
+        self.widget_tooltip(dialog.find_prev_butt,STR('Find prev') + ' (Shift+F3)')
+        self.widget_tooltip(dialog.find_next_butt,STR('Find next') + ' (F3)')
+        self.widget_tooltip(dialog.find_cs,STR('Case Sensitive'))
+        self.widget_tooltip(dialog.find_info_lab,STR('index of the selected search result / search results total'))
 
         dialog.find_var.set( self.cfg_get(CFG_KEY_SEARCH_TXT_STRING) )
         dialog.find_cs_var.set( self.cfg_get_bool(CFG_KEY_SEARCH_TXT_CS) )
@@ -1705,9 +1717,9 @@ class Gui:
     @block
     def get_settings_dialog(self):
         if not self.settings_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
-            self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'Settings',pre_show=self.pre_show_settings,post_close=self.post_close)
+            self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Settings'),pre_show=self.pre_show_settings,post_close=self.post_close)
 
             self.show_full_crc = BooleanVar()
             self.show_tooltips_info = BooleanVar()
@@ -1758,98 +1770,117 @@ class Gui:
 
             row = 0
 
-            label_frame=LabelFrame(self.settings_dialog.area_main, text="Results display mode",borderwidth=2,bg=self.bg_color)
+            lang_frame = Frame(self.settings_dialog.area_main)
+            lang_frame.grid(row=row, column=0, sticky='news',padx=4,pady=4) ; row+=1
+
+            Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=2, column=0, sticky='wens',padx=8,pady=4)
+
+            self.lang_var = StringVar()
+            self.lang_cb = Combobox(lang_frame,values=('English','Polski'),textvariable=self.lang_var,state='readonly',width=16)
+            self.lang_cb.grid(row=2, column=1, sticky='news',padx=4,pady=4)
+            lang_frame.grid_columnconfigure( 2, weight=1)
+
+            self.lang_cb.bind('<<ComboboxSelected>>', self.lang_change)
+
+            label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Results display mode"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
             self_widget_tooltip = self.widget_tooltip
-            (cb_30:=Radiobutton(label_frame, text = 'All (default)', variable=self.show_mode,value='0')).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            self_widget_tooltip(cb_30,'Show all results')
+            (cb_30:=Radiobutton(label_frame, text = STR('All (default)'), variable=self.show_mode,value='0')).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(cb_30,STR('Show all results'))
 
-            (cb_3:=Radiobutton(label_frame, text = 'Cross paths', variable=self.show_mode,value='1')).grid(row=0,column=1,sticky='wens',padx=3,pady=2)
-            self_widget_tooltip(cb_3,'Ignore (hide) groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease')
+            (cb_3:=Radiobutton(label_frame, text = STR('Cross paths'), variable=self.show_mode,value='1')).grid(row=0,column=1,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(cb_3,STR('TOOLTIP_CP'))
 
-            (cb_3a:=Radiobutton(label_frame, text = 'Same directory', variable=self.show_mode,value='2')).grid(row=0,column=2,sticky='wens',padx=3,pady=2)
-            self_widget_tooltip(cb_3a,'Show only groups with result files in the same directory')
+            (cb_3a:=Radiobutton(label_frame, text = STR('Same directory'), variable=self.show_mode,value='2')).grid(row=0,column=2,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(cb_3a,STR('TOOLTIP_SD'))
 
             label_frame.grid_columnconfigure((0,1,2), weight=1)
 
-            label_frame=LabelFrame(self.settings_dialog.area_main, text="Main panels and dialogs",borderwidth=2,bg=self.bg_color)
+            label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Main panels and dialogs"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-            (cb_1:=Checkbutton(label_frame, text = 'Show full CRC', variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            self_widget_tooltip(cb_1,'If disabled, shortest necessary prefix of full CRC wil be shown')
+            (cb_1:=Checkbutton(label_frame, text = STR('Show full CRC'), variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(cb_1,STR('TOOLTIP_SFC'))
 
             (cb_2:=Checkbutton(label_frame, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_2,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips')
 
-            Checkbutton(label_frame, text = 'Show info tooltips', variable=self.show_tooltips_info).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = 'Show help tooltips', variable=self.show_tooltips_help).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = STR('Show info tooltips'), variable=self.show_tooltips_info).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = STR('Show help tooltips'), variable=self.show_tooltips_help).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
-            (preview_auto_update_cb:=Checkbutton(label_frame, text = 'Preview auto update', variable=self.preview_auto_update)).grid(row=4,column=0,sticky='wens',padx=3,pady=2)
-            self_widget_tooltip(preview_auto_update_cb,'If enabled, any change of the selection\nwill automatically update the preview\nwindow (if the format is supported)')
+            (preview_auto_update_cb:=Checkbutton(label_frame, text = STR('Preview auto update'), variable=self.preview_auto_update)).grid(row=4,column=0,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(preview_auto_update_cb,STR('TOOLTIP_PAU'))
 
-            label_frame=LabelFrame(self.settings_dialog.area_main, text="Confirmation dialogs",borderwidth=2,bg=self.bg_color)
+            label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Confirmation dialogs"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-            (cb_3:=Checkbutton(label_frame, text = 'Skip groups with invalid selection', variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            self_widget_tooltip(cb_3,'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.')
+            (cb_3:=Checkbutton(label_frame, text = STR('Skip groups with invalid selection'), variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(cb_3,STR('TOOLTIP_SGWIS'))
 
-            (cb_4:=Checkbutton(label_frame, text = 'Allow deletion of all copies', variable=self.allow_delete_all,image=self.ico_warning,compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            self_widget_tooltip(cb_4,'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies')
+            (cb_4:=Checkbutton(label_frame, text = STR('Allow deletion of all copies'), variable=self.allow_delete_all,image=self.ico_warning,compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(cb_4,STR('TOOLTIP_ADOAC') )
 
-            Checkbutton(label_frame, text = 'Show soft links targets', variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = 'Show CRC/GROUP and size', variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = STR('Show soft links targets'), variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = STR('Show CRC/GROUP and size'), variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
-            label_frame=LabelFrame(self.settings_dialog.area_main, text="Processing",borderwidth=2,bg=self.bg_color)
+            label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Processing"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-            Checkbutton(label_frame, text = 'Create relative symbolic links', variable=self.create_relative_symlinks).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = STR('Create relative symbolic links'), variable=self.create_relative_symlinks).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
             Checkbutton(label_frame, text = 'Send Files to %s instead of deleting them' % ('Recycle Bin' if windows else 'Trash'), variable=self.send_to_trash ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = 'Erase remaining empty directories', variable=self.erase_empty_directories).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = 'Abort on first error', variable=self.abort_on_error).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = STR('Erase remaining empty directories'), variable=self.erase_empty_directories).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = STR('Abort on first error'), variable=self.abort_on_error).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
             #Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.allow_delete_non_duplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2)
 
-            label_frame=LabelFrame(self.settings_dialog.area_main, text="Opening wrappers",borderwidth=2,bg=self.bg_color)
+            label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Opening wrappers"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-            Label(label_frame,text='parameters #',bg=self.bg_color,anchor='n').grid(row=0, column=2,sticky='news')
+            Label(label_frame,text=STR('parameters #'),bg=self.bg_color,anchor='n').grid(row=0, column=2,sticky='news')
 
-            Label(label_frame,text='File: ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
+            Label(label_frame,text=STR('File') + ': ',bg=self.bg_color,anchor='w').grid(row=1, column=0,sticky='news')
             (en_1:=Entry(label_frame,textvariable=self.file_open_wrapper)).grid(row=1, column=1,sticky='news',padx=3,pady=2)
-            self_widget_tooltip(en_1,'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.')
+            self_widget_tooltip(en_1,STR('TOOLTIP_OW') )
 
-            Label(label_frame,text='Folders: ',bg=self.bg_color,anchor='w').grid(row=2, column=0,sticky='news')
+            Label(label_frame,text=STR('Folders: '),bg=self.bg_color,anchor='w').grid(row=2, column=0,sticky='news')
             (en_2:=Entry(label_frame,textvariable=self.folders_open_wrapper)).grid(row=2, column=1,sticky='news',padx=3,pady=2)
-            self_widget_tooltip(en_2,'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.')
+            self_widget_tooltip(en_2,STR('TOOLTIP_FOLDERS'))
 
             (cb_2:=Combobox(label_frame,values=('1','2','3','4','5','6','7','8','all'),textvariable=self.folders_open_wrapper_params,state='readonly') ).grid(row=2, column=2,sticky='ew',padx=3)
-            self_widget_tooltip(cb_2,'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on groups\ndefault is 2')
+            self_widget_tooltip(cb_2,STR('TOOLTIP_FOLDERS_NUMBER'))
 
             label_frame.grid_columnconfigure(1, weight=1)
 
             bfr=Frame(self.settings_dialog.area_main,bg=self.bg_color)
-            self.settings_dialog.area_main.grid_rowconfigure(row, weight=1); row+=1
 
             bfr.grid(row=row,column=0) ; row+=1
 
-            Button(bfr, text='Set defaults',width=14, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
+            Button(bfr, text=STR('Set defaults'),width=14, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
             Button(bfr, text='OK', width=14, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5,fill='both')
             self.cancel_button=Button(bfr, text='Cancel', width=14 ,command=self.settings_dialog.hide )
             self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
 
             self.settings_dialog.area_main.grid_columnconfigure(0, weight=1)
 
+            self.settings_dialog.area_main.grid_rowconfigure(row, weight=1); row+=1
+
+            self.lang_var.set(self.cfg_get(CFG_lang))
+
             self.settings_dialog_created = True
 
         return self.settings_dialog
+
+    def lang_change(self,event):
+        self.cfg.set(CFG_lang,self.lang_var.get())
+        self.get_info_dialog_on_main().show(STR('Language Changed'),STR('Restart required.') )
 
     info_dialog_on_main_created = False
     @restore_status_line
     @block
     def get_info_dialog_on_main(self):
         if not self.info_dialog_on_main_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.info_dialog_on_main = LabelDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
 
@@ -1862,7 +1893,7 @@ class Gui:
     @block
     def get_text_ask_dialog(self):
         if not self.text_ask_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.text_ask_dialog = TextDialogQuestion(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
             self.fix_text_dialog(self.text_ask_dialog)
@@ -1876,7 +1907,7 @@ class Gui:
     @block
     def get_text_info_dialog(self):
         if not self.text_info_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.text_info_dialog = TextDialogInfo(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.fix_text_dialog(self.text_info_dialog)
@@ -1890,7 +1921,7 @@ class Gui:
     @block
     def get_info_dialog_on_scan(self):
         if not self.info_dialog_on_scan_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.info_dialog_on_scan = LabelDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
 
@@ -1903,7 +1934,7 @@ class Gui:
     @block
     def get_exclude_dialog_on_scan(self):
         if not self.exclude_dialog_on_scan_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.exclude_dialog_on_scan = EntryDialogQuestion(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
             self.exclude_dialog_on_scan_created = True
@@ -1915,7 +1946,7 @@ class Gui:
     @block
     def get_progress_dialog_on_scan(self):
         if not self.progress_dialog_on_scan_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.progress_dialog_on_scan = ProgressDialog(self.scan_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget : self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
             self.progress_dialog_on_scan.command_on_close = self.progress_dialog_abort
@@ -1932,7 +1963,7 @@ class Gui:
     @block
     def get_progress_dialog_on_main(self):
         if not self.progress_dialog_on_main_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.progress_dialog_on_main = ProgressDialog(self.main,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.progress_dialog_on_main.command_on_close = self.progress_dialog_abort
@@ -1952,7 +1983,7 @@ class Gui:
     @block
     def get_mark_dialog_on_groups(self):
         if not self.mark_dialog_on_groups_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.mark_dialog_on_groups = CheckboxEntryDialogQuestion(self.groups_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.mark_dialog_on_groups_created = True
@@ -1965,7 +1996,7 @@ class Gui:
     @block
     def get_mark_dialog_on_folder(self):
         if not self.mark_dialog_on_folder_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.mark_dialog_on_folder = CheckboxEntryDialogQuestion(self.folder_tree,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
             self.mark_dialog_on_folder_created = True
@@ -1978,7 +2009,7 @@ class Gui:
     @block
     def get_info_dialog_on_mark_groups(self):
         if not self.info_dialog_on_mark_groups_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.info_dialog_on_mark[self.groups_tree] = LabelDialog(self.mark_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
             self.info_dialog_on_mark_groups_created = True
@@ -1990,7 +2021,7 @@ class Gui:
     @block
     def get_info_dialog_on_mark_folder(self):
         if not self.info_dialog_on_mark_folder_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.info_dialog_on_mark[self.folder_tree] = LabelDialog(self.mark_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
             self.info_dialog_on_mark_folder_created = True
@@ -2002,7 +2033,7 @@ class Gui:
     @block
     def get_find_dialog_on_groups(self):
         if not self.find_dialog_on_groups_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.find_dialog_on_groups = FindEntryDialog(self.groups_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
             self.info_dialog_on_find[self.groups_tree] = LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
@@ -2015,7 +2046,7 @@ class Gui:
     @block
     def get_find_dialog_on_folder(self):
         if not self.find_dialog_on_folder_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.find_dialog_on_folder = FindEntryDialog(self.folder_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
             self.info_dialog_on_find[self.folder_tree] = LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
@@ -2028,7 +2059,7 @@ class Gui:
     @block
     def get_about_dialog(self):
         if not self.about_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             self.about_dialog = GenericDialog(self.main,self.main_icon_tuple,self.bg_color,'',pre_show=self.pre_show,post_close=self.post_close)
 
@@ -2067,7 +2098,7 @@ class Gui:
     @block
     def get_license_dialog(self):
         if not self.license_dialog_created:
-            self.status("Creating dialog ...")
+            self.status(STR("Creating dialog ..."))
 
             try:
                 self.license=Path(path_join(DUDE_DIR,'LICENSE')).read_text(encoding='ASCII')
@@ -2386,9 +2417,9 @@ class Gui:
         try:
             self.menu_state_stack_pop()
             if not self.menu_state_stack:
-                norm("File")
-                norm("Navigation")
-                norm("Help")
+                norm(STR("File"))
+                norm(STR("Navigation"))
+                norm(STR("Help"))
         except Exception as e:
             l_error(f'menu_enable error:{e}')
 
@@ -2396,9 +2427,9 @@ class Gui:
         disable = self.menubar_disable
 
         self.menu_state_stack_append('x')
-        disable("File")
-        disable("Navigation")
-        disable("Help")
+        disable(STR("File"))
+        disable(STR("Navigation"))
+        disable(STR("Help"))
         #self.menubar.update()
 
     def reset_sels(self):
@@ -2445,7 +2476,7 @@ class Gui:
 
         self.find_dialog_shown=True
 
-        scope_info = 'Scope: All groups.' if self.sel_tree==self.groups_tree else 'Scope: Selected directory.'
+        scope_info = STR('Scope: All groups.') if self.sel_tree==self.groups_tree else STR('Scope: Selected directory.')
         tree_index = self.tree_index[tree]
 
         cfg_key = CFG_KEY_FIND_STRING_0 if tree_index==0 else CFG_KEY_FIND_STRING_1
@@ -2462,11 +2493,11 @@ class Gui:
             initialvalue_re=self.cfg.get(cfg_key_re)
 
         if self.sel_tree==self.groups_tree:
-            self.get_find_dialog_on_groups().show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=initialvalue_re)
+            self.get_find_dialog_on_groups().show(STR('Find'),scope_info,initial=initialvalue,checkbutton_text=STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
             self.find_by_tree[tree]=self.find_dialog_on_groups.entry.get()
             self.find_by_tree_re[tree]=self.find_dialog_on_groups.check_val.get()
         else:
-            self.get_find_dialog_on_folder().show('Find',scope_info,initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=initialvalue_re)
+            self.get_find_dialog_on_folder().show(STR('Find'),scope_info,initial=initialvalue,checkbutton_text=STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
             self.find_by_tree[tree]=self.find_dialog_on_folder.entry.get()
             self.find_by_tree_re[tree]=self.find_dialog_on_folder.check_val.get()
 
@@ -2513,7 +2544,7 @@ class Gui:
 
     @restore_status_line
     def find_items(self,expression,use_reg_expr):
-        self.status('finding ...')
+        self.status(STR('finding ...'))
 
         if self.find_params_changed or self.find_tree != self.sel_tree:
             self.find_tree=self.sel_tree
@@ -2554,8 +2585,8 @@ class Gui:
                 self.find_params_changed=False
             else:
                 self.find_result=()
-                scope_info = 'Scope: All groups.' if self.find_tree==self.groups_tree else 'Scope: Selected directory.'
-                self.info_dialog_on_find[self.find_tree].show(scope_info,'No files found.')
+                scope_info = STR('Scope: All groups.') if self.find_tree==self.groups_tree else STR('Scope: Selected directory.')
+                self.info_dialog_on_find[self.find_tree].show(scope_info,STR('No files found.'))
 
     def select_find_result(self,mod):
         if self.find_result:
@@ -2578,9 +2609,9 @@ class Gui:
                 self.folder_tree_sel_change(next_item)
 
             if mod>0:
-                self.status('Find next %s' % self.find_expression_prev)
+                self.status(STR('Find next') + ' ' + str(self.find_expression_prev) )
             else:
-                self.status('Find Previous %s' % self.find_expression_prev)
+                self.status(STR('Find Prev') + ' ' + str(self.find_expression_prev) )
 
     def tag_toggle_selected(self,tree, *items):
         self_FILE=self.FILE
@@ -2615,7 +2646,7 @@ class Gui:
 
     @block
     def goto_next_prev_crc(self,direction):
-        status ='selecting next group' if direction==1 else 'selecting prev group'
+        status = STR('selecting next group') if direction==1 else STR('selecting prev group')
 
         tree=self.groups_tree
         self_sel_item = current_item = self.sel_item
@@ -2638,7 +2669,7 @@ class Gui:
 
     @block
     def goto_next_prev_duplicate_in_folder(self,direction):
-        status = 'selecting next duplicate in folder' if direction==1 else 'selecting prev duplicate in folder'
+        status = STR('selecting next duplicate in folder') if direction==1 else STR('selecting prev duplicate in folder')
 
         tree=self.folder_tree
 
@@ -2753,9 +2784,9 @@ class Gui:
                     elif key == "Left":
                         self.goto_next_mark(tree,-1,shift_pressed)
                     elif key in ('KP_Add','plus'):
-                        self.mark_expression(self.set_mark,'Mark files',ctrl_pressed)
+                        self.mark_expression(self.set_mark,STR('Mark files'),ctrl_pressed)
                     elif key in ('KP_Subtract','minus'):
-                        self.mark_expression(self.unset_mark,'Unmark files',ctrl_pressed)
+                        self.mark_expression(self.unset_mark,STR('Unmark files'),ctrl_pressed)
                     elif key == "Delete":
                         if tree==self.groups_tree:
                             self.process_files_in_groups_wrapper(DELETE,ctrl_pressed)
@@ -3088,7 +3119,7 @@ class Gui:
                 self.preview_frame_txt.pack_forget()
                 self.preview_label_img.pack_forget()
                 self.preview_label_txt_configure(text='')
-                self.preview.title('Dude - Preview (no path)')
+                self.preview.title('Dude - ' + STR('Preview (no path)'))
 
     def hide_preview(self,user_action=True):
         self_preview = self.preview
@@ -3353,18 +3384,18 @@ class Gui:
             c_local_add_cascade = c_local.add_cascade
             c_local_entryconfig = c_local.entryconfig
 
-            c_local_add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space", image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR("Toggle Mark"),  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space", image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = "Mark all files",        command = lambda : self.mark_in_group(self.set_mark),accelerator="A", image = self.ico_empty,compound='left',state = any_not_mark_in_curr_crc_state)
-            c_local_add_command(label = "Unmark all files",        command = lambda : self.mark_in_group(self.unset_mark),accelerator="N", image = self.ico_empty,compound='left', state = any_mark_in_curr_crc_state)
+            c_local_add_command(label = STR("Mark all files"),        command = lambda : self.mark_in_group(self.set_mark),accelerator="A", image = self.ico_empty,compound='left',state = any_not_mark_in_curr_crc_state)
+            c_local_add_command(label = STR("Unmark all files"),        command = lambda : self.mark_in_group(self.unset_mark),accelerator="N", image = self.ico_empty,compound='left', state = any_mark_in_curr_crc_state)
             c_local_add_separator()
-            c_local_add_command(label = 'Mark By expression ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',False),accelerator="+", image = self.ico_empty,compound='left',state = any_not_mark_in_curr_crc_state)
-            c_local_add_command(label = 'Unmark By expression ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',False),accelerator="-", image = self.ico_empty,compound='left', state = any_mark_in_curr_crc_state)
+            c_local_add_command(label = STR('Mark By expression') + ' ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',False),accelerator="+", image = self.ico_empty,compound='left',state = any_not_mark_in_curr_crc_state)
+            c_local_add_command(label = STR('Unmark By expression') +' ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',False),accelerator="-", image = self.ico_empty,compound='left', state = any_mark_in_curr_crc_state)
             c_local_add_separator()
-            c_local_add_command(label = "Toggle mark on oldest file",     command = lambda : self.mark_in_group_by_ctime('oldest',self.invert_mark),accelerator="O", image = self.ico_empty,compound='left')
-            c_local_add_command(label = "Toggle mark on youngest file",   command = lambda : self.mark_in_group_by_ctime('youngest',self.invert_mark),accelerator="Y", image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR("Toggle mark on oldest file"),     command = lambda : self.mark_in_group_by_ctime('oldest',self.invert_mark),accelerator="O", image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR("Toggle mark on youngest file"),   command = lambda : self.mark_in_group_by_ctime('youngest',self.invert_mark),accelerator="Y", image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = "Invert marks",   command = lambda : self.mark_in_group(self.invert_mark),accelerator="I", image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR("Invert marks"),   command = lambda : self.mark_in_group(self.invert_mark),accelerator="I", image = self.ico_empty,compound='left')
             c_local_add_separator()
 
             mark_cascade_path = Menu(c_local, tearoff = 0,bg=self.bg_color)
@@ -3376,12 +3407,12 @@ class Gui:
                 unmark_cascade_path.add_command(image=self.icon_nr[row], label = path, compound = 'left', command  = lambda pathpar=path: self.action_on_path(pathpar,self.unset_mark,False),accelerator="Shift+"+str(row+1)  )
                 row+=1
 
-            c_local_add_command(label = "Mark on specified directory ...",   command = lambda : self.mark_subpath(self.set_mark,False), image = self.ico_empty,compound='left')
-            c_local_add_command(label = "Unmark on specified directory ...",   command = lambda : self.mark_subpath(self.unset_mark,False), image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR("Mark on specified directory ..."),   command = lambda : self.mark_subpath(self.set_mark,False), image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR("Unmark on specified directory ..."),   command = lambda : self.mark_subpath(self.unset_mark,False), image = self.ico_empty,compound='left')
             c_local_add_separator()
 
-            c_local_add_cascade(label = "Mark on scan path",             menu = mark_cascade_path, image = self.ico_empty,compound='left')
-            c_local_add_cascade(label = "Unmark on scan path",             menu = unmark_cascade_path, image = self.ico_empty,compound='left')
+            c_local_add_cascade(label = STR("Mark on scan path"),             menu = mark_cascade_path, image = self.ico_empty,compound='left')
+            c_local_add_cascade(label = STR("Unmark on scan path"),             menu = unmark_cascade_path, image = self.ico_empty,compound='left')
             c_local_add_separator()
 
 
@@ -3407,33 +3438,33 @@ class Gui:
             anything_tagged_state_win_local=('disabled','normal')[any_mark_in_curr_crc_state and windows ] if self.sel_crc else 'disabled'
             anything_tagged_state_win_local_and_crc=('disabled','normal')[any_mark_in_curr_crc_state and windows and not self.operation_mode] if self.sel_crc else 'disabled'
 
-            c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=any_mark_in_curr_crc_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR('Remove Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=any_mark_in_curr_crc_state, image = self.ico_empty,compound='left')
             c_local_entryconfig(19,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR('Softlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
             c_local_entryconfig(20,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_local_and_crc, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR('Create *.lnk for Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_local_and_crc, image = self.ico_empty,compound='left')
             c_local_entryconfig(21,foreground='red',activeforeground='red')
-            c_local_add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR('Hardlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
             c_local_entryconfig(22,foreground='red',activeforeground='red')
 
-            pop_add_cascade(label = 'Local (this group)',menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
+            pop_add_cascade(label = STR('Local (this group)'),menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
             pop_add_separator()
 
             c_all = Menu(pop,tearoff=0,bg=self.bg_color)
 
-            c_all.add_command(label = "Mark all files",        command = lambda : self.mark_on_all(self.set_mark),accelerator="Ctrl+A", image = self.ico_empty,compound='left',state = any_not_marked_state )
-            c_all.add_command(label = "Unmark all files",        command = lambda : self.mark_on_all(self.unset_mark),accelerator="Ctrl+N", image = self.ico_empty,compound='left',state = anything_tagged_state)
+            c_all.add_command(label = STR("Mark all files"),        command = lambda : self.mark_on_all(self.set_mark),accelerator="Ctrl+A", image = self.ico_empty,compound='left',state = any_not_marked_state )
+            c_all.add_command(label = STR("Unmark all files"),        command = lambda : self.mark_on_all(self.unset_mark),accelerator="Ctrl+N", image = self.ico_empty,compound='left',state = anything_tagged_state)
             c_all.add_separator()
-            c_all.add_command(label = 'Mark By expression ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',True),accelerator="Ctrl+", image = self.ico_empty,compound='left',state = any_not_marked_state)
-            c_all.add_command(label = 'Unmark By expression ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',True),accelerator="Ctrl-", image = self.ico_empty,compound='left',state = anything_tagged_state)
+            c_all.add_command(label = STR('Mark By expression') +' ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',True),accelerator="Ctrl+", image = self.ico_empty,compound='left',state = any_not_marked_state)
+            c_all.add_command(label = STR('Unmark By expression') +' ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',True),accelerator="Ctrl-", image = self.ico_empty,compound='left',state = anything_tagged_state)
             c_all.add_separator()
-            c_all.add_command(label = "Mark Oldest files",     command = lambda : self.mark_all_by_ctime('oldest',self.set_mark),accelerator="Ctrl+O", image = self.ico_empty,compound='left',state = any_not_marked_state)
-            c_all.add_command(label = "Unmark Oldest files",     command = lambda : self.mark_all_by_ctime('oldest',self.unset_mark),accelerator="Ctrl+Shift+O", image = self.ico_empty,compound='left',state = anything_tagged_state)
+            c_all.add_command(label = STR("Mark Oldest files"),     command = lambda : self.mark_all_by_ctime('oldest',self.set_mark),accelerator="Ctrl+O", image = self.ico_empty,compound='left',state = any_not_marked_state)
+            c_all.add_command(label = STR("Unmark Oldest files"),     command = lambda : self.mark_all_by_ctime('oldest',self.unset_mark),accelerator="Ctrl+Shift+O", image = self.ico_empty,compound='left',state = anything_tagged_state)
             c_all.add_separator()
-            c_all.add_command(label = "Mark Youngest files",   command = lambda : self.mark_all_by_ctime('youngest',self.set_mark),accelerator="Ctrl+Y", image = self.ico_empty,compound='left',state = any_not_marked_state)
-            c_all.add_command(label = "Unmark Youngest files",   command = lambda : self.mark_all_by_ctime('youngest',self.unset_mark),accelerator="Ctrl+Shift+Y", image = self.ico_empty,compound='left',state = anything_tagged_state)
+            c_all.add_command(label = STR("Mark Youngest files"),   command = lambda : self.mark_all_by_ctime('youngest',self.set_mark),accelerator="Ctrl+Y", image = self.ico_empty,compound='left',state = any_not_marked_state)
+            c_all.add_command(label = STR("Unmark Youngest files"),   command = lambda : self.mark_all_by_ctime('youngest',self.unset_mark),accelerator="Ctrl+Shift+Y", image = self.ico_empty,compound='left',state = anything_tagged_state)
             c_all.add_separator()
-            c_all.add_command(label = "Invert marks",   command = lambda : self.mark_on_all(self.invert_mark),accelerator="Ctrl+I, *", image = self.ico_empty,compound='left')
+            c_all.add_command(label = STR("Invert marks"),   command = lambda : self.mark_on_all(self.invert_mark),accelerator="Ctrl+I, *", image = self.ico_empty,compound='left')
             c_all.add_separator()
 
             mark_cascade_path = Menu(c_all, tearoff = 0,bg=self.bg_color)
@@ -3445,39 +3476,39 @@ class Gui:
                 unmark_cascade_path.add_command(image=self.icon_nr[row], label = path, compound = 'left',  command  = lambda pathpar=path: self.action_on_path(pathpar,self.unset_mark,True) ,accelerator="Ctrl+Shift+"+str(row+1))
                 row+=1
 
-            c_all.add_command(label = "Mark on specified directory ...",   command = lambda : self.mark_subpath(self.set_mark,True), image = self.ico_empty,compound='left')
-            c_all.add_command(label = "Unmark on specified directory ...",   command = lambda : self.mark_subpath(self.unset_mark,True), image = self.ico_empty,compound='left',state = anything_tagged_state)
+            c_all.add_command(label = STR("Mark on specified directory ..."),   command = lambda : self.mark_subpath(self.set_mark,True), image = self.ico_empty,compound='left')
+            c_all.add_command(label = STR("Unmark on specified directory ..."),   command = lambda : self.mark_subpath(self.unset_mark,True), image = self.ico_empty,compound='left',state = anything_tagged_state)
             c_all.add_separator()
 
-            c_all.add_cascade(label = "Mark on scan path",             menu = mark_cascade_path, image = self.ico_empty,compound='left')
-            c_all.add_cascade(label = "Unmark on scan path",             menu = unmark_cascade_path, image = self.ico_empty,compound='left',state = anything_tagged_state)
+            c_all.add_cascade(label = STR("Mark on scan path"),             menu = mark_cascade_path, image = self.ico_empty,compound='left')
+            c_all.add_cascade(label = STR("Unmark on scan path"),             menu = unmark_cascade_path, image = self.ico_empty,compound='left',state = anything_tagged_state)
             c_all.add_separator()
 
-            c_all.add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(DELETE,1),accelerator="Ctrl+Delete",state=anything_tagged_state, image = self.ico_empty,compound='left')
+            c_all.add_command(label = STR('Remove Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(DELETE,1),accelerator="Ctrl+Delete",state=anything_tagged_state, image = self.ico_empty,compound='left')
             c_all.entryconfig(21,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
+            c_all.add_command(label = STR('Softlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
             c_all.entryconfig(22,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),accelerator="Ctrl+Alt+Shift+Insert",state=anything_tagged_state_win_and_crc, image = self.ico_empty,compound='left')
+            c_all.add_command(label = STR('Create *.lnk for Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),accelerator="Ctrl+Alt+Shift+Insert",state=anything_tagged_state_win_and_crc, image = self.ico_empty,compound='left')
             c_all.entryconfig(23,foreground='red',activeforeground='red')
-            c_all.add_command(label = 'Hardlink Marked Files ...',command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
+            c_all.add_command(label = STR('Hardlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
             c_all.entryconfig(24,foreground='red',activeforeground='red')
 
-            pop_add_cascade(label = 'All Files',menu = c_all,state=item_actions_state, image = self.ico_empty,compound='left')
+            pop_add_cascade(label = STR('All Files'),menu = c_all,state=item_actions_state, image = self.ico_empty,compound='left')
 
             c_nav = Menu(self.menubar,tearoff=0,bg=self.bg_color)
             c_nav_add_command = c_nav.add_command
             c_nav_add_separator = c_nav.add_separator
 
-            c_nav_add_command(label = 'Go to dominant group (by size sum)',command = lambda : self.goto_max_group(1), accelerator="F7", image = self.ico['dominant_size'],compound='left')
-            c_nav_add_command(label = 'Go to dominant group (by quantity)',command = lambda : self.goto_max_group(0), accelerator="F8", image = self.ico['dominant_quant'],compound='left')
+            c_nav_add_command(label = STR('Go to dominant group (by size sum)'),command = lambda : self.goto_max_group(1), accelerator="F7", image = self.ico['dominant_size'],compound='left')
+            c_nav_add_command(label = STR('Go to dominant group (by quantity)'),command = lambda : self.goto_max_group(0), accelerator="F8", image = self.ico['dominant_quant'],compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to next marked file'       ,command = lambda : self.goto_next_mark(self.groups_tree,1,0),accelerator="Right",state='normal', image = self.ico['next_marked'],compound='left')
-            c_nav_add_command(label = 'Go to previous marked file'   ,command = lambda : self.goto_next_mark(self.groups_tree,-1,0), accelerator="Left",state='normal', image = self.ico['prev_marked'],compound='left')
+            c_nav_add_command(label = STR('Go to next marked file')       ,command = lambda : self.goto_next_mark(self.groups_tree,1,0),accelerator="Right",state='normal', image = self.ico['next_marked'],compound='left')
+            c_nav_add_command(label = STR('Go to previous marked file')   ,command = lambda : self.goto_next_mark(self.groups_tree,-1,0), accelerator="Left",state='normal', image = self.ico['prev_marked'],compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to next not marked file'       ,command = lambda : self.goto_next_mark(self.groups_tree,1,1),accelerator="Shift+Right",state='normal', image = self.ico['next_unmarked'],compound='left')
-            c_nav_add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark(self.groups_tree,-1,1), accelerator="Shift+Left",state='normal', image = self.ico['prev_unmarked'],compound='left')
+            c_nav_add_command(label = STR('Go to next not marked file')       ,command = lambda : self.goto_next_mark(self.groups_tree,1,1),accelerator="Shift+Right",state='normal', image = self.ico['next_unmarked'],compound='left')
+            c_nav_add_command(label = STR('Go to previous not marked file')   ,command = lambda : self.goto_next_mark(self.groups_tree,-1,1), accelerator="Shift+Left",state='normal', image = self.ico['prev_unmarked'],compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to parent directory'   ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to parent directory')   ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico_empty,compound='left')
             c_nav_add_separator()
             c_nav_add_command(label = 'Go to next group'       ,command = lambda : self.goto_next_prev_crc(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
             c_nav_add_command(label = 'Go to previous group'   ,command = lambda : self.goto_next_prev_crc(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
@@ -3507,13 +3538,13 @@ class Gui:
             markable_files_in_folder = any( { True for item in self_current_folder_items if self_current_folder_items_dict[item][1]==self_FILE } )
             markable_files_in_folder_state = ('disabled','normal')[markable_files_in_folder]
 
-            c_local_add_command(label = "Toggle Mark",  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space",state=duplicate_file_actions_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR("Toggle Mark"),  command = lambda : self.tag_toggle_selected(tree,self.sel_item),accelerator="space",state=duplicate_file_actions_state, image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = "Mark all files",        command = lambda : self.mark_in_folder(self.set_mark),accelerator="A",state=markable_files_in_folder_state, image = self.ico_empty,compound='left')
-            c_local_add_command(label = "Unmark all files",        command = lambda : self.mark_in_folder(self.unset_mark),accelerator="N",state=markable_files_in_folder_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR("Mark all files"),        command = lambda : self.mark_in_folder(self.set_mark),accelerator="A",state=markable_files_in_folder_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR("Unmark all files"),        command = lambda : self.mark_in_folder(self.unset_mark),accelerator="N",state=markable_files_in_folder_state, image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = 'Mark By expression',command = lambda : self.mark_expression(self.set_mark,'Mark files'),accelerator="+", image = self.ico_empty,compound='left',state = markable_files_in_folder_state)
-            c_local_add_command(label = 'Unmark By expression',command = lambda : self.mark_expression(self.unset_mark,'Unmark files'),accelerator="-", image = self.ico_empty,compound='left', state = markable_files_in_folder_state)
+            c_local_add_command(label = STR('Mark By expression') + ' ...',command = lambda : self.mark_expression(self.set_mark,'Mark files'),accelerator="+", image = self.ico_empty,compound='left',state = markable_files_in_folder_state)
+            c_local_add_command(label = STR('Unmark By expression') +' ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files'),accelerator="-", image = self.ico_empty,compound='left', state = markable_files_in_folder_state)
             c_local_add_separator()
 
             anything_tagged_state=('disabled','normal')[bool(self.current_folder_items_tagged)]
@@ -3522,77 +3553,77 @@ class Gui:
             anything_tagged_state_win=('disabled','normal')[bool(self.current_folder_items_tagged) and windows]
             anything_tagged_state_win_and_crc=('disabled','normal')[bool(self.current_folder_items_tagged) and windows and not self.operation_mode]
 
-            c_local_add_command(label = 'Remove Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,0),accelerator="Delete",state=anything_tagged_state, image = self.ico_empty,compound='left')
-            c_local_add_command(label = 'Softlink Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,0),accelerator="Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
-            c_local_add_command(label = 'Create *.lnk for Marked Files ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_and_crc, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR('Remove Marked Files ...'),command=lambda : self.process_files_in_folder_wrapper(DELETE,0),accelerator="Delete",state=anything_tagged_state, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR('Softlink Marked Files ...'),command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,0),accelerator="Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR('Create *.lnk for Marked Files ...'),command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_and_crc, image = self.ico_empty,compound='left')
 
             c_local_entryconfig(8,foreground='red',activeforeground='red')
             c_local_entryconfig(9,foreground='red',activeforeground='red')
             c_local_entryconfig(10,foreground='red',activeforeground='red')
 
-            pop_add_cascade(label = 'Local (this folder)',menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
+            pop_add_cascade(label = STR('Local (this folder)'),menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
             pop_add_separator()
 
             c_sel_sub = Menu(pop,tearoff=0,bg=self.bg_color)
             c_sel_sub_add_command = c_sel_sub.add_command
-            c_sel_sub_add_command(label = "Mark All Duplicates in Subdirectory",  command = lambda : self.sel_dir(self.set_mark),accelerator="D",state=dir_actions_state, image = self.ico_empty,compound='left')
-            c_sel_sub_add_command(label = "Unmark All Duplicates in Subdirectory",  command = lambda : self.sel_dir(self.unset_mark),accelerator="Shift+D",state=dir_actions_state, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = STR("Mark All Duplicates in Subdirectory"),  command = lambda : self.sel_dir(self.set_mark),accelerator="D",state=dir_actions_state, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = STR("Unmark All Duplicates in Subdirectory"),  command = lambda : self.sel_dir(self.unset_mark),accelerator="Shift+D",state=dir_actions_state, image = self.ico_empty,compound='left')
             c_sel_sub.add_separator()
 
-            c_sel_sub_add_command(label = 'Remove Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(DELETE,True),accelerator="Delete",state=dir_actions_state, image = self.ico_empty,compound='left')
-            c_sel_sub_add_command(label = 'Softlink Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,True),accelerator="Insert",state=dir_actions_state_and_crc, image = self.ico_empty,compound='left')
-            c_sel_sub_add_command(label = 'Create *.lnk for Marked Files in Subdirectory Tree ...',command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,True),accelerator="Alt+Shift+Insert",state=dir_actions_state_win_and_crc, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = STR('Remove Marked Files in Subdirectory Tree ...'),command=lambda : self.process_files_in_folder_wrapper(DELETE,True),accelerator="Delete",state=dir_actions_state, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = STR('Softlink Marked Files in Subdirectory Tree ...'),command=lambda : self.process_files_in_folder_wrapper(SOFTLINK,True),accelerator="Insert",state=dir_actions_state_and_crc, image = self.ico_empty,compound='left')
+            c_sel_sub_add_command(label = STR('Create *.lnk for Marked Files in Subdirectory Tree ...'),command=lambda : self.process_files_in_folder_wrapper(WIN_LNK,True),accelerator="Alt+Shift+Insert",state=dir_actions_state_win_and_crc, image = self.ico_empty,compound='left')
 
             c_sel_sub.entryconfig(3,foreground='red',activeforeground='red')
             c_sel_sub.entryconfig(4,foreground='red',activeforeground='red')
             c_sel_sub.entryconfig(5,foreground='red',activeforeground='red')
 
-            pop_add_cascade(label = 'Selected Subdirectory',menu = c_sel_sub,state=dir_actions_state, image = self.ico_empty,compound='left')
+            pop_add_cascade(label = STR('Selected Subdirectory'),menu = c_sel_sub,state=dir_actions_state, image = self.ico_empty,compound='left')
 
             c_nav = Menu(pop,tearoff=0,bg=self.bg_color)
             c_nav_add_command = c_nav.add_command
             c_nav_add_separator = c_nav.add_separator
 
-            c_nav_add_command(label = 'Go to dominant folder (by size sum)',command = lambda : self.goto_max_folder(1),accelerator="F5", image = self.ico['dominant_size'],compound='left')
-            c_nav_add_command(label = 'Go to dominant folder (by quantity)',command = lambda : self.goto_max_folder(0) ,accelerator="F6", image = self.ico['dominant_quant'],compound='left')
+            c_nav_add_command(label = STR('Go to dominant folder (by size sum)'),command = lambda : self.goto_max_folder(1),accelerator="F5", image = self.ico['dominant_size'],compound='left')
+            c_nav_add_command(label = STR('Go to dominant folder (by quantity)'),command = lambda : self.goto_max_folder(0) ,accelerator="F6", image = self.ico['dominant_quant'],compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to next marked file'       ,command = lambda : self.goto_next_mark(self.folder_tree,1,0),accelerator="Right",state='normal', image = self.ico['next_marked'],compound='left')
-            c_nav_add_command(label = 'Go to previous marked file'   ,command = lambda : self.goto_next_mark(self.folder_tree,-1,0), accelerator="Left",state='normal', image = self.ico['prev_marked'],compound='left')
+            c_nav_add_command(label = STR('Go to next marked file')       ,command = lambda : self.goto_next_mark(self.folder_tree,1,0),accelerator="Right",state='normal', image = self.ico['next_marked'],compound='left')
+            c_nav_add_command(label = STR('Go to previous marked file')   ,command = lambda : self.goto_next_mark(self.folder_tree,-1,0), accelerator="Left",state='normal', image = self.ico['prev_marked'],compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to next not marked file'       ,command = lambda : self.goto_next_mark(self.folder_tree,1,1),accelerator="Shift+Right",state='normal', image = self.ico['next_unmarked'],compound='left')
-            c_nav_add_command(label = 'Go to previous not marked file'   ,command = lambda : self.goto_next_mark(self.folder_tree,-1,1), accelerator="Shift+Left",state='normal', image = self.ico['prev_unmarked'],compound='left')
+            c_nav_add_command(label = STR('Go to next not marked file')       ,command = lambda : self.goto_next_mark(self.folder_tree,1,1),accelerator="Shift+Right",state='normal', image = self.ico['next_unmarked'],compound='left')
+            c_nav_add_command(label = STR('Go to previous not marked file')   ,command = lambda : self.goto_next_mark(self.folder_tree,-1,1), accelerator="Shift+Left",state='normal', image = self.ico['prev_unmarked'],compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to parent directory'       ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to parent directory')       ,command = self.go_to_parent_dir, accelerator="Backspace",state=parent_dir_state, image = self.ico_empty,compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to next duplicate'       ,command = lambda : self.goto_next_prev_duplicate_in_folder(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
-            c_nav_add_command(label = 'Go to previous duplicate'   ,command = lambda : self.goto_next_prev_duplicate_in_folder(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to next duplicate')       ,command = lambda : self.goto_next_prev_duplicate_in_folder(1),accelerator="Pg Down",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to previous duplicate')  ,command = lambda : self.goto_next_prev_duplicate_in_folder(-1), accelerator="Pg Up",state='normal', image = self.ico_empty,compound='left')
             c_nav_add_separator()
-            c_nav_add_command(label = 'Go to first entry'       ,command = lambda : self.goto_first_last_dir_entry(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
-            c_nav_add_command(label = 'Go to last entry'   ,command = lambda : self.goto_first_last_dir_entry(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to first entry')       ,command = lambda : self.goto_first_last_dir_entry(0),accelerator="Home",state='normal', image = self.ico_empty,compound='left')
+            c_nav_add_command(label = STR('Go to last entry')   ,command = lambda : self.goto_first_last_dir_entry(-1), accelerator="End",state='normal', image = self.ico_empty,compound='left')
 
         pop_add_separator()
-        pop_add_cascade(label = 'Navigation',menu = c_nav,state=item_actions_state, image = self.ico_empty,compound='left')
+        pop_add_cascade(label = STR('Navigation'),menu = c_nav,state=item_actions_state, image = self.ico_empty,compound='left')
 
         pop_add_separator()
-        pop_add_command(label = 'Open File',command = self.open_file,accelerator="Return",state=file_actions_state, image = self.ico_empty,compound='left')
-        pop_add_command(label = 'Open Folder(s)',command = self.open_folder,accelerator="Alt+Return",state=file_or_dir_actions_state, image = self.ico_empty,compound='left')
+        pop_add_command(label = STR('Open File'),command = self.open_file,accelerator="Return",state=file_actions_state, image = self.ico_empty,compound='left')
+        pop_add_command(label = STR('Open Folder(s)'),command = self.open_folder,accelerator="Alt+Return",state=file_or_dir_actions_state, image = self.ico_empty,compound='left')
 
         pop_add_separator()
-        pop_add_command(label = 'Scan ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
-        pop_add_command(label = 'Settings ...',  command = lambda : self.get_settings_dialog().show(),accelerator='F2',image = self.ico['settings'],compound='left')
+        pop_add_command(label = STR('Scan') + ' ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
+        pop_add_command(label = STR('Settings') + ' ...',  command = lambda : self.get_settings_dialog().show(),accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
-        pop_add_command(label = 'Show/Update Preview',  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
-        pop_add_command(label = 'Hide Preview window',  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
+        pop_add_command(label = STR('Show/Update Preview'),  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
+        pop_add_command(label = STR('Hide Preview window'),  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
         pop_add_separator()
-        pop_add_command(label = 'Copy full path',command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico_empty,compound='left')
+        pop_add_command(label = STR('Copy full path'),command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico_empty,compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
         pop_add_separator()
-        pop_add_command(label = 'Find ...',command = self.finder_wrapper_show,accelerator="F",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
-        pop_add_command(label = 'Find next',command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
-        pop_add_command(label = 'Find prev',command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
+        pop_add_command(label = STR('Find') + ' ...',command = self.finder_wrapper_show,accelerator="F",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
+        pop_add_command(label = STR('Find next'),command = self.find_next,accelerator="F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
+        pop_add_command(label = STR('Find prev'),command = self.find_prev,accelerator="Shift+F3",state = 'normal' if self.sel_item is not None else 'disabled', image = self.ico_empty,compound='left')
         pop_add_separator()
 
-        pop_add_command(label = 'Exit',  command = self.exit ,image = self.ico['exit'],compound='left')
+        pop_add_command(label = STR('Exit'),  command = self.exit ,image = self.ico['exit'],compound='left')
 
         try:
             self.hide_tooltip()
@@ -3610,11 +3641,11 @@ class Gui:
     @logwrapper
     def empty_folder_remove_ask(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.main):
+        if res:=askdirectory(title=STR('Select Directory'),initialdir=initialdir,parent=self.main):
             self.last_dir=res
             final_info = self.empty_dirs_removal(res,True)
 
-            self.get_text_info_dialog().show('Removed empty directories','\n'.join(final_info))
+            self.get_text_info_dialog().show(STR('Removed empty directories'),'\n'.join(final_info))
             self.store_text_dialog_fields(self.text_info_dialog)
 
             self.tree_folder_update(self.sel_path_full)
@@ -3674,7 +3705,7 @@ class Gui:
     @restore_status_line
     @block_and_log
     def column_sort(self, tree):
-        self.status('Sorting...')
+        self.status(STR('Sorting...'))
         colname,sort_index,is_numeric,reverse,updir_code,dir_code,non_dir_code = self.column_sort_last_params[tree]
 
         self.column_sort_set_arrow(tree)
@@ -3783,7 +3814,7 @@ class Gui:
         #############################
 
         self.scan_dialog.widget.update()
-        self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
+        self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]=STR('If you abort at this stage,\nyou will not get any results.')
         self_progress_dialog_on_scan.abort_button.configure(image=self.ico['cancel'],text='Cancel',compound='left')
         self_progress_dialog_on_scan.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
 
@@ -3838,16 +3869,16 @@ class Gui:
         scan_thread=Thread(target=lambda : dude_core.scan(operation_mode,file_min_size_int,file_max_size_int),daemon=True)
         scan_thread.start()
 
-        self_progress_dialog_on_scan.lab_l1.configure(text='Total space:')
-        self_progress_dialog_on_scan.lab_l2.configure(text='Files number:' )
+        self_progress_dialog_on_scan.lab_l1.configure(text=STR('Total space:'))
+        self_progress_dialog_on_scan.lab_l2.configure(text=STR('Files number:'))
 
         self_progress_dialog_on_scan_progr1var.set(0)
         self_progress_dialog_on_scan_progr2var.set(0)
 
         if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
-            self_progress_dialog_on_scan.show('Scanning for images')
+            self_progress_dialog_on_scan.show(STR('Scanning for images'))
         else:
-            self_progress_dialog_on_scan.show('Scanning')
+            self_progress_dialog_on_scan.show(STR('Scanning'))
 
         update_once=True
 
@@ -3911,7 +3942,7 @@ class Gui:
 
                 if update_once:
                     update_once=False
-                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\nyou will not get any results.'
+                    self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=STR('If you abort at this stage,\nyou will not get any results.')
                     self_configure_tooltip(str_self_progress_dialog_on_scan_abort_button)
 
                     self_progress_dialog_on_scan_lab[2].configure(image=self.ico_empty)
@@ -3941,14 +3972,14 @@ class Gui:
         #############################
         if dude_core.sum_size==0:
             self_progress_dialog_on_scan.hide(True)
-            self.get_info_dialog_on_scan().show('Cannot Proceed.','No Duplicates.')
+            self.get_info_dialog_on_scan().show(STR('Cannot Proceed.'),STR('No Duplicates.'))
             return False
         #############################
 
         self_status=self.status=self.status_progress
 
-        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]='If you abort at this stage,\npartial results may be available\n(if any groups are found).'
-        self_progress_dialog_on_scan.abort_button.configure(image=self.ico['abort'],text='Abort',compound='left')
+        self_tooltip_message[str_self_progress_dialog_on_scan_abort_button]=STR('TOOLTIP_ABORT')
+        self_progress_dialog_on_scan.abort_button.configure(image=self.ico['abort'],text=STR('Abort'),compound='left')
 
         self_progress_dialog_on_scan_progr1var_set = self_progress_dialog_on_scan_progr1var.set
         self_progress_dialog_on_scan_progr2var_set = self_progress_dialog_on_scan_progr2var.set
@@ -3966,9 +3997,9 @@ class Gui:
             self_progress_dialog_on_scan_lab[4].configure(image='',text='')
 
 
-            self_progress_dialog_on_scan.widget.title('Images hashing')
+            self_progress_dialog_on_scan.widget.title(STR('Images hashing'))
 
-            self_status('Starting Images hashing ...')
+            self_status(STR('Starting Images hashing ...'))
 
             hash_size = self.similarity_hsize_varx2.get()
             all_rotations = self.all_rotations.get()
@@ -4005,7 +4036,7 @@ class Gui:
 
                 if dude_core.can_abort and self.action_abort and not dude_core.abort_action:
                     dude_core.abort_action = True
-                    self_progress_dialog_on_scan_lab[3].configure(image='',text='Aborted')
+                    self_progress_dialog_on_scan_lab[3].configure(image='',text=STR('Aborted'))
                     self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
 
                 self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
@@ -4023,12 +4054,12 @@ class Gui:
             self_progress_dialog_on_scan_lab_r1_config(text='-')
             self_progress_dialog_on_scan_lab_r2_config(text='-')
 
-            self_progress_dialog_on_scan.widget.title('Data clustering')
+            self_progress_dialog_on_scan.widget.title(STR('Data clustering'))
             self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
 
             ####################################################
             self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty,text='')
-            self_progress_dialog_on_scan_lab[1].configure(text='... Clustering data ...')
+            self_progress_dialog_on_scan_lab[1].configure(text=STR('... Clustering data ...'))
             self_progress_dialog_on_scan_lab[2].configure(text='')
             self_progress_dialog_on_scan_lab[3].configure(text='')
             self_progress_dialog_on_scan_lab[4].configure(text='')
@@ -4036,7 +4067,7 @@ class Gui:
 
             if operation_mode==MODE_SIMILARITY:
                 #clustering
-                self_status('Data clustering ...')
+                self_status(STR('Data clustering') + ' ...')
 
                 distance = self.similarity_distance_var.get()
 
@@ -4057,7 +4088,7 @@ class Gui:
 
             else:
                 #gps clustering
-                self_status('Data clustering ...')
+                self_status(STR('Data clustering') + ' ...')
 
                 distance = self.similarity_distance_var.get()
 
@@ -4079,8 +4110,8 @@ class Gui:
             self_progress_dialog_on_scan.widget.config(cursor="watch")
 
             if not self.action_abort:
-                self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty,text='Finished.')
-                self_progress_dialog_on_scan_lab[1].configure(image='',text='... Rendering data ...')
+                self_progress_dialog_on_scan_lab[0].configure(image=self.ico_empty,text=STR('Finished.'))
+                self_progress_dialog_on_scan_lab[1].configure(image='',text=STR('... Rendering data ...'))
                 self_progress_dialog_on_scan_lab[2].configure(image='',text='')
                 self_progress_dialog_on_scan_lab[3].configure(image='',text='')
                 self_progress_dialog_on_scan_lab[4].configure(image='',text='')
@@ -4175,8 +4206,8 @@ class Gui:
 
                 if dude_core.can_abort:
                     if self.action_abort:
-                        self_progress_dialog_on_scan_lab[0].configure(image='',text='Aborted.')
-                        self_progress_dialog_on_scan_lab[1].configure(text='... Rendering data ...')
+                        self_progress_dialog_on_scan_lab[0].configure(image='',text=STR('Aborted.'))
+                        self_progress_dialog_on_scan_lab[1].configure(text=STR('... Rendering data ...'))
                         self_progress_dialog_on_scan_lab[2].configure(text='')
                         self_progress_dialog_on_scan_lab[3].configure(text='')
                         self_progress_dialog_on_scan_lab[4].configure(text='')
@@ -4192,8 +4223,8 @@ class Gui:
             self_progress_dialog_on_scan.widget.config(cursor="watch")
 
             if not self.action_abort:
-                self_progress_dialog_on_scan_lab[0].configure(image='',text='Finished.')
-                self_progress_dialog_on_scan_lab[1].configure(image='',text='... Rendering data ...')
+                self_progress_dialog_on_scan_lab[0].configure(image='',text=STR('Finished.'))
+                self_progress_dialog_on_scan_lab[1].configure(image='',text=STR('... Rendering data ...'))
                 self_progress_dialog_on_scan_lab[2].configure(image='',text='')
                 self_progress_dialog_on_scan_lab[3].configure(image='',text='')
                 self_progress_dialog_on_scan_lab[4].configure(image='',text='')
@@ -4218,7 +4249,7 @@ class Gui:
         self.status=self.status_main_win if windows else self.status_main
 
         if self.action_abort:
-            self.get_info_dialog_on_scan().show('CRC Calculation aborted.','\nResults are partial.\nSome files may remain unidentified as duplicates.')
+            self.get_info_dialog_on_scan().show(STR('ABORT_INFO'),STR('ABORT_INFO_FULL'))
 
         if self.cfg.get_bool(CFG_KEY_SHOW_PREVIEW):
             self.show_preview(False)
@@ -4254,7 +4285,7 @@ class Gui:
         if len(self.paths_to_scan_from_dialog)==self.MAX_PATHS:
             self.add_path_button.configure(state='disabled',text='')
         else:
-            self.add_path_button.configure(state='normal',text='Add path ...')
+            self.add_path_button.configure(state='normal',text=STR('Add path ...'))
 
     def exclude_regexp_set(self):
         self.cfg.set_bool(CFG_KEY_EXCLUDE_REGEXP,self.exclude_regexp_scan.get())
@@ -4279,25 +4310,25 @@ class Gui:
                 remove_expression_button=Button(frame,image=self.ico['delete'],command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
                 remove_expression_button.pack(side='right',padx=2,pady=1,fill='y')
 
-                self.widget_tooltip(remove_expression_button,'Remove expression from list.')
+                self.widget_tooltip(remove_expression_button,STR('Remove expression from list.'))
 
                 row+=1
 
     def path_to_scan_add_dialog(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
+        if res:=askdirectory(title=STR('Select Directory'),initialdir=initialdir,parent=self.scan_dialog.area_main):
             self.last_dir=res
             self.path_to_scan_add(normpath(abspath(res)))
 
     def exclude_mask_add_dir(self):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if res:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.scan_dialog.area_main):
+        if res:=askdirectory(title=STR('Select Directory'),initialdir=initialdir,parent=self.scan_dialog.area_main):
             self.last_dir=res
             expr = normpath(abspath(res)) + (".*" if self.exclude_regexp_scan.get() else "*")
             self.exclude_mask_string(expr)
 
     def exclude_mask_add_dialog(self):
-        self.get_exclude_dialog_on_scan().show('Specify Exclude expression','expression:','')
+        self.get_exclude_dialog_on_scan().show(STR('Specify Exclude expression'),STR('expression:'),'')
         confirmed=self.exclude_dialog_on_scan.res_bool
         mask=self.exclude_dialog_on_scan.res_str
 
@@ -4478,7 +4509,7 @@ class Gui:
 
     @logwrapper
     def data_precalc(self):
-        self.status('Precalculating data...')
+        self.status(STR('Precalculating data...'))
 
         self.create_my_prev_next_dicts(self.groups_tree)
         self_tree_children = self.tree_children
@@ -4571,17 +4602,17 @@ class Gui:
     @block_and_log
     def groups_show(self):
         if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
-            self.groups_tree.heading('#0',text='GROUP/Scan Path',anchor='w')
-            self.folder_tree.heading('#0',text='GROUP',anchor='w')
+            self.groups_tree.heading('#0',text=STR('GROUP/Scan Path'),anchor='w')
+            self.folder_tree.heading('#0',text=STR('GROUP'),anchor='w')
         else:
-            self.groups_tree.heading('#0',text='CRC/Scan Path',anchor='w')
+            self.groups_tree.heading('#0',text=STR('CRC/Scan Path'),anchor='w')
             self.folder_tree.heading('#0',text='CRC',anchor='w')
 
         self_idfunc=self.idfunc = (lambda i,d : '%s-%s' % (i,d)) if len(dude_core.devs)>1 else (lambda i,d : str(i))
 
         self_status=self.status
 
-        self_status('Cleaning tree...')
+        self_status(STR('Cleaning tree...'))
         self.reset_sels()
         self_groups_tree = self.groups_tree
 
@@ -4594,7 +4625,7 @@ class Gui:
         show_full_crc=self.cfg_get_bool(CFG_KEY_FULL_CRC)
         show_full_paths=self.cfg_get_bool(CFG_KEY_FULL_PATHS)
 
-        self_status('Rendering data...')
+        self_status(STR('Rendering data...'))
 
         show_mode_cross=bool(show_mode=='1')
         show_mode_same_dir=bool(show_mode=='2')
@@ -4740,7 +4771,7 @@ class Gui:
 
     @block_and_log
     def groups_tree_update_crc_and_path(self,configure_icon=False):
-        self.status('Updating items ...')
+        self.status(STR('Updating items ...'))
         self.main_update()
 
         show_full_crc=self.cfg_get_bool(CFG_KEY_FULL_CRC)
@@ -5154,12 +5185,12 @@ class Gui:
             title='Specify expression for file names in selected directory.'
 
         if tree==self.groups_tree:
-            self.get_mark_dialog_on_groups().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=initialvalue_re)
+            self.get_mark_dialog_on_groups().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text=STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
             res_code = self.mark_dialog_on_groups.res_bool
             use_reg_expr = self.mark_dialog_on_groups.check_val.get()
             self.expr_by_tree[tree] = expression = self.mark_dialog_on_groups.entry_val.get()
         else:
-            self.get_mark_dialog_on_folder().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text='treat as a regular expression',checkbutton_initial=initialvalue_re)
+            self.get_mark_dialog_on_folder().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text=STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
             res_code = self.mark_dialog_on_folder.res_bool
             use_reg_expr = self.mark_dialog_on_folder.check_val.get()
             self.expr_by_tree[tree] = expression = self.mark_dialog_on_folder.entry_val.get()
@@ -5239,7 +5270,7 @@ class Gui:
     @logwrapper
     def mark_subpath(self,action,all_groups=True):
         initialdir = self.last_dir if self.last_dir else self.cwd
-        if path:=askdirectory(title='Select Directory',initialdir=initialdir,parent=self.main):
+        if path:=askdirectory(title=STR('Select Directory'),initialdir=initialdir,parent=self.main):
             self.last_dir = path
             self.action_on_path(path,action,all_groups)
 
@@ -5374,9 +5405,9 @@ class Gui:
         processed_items=defaultdict(dict)
 
         if all_groups:
-            scope_title='All marked files.'
+            scope_title=STR('All marked files.')
         else:
-            scope_title='Single group.'
+            scope_title=STR('Single group.')
 
         self_sel_crc = self.sel_crc
         self_tagged = self.tagged
@@ -5401,7 +5432,7 @@ class Gui:
         self_tree_children_sub = self.tree_children_sub
 
         if on_dir_action:
-            scope_title='All marked files on selected directory sub-tree.'
+            scope_title=STR('All marked files on selected directory sub-tree.')
 
             self_tagged = self.tagged
 
@@ -5414,7 +5445,7 @@ class Gui:
                             processed_items[crc][index]=item
                             index+=1
         else:
-            scope_title='Selected Directory.'
+            scope_title=STR('Selected Directory.')
 
             self_current_folder_items_tagged = self.current_folder_items_tagged
             self_groups_tree_item_to_data = self.groups_tree_item_to_data
@@ -6203,8 +6234,8 @@ class Gui:
 
         self.process_files_core_info='initial'
 
-        dialog.lab_l1.configure(text='Total space:')
-        dialog.lab_l2.configure(text='Files number:' )
+        dialog.lab_l1.configure(text=STR('Total space:'))
+        dialog.lab_l2.configure(text=STR('Files number:'))
 
         dialog.progr1var.set(0)
         dialog.progr2var.set(0)
@@ -6266,7 +6297,7 @@ class Gui:
             self.store_text_dialog_fields(self.text_info_dialog)
 
         if final_info:
-            self.get_text_info_dialog().show('Removed empty directories','\n'.join(final_info))
+            self.get_text_info_dialog().show(STR('Removed empty directories'),'\n'.join(final_info))
             self.store_text_dialog_fields(self.text_info_dialog)
 
         self.data_precalc()
