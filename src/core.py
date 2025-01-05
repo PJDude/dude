@@ -867,6 +867,7 @@ class DudeCore:
                 if dict_key_proximity in self.images_data_cache['gps']:
                     if val := self.images_data_cache['gps'][dict_key_proximity]:
                         self_scan_results_image_to_gps[(dev,inode,mtime)] = val
+                        #print('setting_1:',dev,inode,mtime,val)
 
                     continue
 
@@ -946,7 +947,10 @@ class DudeCore:
                             anything_new=True
                 if gps_mode: # and gps brak danych gps tez mozna cacheowac
                     self.images_data_cache['gps'][(dev,inode,mtime)]=gps
-                    self_scan_results_image_to_gps[(dev,inode,mtime)] = gps
+                    if gps:
+                        #..ale nie ustawiać
+                        self_scan_results_image_to_gps[(dev,inode,mtime)] = gps
+                        #print('setting_2:',dev,inode,mtime,gps)
                     anything_new=True
 
                 if width and height:
@@ -1056,9 +1060,8 @@ class DudeCore:
 
         for (path_nr,subpath,name,mtime,ctime,dev,ino,size) in sorted(self.scan_results_images, key=lambda x :[6],reverse = True) :
             dict_key = (dev,ino,mtime)
-            #print(f'{self_scan_results_image_to_gps=}')
             if dict_key in self_scan_results_image_to_gps:
-                pool.append( numpy_array(self_scan_results_image_to_gps[(dev,ino,mtime)] ) )
+                pool.append( numpy_array(self_scan_results_image_to_gps[dict_key] ) )
                 keys.append( (path_nr,subpath,name,ctime,dev,ino,size) )
 
         self_files_of_images_groups = self.files_of_images_groups = {}
@@ -1070,7 +1073,8 @@ class DudeCore:
 
             t0=perf_counter()
             self.log.info(f'start DBSCAN')
-            labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='euclidean',algorithm='auto').fit(pool).labels_
+            #labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='euclidean',algorithm='auto').fit(pool).labels_
+            labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='manhattan',algorithm='kd_tree').fit(pool).labels_
             t1=perf_counter()
             self.log.info(f'DBSCAN end. Time:{t1-t0}')
 
