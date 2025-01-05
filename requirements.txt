@@ -1,10 +1,10 @@
 pyinstaller==6.11.1
-appdirs==1.4.4
 send2trash==1.8.3
 zstandard==0.23.0
-nuitka==2.5.8
+nuitka==2.5.9
 tkinterdnd2==0.4.2
 imagehash==4.3.1
-pillow==11.0.0
+pillow==11.1.0
 scikit-learn==1.6.0
 exifread==3.0.0
+appdirs==1.4.4
