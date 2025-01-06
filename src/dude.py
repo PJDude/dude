@@ -252,7 +252,7 @@ def measure(func):
 
 ###########################################################
 class Image_Cache:
-    def __init__(self,tkwindow):
+    def __init__(self):
         from threading import Thread
         from PIL.Image import BILINEAR, open as image_open
         from PIL.ImageTk import PhotoImage as ImageTk_PhotoImage
@@ -392,7 +392,8 @@ class Image_Cache:
 
                     if len(self.cache_scaled_file.items())>self.max_cache:
                         temp_time_dict = {update_time:path for path,(update_time,scaled_image_var,width_var,height_var,ratio_var,window_width_var,window_height_var) in self.cache_scaled_file.items()}
-                        min_time = min({update_time for update_time in temp_time_dict.keys()})
+                        #min_time = min({update_time for update_time in temp_time_dict.keys()})
+                        min_time = min(temp_time_dict.keys())
                         oldest_path=temp_time_dict[min_time]
 
                         del self.cache_scaled_file[oldest_path]
@@ -408,7 +409,7 @@ class Image_Cache:
                 self.scaled_photoimage,width,height,ratio = None,0,0,1
                 break
 
-        return None,f'get_photo_image error:1'
+        return None,'get_photo_image error:1'
 
 ###########################################################
 
@@ -3033,7 +3034,7 @@ class Gui:
 
     def show_preview(self,user_action=True):
         self_preview = self.preview
-        self.preview_photo_image_cache = Image_Cache(self.main)
+        self.preview_photo_image_cache = Image_Cache()
 
         if self.preview_shown:
             self_preview.lift()
@@ -5506,7 +5507,7 @@ class Gui:
         skip_incorrect = self.cfg_get_bool(CFG_SKIP_INCORRECT_GROUPS)
         show_full_crc=self.cfg_get_bool(CFG_KEY_FULL_CRC)
 
-        self.status('checking data consistency with filesystem state ...')
+        self.status(STR('checking data consistency with filesystem state ...'))
 
         dude_core_check_group_files_state = dude_core.check_group_files_state
 
@@ -5515,7 +5516,7 @@ class Gui:
 
         if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             ###############################################################
-            self.get_info_dialog_on_main().show('Warning !','Similarity mode !\nFiles in groups are not exact copies !')
+            self.get_info_dialog_on_main().show(STR('Warning !'),STR('Similarity mode !\nFiles in groups are not exact copies !'))
 
             for group in processed_items:
                 size = 0
@@ -5524,7 +5525,7 @@ class Gui:
                 try:
                     #(checkres,tuples_to_remove)=dude_core_check_group_files_state(size,group,True)
                     (checkres_dict[group],tuples_to_remove_dict[group])=dude_core_check_group_files_state(size,group,True)
-                    if checkres_dict[crc]:
+                    if checkres_dict[group]:
                         checkres_dict_any = True
 
                 except Exception as e:
@@ -5532,7 +5533,7 @@ class Gui:
                     return self.CHECK_ERR
 
             if checkres_dict_any:
-                self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join( sum(checkres_dict.values(),[]) ) + '\n\nSelected group will be reduced. For complete results re-scanning is recommended.')
+                self.get_text_info_dialog().show(STR('Error. Inconsistent data.'),STR('Current filesystem state is inconsistent with scanned data.\n\n') + '\n'.join( sum(checkres_dict.values(),[]) ) + STR('\n\nSelected group will be reduced. For complete results re-scanning is recommended.'))
                 self.store_text_dialog_fields(self.text_info_dialog)
 
                 orglist=self.tree_children[self.groups_tree]
@@ -5558,7 +5559,7 @@ class Gui:
 
                 return self.CHECK_ERR
 
-            self.status('checking selection correctness...')
+            self.status(STR('checking selection correctness...'))
 
             incorrect_groups=[]
             incorrect_groups_append = incorrect_groups.append
@@ -5566,25 +5567,25 @@ class Gui:
                 for group in processed_items:
                     if len(processed_items[group])==1:
                         incorrect_groups_append(group)
-                problem_header = 'Single file marked'
-                problem_message = "Mark more files\nor enable option:\n\"Skip groups with invalid selection\""
+                problem_header = STR('Single file marked')
+                problem_message = STR("Mark more files\nor enable option:\n\"Skip groups with invalid selection\"")
             else:
                 for group in processed_items:
                     if len(remaining_items[group])==0:
                         incorrect_groups_append(group)
 
-                problem_header = 'All files marked'
+                problem_header = STR('All files marked')
                 if action in (SOFTLINK,WIN_LNK):
-                    problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
+                    problem_message = STR("Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"")
                 else:
-                    problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\""
+                    problem_message = STR("Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\"")
 
             if incorrect_groups:
                 if skip_incorrect:
 
                     incorrect_group_str='\n'.join([group if show_full_crc else group[:dude_core.crc_cut_len] for group in incorrect_groups ])
-                    header = f'Warning ({NAME[action]}). {problem_header}'
-                    message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
+                    header = STR('Warning !') + f'({NAME[action]}). {problem_header}'
+                    message = STR("Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:\n\n") + str(incorrect_group_str)
 
                     self.get_text_info_dialog().show(header,message)
                     self.store_text_dialog_fields(self.text_info_dialog)
@@ -5597,7 +5598,7 @@ class Gui:
 
                 else:
                     if action==DELETE and self.cfg_get_bool(CFG_ALLOW_DELETE_ALL):
-                        self.get_text_ask_dialog().show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED')
+                        self.get_text_ask_dialog().show(STR('Warning !'),STR('Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED'))
                         self.store_text_dialog_fields(self.text_ask_dialog)
                         if self.text_ask_dialog.res_bool:
                             return self.CHECK_OK
@@ -5625,7 +5626,7 @@ class Gui:
                     return self.CHECK_ERR
 
             if checkres_dict_any:
-                self.get_text_info_dialog().show('Error. Inconsistent data.','Current filesystem state is inconsistent with scanned data.\n\n' + '\n'.join( sum(checkres_dict.values(),[]) ) + '\n\nSelected group will be reduced. For complete results re-scanning is recommended.')
+                self.get_text_info_dialog().show(STR('Error. Inconsistent data.'),STR('Current filesystem state is inconsistent with scanned data.\n\n') + '\n'.join( sum(checkres_dict.values(),[]) ) + STR('\n\nSelected group will be reduced. For complete results re-scanning is recommended.'))
                 self.store_text_dialog_fields(self.text_info_dialog)
 
                 orglist=self.tree_children[self.groups_tree]
@@ -5652,7 +5653,7 @@ class Gui:
 
                 return self.CHECK_ERR
 
-            self.status('checking selection correctness...')
+            self.status(STR('checking selection correctness...'))
 
             incorrect_groups=[]
             incorrect_groups_append = incorrect_groups.append
@@ -5660,25 +5661,25 @@ class Gui:
                 for crc in processed_items:
                     if len(processed_items[crc])==1:
                         incorrect_groups_append(crc)
-                problem_header = 'Single file marked'
-                problem_message = "Mark more files\nor enable option:\n\"Skip groups with invalid selection\""
+                problem_header = STR('Single file marked')
+                problem_message = STR("Mark more files\nor enable option:\n\"Skip groups with invalid selection\"")
             else:
                 for crc in processed_items:
                     if len(remaining_items[crc])==0:
                         incorrect_groups_append(crc)
 
-                problem_header = 'All files marked'
+                problem_header = STR('All files marked')
                 if action in (SOFTLINK,WIN_LNK):
-                    problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\""
+                    problem_message = STR("Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"")
                 else:
-                    problem_message = "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\""
+                    problem_message = STR("Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\"")
 
             if incorrect_groups:
                 if skip_incorrect:
 
                     incorrect_group_str='\n'.join([crc if show_full_crc else crc[:dude_core.crc_cut_len] for crc in incorrect_groups ])
-                    header = f'Warning ({NAME[action]}). {problem_header}'
-                    message = f"Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:\n\n{incorrect_group_str}"
+                    header = STR('Warning !') + f' ({NAME[action]}). {problem_header}'
+                    message = STR('Option "Skip groups with invalid selection" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:') + f"\n\n{incorrect_group_str}"
 
                     self.get_text_info_dialog().show(header,message)
                     self.store_text_dialog_fields(self.text_info_dialog)
@@ -5691,7 +5692,7 @@ class Gui:
 
                 else:
                     if action==DELETE and self.cfg_get_bool(CFG_ALLOW_DELETE_ALL):
-                        self.get_text_ask_dialog().show('Warning !','Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED')
+                        self.get_text_ask_dialog().show(STR('Warning !'),STR('Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED'))
                         self.store_text_dialog_fields(self.text_ask_dialog)
                         if self.text_ask_dialog.res_bool:
                             return self.CHECK_OK
@@ -5707,7 +5708,7 @@ class Gui:
     @restore_status_line
     @block_and_log
     def process_files_check_correctness_last(self,action,processed_items,remaining_items):
-        self.status('final checking selection correctness')
+        self.status(STR('final checking selection correctness'))
         self.main_update()
 
         self_file_check_state = self.file_check_state
@@ -5718,8 +5719,8 @@ class Gui:
                 for group,items_dict in processed_items.items():
                     #kind,size,group, (pathnr,path,file,ctime,dev,inode)
                     if len({self_groups_tree_item_to_data[item][3][4] for item in items_dict.values()})>1: #dev
-                        title='Can\'t create hardlinks.'
-                        message=f"Files on multiple devices selected. Group:{group}"
+                        title=STR("Can't create hardlinks.")
+                        message=STR("Files on multiple devices selected.") + f" Group:{group}"
                         l_error(title)
                         l_error(message)
                         self.get_info_dialog_on_main().show(title,message)
@@ -5728,7 +5729,7 @@ class Gui:
             for crc in processed_items:
                 for item in remaining_items[crc].values():
                     if res:=self_file_check_state(item):
-                        self.get_info_dialog_on_main().show('Error',res+'\n\nNo action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.')
+                        self.get_info_dialog_on_main().show('Error',res+'\n\n' + STR('No action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.'))
                         l_error('aborting.')
                         return self.CHECK_ERR
         else:
@@ -5736,8 +5737,8 @@ class Gui:
                 for crc,items_dict in processed_items.items():
                     #kind,size,crc, (pathnr,path,file,ctime,dev,inode)
                     if len({self_groups_tree_item_to_data[item][3][4] for item in items_dict.values()})>1: #dev
-                        title='Can\'t create hardlinks.'
-                        message=f"Files on multiple devices selected. Crc:{crc}"
+                        title=STR("Can't create hardlinks.")
+                        message=STR("Files on multiple devices selected.") + f" Crc:{crc}"
                         l_error(title)
                         l_error(message)
                         self.get_info_dialog_on_main().show(title,message)
@@ -5746,17 +5747,17 @@ class Gui:
             for crc in processed_items:
                 for item in remaining_items[crc].values():
                     if res:=self_file_check_state(item):
-                        self.get_info_dialog_on_main().show('Error',res+'\n\nNo action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.')
+                        self.get_info_dialog_on_main().show('Error',res+'\n\n' + STR('No action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.'))
                         l_error('aborting.')
                         return self.CHECK_ERR
 
-        l_info('remaining files checking complete.')
+        l_info(STR('remaining files checking complete.'))
         return self.CHECK_OK
 
     @restore_status_line
     @logwrapper
     def process_files_confirm(self,action,processed_items,remaining_items,scope_title):
-        self.status('confirmation required...')
+        self.status(STR('confirmation required...'))
         show_full_path=1
 
         cfg_show_crc_size = self.cfg_get_bool(CFG_CONFIRM_SHOW_CRCSIZE)
@@ -5772,8 +5773,8 @@ class Gui:
         space_prefix = '  ' if softlink_or_win_lnk and cfg_show_links_targets else ''
 
         if action_is_win_lnk:
-            message_append('Link files will be created with the names of the listed files with the ".lnk" suffix.')
-            message_append('Original files will be removed.')
+            message_append(STR('Link files will be created with the names of the listed files with the ".lnk" suffix.'))
+            message_append(STR('Original files will be removed.'))
             message_append('')
 
         self_item_full_path = self.item_full_path
@@ -5787,7 +5788,7 @@ class Gui:
                 message_append('')
 
                 if cfg_show_crc_size:
-                    message_append('GROUP:' + group + '|GRAY')
+                    message_append(STR('GROUP:') + group + '|GRAY')
 
                 for index,item in items_dict.items():
                     kind,size_item,crc_item, (pathnr,path,file,ctime,dev,inode) = self_groups_tree_item_to_data[item]
@@ -5804,29 +5805,29 @@ class Gui:
                         if cfg_show_links_targets:
                             message_append('> %s' % (self_item_full_path(item) if show_full_path else self_groups_tree_item_to_data[item][3][2]) ) #file
 
-            size_info = "Processed files size sum : " + bytes_to_str(size_sum) + "\n"
+            size_info = STR("Processed files size sum : ") + bytes_to_str(size_sum) + "\n"
 
-            trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No") + "|RED"
+            trash_info =     STR("\n\nSend to Trash            : ") + (STR("Yes") if self.cfg_get_bool(CFG_SEND_TO_TRASH) else STR("No")) + "|RED"
 
             head_info = scope_title + trash_info
             if action==DELETE:
-                erase_empty_dirs = "\nErase empty directories  : " + ('Yes|RED' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
-                self.get_text_ask_dialog().show('Delete marked files ?','Scope: ' + head_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
+                erase_empty_dirs = STR("\nErase empty directories  : ") + (STR('Yes|RED') if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else STR("No"))
+                self.get_text_ask_dialog().show(STR('Delete marked files ?'),STR('Scope: ') + head_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
                 self.store_text_dialog_fields(self.text_ask_dialog)
                 if not self.text_ask_dialog.res_bool:
                     return True
             elif action_is_softlink:
-                self.get_text_ask_dialog().show('Soft-Link marked files to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+                self.get_text_ask_dialog().show(STR('Soft-Link marked files to the first unmarked file in the group ?'),STR('Scope: ') + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
                 self.store_text_dialog_fields(self.text_ask_dialog)
                 if not self.text_ask_dialog.res_bool:
                     return True
             elif action_is_win_lnk:
-                self.get_text_ask_dialog().show('replace marked files with .lnk files pointing to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+                self.get_text_ask_dialog().show(STR('replace marked files with .lnk files pointing to the first unmarked file in the group ?'),STR('Scope: ') + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
                 self.store_text_dialog_fields(self.text_ask_dialog)
                 if not self.text_ask_dialog.res_bool:
                     return True
             elif action==HARDLINK:
-                self.get_text_ask_dialog().show('Hard-Link marked files together in groups ?','Scope: ' + head_info + '\n\n' + size_info +'\n'+'\n'.join(message))
+                self.get_text_ask_dialog().show(STR('Hard-Link marked files together in groups ?'),STR('Scope: ') + head_info + '\n\n' + size_info +'\n'+'\n'.join(message))
                 self.store_text_dialog_fields(self.text_ask_dialog)
                 if not self.text_ask_dialog.res_bool:
                     return True
@@ -5859,36 +5860,36 @@ class Gui:
                         if cfg_show_links_targets:
                             message_append('> %s' % (self_item_full_path(item) if show_full_path else self_groups_tree_item_to_data[item][3][2]) ) #file
 
-            size_info = "Processed files size sum : " + bytes_to_str(size_sum) + "\n"
+            size_info = STR("Processed files size sum : ") + bytes_to_str(size_sum) + "\n"
 
-            trash_info =     "\n\nSend to Trash            : " + ("Yes" if self.cfg_get_bool(CFG_SEND_TO_TRASH) else "No") + "|RED"
+            trash_info =     STR("\n\nSend to Trash            : ") + (STR("Yes") if self.cfg_get_bool(CFG_SEND_TO_TRASH) else STR("No")) + "|RED"
 
             head_info = scope_title + trash_info
             if action==DELETE:
-                erase_empty_dirs = "\nErase empty directories  : " + ('Yes|RED' if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else 'No')
-                self.get_text_ask_dialog().show('Delete marked files ?','Scope: ' + head_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
+                erase_empty_dirs = STR("\nErase empty directories  : ") + (STR('Yes|RED') if self.cfg_get_bool(CFG_ERASE_EMPTY_DIRS) else STR("No"))
+                self.get_text_ask_dialog().show(STR('Delete marked files ?'),STR('Scope: ') + head_info + erase_empty_dirs + '\n\n' + size_info + '\n' + '\n'.join(message))
                 self.store_text_dialog_fields(self.text_ask_dialog)
                 if not self.text_ask_dialog.res_bool:
                     return True
             elif action_is_softlink:
-                self.get_text_ask_dialog().show('Soft-Link marked files to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+                self.get_text_ask_dialog().show(STR('Soft-Link marked files to the first unmarked file in the group ?'),STR('Scope: ') + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
                 self.store_text_dialog_fields(self.text_ask_dialog)
                 if not self.text_ask_dialog.res_bool:
                     return True
             elif action_is_win_lnk:
-                self.get_text_ask_dialog().show('replace marked files with .lnk files pointing to the first unmarked file in the group ?','Scope: ' + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
+                self.get_text_ask_dialog().show(STR('replace marked files with .lnk files pointing to the first unmarked file in the group ?'),STR('Scope: ') + head_info + '\n\n' + size_info + '\n'+'\n'.join(message))
                 self.store_text_dialog_fields(self.text_ask_dialog)
                 if not self.text_ask_dialog.res_bool:
                     return True
             elif action==HARDLINK:
-                self.get_text_ask_dialog().show('Hard-Link marked files together in groups ?','Scope: ' + head_info + '\n\n' + size_info +'\n'+'\n'.join(message))
+                self.get_text_ask_dialog().show(STR('Hard-Link marked files together in groups ?'),STR('Scope: ') + head_info + '\n\n' + size_info +'\n'+'\n'.join(message))
                 self.store_text_dialog_fields(self.text_ask_dialog)
                 if not self.text_ask_dialog.res_bool:
                     return True
 
             _ = {l_warning(line) for line in message}
             l_warning('###########################################################################################')
-            l_warning('Confirmed.')
+            l_warning(STR('Confirmed.'))
 
         return False
 
@@ -5899,7 +5900,7 @@ class Gui:
         clean,removed = self.empty_dirs_removal_core(path,removal_func)
 
         if report_empty and not removed:
-            removed.append(f'No empty subdirectories in:\'{path}\'')
+            removed.append(STR('No empty subdirectories in:') + '\'' + str(path) + '\'')
 
         return removed
 
@@ -6172,7 +6173,7 @@ class Gui:
         tree=self.sel_tree
 
         if not processed_items:
-            self.get_info_dialog_on_main().show('No Files Marked For Processing !','Scope: ' + scope_title + '\n\nMark files first.')
+            self.get_info_dialog_on_main().show(STR('No Files Marked For Processing !'),STR('Scope: ') + scope_title + '\n\n' + STR('Mark files first.'))
             return
 
         l_info('process_files: %s',action)
@@ -6205,7 +6206,7 @@ class Gui:
             return
 
         if not processed_items:
-            self.get_info_dialog_on_main().show('info','No files left for processing.\nFix files selection.')
+            self.get_info_dialog_on_main().show('info',STR('No files left for processing.\nFix files selection.'))
             return
 
         l_warning('###########################################################################################')
@@ -6291,7 +6292,7 @@ class Gui:
         wait_var_set(False)
         wait_var_get = wait_var.get
 
-        dialog.show('Processing',now=False)
+        dialog.show(STR('Processing'),now=False)
 
         dialog_lab = dialog.lab
 
@@ -6496,7 +6497,7 @@ class Gui:
     def clip_copy(self,what):
         self.main.clipboard_clear()
         self.main.clipboard_append(what)
-        self.status('Copied to clipboard: "%s"' % what)
+        self.status(STR('Copied to clipboard:') +  ' "' + str(what) + '"')
 
     @block
     def enter_dir(self,fullpath,sel):
@@ -6552,7 +6553,7 @@ class Gui:
 
         params=[]
         if tree.set(self.sel_item,'kind')==self.CRC:
-            self.status('Opening folders(s)')
+            self.status(STR('Opening folders(s)'))
             for item in self.tree_children_sub[self.sel_item]:
                 pathnr=int(tree.set(item,'pathnr'))
                 item_path=tree.set(item,'path')

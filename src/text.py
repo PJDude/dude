@@ -266,13 +266,17 @@ class LANGUAGES:
         'Skip groups with invalid selection':{
                 "pl":'Pomiń grupy z błędną selekcją'},
         'Allow deletion of all copies':{
-                "pl":'Zezwól na kasowanie wszystkich kopii'},
+                "pl":'Zezwól na usunięcie wszystkich kopii'},
         'Show soft links targets':{
                 "pl":'Pokazuj pliki docelowe miękkich linków'},
         'Show CRC/GROUP and size':{
                 "pl":'Pokazuj CRC, grupę oraz wielkość'},
         "Processing":{
                 "pl":'Przetwarzanie'},
+        'No files left for processing.\nFix files selection.':{
+                "pl":'Nie pozosytało plików do przetworzenia\nPopraw selekcję plików.'},
+        'No Files Marked For Processing !':{
+                "pl":'Nie ma zaznaczonych plików do przetworzenia !'},
         'Create relative symbolic links':{
                 "pl":'Twórz miękkie dowiązania ze ścieżką względną'},
         'Erase remaining empty directories':{
@@ -451,6 +455,86 @@ class LANGUAGES:
                 "pl":'Wymagany restart aplikacji.'},
         'Language:':{
                 "pl":'Język:'},
+        'Opening folders(s)':{
+                "pl":'Otwieranie folderó(w)'},
+        'Copied to clipboard:':{
+                "pl":'Skopiowano do schowka:'},
+        'Scope: ':{
+                "pl":'Zakres: '},
+        'Mark files first.':{
+                "pl":'Zaznacz najpierw pliki.'},
+        'No empty subdirectories in:':{
+                "pl":'Brak pustych podkatalogów w:'},
+        'Confirmed.':{
+                "pl":'Potwierdzono.'},
+        'Hard-Link marked files together in groups ?':{
+                "pl":'Utworzyć wspólne twarde dowiązania ?'},
+        'replace marked files with .lnk files pointing to the first unmarked file in the group ?':{
+                "pl":'zamień oznaczone pliki na pliki .lnk wskazujące na pierwszy nieoznaczony plik w grupie ?'},
+        'Soft-Link marked files to the first unmarked file in the group ?':{
+                "pl":'Utworzyć miekkie dowiązania z pierwszym nieoznaczonym plikiem w grupie?'},
+        'Delete marked files ?':{
+                "pl":'Skasować zaznaczone pliki ?'},
+        "\nErase empty directories  : ":{
+                "pl":"\nSkasować puste katalogi  : "},
+        "\n\nSend to Trash            : ":{
+                "pl":"\nPrzenieść do kosza            : "},
+        "Processed files size sum : ":{
+                "pl":"Suma wielkośći przetwarzanych plików : "},
+        "Yes":{
+                "pl":"Tak"},
+        "No":{
+                "pl":"Nie"},
+        'Yes|RED':{
+                "pl":"Tak|RED"},
+        'GROUP:':{
+                "pl":"GRUPA:"},
+        'Link files will be created with the names of the listed files with the ".lnk" suffix.':{
+                "pl":'Pliki linków zostaną utworzone z nazwami wymienionych plików z rozszerzeniem ".lnk".'},
+        'Original files will be removed.':{
+                "pl":'Oryginalne pliki zostaną usunięte.'},
+        'confirmation required...':{
+                "pl":'wymagane potwierdzenie...'},
+        'remaining files checking complete.':{
+                "pl":'sprawdzanie pozostającyh plików zakończone.'},
+        'No action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.':{
+                "pl":'Nie podjęto żadnej akcji.\n\nAnulowanie. Powtórz skanowanie lub usuń zaznaczenie wszystkich plików i grup, których dotyczyły inne programy.'},
+        "Files on multiple devices selected.":{
+                "pl":'Wybrano pliki na wielu urządzeniach.'},
+        "Can't create hardlinks.":{
+                "pl":'Nie można utworzyć twardych dowiązań.'},
+        'final checking selection correctness':{
+                "pl":'końcowe sprawdzenie popawności selekcji'},
+        'Warning !':{
+                "pl":'Uwaga !'},
+        'Similarity mode !\nFiles in groups are not exact copies !':{
+                "pl":'Tryb podobieństwa obrazów !\nPliki w grupach nie są dokładnymi kopiami !'},
+        'Error. Inconsistent data.':{
+                "pl":'Błąd. Niespójne dane.'},
+        'Current filesystem state is inconsistent with scanned data.\n\n':{
+                "pl":'Aktualny stan systemu plików jest niezgodny ze skanowanymi danymi.\n\n'},
+        '\n\nSelected group will be reduced. For complete results re-scanning is recommended.':{
+                "pl":'\n\nWybrana grupa zostanie zredukowana. Aby uzyskać kompletne wyniki, zaleca się ponowne zeskanowanie.'},
+        'Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED':{
+                "pl":'Opcja: \'Zezwól na usunięcie wszystkich kopii\' jest włączona.|RED\n\nMożna wybrać wszystkie kopie.|RED\n\nKontynuować?|RED'},
+        'Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:':{
+                "pl":'Opcja "Pomiń grupy z błędną selekcją" jest włączona.\n\nNastępujące grupy NIE zostaną przetworzone i pozostaną z zaznaczeniami:'},
+        "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\"":{
+                "pl":'Zachowaj przynajmniej jeden plik nieoznaczony\nlub włącz opcję:\n"Pomiń grupy z błędną selekcją"\nlub włącz opcję:\n"Zezwól na usuwanie wszystkich kopii"'},
+        "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"":{
+                "pl":"Zachowaj przynajmniej jeden plik nieoznaczony\lub włącz opcję:\n\"Pomiń grupy z błędną selekcją\""},
+        "Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:\n\n":{
+                "pl":"Opcja \"Pomiń grupy z błędną selekcją\" jest włączona.\n\nNastępujące grupy NIE zostaną przetworzone i pozostaną z oznaczeniami:\n\n"},
+        'All files marked':{
+                "pl":'Wszystkie pliki są zaznaczone'},
+        'Single file marked':{
+                "pl":'Pojedynczy plik zaznaczony'},
+        "Mark more files\nor enable option:\n\"Skip groups with invalid selection\"":{
+                "pl":"Zaznacz więcej plików\nlub włącz opcję:\n\"Pomiń grupy z błędną selekcją\""},
+        'checking selection correctness...':{
+                "pl":'sprawdzanie poprawności seleckji...'},
+        'checking data consistency with filesystem state ...':{
+                "pl":'sprawdzanie spójności danych ze stanem systemu plików'},
 
         'Results display mode':{
                 "pl":'Tryb wyświetlania wyników'},
