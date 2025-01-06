@@ -369,6 +369,8 @@ class LANGUAGES:
                 "pl":'Przerwano'},
         'Images hashing':{
                 "pl":'Hashowanie obrazów'},
+        'GPS data extraction':{
+                "pl":'Wydobywanie danych GPS'},
         'Starting Images hashing ...':{
                 "pl":'Rozpoczęcie hashowania obrazów ...'},
         'Data clustering':{

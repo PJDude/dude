@@ -740,9 +740,11 @@ class DudeCore:
             curr_res = result_dict[index_tuple]=[0,0,None,None]
 
             try:
+                #file = None
                 file = image_open(fullpath)
 
                 if use_size_pixels:
+
                     width = file.width
                     height = file.height
 
@@ -761,12 +763,13 @@ class DudeCore:
                     try:
                         with open(fullpath, 'rb') as image_file:
                             curr_res[2] = self_get_gps_data(exifread_process_file(image_file)) #brak danych rowniez cache'ujemy
-                            #curr_res[2]=gps_data
                     except Exception as e_gps:
                         print('images_processing_in_thread error:',e_gps)
-                        #continue
 
                     continue
+
+                if not file:
+                    file = image_open(fullpath)
 
                 if file.mode != 'RGBA':
                     file = file.convert("RGBA")
@@ -869,7 +872,13 @@ class DudeCore:
                         self_scan_results_image_to_gps[(dev,inode,mtime)] = val
                         #print('setting_1:',dev,inode,mtime,val)
 
+                    images_quantity_cache_read+=1
+                    size_from_cache += size
+
                     continue
+
+                images_quantity_need_to_calculate += 1
+                size_to_calculate += size
 
                 images_processing_threads_source[thread_index][(pathnr,path,file_name,mtime,ctime,dev,inode,size)]=self_get_full_path_to_scan(pathnr,path,file_name)
                 thread_index = (thread_index+1) % max_threads
@@ -899,7 +908,7 @@ class DudeCore:
         self.info_total = images_quantity_cache_read + images_quantity_need_to_calculate
         self.sum_size = size_from_cache + size_to_calculate
 
-        self.info = self.info_line = 'gathering images gps data ...' if gps_mode else 'Images hashing ...'
+        self.info = self.info_line = 'Gathering images gps data ...' if gps_mode else 'Images hashing ...'
 
         for i in range(max_threads):
             images_processing_threads[i].start()
@@ -986,6 +995,7 @@ class DudeCore:
             t0=perf_counter()
             self.log.info(f'start DBSCAN')
             labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='manhattan',algorithm='kd_tree').fit(pool).labels_
+
             t1=perf_counter()
             self.log.info(f'DBSCAN end. Time:{t1-t0}')
 
@@ -1040,7 +1050,7 @@ class DudeCore:
 
     def gps_clustering(self,distance):
         from sklearn.cluster import DBSCAN
-        from numpy import array as numpy_array
+        from numpy import array as numpy_array, radians
 
         self.scanned_paths=self.paths_to_scan.copy()
 
@@ -1050,35 +1060,30 @@ class DudeCore:
         self.info_line = self.info = 'Preparing data pool ...'
         #pathnr,path,file_name,ctime,dev,inode,size,
 
-        #self_scan_results_images_add( (path_nr,subpath,entry.name,st_mtime_ns,st_ctime_ns,st_dev,st_ino,size) )
-        #self_scan_results_image_to_gps[stat_res.st_dev,stat_res.st_ino] = gps_data
-
-        self_scan_results_images = self.scan_results_images
-        #print(f'{self_scan_results_images=}')
         self_scan_results_image_to_gps = self.scan_results_image_to_gps
         #print(f'{self_scan_results_image_to_gps=}')
 
         for (path_nr,subpath,name,mtime,ctime,dev,ino,size) in sorted(self.scan_results_images, key=lambda x :[6],reverse = True) :
             dict_key = (dev,ino,mtime)
             if dict_key in self_scan_results_image_to_gps:
-                pool.append( numpy_array(self_scan_results_image_to_gps[dict_key] ) )
+                pool.append( radians(numpy_array(self_scan_results_image_to_gps[dict_key] ) ) )
                 keys.append( (path_nr,subpath,name,ctime,dev,ino,size) )
 
         self_files_of_images_groups = self.files_of_images_groups = {}
 
-        if pool:
-            de_norm_distance = 0.0000001*(10**distance)+0.00000000001
+        #epsilon_km = 0.5  # Maksymalna odległość między punktami w kilometrach
+        #epsilon = epsilon_km / 6371.0  # Zamiana na radiany (6371 km = promień Ziemi)
+        epsilon = (0.001 + distance) / 6371.0  # Zamiana na radiany (6371 km = promień Ziemi)
 
+        if pool:
             self.info_line = self.info = 'Clustering ...'
 
             t0=perf_counter()
             self.log.info(f'start DBSCAN')
-            #labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='euclidean',algorithm='auto').fit(pool).labels_
-            labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='manhattan',algorithm='kd_tree').fit(pool).labels_
+            labels = DBSCAN(eps=epsilon, min_samples=2,n_jobs=-1,metric='haversine',algorithm='ball_tree').fit(pool).labels_
             t1=perf_counter()
             self.log.info(f'DBSCAN end. Time:{t1-t0}')
 
-            #with rotation variants
             groups_dict = defaultdict(set)
 
             self.info_line = self.info = 'Separating groups ...'
@@ -1093,34 +1098,10 @@ class DudeCore:
             ##############################################
             groups_sorted_by_quantity = [ label for label,number in sorted(groups_sorted_by_quantity_dict.items(),key=lambda x : x[1], reverse=True) ]
 
-            #kazdy plik tylko raz
-            self.info_line = self.info = 'Pruning "multiple rotations" data ...'
-
-            #files_already_in_group=set()
-            #files_already_in_group_add = files_already_in_group.add
-
-            pruned_groups_dict = defaultdict(set)
-            for label in groups_sorted_by_quantity:
-                #print(f'{label=}',type(label))
-                for key in groups_dict[label]:
-                    #print(f'    {key=}')
-
-                    (pathnr,path,file_name,ctime,dev,inode,size) = key
-                    #file_key = (dev,inode)
-                    #key_without_rotation = (pathnr,path,file_name,ctime,dev,inode,size)
-
-                    pruned_groups_dict[label].add(key)
-                    #if file_key not in files_already_in_group:
-                        #files_already_in_group_add(file_key)
-                    #else:
-                        #print('pruning file',path,file_name,rotation)
-
-            ##############################################
-
-            groups_digits=len(str(len(pruned_groups_dict)))
+            groups_digits=len(str(len(groups_dict)))
 
             relabel_nr=0
-            for label,keys in sorted(pruned_groups_dict.items(), key = lambda x : max([y[6] for y in x[1]]),reverse=True ):
+            for label,keys in sorted(groups_dict.items(), key = lambda x : max([y[6] for y in x[1]]),reverse=True ):
                 if len(keys)>1:
                     self_files_of_images_groups[f'G{str(relabel_nr).zfill(groups_digits)}'] = keys
                     relabel_nr+=1

@@ -890,6 +890,8 @@ class Gui:
         self_main_unbind_class('Treeview', '<Double-Button-1>')
 
         self_main_bind_class('Treeview','<KeyPress>', self.key_press )
+        self_main_bind_class('Treeview','<KeyRelease>', self.key_release )
+
         self_main_bind_class('Treeview','<ButtonPress-3>', self.context_menu_show)
 
         self.groups_tree=Treeview(frame_groups,takefocus=True,selectmode='none',show=('tree','headings') )
@@ -1873,7 +1875,7 @@ class Gui:
 
     def lang_change(self,event):
         self.cfg.set(CFG_lang,self.lang_var.get())
-        self.get_info_dialog_on_main().show(STR('Language Changed'),STR('Restart required.') )
+        self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Restart required.') )
 
     info_dialog_on_main_created = False
     @restore_status_line
@@ -1887,6 +1889,19 @@ class Gui:
             self.info_dialog_on_main_created = True
 
         return self.info_dialog_on_main
+
+    info_dialog_on_settings_created = False
+    @restore_status_line
+    @block
+    def get_info_dialog_on_settings(self):
+        if not self.info_dialog_on_settings_created:
+            self.status(STR("Creating dialog ..."))
+
+            self.info_dialog_on_settings = LabelDialog(self.settings_dialog.widget,self.main_icon_tuple,self.bg_color,pre_show=self.pre_show,post_close=self.post_close)
+
+            self.info_dialog_on_settings_created = True
+
+        return self.info_dialog_on_settings
 
     text_ask_dialog_created = False
     @restore_status_line
@@ -2710,6 +2725,26 @@ class Gui:
                 self.folder_tree_sel_change(next_item)
                 self.folder_tree_see(next_item)
                 self.folder_tree.update()
+
+
+    @catched
+    def key_release(self,event):
+        try:
+            tree,key=event.widget,event.keysym
+
+            if key in ("Next"):
+                item=tree.focus()
+                #tree.yview_moveto(tree.bbox(item)[1] / tree.winfo_height())
+                children=tree.get_children(item)
+                children_len=len(children)
+
+                if children_len>=3:
+                    tree.see(children[2])
+                elif children_len:
+                    tree.see(children[-1])
+        except Exception as e :
+            #print(e)
+            pass
 
     @catched
     def key_press(self,event):
@@ -3997,7 +4032,7 @@ class Gui:
             self_progress_dialog_on_scan_lab[4].configure(image='',text='')
 
 
-            self_progress_dialog_on_scan.widget.title(STR('Images hashing'))
+            self_progress_dialog_on_scan.widget.title(STR('Images hashing') if operation_mode == MODE_SIMILARITY else STR('GPS data extraction') )
 
             self_status(STR('Starting Images hashing ...'))
 
@@ -4013,6 +4048,7 @@ class Gui:
             fnumber_dude_core_info_counter_images = fnumber(dude_core.info_counter_images)
 
             aborted=False
+
             while ih_thread_is_alive():
                 anything_changed=False
 
@@ -4038,6 +4074,9 @@ class Gui:
                     dude_core.abort_action = True
                     self_progress_dialog_on_scan_lab[3].configure(image='',text=STR('Aborted'))
                     self_progress_dialog_on_scan.abort_button.configure(state='disabled',text='',image='')
+
+                #if anything_changed:
+                #    self_progress_dialog_on_scan_area_main_update = self_progress_dialog_on_scan.area_main.update
 
                 self_progress_dialog_on_scan_lab[0].configure(image=self_get_hg_ico(),text='')
 
