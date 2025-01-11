@@ -34,8 +34,22 @@ class LANGUAGES:
     STR_DICT={
         "File":{
                 "pl":"Plik"},
+        "Subpath":{
+                "pl":"Podścieżka"},
+        "Change Time":{
+                "pl":"Czas zmiany"},
+        "All marked files # ":{
+                "pl":"Zaznaczone pliki # "},
+        'Marked files # ':{
+                "pl":"Zaznaczone pliki # "},
+        'All marked files size: ':{
+                "pl":"Wielkość zazn. plików: "},
+        'Marked files size: ':{
+                "pl":"Wielkość zazn. plików: "},
         "Navigation":{
                 "pl":"Nawigacja"},
+        'Groups: ':{
+                "pl":"Grupy: "},
         "Help":{
                 "pl":"Pomoc"},
         "About":{
@@ -55,9 +69,9 @@ class LANGUAGES:
         'Copy full path':{
                 "pl":'Kopiuj pełną ścieżkę'},
         'Find next':{
-                "pl":'Znajdź następny'},
+                "pl":'Znajdź nast.'},
         'Find prev':{
-                "pl":'Znajdź poprzedni'},
+                "pl":'Znajdź poprz.'},
         'Name':{
                 "pl":'Nazwa'},
         'Size':{
@@ -187,20 +201,29 @@ class LANGUAGES:
                 "en":'The larger the hash size value,\nthe more details of the image\nare taken into consideration.\nThe default value is 6',
                 "pl":'Im większa wartość rozmiaru skrótu,\ntym więcej szczegółów obrazu\njest branych pod uwagę.\nWartość domyślna to 6'},
         'TOOLTIP_DIV':{
-                "en":"The larger the relative divergence value,\nthe more differences are allowed for\nimages to be identified as similar.\nThe default value is 5",
-                "pl":'Im większa wartość względnej rozbieżności,\ntym więcej różnic jest dozwolonych, aby\nobrazy mogły zostać zidentyfikowane jako podobne.\nWartość domyślna wynosi 5'},
+                "en":"The larger the relative divergence value,\nthe more differences are allowed for\nimages to be identified as similar.\nThe default value is 5\n\nDistance in case of GPS proximity mode",
+                "pl":'Im większa wartość względnej rozbieżności,\ntym więcej różnic jest dozwolonych, aby\nobrazy mogły zostać zidentyfikowane jako podobne.\nWartość domyślna wynosi 5\n\nOdległość w przypadku trybu odległości GPS'},
         'TOOLTIP_MIN_IMAGE':{
                 "en":"Limit the search pool to images with\nboth dimensions (width and height)\nequal or greater to the specified value\nin pixels (e.g. 512)",
-                "pl":'Ogranicz pulę wyszukiwania do obrazów, których wymiary (szerokość i wysokość) są równe lub większe od określonej wartości nin pikseli (np. 512)'},
+                "pl":'Ogranicz pulę wyszukiwania do obrazów\nktórych wymiary (szerokość i wysokość)\nsą równe lub większe od określonej\nwartości w pikselach (np. 512)'},
         'TOOLTIP_MAX_IMAGE':{
                 "en":"Limit the search pool to images with\nboth dimensions (width and height)\nsmaller or equal to the specified value\nin pixels (e.g. 4096)",
-                "pl":'Ogranicz pulę wyszukiwania do obrazów, których wymiary (szerokość i wysokość) są mniejsze od lub równe określonej wartości nin pikseli (np. 512)'},
+                "pl":'Ogranicz pulę wyszukiwania do obrazów\nktórych wymiary (szerokość i wysokość)\nsą mniejsze od lub równe określonej\nwartości w pikselach (np. 512)'},
         'TOOLTIP_ALL_ROTATIONS':{
                 "en":"calculate hashes for all (4) image rotations\nSignificantly increases searching time\nand resources consumption.",
                 "pl":'oblicz hashe dla wszystkich (4) obrotów obrazu\nZnacznie zwiększa czas wyszukiwania\ni zużycie zasobów.'},
         'TOOLTIP_SKIP':{
-                "en":"log every skipped file (softlinks, hardlinks, excluded, no permissions etc.)",
-                "pl":'loguj każdy pominięty plik (miękkie linki, twarde linki, wykluczone pliki, pliki bez uprawnień itd.)'},
+                "en":"log every skipped file\n(softlinks, hardlinks, excluded, no permissions etc.)",
+                "pl":'loguj każdy pominięty plik\n(miękkie linki, twarde linki, wykluczone pliki, pliki bez uprawnień itd.)'},
+        'TOOLTIP_EXCLUDE_1':{
+                "en":'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.',
+                "pl":'Dodaj wyrażenie ...\npodczas skanowania cała ścieżka jest sprawdzana \npod kątem określonego wyrażenia,\np.'},
+        'TOOLTIP_EXCLUDE_WIN':{
+                "en":'*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)',
+                "pl":'*windows* itd. (bez wyrażenia regularnego)\nlub .*windows.*, itd. (z wyrażeniem regularnym)'},
+        'TOOLTIP_EXCLUDE_LIN':{
+                "en":'*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)',
+                "pl":'*.git* itd. (bez wyrażenia regularnego)\nlub .*\\.git.* itd. (z wyrażeniem regularnym)'},
         'Relative divergence':{
                 "pl":'Relatywna rozbieżność'},
         'log skipped files':{
@@ -226,9 +249,9 @@ class LANGUAGES:
         'Minimum file size.':{
                 "pl":'minimalna wielkość pliku'},
         'Select Prev':{
-                "pl":'Wybierz poprzedni'},
+                "pl":'Wybierz poprz.'},
         'Select Next':{
-                "pl":'Wybierz następny'},
+                "pl":'Wybierz nast.'},
         'Case Sensitive':{
                 "pl":'Uwzględnij wiellkość znaków'},
         'Abort searching.':{
@@ -237,6 +260,10 @@ class LANGUAGES:
                 "pl":'Kontynuuj'},
         'Close':{
                 "pl":'Zamknij'},
+        'prev':{
+                "pl":'poprz.'},
+        'next':{
+                "pl":'nast.'},
         'Options':{
                 "pl":'Opcje'},
         'Settings':{
@@ -299,13 +326,13 @@ class LANGUAGES:
                 "pl":'Grupy z niepoprawnie ustawioną selekcją przerywają przetwarzanie.\nWłącz tę opcję, aby pominąć te grupy.\nW przypadku akcji usuwania lub miękkiego linkowania jeden plik w grupie \nmusi pozostać nieoznaczony (patrz poniżej). W przypadku akcji twardego linkowania\nwięcej niż jeden plik w grupie musi być oznaczony.'},
         'TOOLTIP_ADOAC':{
                 "en":'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies',
-                "pl":'Przed usunięciem wybranych plików, w każdej grupie CRC sprawdzany jest wybór plików, przynajmniej jeden plik powinien pozostać niezaznaczony.\nJeśli ta opcja jest włączona, możliwe będzie usunięcie wszystkich kopii'},
+                "pl":'Przed usunięciem wybranych plików, w każdej grupie CRC sprawdzany\njest wybór plików, przynajmniej jeden plik powinien pozostać niezaznaczony.\nJeśli ta opcja jest włączona, możliwe będzie usunięcie wszystkich kopii'},
         'TOOLTIP_OW':{
                 "en":'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.',
-                "pl":'Polecenie wykonane na akcji „Otwórz plik” z pełną ścieżką do pliku jako parametrem.\nJeśli puste, zostanie uruchomiona domyślnie skojarzona aplikacja.'},
+                "pl":'Polecenie wykonane na akcji "Otwórz plik" z pełną ścieżką do pliku jako parametrem.\nJeśli puste, zostanie uruchomiona domyślnie skojarzona aplikacja.'},
         'TOOLTIP_FOLDERS':{
                 "en":'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.',
-                "pl":'Polecenie wykonane na „Otwórz folder” z pełną ścieżką jako parametrem.\nJeśli puste, zostanie użyty domyślny menedżer plików systemu operacyjnego.'},
+                "pl":'Polecenie wykonane na "Otwórz folder" z pełną ścieżką jako parametrem.\nJeśli puste, zostanie użyty domyślny menedżer plików systemu operacyjnego.'},
         'TOOLTIP_FOLDERS_NUMBER':{
                 "en":'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on groups\ndefault is 2',
                 "pl":'Liczba parametrów (ścieżek) przekazywanych do\nakcji "Skrypt Otwierający" (jeśli zdefiniowano), gdy akcja\njest wykonywana na grupach\nDomyślnie 2'},
@@ -480,7 +507,7 @@ class LANGUAGES:
         "\n\nSend to Trash            : ":{
                 "pl":"\nPrzenieść do kosza            : "},
         "Processed files size sum : ":{
-                "pl":"Suma wielkośći przetwarzanych plików : "},
+                "pl":"Suma wielkości przetwarzanych plików : "},
         "Yes":{
                 "pl":"Tak"},
         "No":{
@@ -522,7 +549,7 @@ class LANGUAGES:
         "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\"":{
                 "pl":'Zachowaj przynajmniej jeden plik nieoznaczony\nlub włącz opcję:\n"Pomiń grupy z błędną selekcją"\nlub włącz opcję:\n"Zezwól na usuwanie wszystkich kopii"'},
         "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"":{
-                "pl":"Zachowaj przynajmniej jeden plik nieoznaczony\lub włącz opcję:\n\"Pomiń grupy z błędną selekcją\""},
+                "pl":"Zachowaj przynajmniej jeden plik nieoznaczony\nlub włącz opcję:\n\"Pomiń grupy z błędną selekcją\""},
         "Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:\n\n":{
                 "pl":"Opcja \"Pomiń grupy z błędną selekcją\" jest włączona.\n\nNastępujące grupy NIE zostaną przetworzone i pozostaną z oznaczeniami:\n\n"},
         'All files marked':{
@@ -535,11 +562,23 @@ class LANGUAGES:
                 "pl":'sprawdzanie poprawności seleckji...'},
         'checking data consistency with filesystem state ...':{
                 "pl":'sprawdzanie spójności danych ze stanem systemu plików'},
+        'unsopported format':{
+                "pl":'nieobsługiwany format'},
+        'lines:':{
+                "pl":'linie:'},
+        'Number of groups with consideration of\n"Cross paths" or "Same directory" mode':{
+                "pl":'Liczba grup z uwzględnieniem trybu\n"Różne Ścieżki" lub "Ten sam katalog"'},
+        'The full path of a directory\nshown in the bottom panel.':{
+                "pl":'Pełna ścieżka do katalogu\nwyświetlanego w dolnym panelu.'},
 
         'Results display mode':{
                 "pl":'Tryb wyświetlania wyników'},
         'Scope: All groups.':{
                 "pl":'Zakres: Wszystkie grupy.'},
+        'all groups':{
+                "pl":'wszystkie grupy'},
+        'selected group':{
+                "pl":'wybrana grupa'},
         'Scope: Selected directory.':{
                 "pl":'Zakres: Wybrany katalog.'},
         'All (default)':{
@@ -558,9 +597,18 @@ class LANGUAGES:
                 "pl":'Panele główne i dialogi'},
         'Show full CRC':{
                 "pl":'Pokazuj pełne CRC'},
+        'Show full scan paths':{
+                "pl":'Pokazuj pełne ścieżki skanowania'},
+        'Specify expression for full file path.':{
+                "pl":'Zdefiniuj wyrażenie określające pełną ścieżkę do pliku.'},
+        'Specify expression for file names in selected directory.':{
+                "pl":'Zdefiniuj wyrażenie dla nazw plików w wybranym katalogu.'},
         'TOOLTIP_SFC':{
                 "en":'If disabled, shortest necessary prefix of full CRC wil be shown',
                 "pl":'Jeśli wyłączone, zostanie wyświetlony najkrótszy niezbędny prefiks pełnego CRC'},
+        'TOOLTIP_SFSP':{
+                "en":'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips',
+                "pl":'Jeśli wyłączone, symbole ścieżki skanowania będą wyświetlane zamiast\npełnych ścieżek. Pełne ścieżki są zawsze wyświetlane jako podpowiedzi'},
         ' Search:':{
                 "pl":' Szukaj:'}
     }

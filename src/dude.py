@@ -81,7 +81,6 @@ l_warning = logging.warning
 l_error = logging.error
 
 langs=LANGUAGES()
-
 STR=langs.STR
 
 ###########################################################################################################################################
@@ -836,24 +835,24 @@ class Gui:
         self.status_all_quant_configure = self.status_all_quant.configure
 
         self.status_all_quant.pack(fill='x',expand=0,side='right')
-        Label(status_frame_groups,width=16,text="All marked files # ",relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_groups,width=16,text=STR("All marked files # "),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
         self.status_all_size=Label(status_frame_groups,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_all_size.pack(fill='x',expand=0,side='right')
         self.status_all_size_configure=self.status_all_size.configure
 
-        Label(status_frame_groups,width=18,text='All marked files size: ',relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_groups,width=20,text=STR('All marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
         self.status_groups=Label(status_frame_groups,text='0',image=self.ico_empty,width=80,compound='right',borderwidth=2,bg=bg_color,relief='groove',anchor='e')
         self.status_groups_configure = self.status_groups.configure
 
         self.status_groups.pack(fill='x',expand=0,side='right')
 
-        self.widget_tooltip(self.status_groups,'Number of groups with consideration of "Cross paths" or "Same directory" mode')
+        self.widget_tooltip(self.status_groups,STR('Number of groups with consideration of\n"Cross paths" or "Same directory" mode'))
 
-        Label(status_frame_groups,width=10,text='Groups: ',relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_groups,width=10,text=STR('Groups: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
         self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=bg_color,anchor='w')
         self.status_path.pack(fill='x',expand=1,side='left')
-        self.widget_tooltip(self.status_path,'The full path of a directory shown in the bottom panel.')
+        self.widget_tooltip(self.status_path,STR('The full path of a directory\nshown in the bottom panel.'))
 
         self.status_path_configure=self.status_path.configure
         ###############################################################################
@@ -869,12 +868,12 @@ class Gui:
         self.status_folder_quant.pack(fill='x',expand=0,side='right')
         self.status_folder_quant_configure=self.status_folder_quant.configure
 
-        Label(status_frame_folder,width=16,text='Marked files # ',relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_folder,width=16,text=STR('Marked files # '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
         self.status_folder_size=Label(status_frame_folder,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_folder_size.pack(expand=0,side='right')
         self.status_folder_size_configure=self.status_folder_size.configure
 
-        Label(status_frame_folder,width=18,text='Marked files size: ',relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_folder,width=20,text=STR('Marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
 
         self_main_unbind_class = self.main_unbind_class = self_main.unbind_class
 
@@ -1192,12 +1191,12 @@ class Gui:
 
         self.add_exclude_button = Button(buttons_fr2,width=18,image= self_ico['expression'],command=self.exclude_mask_add_dialog,underline=4)
 
-        tooltip_string = 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.' + ('*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)' if windows else '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)')
+        tooltip_string = STR('TOOLTIP_EXCLUDE_1') + ( STR('TOOLTIP_EXCLUDE_WIN') if windows else STR('TOOLTIP_EXCLUDE_LIN') )
         self.widget_tooltip(self.add_exclude_button,tooltip_string)
 
         self.add_exclude_button.pack(side='left',pady=4,padx=4)
 
-        Checkbutton(buttons_fr2,text=STR('treat as a regular expression'),variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
+        Checkbutton(buttons_fr2,text=' ' + STR('treat as a regular expression'),variable=self.exclude_regexp_scan,command=self.exclude_regexp_set).pack(side='left',pady=4,padx=4)
 
         self.exclude_frame.grid_columnconfigure(1, weight=1)
         self.exclude_frame.grid_rowconfigure(99, weight=1)
@@ -1218,7 +1217,7 @@ class Gui:
         operation_mode_frame = LabelFrame(self_scan_dialog_area_main,text=STR('Operation mode'),borderwidth=2,bg=bg_color,takefocus=False)
         operation_mode_frame.grid(row=3,column=0,sticky='news',padx=4,pady=4,columnspan=4)
 
-        crc_button = Radiobutton(operation_mode_frame,text='CRC                  ',variable=self.operation_mode_var,value=MODE_CRC,command=self.operation_mode_change )
+        crc_button = Radiobutton(operation_mode_frame,text='CRC',variable=self.operation_mode_var,value=MODE_CRC,command=self.operation_mode_change )
         crc_button.grid(row=0,column=0,sticky='news',padx=8,pady=3)
 
         self.widget_tooltip(crc_button,STR('TOOLTIP_CRC'))
@@ -1226,16 +1225,14 @@ class Gui:
         similarity_button = Radiobutton(operation_mode_frame,text=STR('Images similarity') + '      ',variable=self.operation_mode_var,value=MODE_SIMILARITY,command=self.operation_mode_change )
         similarity_button.grid(row=0,column=1,sticky='news',padx=8,pady=3)
 
-        self.widget_tooltip(similarity_button,"TOOLTIP_SIMILARITY")
+        self.widget_tooltip(similarity_button,STR("TOOLTIP_SIMILARITY"))
 
         gps_button = Radiobutton(operation_mode_frame,text=STR('Images GPS data proximity'),variable=self.operation_mode_var,value=MODE_GPS,command=self.operation_mode_change )
         gps_button.grid(row=0,column=2,sticky='news',padx=8,pady=3)
 
-        gps_button.columnconfigure( (0,1,2), weight=1, uniform=2)
-
         self.widget_tooltip(gps_button,STR('TOOLTIP_GPS'))
 
-        operation_mode_frame.grid_columnconfigure( (0,1,2), weight=1)
+        operation_mode_frame.grid_columnconfigure( (0,1,2), weight=1, uniform=2)
 
         temp_frame3a = LabelFrame(self_scan_dialog_area_main,text=STR('File size range'),borderwidth=2,bg=bg_color,takefocus=False)
         temp_frame3a.grid(row=4,column=0,sticky='news',padx=4,pady=4,columnspan=4)
@@ -1806,8 +1803,8 @@ class Gui:
             (cb_1:=Checkbutton(label_frame, text = STR('Show full CRC'), variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_1,STR('TOOLTIP_SFC'))
 
-            (cb_2:=Checkbutton(label_frame, text = 'Show full scan paths', variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            self_widget_tooltip(cb_2,'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips')
+            (cb_2:=Checkbutton(label_frame, text = STR('Show full scan paths'), variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(cb_2,STR('TOOLTIP_SFSP'))
 
             Checkbutton(label_frame, text = STR('Show info tooltips'), variable=self.show_tooltips_info).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
             Checkbutton(label_frame, text = STR('Show help tooltips'), variable=self.show_tooltips_help).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
@@ -2053,8 +2050,12 @@ class Gui:
 
             self.find_dialog_on_groups = FindEntryDialog(self.groups_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
             self.info_dialog_on_find[self.groups_tree] = LabelDialog(self.find_dialog_on_groups.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
-            self.find_dialog_on_groups_created = True
 
+            self.find_dialog_on_groups.button_prev.configure(text=STR('prev') + " (SHIFT+F3)")
+            self.find_dialog_on_groups.button_next.configure(text=STR('next') + " (F3)")
+            self.find_dialog_on_groups.cancel_button.configure(text=STR('Cancel'))
+
+            self.find_dialog_on_groups_created = True
         return self.find_dialog_on_groups
 
     find_dialog_on_folder_created = False
@@ -2066,6 +2067,11 @@ class Gui:
 
             self.find_dialog_on_folder = FindEntryDialog(self.folder_tree,self.main_icon_tuple,self.bg_color,self.find_mod,self.find_prev_from_dialog,self.find_next_from_dialog,pre_show=self.pre_show,post_close=self.post_close)
             self.info_dialog_on_find[self.folder_tree] = LabelDialog(self.find_dialog_on_folder.widget,self.main_icon_tuple,self.bg_color,pre_show=lambda new_widget: self.pre_show(on_main_window_dialog=False,new_widget=new_widget),post_close=lambda : self.post_close(False))
+
+            self.find_dialog_on_folder.button_prev.configure(text=STR('prev') + " (SHIFT+F3)")
+            self.find_dialog_on_folder.button_next.configure(text=STR('next') + " (F3)")
+            self.find_dialog_on_folder.cancel_button.configure(text=STR('Cancel'))
+
             self.find_dialog_on_folder_created = True
 
         return self.find_dialog_on_folder
@@ -2509,11 +2515,11 @@ class Gui:
             initialvalue_re=self.cfg.get(cfg_key_re)
 
         if self.sel_tree==self.groups_tree:
-            self.get_find_dialog_on_groups().show(STR('Find'),scope_info,initial=initialvalue,checkbutton_text=STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
+            self.get_find_dialog_on_groups().show(STR('Find'),scope_info,initial=initialvalue,checkbutton_text=' ' + STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
             self.find_by_tree[tree]=self.find_dialog_on_groups.entry.get()
             self.find_by_tree_re[tree]=self.find_dialog_on_groups.check_val.get()
         else:
-            self.get_find_dialog_on_folder().show(STR('Find'),scope_info,initial=initialvalue,checkbutton_text=STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
+            self.get_find_dialog_on_folder().show(STR('Find'),scope_info,initial=initialvalue,checkbutton_text=' ' + STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
             self.find_by_tree[tree]=self.find_dialog_on_folder.entry.get()
             self.find_by_tree_re[tree]=self.find_dialog_on_folder.check_val.get()
 
@@ -2665,19 +2671,25 @@ class Gui:
         status = STR('selecting next group') if direction==1 else STR('selecting prev group')
 
         tree=self.groups_tree
-        self_sel_item = current_item = self.sel_item
-
+        self_CRC = self.CRC
         tree_set = tree.set
 
-        self_CRC = self.CRC
+        if not self.sel_item:
+            self.status('no items',do_log=False)
+            return
+
+        self_sel_item = current_item = self.sel_item if tree_set(self.sel_item,'kind')==self_CRC else self.sel_crc
 
         move_dict = self.my_next_dict[tree] if direction==1 else self.my_prev_dict[tree]
 
         while current_item:
             current_item = move_dict[current_item]
+
             if tree_set(current_item,'kind')==self_CRC:
-                self.crc_select_and_focus(current_item)
+                self.crc_select_and_focus_child(current_item)
+
                 self.status(status,do_log=False)
+
                 break
             if current_item==self_sel_item:
                 self.status('%s ... (no file)' % status,do_log=False)
@@ -2716,7 +2728,7 @@ class Gui:
     def goto_first_last_crc(self,index):
         if children := self.tree_children[self.groups_tree]:
             if next_item:=children[index]:
-                self.crc_select_and_focus(next_item,True)
+                self.crc_select_and_focus_child(next_item)
 
     @catched
     def goto_first_last_dir_entry(self,index):
@@ -2974,6 +2986,23 @@ class Gui:
         self.groups_tree.update()
         self.groups_tree_sel_change(crc)
 
+    def crc_select_and_focus_child(self,crc):
+        self.groups_tree.focus_set()
+
+        self.groups_tree_see(self.tree_children_sub[crc][-1])
+        self.groups_tree.update()
+
+        tree = self.groups_tree
+        first_child = self.my_next_dict[tree][crc]
+
+        self.selected[tree] = self.sel_item = first_child
+
+        tree.focus(first_child)
+        tree.see(first_child)
+        self.groups_tree_sel_change(first_child)
+
+        self.groups_tree.update()
+
     def tree_on_mouse_button_press(self,event,toggle=False):
         self.menubar_unpost()
         self.hide_tooltip()
@@ -3113,7 +3142,7 @@ class Gui:
                         with open(path,'rt', encoding='utf-8', errors='ignore') as file:
 
                             cont_lines=file.readlines()
-                            self.preview_label_txt_configure(text=f'lines:{fnumber(len(cont_lines))}')
+                            self.preview_label_txt_configure(text=STR('lines:') + f'{fnumber(len(cont_lines))}')
                             self.preview_text.insert('end', ''.join(cont_lines))
                     except Exception as e:
                         self.preview_label_txt_configure(text=str(e))
@@ -3131,7 +3160,7 @@ class Gui:
                         with open(path,'rt', encoding='utf-8') as file:
 
                             cont_lines=file.readlines()
-                            self.preview_label_txt_configure(text=f'lines:{fnumber(len(cont_lines))}')
+                            self.preview_label_txt_configure(text=STR('lines:') + f'{fnumber(len(cont_lines))}')
                             self.preview_text.insert('end', ''.join(cont_lines))
                     except UnicodeDecodeError:
                         self.preview_label_txt_configure(text='Non-UTF.')
@@ -3148,7 +3177,7 @@ class Gui:
                 else:
                     self.preview_frame_txt.pack_forget()
                     self.preview_label_img.pack_forget()
-                    self.preview_label_txt_configure(text='wrong format')
+                    self.preview_label_txt_configure(text=STR('unsopported format'))
                     self.preview.title(path)
 
             else:
@@ -3425,8 +3454,8 @@ class Gui:
             c_local_add_command(label = STR("Mark all files"),        command = lambda : self.mark_in_group(self.set_mark),accelerator="A", image = self.ico_empty,compound='left',state = any_not_mark_in_curr_crc_state)
             c_local_add_command(label = STR("Unmark all files"),        command = lambda : self.mark_in_group(self.unset_mark),accelerator="N", image = self.ico_empty,compound='left', state = any_mark_in_curr_crc_state)
             c_local_add_separator()
-            c_local_add_command(label = STR('Mark By expression') + ' ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',False),accelerator="+", image = self.ico_empty,compound='left',state = any_not_mark_in_curr_crc_state)
-            c_local_add_command(label = STR('Unmark By expression') +' ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',False),accelerator="-", image = self.ico_empty,compound='left', state = any_mark_in_curr_crc_state)
+            c_local_add_command(label = STR('Mark By expression') + ' ...',command = lambda : self.mark_expression(self.set_mark,STR('Mark files'),False),accelerator="+", image = self.ico_empty,compound='left',state = any_not_mark_in_curr_crc_state)
+            c_local_add_command(label = STR('Unmark By expression') +' ...',command = lambda : self.mark_expression(self.unset_mark,STR('Unmark files'),False),accelerator="-", image = self.ico_empty,compound='left', state = any_mark_in_curr_crc_state)
             c_local_add_separator()
             c_local_add_command(label = STR("Toggle mark on oldest file"),     command = lambda : self.mark_in_group_by_ctime('oldest',self.invert_mark),accelerator="O", image = self.ico_empty,compound='left')
             c_local_add_command(label = STR("Toggle mark on youngest file"),   command = lambda : self.mark_in_group_by_ctime('youngest',self.invert_mark),accelerator="Y", image = self.ico_empty,compound='left')
@@ -3491,8 +3520,8 @@ class Gui:
             c_all.add_command(label = STR("Mark all files"),        command = lambda : self.mark_on_all(self.set_mark),accelerator="Ctrl+A", image = self.ico_empty,compound='left',state = any_not_marked_state )
             c_all.add_command(label = STR("Unmark all files"),        command = lambda : self.mark_on_all(self.unset_mark),accelerator="Ctrl+N", image = self.ico_empty,compound='left',state = anything_tagged_state)
             c_all.add_separator()
-            c_all.add_command(label = STR('Mark By expression') +' ...',command = lambda : self.mark_expression(self.set_mark,'Mark files',True),accelerator="Ctrl+", image = self.ico_empty,compound='left',state = any_not_marked_state)
-            c_all.add_command(label = STR('Unmark By expression') +' ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files',True),accelerator="Ctrl-", image = self.ico_empty,compound='left',state = anything_tagged_state)
+            c_all.add_command(label = STR('Mark By expression') +' ...',command = lambda : self.mark_expression(self.set_mark,STR('Mark files'),True),accelerator="Ctrl+", image = self.ico_empty,compound='left',state = any_not_marked_state)
+            c_all.add_command(label = STR('Unmark By expression') +' ...',command = lambda : self.mark_expression(self.unset_mark,STR('Unmark files'),True),accelerator="Ctrl-", image = self.ico_empty,compound='left',state = anything_tagged_state)
             c_all.add_separator()
             c_all.add_command(label = STR("Mark Oldest files"),     command = lambda : self.mark_all_by_ctime('oldest',self.set_mark),accelerator="Ctrl+O", image = self.ico_empty,compound='left',state = any_not_marked_state)
             c_all.add_command(label = STR("Unmark Oldest files"),     command = lambda : self.mark_all_by_ctime('oldest',self.unset_mark),accelerator="Ctrl+Shift+O", image = self.ico_empty,compound='left',state = anything_tagged_state)
@@ -3579,8 +3608,8 @@ class Gui:
             c_local_add_command(label = STR("Mark all files"),        command = lambda : self.mark_in_folder(self.set_mark),accelerator="A",state=markable_files_in_folder_state, image = self.ico_empty,compound='left')
             c_local_add_command(label = STR("Unmark all files"),        command = lambda : self.mark_in_folder(self.unset_mark),accelerator="N",state=markable_files_in_folder_state, image = self.ico_empty,compound='left')
             c_local_add_separator()
-            c_local_add_command(label = STR('Mark By expression') + ' ...',command = lambda : self.mark_expression(self.set_mark,'Mark files'),accelerator="+", image = self.ico_empty,compound='left',state = markable_files_in_folder_state)
-            c_local_add_command(label = STR('Unmark By expression') +' ...',command = lambda : self.mark_expression(self.unset_mark,'Unmark files'),accelerator="-", image = self.ico_empty,compound='left', state = markable_files_in_folder_state)
+            c_local_add_command(label = STR('Mark By expression') + ' ...',command = lambda : self.mark_expression(self.set_mark,STR('Mark files')),accelerator="+", image = self.ico_empty,compound='left',state = markable_files_in_folder_state)
+            c_local_add_command(label = STR('Unmark By expression') +' ...',command = lambda : self.mark_expression(self.unset_mark,STR('Unmark files')),accelerator="-", image = self.ico_empty,compound='left', state = markable_files_in_folder_state)
             c_local_add_separator()
 
             anything_tagged_state=('disabled','normal')[bool(self.current_folder_items_tagged)]
@@ -3864,7 +3893,7 @@ class Gui:
 
         self.operation_mode = operation_mode = self.operation_mode_var.get()
 
-        image_min_size_int = 0
+        image_min_size_int = -1
         if self.image_min_size_check_var.get():
             if image_min_size := self.image_min_size_var.get():
                 try:
@@ -3873,7 +3902,11 @@ class Gui:
                     self.get_info_dialog_on_scan().show('Image Min size value error',f'fix: "{image_min_size}"')
                     return
 
-        image_max_size_int = 0
+                if image_min_size_int<0:
+                    self.get_info_dialog_on_scan().show('Image Min size value error',f'fix: "{image_min_size}"')
+                    return
+
+        image_max_size_int = -1
         if self.image_max_size_check_var.get():
             if image_max_size := self.image_max_size_var.get():
                 try:
@@ -3882,8 +3915,22 @@ class Gui:
                     self.get_info_dialog_on_scan().show('Image Max size value error',f'fix: "{image_max_size}"')
                     return
 
+                if image_max_size_int<0:
+                    self.get_info_dialog_on_scan().show('Image Max size value error',f'fix: "{image_max_size}"')
+                    return
+
+        if image_min_size_int!=-1 and image_max_size_int!=-1 and image_min_size_int>image_max_size_int:
+            self.get_info_dialog_on_scan().show('Image Min size > Image Max size error','Fix values')
+            return
+
+        if image_min_size_int==-1:
+            image_min_size_int=0
+
+        if image_max_size_int==-1:
+            image_max_size_int=0
+
         ##################
-        file_min_size_int = 0
+        file_min_size_int = -1
         if self.file_min_size_check_var.get():
             if file_min_size := self.file_min_size_var.get():
                 file_min_size_int = str_to_bytes(file_min_size)
@@ -3892,7 +3939,7 @@ class Gui:
                     self.get_info_dialog_on_scan().show('File Min size value error',f'fix: "{file_min_size}"')
                     return
 
-        file_max_size_int = 0
+        file_max_size_int = -1
         if self.file_max_size_check_var.get():
             if file_max_size := self.file_max_size_var.get():
                 file_max_size_int = str_to_bytes(file_max_size)
@@ -3900,6 +3947,17 @@ class Gui:
                 if file_max_size_int==-1:
                     self.get_info_dialog_on_scan().show('File Max size value error',f'fix: "{file_max_size}"')
                     return
+
+        if file_min_size_int!=-1 and file_max_size_int!=-1 and file_min_size_int>file_max_size_int:
+            self.get_info_dialog_on_scan().show('File Min size > File Max size error','Fix values')
+            return
+
+        if file_min_size_int==-1:
+            file_min_size_int=0
+
+        if file_max_size_int==-1:
+            file_max_size_int=0
+
         #################
 
         scan_thread=Thread(target=lambda : dude_core.scan(operation_mode,file_min_size_int,file_max_size_int),daemon=True)
@@ -5218,19 +5276,19 @@ class Gui:
             initialvalue_re=self.cfg.get(cfg_key_re)
 
         if tree==self.groups_tree:
-            range_str = " (all groups)" if all_groups else " (selected group)"
-            title='Specify expression for full file path.'
+            range_str = ' (' + ( STR('all groups') if all_groups else STR('selected group') ) + ')'
+            title=STR('Specify expression for full file path.')
         else:
             range_str = ''
-            title='Specify expression for file names in selected directory.'
+            title=STR('Specify expression for file names in selected directory.')
 
         if tree==self.groups_tree:
-            self.get_mark_dialog_on_groups().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text=STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
+            self.get_mark_dialog_on_groups().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text=' ' + STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
             res_code = self.mark_dialog_on_groups.res_bool
             use_reg_expr = self.mark_dialog_on_groups.check_val.get()
             self.expr_by_tree[tree] = expression = self.mark_dialog_on_groups.entry_val.get()
         else:
-            self.get_mark_dialog_on_folder().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text=STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
+            self.get_mark_dialog_on_folder().show(title,prompt + f'{range_str}', initial=initialvalue,checkbutton_text=' ' + STR('treat as a regular expression'),checkbutton_initial=initialvalue_re)
             res_code = self.mark_dialog_on_folder.res_bool
             use_reg_expr = self.mark_dialog_on_folder.check_val.get()
             self.expr_by_tree[tree] = expression = self.mark_dialog_on_folder.entry_val.get()
@@ -5371,7 +5429,7 @@ class Gui:
             biggest_crc,biggest_crc_size_sum = working_dict[working_index]
 
             if biggest_crc:
-                self.crc_select_and_focus(biggest_crc,True)
+                self.crc_select_and_focus_child(biggest_crc)
 
                 self.dominant_groups_index[size_flag] = int(temp)
                 info = bytes_to_str(biggest_crc_size_sum) if size_flag else str(biggest_crc_size_sum)
