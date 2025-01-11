@@ -2343,15 +2343,29 @@ class Gui:
                                 self.tooltip_deiconify()
 
                     elif col:
-
                         coldata=tree.set(item,col)
 
-                        if coldata:
-                            self.tooltip_lab_configure(text=coldata)
-                            self.tooltip_deiconify()
+                        if colname=="file":
+                            if self.operation_mode==MODE_GPS:
+                                if self.sel_path_full :
+                                    try:
+                                        gps = dude_core.scan_results_image_to_gps[(dev,inode)]
 
+                                        self.tooltip_lab_configure(text=coldata + '\nGPS:' + str(gps) )
+
+                                    except Exception as e :
+                                        self.tooltip_lab_configure(text='GPS error:' + str(e))
+                            else:
+                                self.tooltip_lab_configure(text=coldata)
+
+                            self.tooltip_deiconify()
                         else:
-                            self.hide_tooltip()
+                            if coldata:
+                                self.tooltip_lab_configure(text=coldata)
+                                self.tooltip_deiconify()
+
+                            else:
+                                self.hide_tooltip()
 
                 except Exception as mte:
                     print(f'show_tooltip_groups:{mte}')
@@ -2387,11 +2401,34 @@ class Gui:
                 elif col:
                     coldata = coldata + ' ' + tree.set(item,col)
 
-                if coldata:
-                    self.tooltip_lab_configure(text=coldata)
-                    self.tooltip_deiconify()
+                if self.operation_mode==MODE_GPS:
+                    if colname=="file":
+                        if self.sel_path_full :
+                            try:
+                                #kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self.folder_tree_item_to_data[item]
+                                dev = tree.set(item,'dev')
+                                inode = tree.set(item,'inode')
+                                gps = dude_core.scan_results_image_to_gps[(int(dev),int(inode))]
+
+                                self.tooltip_lab_configure(text=coldata + '\nGPS:' + str(gps) )
+                                self.tooltip_deiconify()
+
+                            except Exception as e :
+                                self.tooltip_lab_configure(text=coldata)
+                                self.tooltip_deiconify()
+
+                    else:
+                        if coldata:
+                            self.tooltip_lab_configure(text=coldata)
+                            self.tooltip_deiconify()
+
                 else:
-                    self.hide_tooltip()
+                    if coldata:
+                        self.tooltip_lab_configure(text=coldata)
+                        self.tooltip_deiconify()
+                    else:
+                        self.hide_tooltip()
+
 
         self.adaptive_tooltip_geometry(event)
 

@@ -869,7 +869,8 @@ class DudeCore:
                 dict_key_proximity = (dev,inode,mtime)
                 if dict_key_proximity in self.images_data_cache['gps']:
                     if val := self.images_data_cache['gps'][dict_key_proximity]:
-                        self_scan_results_image_to_gps[(dev,inode,mtime)] = val
+                        #self_scan_results_image_to_gps[(dev,inode,mtime)] = val
+                        self_scan_results_image_to_gps[(dev,inode)] = val
                         #print('setting_1:',dev,inode,mtime,val)
 
                     images_quantity_cache_read+=1
@@ -958,7 +959,8 @@ class DudeCore:
                     self.images_data_cache['gps'][(dev,inode,mtime)]=gps
                     if gps:
                         #..ale nie ustawiać
-                        self_scan_results_image_to_gps[(dev,inode,mtime)] = gps
+                        #self_scan_results_image_to_gps[(dev,inode,mtime)] = gps
+                        self_scan_results_image_to_gps[(dev,inode)] = gps
                         #print('setting_2:',dev,inode,mtime,gps)
                     anything_new=True
 
@@ -1064,7 +1066,8 @@ class DudeCore:
         #print(f'{self_scan_results_image_to_gps=}')
 
         for (path_nr,subpath,name,mtime,ctime,dev,ino,size) in sorted(self.scan_results_images, key=lambda x :[6],reverse = True) :
-            dict_key = (dev,ino,mtime)
+            #dict_key = (dev,ino,mtime)
+            dict_key = (dev,ino)
             if dict_key in self_scan_results_image_to_gps:
                 pool.append( radians(numpy_array(self_scan_results_image_to_gps[dict_key] ) ) )
                 keys.append( (path_nr,subpath,name,ctime,dev,ino,size) )
