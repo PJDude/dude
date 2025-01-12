@@ -184,8 +184,8 @@ jobs:
     - name: install requirements
       run: pip install -r requirements.txt
 
-    - name: strip python binaries
-      run: find $pythonLocation -name *.so* -type f -exec strip {} \;
+    #- name: strip python binaries
+    #  run: find $pythonLocation -name *.so* -type f -exec strip {} \;
 
     #####################################
     - name: version download
