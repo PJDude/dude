@@ -30,7 +30,7 @@ echo "pillow      " `python3 -c "import PIL; print(PIL.__version__)"` >> distro.
 
 echo ''
 echo running-pyinstaller-stage_dude
-pyinstaller --strip --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir --additional-hooks-dir=. --collect-binaries tkinterdnd2 --collect-binaries numpy --collect-binaries scipy --collect-data scipy --hidden-import='PIL._tkinter_finder' --optimize 2 ./dude.py
+pyinstaller --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir --additional-hooks-dir=. --collect-binaries tkinterdnd2 --collect-binaries numpy --collect-binaries scipy --collect-data scipy --hidden-import='PIL._tkinter_finder' --optimize 2 ./dude.py
 
 echo ''
 echo packing

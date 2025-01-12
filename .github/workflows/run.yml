@@ -18,7 +18,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12.3"
+        python-version: "3.13"
         cache: 'pip'
         check-latest: true
 
@@ -73,7 +73,7 @@ jobs:
 #     - name: python setup
 #       uses: actions/setup-python@v5
 #       with:
-#         python-version: "3.12.3"
+#         python-version: "3.13"
 #         cache: 'pip'
 #         check-latest: true
 #
@@ -123,7 +123,7 @@ jobs:
 #     - name: python setup
 #       uses: actions/setup-python@v5
 #       with:
-#         python-version: "3.12.3"
+#         python-version: "3.13"
 #         cache: 'pip'
 #         check-latest: true
 #
@@ -174,7 +174,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12.3"
+        python-version: "3.13"
         cache: 'pip'
         check-latest: true
 
@@ -186,6 +186,8 @@ jobs:
 
     #- name: strip python binaries
     #  run: find $pythonLocation -name *.so* -type f -exec strip {} \;
+    # problems :
+    #ImportError: libscipy_openblas-68440149.so: ELF load command address/offset not properly aligned
 
     #####################################
     - name: version download
