@@ -32,6 +32,9 @@
 @echo|set /p="zstandard   " >> distro.info.txt
 @python -c "import zstandard; print(zstandard.__version__)" >> distro.info.txt
 
+@echo|set /p="exifread    " >> distro.info.txt
+@python -c "import exifread; print(exifread.__version__)" >> distro.info.txt
+
 @echo|set /p="imagehash   " >> distro.info.txt
 @python -c "import imagehash; print(imagehash.__version__)" >> distro.info.txt
 
