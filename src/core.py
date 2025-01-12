@@ -55,8 +55,8 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 #from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
 #from imagehash import average_hash,phash,dhash
 
-from sklearn.cluster import DBSCAN
-from numpy import array as numpy_array, radians
+#from sklearn.cluster import DBSCAN
+#from numpy import array as numpy_array, radians
 
 DELETE=0
 SOFTLINK=1
