@@ -3468,8 +3468,6 @@ class Gui:
 
         parent_dir_state = ('disabled','normal')[self.two_dots_condition(self.sel_path_full) and self.sel_kind!=self.CRC]
 
-        crc_mode_only = ('disabled','normal')[self.operation_mode]
-
         if tree==self.groups_tree:
             self_tagged = self.tagged
 
