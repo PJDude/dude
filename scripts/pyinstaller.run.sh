@@ -24,13 +24,14 @@ echo "numpy       " `python3 -c "import numpy; print(numpy.__version__)"` >> dis
 echo "scipy       " `python3 -c "import scipy; print(scipy.__version__)"` >> distro.info.txt
 echo "sklearn     " `python3 -c "import sklearn; print(sklearn.__version__)"` >> distro.info.txt
 echo "zstandard   " `python3 -c "import zstandard; print(zstandard.__version__)"` >> distro.info.txt
+echo "exifread    " `python3 -c "import exifread; print(exifread.__version__)"` >> distro.info.txt
 echo "imagehash   " `python3 -c "import imagehash; print(imagehash.__version__)"` >> distro.info.txt
 echo "pillow      " `python3 -c "import PIL; print(PIL.__version__)"` >> distro.info.txt
 
 echo ''
 echo running-pyinstaller-stage_dude
-pyinstaller --strip --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir --additional-hooks-dir=. --collect-binaries tkinterdnd2 --collect-binaries numpy --collect-binaries scipy --collect-data scipy --hidden-import='PIL._tkinter_finder' --optimize 2 ./dude.py
-#
+pyinstaller --strip --noconfirm --noconsole --clean --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." --contents-directory=internal --distpath=$outdir --additional-hooks-dir=. --collect-binaries tkinterdnd2 --collect-binaries numpy --collect-binaries scipy --collect-data scipy --hidden-import='PIL._tkinter_finder' ./dude.py
+#--optimize 2
 
 echo ''
 echo packing
