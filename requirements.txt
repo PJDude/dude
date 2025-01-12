@@ -4,8 +4,9 @@ send2trash==1.8.3
 zstandard==0.22.0
 nuitka==2.2.3
 tkinterdnd2==0.3.0
-numpy==1.26
-exifread==3.0.0
+#numpy==1.26
+#scipy==1.15.1
+#exifread==3.0.0
 imagehash==4.3.1
 pillow==10.3.0
 scikit-learn==1.5.0
