@@ -30,603 +30,2191 @@ from locale import getlocale
 
 class LANGUAGES:
     lang_id='en'
+    lang_dict={'Polski':'pl','English':'en','Español':'es','Русский':'ru','Deutsch':'de','Italiano':'it','Français':'fr'}
 
     STR_DICT={
-        "File":{
-                "pl":"Plik"},
-        "Subpath":{
-                "pl":"Podścieżka"},
-        "Change Time":{
-                "pl":"Czas zmiany"},
-        "All marked files # ":{
-                "pl":"Zaznaczone pliki # "},
-        'Marked files # ':{
-                "pl":"Zaznaczone pliki # "},
-        'All marked files size: ':{
-                "pl":"Wielkość zazn. plików: "},
-        'Marked files size: ':{
-                "pl":"Wielkość zazn. plików: "},
-        "Navigation":{
-                "pl":"Nawigacja"},
-        'Groups: ':{
-                "pl":"Grupy: "},
-        "Help":{
-                "pl":"Pomoc"},
-        "About":{
-                "pl":"O programie"},
-        "License":{
-                "pl":"Licencja"},
-        "Open current Log":{
-                "pl":"Otwórz log"},
-        "Open logs directory":{
-                "pl":"Otwórz katalog z logami"},
-        "Open homepage":{
-                "pl":"Otwórz stronę domową"},
-        'Find':{
-                "pl":'Znajdź'},
-        'Exit':{
-                "pl":'Zamknij'},
-        'Copy full path':{
-                "pl":'Kopiuj pełną ścieżkę'},
-        'Find next':{
-                "pl":'Znajdź nast.'},
-        'Find prev':{
-                "pl":'Znajdź poprz.'},
-        'Name':{
-                "pl":'Nazwa'},
-        'Size':{
-                "pl":'Wielkość'},
-        'Time':{
-                "pl":'Czas'},
-        'Abort':{
-                "pl":'Przerwij'},
-        'Ready':{
-                "pl":'Gotowy'},
-        'Open Folder(s)':{
-                "pl":'Otwórz Folder(y)'},
-        'Open File':{
-                "pl":'Otwórz Plik'},
-        'Open File':{
-                "pl":'Otwórz Plik'},
-        'Mark files':{
-                "pl":'Zaznacz pliki'},
-        'Unmark files':{
-                "pl":'Odznacz pliki'},
-        'Preview (no path)':{
-                "pl":'Podgląd (brak ścieżki)'},
-        "Toggle Mark":{
-                "pl":'Odwróć zaznaczenie'},
-        "Mark all files":{
-                "pl":'Zaznacz wszystkie pliki'},
-        "Unmark all files":{
-                "pl":'Odznacz wszystkie pliki'},
-        'Mark By expression':{
-                "pl":'Zaznacz z użyciem wyrażenia'},
-        'Unmark By expression':{
-                "pl":'Odznacz z użyciem wyrażenia'},
-        "Mark Oldest files":{
-                "pl":'Zaznacz najstarsze pliki'},
-        "Mark Youngest files":{
-                "pl":'Zaznacz najmłodsze pliki'},
-        "Unmark Oldest files":{
-                "pl":'Odznacz najstarsze pliki'},
-        "Unmark Youngest files":{
-                "pl":'Odznacz najmłodsze pliki'},
-        "Invert marks":{
-                "pl":'Odwróć zaznaczenie'},
-        "Toggle mark on oldest file":{
-                "pl":'Odwróć zaznaczenie na najstarszym pliku'},
-        "Toggle mark on youngest file":{
-                "pl":'Odwróć zaznaczenie na najnowszym pliku'},
-        'selecting next group':{
-                "pl":'wybieranie następnego w grupie'},
-        "Mark on specified directory ...":{
-                "pl":'Zaznacz w wybranym katalogu ...'},
-        "Unmark on specified directory ...":{
-                "pl":'Odznacz z wybranego katalogu ...'},
-        "Mark on scan path":{
-                "pl":'Zaznacz na wybranej ścieżce skanowania'},
-        "Unmark on scan path":{
-                "pl":'Odznacz na wybranej ścieżce skanowania'},
-        'Remove Marked Files ...':{
-                "pl":'Usuń wybrane pliki'},
-        'Softlink Marked Files ...':{
-                "pl":'Zastąp miękkimi dowiązaniami ...'},
-        'selecting next duplicate in folder':{
-                "pl":'wybieranie następnego duplikatu w folderze'},
-        'Create *.lnk for Marked Files ...':{
-                "pl":'Utwórz pliki *.lnk z zaznaczonych plików ...'},
-        'Hardlink Marked Files ...':{
-                "pl":'Utwórz twarde dowiązania ...'},
-        'Local (this group)':{
-                "pl":'Lokalnie (wybrana grupa)'},
-        'Local (this folder)':{
-                "pl":'Lokalnie (wybrany folder)'},
-        'All Files':{
-                "pl":'Wszystkie pliki'},
-        'selecting prev group':{
-                "pl":'wybieranie poprzedniego w grupie'},
-        'selecting prev duplicate in folder':{
-                "pl":'wybieranie poprzedniego duplikatu w grupie'},
-        'Path does not exist':{
-                "pl":'Ścieżka nie istnieje'},
-        'Abort pressed ...':{
-                "pl":'Użyto "Przerwij" ... '},
-        'Creating dialog ...':{
-                "pl":'Tworzenie dialogu" ... '},
-        'Path:':{
-                "pl":'Ścieżka:'},
-        'Path to scan':{
-                "pl":'Ścieżka do skanowania:'},
-        'Paths To scan:':{
-                "pl":'Ścieżki do skanowania:'},
-        'Add path to scan':{
-                "pl":'Dodaj ścieżkę do skanowania'},
-        'Remove path from list.':{
-                "pl":'Usuń ścieżkę z listy.'},
-        'Exclude from scan:':{
-                "pl":'Wyklucz ze skanowania:'},
-        'Add path as exclude expression ...':{
-                "pl":'Dodaj ścieżkę jako wyrażenie do wykluczenia ...'},
-        'Specify manually, or drag and drop here, up to 8 paths to scan':{
-                "pl":'Wyspecyfikuj manualnie lub przeciągnij i upuść do 8 scieżek do skanowania'},
-        'Set path to scan.':{
-                "pl":'Ustaw ścieżkę do skanowania.'},
-        'Select device to scan.':{
-                "pl":'Wybierz ścieżkę do skanowania.'},
-        'Scan':{
-                "pl":'Skanuj'},
-        'treat as a regular expression':{
-                "pl":'traktuj jako wyrażenie regularne'},
-        'Cancel':{
-                "pl":'Anuluj'},
-        'Operation mode':{
-                "pl":'Tryb działania'},
-        'TOOLTIP_CRC':{
-                "en":"the classic CRC algorithm is applied\nto groups of files of the same size.",
-                "pl":"klasyczny algorytm porównania CRC stosowany\ndo grup plików o tej samej wielkości"},
-        'TOOLTIP_SIMILARITY':{
-                "en":"Only image files are processed\nIdentified groups contain\nimages with similar content",
-                "pl":"Przetwarzane są tylko pliki z grafiką\nZidentyfikowane grupy zawierają\nobrazy o podobnej treści"},
-        'TOOLTIP_GPS':{
-                "en":"Only image files with EXIF GPS\ndata are processed. Identified groups\ncontain images with GPS coordinates\nwith close proximity to each other",
-                "pl":'Przetwarzane są tylko pliki obrazów z danymi EXIF ​​GPS.\nZidentyfikowane grupy\nzawierają obrazy z współrzędnymi GPS\nznajdującymi się blisko siebie'},
-        'TOOLTIP_MIN_SIZE':{
-                "en":"Limit the search pool to files with\nsize equal or greater to the specified\n (e.g. 112kB, 1MB ...)",
-                "pl":'Ogranicz pulę wyszukiwania do plików o rozmiarze\n równym lub większym od określonego\n (np. 112 kB, 1 MB ...)'},
-        'TOOLTIP_MAX_SIZE':{
-                "en":"Limit the search pool to files with\nsize smaller or equal to the specified\n (e.g. 10MB, 1GB ...)",
-                "pl":'Ogranicz pulę wyszukiwania do plików o rozmiarze\n mniejszym od lub równym określonemu\n (np. 112 kB, 1 MB ...)'},
-        'TOOLTIP_HASH':{
-                "en":'The larger the hash size value,\nthe more details of the image\nare taken into consideration.\nThe default value is 6',
-                "pl":'Im większa wartość rozmiaru skrótu,\ntym więcej szczegółów obrazu\njest branych pod uwagę.\nWartość domyślna to 6'},
-        'TOOLTIP_DIV':{
-                "en":"The larger the relative divergence value,\nthe more differences are allowed for\nimages to be identified as similar.\nThe default value is 5\n\nDistance in case of GPS proximity mode",
-                "pl":'Im większa wartość względnej rozbieżności,\ntym więcej różnic jest dozwolonych, aby\nobrazy mogły zostać zidentyfikowane jako podobne.\nWartość domyślna wynosi 5\n\nOdległość w przypadku trybu odległości GPS'},
-        'TOOLTIP_MIN_IMAGE':{
-                "en":"Limit the search pool to images with\nboth dimensions (width and height)\nequal or greater to the specified value\nin pixels (e.g. 512)",
-                "pl":'Ogranicz pulę wyszukiwania do obrazów\nktórych wymiary (szerokość i wysokość)\nsą równe lub większe od określonej\nwartości w pikselach (np. 512)'},
-        'TOOLTIP_MAX_IMAGE':{
-                "en":"Limit the search pool to images with\nboth dimensions (width and height)\nsmaller or equal to the specified value\nin pixels (e.g. 4096)",
-                "pl":'Ogranicz pulę wyszukiwania do obrazów\nktórych wymiary (szerokość i wysokość)\nsą mniejsze od lub równe określonej\nwartości w pikselach (np. 512)'},
-        'TOOLTIP_ALL_ROTATIONS':{
-                "en":"calculate hashes for all (4) image rotations\nSignificantly increases searching time\nand resources consumption.",
-                "pl":'oblicz hashe dla wszystkich (4) obrotów obrazu\nZnacznie zwiększa czas wyszukiwania\ni zużycie zasobów.'},
-        'TOOLTIP_SKIP':{
-                "en":"log every skipped file\n(softlinks, hardlinks, excluded, no permissions etc.)",
-                "pl":'loguj każdy pominięty plik\n(miękkie linki, twarde linki, wykluczone pliki, pliki bez uprawnień itd.)'},
+        '\n\nSelected group will be reduced. For complete results re-scanning is recommended.': {
+            'pl': '\n\nWybrana grupa zostanie zredukowana. Aby uzyskać kompletne wyniki, zaleca się ponowne zeskanowanie.',
+            'es': '\n\nEl grupo seleccionado será reducido. Para obtener resultados completos, se recomienda volver a escanear.',
+            'ru': '\n\nВыбранная группа будет сокращена. Для получения полных результатов рекомендуется повторное сканирование.',
+            'de': '\n\nDie ausgewählte Gruppe wird reduziert. Für vollständige Ergebnisse wird ein erneutes Scannen empfohlen.',
+            'it': '\n\nIl gruppo selezionato verrà ridotto. Per risultati completi si consiglia di eseguire nuovamente la scansione.',
+            'fr': '\n\nLe groupe sélectionné sera réduit. Pour des résultats complets, il est recommandé de relancer l’analyse.',
+        },
+        '\n\nSend to Trash            : ': {
+            'pl': '\n\nPrzenieść do kosza            : ',
+            'es': '\n\nEnviar a la papelera            : ',
+            'ru': '\n\nОтправить в корзину            : ',
+            'de': '\n\nIn den Papierkorb verschieben            : ',
+            'it': '\n\nInvia al cestino            : ',
+            'fr': '\n\nEnvoyer à la corbeille            : ',
+        },
+        '\nErase empty directories  : ': {
+            'pl': '\nSkasować puste katalogi  : ',
+            'es': '\nBorrar directorios vacíos  : ',
+            'ru': '\nУдалить пустые каталоги  : ',
+            'de': '\nLeere Verzeichnisse löschen  : ',
+            'it': '\nCancella le directory vuote  : ',
+            'fr': '\nEffacer les répertoires vides  : ',
+        },
+        ' Search:': {
+            'pl': ' Szukaj:',
+            'es': ' Buscar:',
+            'ru': ' Поиск:',
+            'de': ' Suchen:',
+            'it': ' Cerca:',
+            'fr': ' Rechercher:',
+        },
+        '... Clustering data ...': {
+            'pl': '... Klastrowanie danych ...',
+            'es': '... Agrupando datos ...',
+            'ru': '... Кластеризация данных ...',
+            'de': '... Daten werden gruppiert ...',
+            'it': '... Raggruppamento dati ...',
+            'fr': '... Regroupement des données ...',
+        },
+        '... Rendering data ...': {
+            'pl': '... Wizualizacja danych ...',
+            'es': '... Representando datos ...',
+            'ru': '... Отображение данных ...',
+            'de': '... Daten werden gerendert ...',
+            'it': '... Rendering dei dati ...',
+            'fr': '... Rendu des données ...',
+        },
+        'ABORT_INFO': {
+            'en': 'CRC Calculation aborted.',
+            'pl': 'Obliczanie CRC przerwane.',
+            'es': 'Cálculo de CRC abortado.',
+            'ru': 'Расчёт CRC прерван.',
+            'de': 'CRC-Berechnung abgebrochen.',
+            'it': 'Calcolo CRC interrotto.',
+            'fr': 'Calcul CRC annulé.',
+        },
+        'ABORT_INFO_FULL': {
+            'en': '\nResults are partial.\nSome files may remain unidentified as duplicates.',
+            'pl': '\nWyniki są niepełne.\nNiektóre pliki mogą pozostać niezidentyfikowane jako duplikaty.',
+            'es': '\nLos resultados son parciales.\nAlgunos archivos pueden permanecer sin identificar como duplicados.',
+            'ru': '\nРезультаты частичные.\nНекоторые файлы могут остаться нераспознанными как дубликаты.',
+            'de': '\nDie Ergebnisse sind unvollständig.\nEinige Dateien könnten als Duplikate unerkannt bleiben.',
+            'it': '\nI risultati sono parziali.\nAlcuni file potrebbero rimanere non identificati come duplicati.',
+            'fr': '\nLes résultats sont partiels.\nCertains fichiers peuvent rester non identifiés comme doublons.',
+        },
+        'Abort': {
+            'pl': 'Przerwij',
+            'es': 'Abortar',
+            'ru': 'Прервать',
+            'de': 'Abbrechen',
+            'it': 'Interrompi',
+            'fr': 'Abandonner',
+        },
+        'Abort on first error': {
+            'pl': 'Przerywaj przy pierwszym błędzie',
+            'es': 'Abortar al primer error',
+            'ru': 'Прерывать при первой ошибке',
+            'de': 'Beim ersten Fehler abbrechen',
+            'it': 'Interrompi al primo errore',
+            'fr': 'Arrêter à la première erreur',
+        },
+        'Abort pressed ...': {
+            'pl': 'Użyto "Przerwij" ... ',
+            'es': 'Abortar presionado ... ',
+            'ru': 'Нажато "Прервать" ... ',
+            'de': '"Abbrechen" gedrückt ... ',
+            'it': 'Interrotto ... ',
+            'fr': 'Annulation en cours ... ',
+        },
+        'Abort searching.': {
+            'pl': 'Przerwij szukanie.',
+            'es': 'Abortar búsqueda.',
+            'ru': 'Прервать поиск.',
+            'de': 'Suche abbrechen.',
+            'it': 'Interrompi ricerca.',
+            'fr': 'Annuler la recherche.',
+        },
+        'Aborted': {
+            'pl': 'Przerwano',
+            'es': 'Abortado',
+            'ru': 'Прервано',
+            'de': 'Abgebrochen',
+            'it': 'Interrotto',
+            'fr': 'Annulé',
+        },
+        'Aborted.': {
+            'pl': 'Przerwano.',
+            'es': 'Abortado.',
+            'ru': 'Прервано.',
+            'de': 'Abgebrochen.',
+            'it': 'Interrotto.',
+            'fr': 'Annulé.',
+        },
+        'About': {
+            'pl': 'O programie',
+            'es': 'Acerca de',
+            'ru': 'О программе',
+            'de': 'Über',
+            'it': 'Informazioni su',
+            'fr': 'À propos',
+        },
+        'Add path ...': {
+            'pl': 'Dodaj ścieżkę ...',
+            'es': 'Agregar ruta ...',
+            'ru': 'Добавить путь ...',
+            'de': 'Pfad hinzufügen ...',
+            'it': 'Aggiungi percorso ...',
+            'fr': 'Ajouter un chemin ...',
+        },
+        'Add path as exclude expression ...': {
+            'pl': 'Dodaj ścieżkę jako wyrażenie do wykluczenia ...',
+            'es': 'Agregar ruta como expresión de exclusión ...',
+            'ru': 'Добавить путь как исключение ...',
+            'de': 'Pfad als Ausschlussausdruck hinzufügen ...',
+            'it': 'Aggiungi percorso come espressione di esclusione ...',
+            'fr': 'Ajouter un chemin comme expression d’exclusion ...',
+        },
+        'Add path to scan': {
+            'pl': 'Dodaj ścieżkę do skanowania',
+            'es': 'Agregar ruta para escanear',
+            'ru': 'Добавить путь для сканирования',
+            'de': 'Pfad zum Scannen hinzufügen',
+            'it': 'Aggiungi percorso da scansionare',
+            'fr': 'Ajouter un chemin à analyser',
+        },
+        'All (default)': {
+            'pl': 'Wszystkie (domyślnie)',
+            'es': 'Todos (predeterminado)',
+            'ru': 'Все (по умолчанию)',
+            'de': 'Alle (Standard)',
+            'it': 'Tutti (predefinito)',
+            'fr': 'Tous (par défaut)',
+        },
+        'All Files': {
+            'pl': 'Wszystkie pliki',
+            'es': 'Todos los archivos',
+            'ru': 'Все файлы',
+            'de': 'Alle Dateien',
+            'it': 'Tutti i file',
+            'fr': 'Tous les fichiers',
+        },
+        'All files marked': {
+            'pl': 'Wszystkie pliki są zaznaczone',
+            'es': 'Todos los archivos marcados',
+            'ru': 'Все файлы помечены',
+            'de': 'Alle Dateien markiert',
+            'it': 'Tutti i file contrassegnati',
+            'fr': 'Tous les fichiers marqués',
+        },
+        'All marked files # ': {
+            'pl': 'Zaznaczone pliki # ',
+            'es': 'Todos los archivos marcados # ',
+            'ru': 'Все отмеченные файлы # ',
+            'de': 'Alle markierten Dateien # ',
+            'it': 'Tutti i file contrassegnati # ',
+            'fr': 'Tous les fichiers marqués # ',
+        },
+        'All marked files on selected directory sub-tree.': {
+            'pl': 'Wszystkie zaznaczone pliki w wybranym poddrzewie katalogów',
+            'es': 'Todos los archivos marcados en el subárbol del directorio seleccionado.',
+            'ru': 'Все отмеченные файлы в выбранном поддереве каталогов.',
+            'de': 'Alle markierten Dateien im ausgewählten Verzeichnisbaum.',
+            'it': 'Tutti i file contrassegnati nel sottoalbero della directory selezionata.',
+            'fr': 'Tous les fichiers marqués dans l’arborescence du répertoire sélectionné.',
+        },
+        'All marked files size: ': {
+            'pl': 'Wielkość zazn. plików: ',
+            'es': 'Tamaño de todos los archivos marcados: ',
+            'ru': 'Размер всех отмеченных файлов: ',
+            'de': 'Größe aller markierten Dateien: ',
+            'it': 'Dimensione di tutti i file contrassegnati: ',
+            'fr': 'Taille de tous les fichiers marqués : ',
+        },
+        'All marked files.': {
+            'pl': 'Wszystkie zaznaczone pliki.',
+            'es': 'Todos los archivos marcados.',
+            'ru': 'Все отмеченные файлы.',
+            'de': 'Alle markierten Dateien.',
+            'it': 'Tutti i file contrassegnati.',
+            'fr': 'Tous les fichiers marqués.',
+        },
+        'Allow deletion of all copies': {
+            'pl': 'Zezwól na usunięcie wszystkich kopii',
+            'es': 'Permitir la eliminación de todas las copias',
+            'ru': 'Разрешить удаление всех копий',
+            'de': 'Löschen aller Kopien erlauben',
+            'it': 'Consenti l’eliminazione di tutte le copie',
+            'fr': 'Autoriser la suppression de toutes les copies',
+        },
+        'Application restart required\nfor changes to take effect': {
+            'pl': 'Aby zmiany zostały wprowadzone\nwymagane jest ponowne uruchomienie aplikacji.',
+            'es': 'Se requiere reiniciar la aplicación\npara que los cambios surtan efecto.',
+            'ru': 'Для применения изменений\nтребуется перезапуск приложения.',
+            'de': 'Ein Neustart der Anwendung ist erforderlich,\num Änderungen wirksam zu machen.',
+            'it': 'È necessario riavviare l’applicazione\nper applicare le modifiche.',
+            'fr': "Le redémarrage de l'application est requis\npour appliquer les modifications.",
+        },
+        'CRC/Scan Path': {
+            'pl': 'CRC/Ścieżka skanowania',
+            'es': 'CRC/Ruta de escaneo',
+            'ru': 'CRC/Путь сканирования',
+            'de': 'CRC/Scan-Pfad',
+            'it': 'CRC/Percorso di scansione',
+            'fr': 'CRC/Chemin de scan',
+        },
+        "Can't create hardlinks.": {
+            'pl': 'Nie można utworzyć twardych dowiązań.',
+            'es': 'No se pueden crear enlaces duros.',
+            'ru': 'Невозможно создать жёсткие ссылки.',
+            'de': 'Hardlinks können nicht erstellt werden.',
+            'it': 'Impossibile creare collegamenti fisici.',
+            'fr': 'Impossible de créer des liens physiques.',
+        },
+        'Cancel': {
+            'pl': 'Anuluj',
+            'es': 'Cancelar',
+            'ru': 'Отмена',
+            'de': 'Abbrechen',
+            'it': 'Annulla',
+            'fr': 'Annuler',
+        },
+        'Cannot Proceed.': {
+            'pl': 'Nie można kontynuować.',
+            'es': 'No se puede continuar.',
+            'ru': 'Невозможно продолжить.',
+            'de': 'Fortfahren nicht möglich.',
+            'it': 'Impossibile procedere.',
+            'fr': 'Impossible de continuer.',
+        },
+        'Case Sensitive': {
+            'pl': 'Uwzględnij wielkość znaków',
+            'es': 'Distinguir entre mayúsculas y minúsculas',
+            'ru': 'Чувствительный к регистру',
+            'de': 'Groß-/Kleinschreibung beachten',
+            'it': 'Distingue tra maiuscole e minuscole',
+            'fr': 'Sensible à la casse',
+        },
+        'Change Time': {
+            'pl': 'Czas zmiany',
+            'es': 'Hora de cambio',
+            'ru': 'Время изменения',
+            'de': 'Änderungszeit',
+            'it': 'Ora della modifica',
+            'fr': 'Heure de modification',
+        },
+        'Check all rotations': {
+            'pl': 'Analizuj warianty obrócone',
+            'es': 'Comprobar todas las rotaciones',
+            'ru': 'Проверить все повороты',
+            'de': 'Alle Drehungen überprüfen',
+            'it': 'Controlla tutte le rotazioni',
+            'fr': 'Vérifier toutes les rotations',
+        },
+        'Cleaning tree...': {
+            'pl': 'Czyszczenie drzewa',
+            'es': 'Limpiando el árbol...',
+            'ru': 'Очистка дерева...',
+            'de': 'Baum wird gereinigt...',
+            'it': 'Pulizia dell’albero...',
+            'fr': 'Nettoyage de l’arborescence...',
+        },
+        'Close': {
+            'pl': 'Zamknij',
+            'es': 'Cerrar',
+            'ru': 'Закрыть',
+            'de': 'Schließen',
+            'it': 'Chiudi',
+            'fr': 'Fermer',
+        },
+        'Confirmation dialogs': {
+            'pl': 'Dialogi potwierdzenia',
+            'es': 'Diálogos de confirmación',
+            'ru': 'Диалоги подтверждения',
+            'de': 'Bestätigungsdialoge',
+            'it': 'Finestre di conferma',
+            'fr': 'Boîtes de dialogue de confirmation',
+        },
+        'Confirmed.': {
+            'pl': 'Potwierdzono.',
+            'es': 'Confirmado.',
+            'ru': 'Подтверждено.',
+            'de': 'Bestätigt.',
+            'it': 'Confermato.',
+            'fr': 'Confirmé.',
+        },
+        'Copied to clipboard:': {
+            'pl': 'Skopiowano do schowka:',
+            'es': 'Copiado al portapapeles:',
+            'ru': 'Скопировано в буфер обмена:',
+            'de': 'In die Zwischenablage kopiert:',
+            'it': 'Copiato negli appunti:',
+            'fr': 'Copié dans le presse-papiers :',
+        },
+        'Copy full path': {
+            'pl': 'Kopiuj pełną ścieżkę',
+            'es': 'Copiar ruta completa',
+            'ru': 'Копировать полный путь',
+            'de': 'Vollständigen Pfad kopieren',
+            'it': 'Copia percorso completo',
+            'fr': 'Copier le chemin complet',
+        },
+        'Create *.lnk for Marked Files ...': {
+            'pl': 'Utwórz pliki *.lnk z zaznaczonych plików ...',
+            'es': 'Crear *.lnk para archivos marcados ...',
+            'ru': 'Создать *.lnk для отмеченных файлов ...',
+            'de': '*.lnk für markierte Dateien erstellen ...',
+            'it': 'Crea *.lnk per i file contrassegnati ...',
+            'fr': 'Créer *.lnk pour les fichiers marqués ...',
+        },
+        'Create *.lnk for Marked Files in Subdirectory Tree ...': {
+            'pl': 'Zastąp zaznaczone pliki w poddrzewie katalogów plikami *.lnk ...',
+            'es': 'Crear *.lnk para archivos marcados en el árbol de subdirectorios ...',
+            'ru': 'Создать *.lnk для отмеченных файлов в поддереве каталогов ...',
+            'de': '*.lnk für markierte Dateien im Verzeichnisbaum erstellen ...',
+            'it': 'Crea *.lnk per i file contrassegnati nell’albero delle sottodirectory ...',
+            'fr': 'Créer *.lnk pour les fichiers marqués dans l’arborescence des sous-répertoires ...',
+        },
+        'Create relative symbolic links': {
+            'pl': 'Twórz miękkie dowiązania ze ścieżką względną',
+            'es': 'Crear enlaces simbólicos relativos',
+            'ru': 'Создавать относительные символические ссылки',
+            'de': 'Relative symbolische Links erstellen',
+            'it': 'Crea collegamenti simbolici relativi',
+            'fr': 'Créer des liens symboliques relatifs',
+        },
+        'Creating dialog ...': {
+            'pl': 'Tworzenie okna dialogowego ...',
+            'es': 'Creando diálogo ...',
+            'ru': 'Создание диалога ...',
+            'de': 'Dialog wird erstellt ...',
+            'it': 'Creazione della finestra di dialogo ...',
+            'fr': 'Création de la boîte de dialogue ...',
+        },
+        'Cross paths': {
+            'pl': 'Różne ścieżki',
+            'es': 'Cruzar caminos',
+            'ru': 'Пересекающиеся пути',
+            'de': 'Kreuzende Pfade',
+            'it': 'Percorsi incrociati',
+            'fr': 'Chemins croisés',
+        },
+        'Current filesystem state is inconsistent with scanned data.\n\n': {
+            'pl': 'Aktualny stan systemu plików jest niezgodny ze skanowanymi danymi.\n\n',
+            'es': 'El estado actual del sistema de archivos no es consistente con los datos escaneados.\n\n',
+            'ru': 'Текущее состояние файловой системы не соответствует отсканированным данным.\n\n',
+            'de': 'Der aktuelle Zustand des Dateisystems stimmt nicht mit den gescannten Daten überein.\n\n',
+            'it': 'Lo stato attuale del file system non è coerente con i dati scansionati.\n\n',
+            'fr': 'L’état actuel du système de fichiers n’est pas cohérent avec les données analysées.\n\n',
+        },
+        'Data clustering': {
+            'pl': 'Klastrowanie danych',
+            'es': 'Agrupación de datos',
+            'ru': 'Кластеризация данных',
+            'de': 'Datenclustering',
+            'it': 'Raggruppamento dei dati',
+            'fr': 'Regroupement de données',
+        },
+        'Delete marked files ?': {
+            'pl': 'Skasować zaznaczone pliki?',
+            'es': '¿Eliminar archivos marcados?',
+            'ru': 'Удалить отмеченные файлы?',
+            'de': 'Markierte Dateien löschen?',
+            'it': 'Eliminare i file contrassegnati?',
+            'fr': 'Supprimer les fichiers marqués ?',
+        },
+        'Erase Cache': {
+            'pl': 'Wyczyść Cache',
+            'es': 'Borrar caché',
+            'ru': 'Очистить кэш',
+            'de': 'Cache löschen',
+            'it': 'Cancella cache',
+            'fr': 'Effacer le cache',
+        },
+        'Erase remaining empty directories': {
+            'pl': 'Usuwaj pozostające puste katalogi',
+            'es': 'Borrar directorios vacíos restantes',
+            'ru': 'Удалить оставшиеся пустые каталоги',
+            'de': 'Verbleibende leere Verzeichnisse löschen',
+            'it': 'Eliminare le directory vuote rimanenti',
+            'fr': 'Effacer les répertoires vides restants',
+        },
+        'Error. Inconsistent data.': {
+            'pl': 'Błąd. Niespójne dane.',
+            'es': 'Error. Datos inconsistentes.',
+            'ru': 'Ошибка. Несоответствие данных.',
+            'de': 'Fehler. Inkonsistente Daten.',
+            'it': 'Errore. Dati incoerenti.',
+            'fr': 'Erreur. Données incohérentes.',
+        },
+        'Exclude from scan:': {
+            'pl': 'Wyklucz ze skanowania:',
+            'es': 'Excluir del escaneo:',
+            'ru': 'Исключить из сканирования:',
+            'de': 'Vom Scan ausschließen:',
+            'it': 'Escludi dalla scansione:',
+            'fr': 'Exclure de l’analyse :',
+        },
+        'Exit': {
+            'pl': 'Zamknij',
+            'es': 'Salir',
+            'ru': 'Выход',
+            'de': 'Beenden',
+            'it': 'Esci',
+            'fr': 'Quitter',
+        },
+        'File': {
+            'pl': 'Plik',
+            'es': 'Archivo',
+            'ru': 'Файл',
+            'de': 'Datei',
+            'it': 'File',
+            'fr': 'Fichier',
+        },
+        'File Mask': {
+            'pl': 'Maska Plików',
+            'es': 'Máscara de archivos',
+            'ru': 'Маска файла',
+            'de': 'Dateimaske',
+            'it': 'Maschera dei file',
+            'fr': 'Masque de fichiers',
+        },
+        'File size range': {
+            'pl': 'Zakres wielkości plików',
+            'es': 'Rango de tamaño de archivo',
+            'ru': 'Диапазон размера файла',
+            'de': 'Dateigrößenbereich',
+            'it': 'Intervallo di dimensioni del file',
+            'fr': 'Plage de taille des fichiers',
+        },
+        'Files number:': {
+            'pl': 'Liczba plików:',
+            'es': 'Número de archivos:',
+            'ru': 'Количество файлов:',
+            'de': 'Anzahl der Dateien:',
+            'it': 'Numero di file:',
+            'fr': 'Nombre de fichiers :',
+        },
+        'Files on multiple devices selected.': {
+            'pl': 'Wybrano pliki na wielu urządzeniach.',
+            'es': 'Archivos seleccionados en varios dispositivos.',
+            'ru': 'Выбраны файлы на нескольких устройствах.',
+            'de': 'Dateien auf mehreren Geräten ausgewählt.',
+            'it': 'File selezionati su più dispositivi.',
+            'fr': 'Fichiers sélectionnés sur plusieurs appareils.',
+        },
+        'Find': {
+            'pl': 'Znajdź',
+            'es': 'Buscar',
+            'ru': 'Найти',
+            'de': 'Suchen',
+            'it': 'Trova',
+            'fr': 'Rechercher',
+        },
+        'Find next': {
+            'pl': 'Znajdź nast.',
+            'es': 'Buscar siguiente',
+            'ru': 'Найти следующее',
+            'de': 'Weiter suchen',
+            'it': 'Trova successivo',
+            'fr': 'Rechercher suivant',
+        },
+        'Find prev': {
+            'pl': 'Znajdź poprz.',
+            'es': 'Buscar anterior',
+            'ru': 'Найти предыдущее',
+            'de': 'Vorheriges suchen',
+            'it': 'Trova precedente',
+            'fr': 'Rechercher précédent',
+        },
+        'Finished.': {
+            'pl': 'Zakończono.',
+            'es': 'Terminado.',
+            'ru': 'Завершено.',
+            'de': 'Abgeschlossen.',
+            'it': 'Finito.',
+            'fr': 'Terminé.',
+        },
+        'Folders: ': {
+            'pl': 'Katalogi: ',
+            'es': 'Carpetas: ',
+            'ru': 'Каталоги: ',
+            'de': 'Ordner: ',
+            'it': 'Cartelle: ',
+            'fr': 'Dossiers : ',
+        },
+        'Full path copied to clipboard': {
+            'pl': 'Pełna ścieżka skopiowana do schowka',
+            'es': 'Ruta completa copiada al portapapeles',
+            'ru': 'Полный путь скопирован в буфер обмена',
+            'de': 'Vollständiger Pfad in die Zwischenablage kopiert',
+            'it': 'Percorso completo copiato negli appunti',
+            'fr': 'Chemin complet copié dans le presse-papiers',
+        },
+        'GPS data extraction': {
+            'pl': 'Wydobywanie danych GPS',
+            'es': 'Extracción de datos GPS',
+            'ru': 'Извлечение данных GPS',
+            'de': 'GPS-Datenextraktion',
+            'it': 'Estrazione dati GPS',
+            'fr': 'Extraction des données GPS',
+        },
+        'GROUP': {
+            'pl': 'GRUPA',
+            'es': 'GRUPO',
+            'ru': 'ГРУППА',
+            'de': 'GRUPPE',
+            'it': 'GRUPPO',
+            'fr': 'GROUPE',
+        },
+        'GROUP/Scan Path': {
+            'pl': 'GRUPA/Ścieżka skanowania',
+            'es': 'GRUPO/Ruta de escaneo',
+            'ru': 'ГРУППА/Путь сканирования',
+            'de': 'GRUPPE/Scan-Pfad',
+            'it': 'GRUPPO/Percorso di scansione',
+            'fr': 'GROUPE/Chemin d’analyse',
+        },
+        'GROUP:': {
+            'pl': 'GRUPA:',
+            'es': 'GRUPO:',
+            'ru': 'ГРУППА:',
+            'de': 'GRUPPE:',
+            'it': 'GRUPPO:',
+            'fr': 'GROUPE :',
+        },
+        'Go to dominant folder (by quantity)': {
+            'pl': 'Przejdź do dominującego folderu (według ilości)',
+            'es': 'Ir a la carpeta dominante (por cantidad)',
+            'ru': 'Перейти в доминирующую папку (по количеству)',
+            'de': 'Zum dominanten Ordner gehen (nach Menge)',
+            'it': 'Vai alla cartella dominante (per quantità)',
+            'fr': 'Aller au dossier dominant (par quantité)',
+        },
+        'Go to dominant folder (by size sum)': {
+            'pl': 'Przejdź do dominującego folderu (według sumarycznej wielkości)',
+            'es': 'Ir a la carpeta dominante (por suma de tamaños)',
+            'ru': 'Перейти в доминирующую папку (по суммарному размеру)',
+            'de': 'Zum dominanten Ordner gehen (nach Gesamtgröße)',
+            'it': 'Vai alla cartella dominante (per somma delle dimensioni)',
+            'fr': 'Aller au dossier dominant (par taille totale)',
+        },
+        'Go to dominant group (by quantity)': {
+            'pl': 'Przejdź do dominującej grupy (według ilości)',
+            'es': 'Ir al grupo dominante (por cantidad)',
+            'ru': 'Перейти в доминирующую группу (по количеству)',
+            'de': 'Zur dominanten Gruppe gehen (nach Menge)',
+            'it': 'Vai al gruppo dominante (per quantità)',
+            'fr': 'Aller au groupe dominant (par quantité)',
+        },
+        'Go to dominant group (by size sum)': {
+            'pl': 'Przejdź do dominującej grupy (według sumarycznej wielkości)',
+            'es': 'Ir al grupo dominante (por suma de tamaños)',
+            'ru': 'Перейти в доминирующую группу (по суммарному размеру)',
+            'de': 'Zur dominanten Gruppe gehen (nach Gesamtgröße)',
+            'it': 'Vai al gruppo dominante (per somma delle dimensioni)',
+            'fr': 'Aller au groupe dominant (par taille totale)',
+        },
+        'Go to first entry': {
+            'pl': 'Przejdź do pierwszego',
+            'es': 'Ir a la primera entrada',
+            'ru': 'Перейти к первой записи',
+            'de': 'Zur ersten Eintragung gehen',
+            'it': 'Vai alla prima voce',
+            'fr': 'Aller à la première entrée',
+        },
+        'Go to last entry': {
+            'pl': 'Przejdź do ostatniego',
+            'es': 'Ir a la última entrada',
+            'ru': 'Перейти к последней записи',
+            'de': 'Zur letzten Eintragung gehen',
+            'it': 'Vai all’ultima voce',
+            'fr': 'Aller à la dernière entrée',
+        },
+        'Go to next duplicate': {
+            'pl': 'Przejdź do następnego duplikatu',
+            'es': 'Ir al siguiente duplicado',
+            'ru': 'Перейти к следующему дубликату',
+            'de': 'Zum nächsten Duplikat gehen',
+            'it': 'Vai al duplicato successivo',
+            'fr': 'Aller au doublon suivant',
+        },
+        'Go to next marked file': {
+            'pl': 'Przejdź do następnego zaznaczonego pliku',
+            'es': 'Ir al siguiente archivo marcado',
+            'ru': 'Перейти к следующему отмеченному файлу',
+            'de': 'Zur nächsten markierten Datei gehen',
+            'it': 'Vai al prossimo file contrassegnato',
+            'fr': 'Aller au fichier marqué suivant',
+        },
+        'Go to next not marked file': {
+            'pl': 'Przejdź do następnego nie zaznaczonego pliku',
+            'es': 'Ir al siguiente archivo no marcado',
+            'ru': 'Перейти к следующему неотмеченному файлу',
+            'de': 'Zur nächsten nicht markierten Datei gehen',
+            'it': 'Vai al prossimo file non contrassegnato',
+            'fr': 'Aller au fichier non marqué suivant',
+        },
+        'Go to previous duplicate': {
+            'pl': 'Przejdź do poprzedniego duplikatu',
+            'es': 'Ir al duplicado anterior',
+            'ru': 'Перейти к предыдущему дубликату',
+            'de': 'Zum vorherigen Duplikat gehen',
+            'it': 'Vai al duplicato precedente',
+            'fr': 'Aller au doublon précédent',
+        },
+        'Go to previous marked file': {
+            'pl': 'Przejdź do poprzedniego zaznaczonego pliku',
+            'es': 'Ir al archivo marcado anterior',
+            'ru': 'Перейти к предыдущему отмеченному файлу',
+            'de': 'Zur vorherigen markierten Datei gehen',
+            'it': 'Vai al file contrassegnato precedente',
+            'fr': 'Aller au fichier marqué précédent',
+        },
+        'Go to previous not marked file': {
+            'pl': 'Przejdź do poprzedniego nie zaznaczonego pliku',
+            'es': 'Ir al archivo no marcado anterior',
+            'ru': 'Перейти к предыдущему неотмеченному файлу',
+            'de': 'Zur vorherigen nicht markierten Datei gehen',
+            'it': 'Vai al file non contrassegnato precedente',
+            'fr': 'Aller au fichier non marqué précédent',
+        },
+        'Groups: ': {
+            'pl': 'Grupy: ',
+            'es': 'Grupos: ',
+            'ru': 'Группы: ',
+            'de': 'Gruppen: ',
+            'it': 'Gruppi: ',
+            'fr': 'Groupes : ',
+        },
+        'Hard-Link marked files together in groups ?': {
+            'pl': 'Utworzyć wspólne twarde dowiązania?',
+            'es': '¿Crear enlaces duros de los archivos marcados en grupos?',
+            'ru': 'Создать жёсткие ссылки для отмеченных файлов в группах?',
+            'de': 'Markierte Dateien in Gruppen als Hardlinks verbinden?',
+            'it': 'Creare collegamenti rigidi dei file contrassegnati nei gruppi?',
+            'fr': 'Créer des liens physiques pour les fichiers marqués en groupes ?',
+        },
+        'Hardlink Marked Files ...': {
+            'pl': 'Utwórz twarde dowiązania ...',
+            'es': 'Enlazar archivos marcados ...',
+            'ru': 'Создать жёсткие ссылки для отмеченных файлов ...',
+            'de': 'Hardlinks für markierte Dateien erstellen ...',
+            'it': 'Crea collegamenti rigidi per i file contrassegnati ...',
+            'fr': 'Créer des liens physiques pour les fichiers marqués ...',
+        },
+        'Help': {
+            'pl': 'Pomoc',
+            'es': 'Ayuda',
+            'ru': 'Помощь',
+            'de': 'Hilfe',
+            'it': 'Aiuto',
+            'fr': 'Aide',
+        },
+        'Hide Preview window': {
+            'pl': 'Ukryj okno podglądu',
+            'es': 'Ocultar ventana de vista previa',
+            'ru': 'Скрыть окно предварительного просмотра',
+            'de': 'Vorschaufenster ausblenden',
+            'it': 'Nascondi finestra di anteprima',
+            'fr': 'Masquer la fenêtre d’aperçu',
+        },
+        'If you abort at this stage,\nyou will not get any results.': {
+            'pl': 'Jeśli przerwiesz na tym etapie,\nnie uzyskasz żadnych rezultatów.',
+            'es': 'Si abandonas en esta etapa,\nno obtendrás resultados.',
+            'ru': 'Если вы прервете на этом этапе,\nвы не получите никаких результатов.',
+            'de': 'Wenn Sie an diesem Punkt abbrechen,\nerhalten Sie keine Ergebnisse.',
+            'it': 'Se annulli a questo punto,\nnon otterrai alcun risultato.',
+            'fr': 'Si vous abandonnez à ce stade,\nvous n’obtiendrez aucun résultat.',
+        },
+        'Image size range (pixels)': {
+            'pl': 'Zakres wielkości obrazów (piksele)',
+            'es': 'Rango de tamaño de imagen (píxeles)',
+            'ru': 'Диапазон размеров изображений (пиксели)',
+            'de': 'Bildgrößenbereich (Pixel)',
+            'it': 'Intervallo di dimensioni immagini (pixel)',
+            'fr': 'Plage de taille d’image (pixels)',
+        },
+        'Images GPS data proximity': {
+            'pl': 'Bliskość danych GPS',
+            'es': 'Proximidad de datos GPS de imágenes',
+            'ru': 'Близость данных GPS изображений',
+            'de': 'GPS-Daten-Nähe von Bildern',
+            'it': 'Prossimità dei dati GPS delle immagini',
+            'fr': 'Proximité des données GPS des images',
+        },
+        'Images hashing': {
+            'pl': 'Hashowanie obrazów',
+            'es': 'Hashing de imágenes',
+            'ru': 'Хэширование изображений',
+            'de': 'Bilder-Hashing',
+            'it': 'Hashing delle immagini',
+            'fr': 'Hachage des images',
+        },
+        'Images similarity': {
+            'pl': 'Podobieństwo obrazów',
+            'es': 'Similitud de imágenes',
+            'ru': 'Сходство изображений',
+            'de': 'Ähnlichkeit von Bildern',
+            'it': 'Somiglianza tra immagini',
+            'fr': 'Similitude des images',
+        },
+        'Information': {
+            'pl': 'Informacja',
+            'es': 'Información',
+            'ru': 'Информация',
+            'de': 'Information',
+            'it': 'Informazione',
+            'fr': 'Information',
+        },
+        'Invert marks': {
+            'pl': 'Odwróć zaznaczenie',
+            'es': 'Invertir marcas',
+            'ru': 'Инвертировать отметки',
+            'de': 'Markierungen umkehren',
+            'it': 'Inverti selezioni',
+            'fr': 'Inverser les marques',
+        },
+        'Keep at least one file unmarked\nor enable option:\n"Skip groups with invalid selection"': {
+            'pl': 'Zachowaj przynajmniej jeden plik nieoznaczony\nlub włącz opcję:\n"Pomiń grupy z błędną selekcją"',
+            'es': 'Mantén al menos un archivo sin marcar\no habilita la opción:\n"Omitir grupos con selección no válida"',
+            'ru': 'Оставьте хотя бы один файл неотмеченным\nили включите опцию:\n"Пропускать группы с недопустимым выбором"',
+            'de': 'Lassen Sie mindestens eine Datei unmarkiert\noder aktivieren Sie die Option:\n"Gruppen mit ungültiger Auswahl überspringen"',
+            'it': 'Lascia almeno un file non contrassegnato\no abilita l’opzione:\n"Salta gruppi con selezione non valida"',
+            'fr': 'Laissez au moins un fichier non marqué\nou activez l’option :\n"Passer les groupes avec sélection invalide"',
+        },
+        'Keep at least one file unmarked\nor enable option:\n"Skip groups with invalid selection"\nor enable option:\n"Allow deletion of all copies"': {
+            'pl': 'Zachowaj przynajmniej jeden plik nieoznaczony\nlub włącz opcję:\n"Pomiń grupy z błędną selekcją"\nlub włącz opcję:\n"Zezwól na usuwanie wszystkich kopii"',
+            'es': 'Mantén al menos un archivo sin marcar\no habilita la opción:\n"Omitir grupos con selección no válida"\no habilita la opción:\n"Permitir eliminación de todas las copias"',
+            'ru': 'Оставьте хотя бы один файл неотмеченным\nили включите опцию:\n"Пропускать группы с недопустимым выбором"\nили включите опцию:\n"Разрешить удаление всех копий"',
+            'de': 'Lassen Sie mindestens eine Datei unmarkiert\noder aktivieren Sie die Option:\n"Gruppen mit ungültiger Auswahl überspringen"\noder aktivieren Sie die Option:\n"Löschen aller Kopien erlauben"',
+            'it': 'Lascia almeno un file non contrassegnato\no abilita l’opzione:\n"Salta gruppi con selezione non valida"\no abilita l’opzione:\n"Consenti eliminazione di tutte le copie"',
+            'fr': 'Laissez au moins un fichier non marqué\nou activez l’option :\n"Passer les groupes avec sélection invalide"\nou activez l’option :\n"Autoriser la suppression de toutes les copies"',
+        },
+        'Language Changed': {
+            'pl': 'Język został zmieniony',
+            'es': 'Idioma cambiado',
+            'ru': 'Язык изменён',
+            'de': 'Sprache geändert',
+            'it': 'Lingua cambiata',
+            'fr': 'Langue modifiée',
+        },
+        'Language:': {
+            'pl': 'Język:',
+            'es': 'Idioma:',
+            'ru': 'Язык:',
+            'de': 'Sprache:',
+            'it': 'Lingua:',
+            'fr': 'Langue :',
+        },
+        'License': {
+            'pl': 'Licencja',
+            'es': 'Licencia',
+            'ru': 'Лицензия',
+            'de': 'Lizenz',
+            'it': 'Licenza',
+            'fr': 'Licence',
+        },
+        'Link files will be created with the names of the listed files with the ".lnk" suffix.': {
+            'pl': 'Pliki linków zostaną utworzone z nazwami wymienionych plików z rozszerzeniem ".lnk".',
+            'es': 'Se crearán archivos de enlace con los nombres de los archivos listados con el sufijo ".lnk".',
+            'ru': 'Будут созданы ссылки с именами перечисленных файлов с суффиксом ".lnk".',
+            'de': 'Link-Dateien werden mit den Namen der aufgeführten Dateien und dem Suffix ".lnk" erstellt.',
+            'it': 'I file di collegamento saranno creati con i nomi dei file elencati con il suffisso ".lnk".',
+            'fr': 'Les fichiers de lien seront créés avec les noms des fichiers listés avec le suffixe ".lnk".',
+        },
+        'Local (this folder)': {
+            'pl': 'Lokalnie (wybrany folder)',
+            'es': 'Local (esta carpeta)',
+            'ru': 'Локально (эта папка)',
+            'de': 'Lokal (dieser Ordner)',
+            'it': 'Locale (questa cartella)',
+            'fr': 'Local (ce dossier)',
+        },
+        'Local (this group)': {
+            'pl': 'Lokalnie (wybrana grupa)',
+            'es': 'Local (este grupo)',
+            'ru': 'Локально (эта группа)',
+            'de': 'Lokal (diese Gruppe)',
+            'it': 'Locale (questo gruppo)',
+            'fr': 'Local (ce groupe)',
+        },
+        'Main panels and dialogs': {
+            'pl': 'Panele główne i dialogi',
+            'es': 'Paneles principales y diálogos',
+            'ru': 'Основные панели и диалоги',
+            'de': 'Hauptpanels und Dialoge',
+            'it': 'Pannelli principali e finestre di dialogo',
+            'fr': 'Panneaux principaux et dialogues',
+        },
+        'Mark All Duplicates in Subdirectory': {
+            'pl': 'Zaznacz wszystkie duplikaty w podkatalogu',
+            'es': 'Marcar todos los duplicados en el subdirectorio',
+            'ru': 'Отметить все дубликаты в подкаталоге',
+            'de': 'Alle Duplikate im Unterverzeichnis markieren',
+            'it': 'Contrassegna tutti i duplicati nella sottodirectory',
+            'fr': 'Marquer tous les doublons dans le sous-répertoire',
+        },
+        'Mark By expression': {
+            'pl': 'Zaznacz z użyciem wyrażenia',
+            'es': 'Marcar por expresión',
+            'ru': 'Отметить по выражению',
+            'de': 'Nach Ausdruck markieren',
+            'it': 'Contrassegna per espressione',
+            'fr': 'Marquer par expression',
+        },
+        'Mark Oldest files': {
+            'pl': 'Zaznacz najstarsze pliki',
+            'es': 'Marcar los archivos más antiguos',
+            'ru': 'Отметить самые старые файлы',
+            'de': 'Älteste Dateien markieren',
+            'it': 'Contrassegna i file più vecchi',
+            'fr': 'Marquer les fichiers les plus anciens',
+        },
+        'Mark Youngest files': {
+            'pl': 'Zaznacz najmłodsze pliki',
+            'es': 'Marcar los archivos más recientes',
+            'ru': 'Отметить самые новые файлы',
+            'de': 'Jüngste Dateien markieren',
+            'it': 'Contrassegna i file più recenti',
+            'fr': 'Marquer les fichiers les plus récents',
+        },
+        'Mark all files': {
+            'pl': 'Zaznacz wszystkie pliki',
+            'es': 'Marcar todos los archivos',
+            'ru': 'Отметить все файлы',
+            'de': 'Alle Dateien markieren',
+            'it': 'Contrassegna tutti i file',
+            'fr': 'Marquer tous les fichiers',
+        },
+        'Mark files': {
+            'pl': 'Zaznacz pliki',
+            'es': 'Marcar archivos',
+            'ru': 'Отметить файлы',
+            'de': 'Dateien markieren',
+            'it': 'Contrassegna file',
+            'fr': 'Marquer les fichiers',
+        },
+        'Mark files first.': {
+            'pl': 'Zaznacz najpierw pliki.',
+            'es': 'Marca primero los archivos.',
+            'ru': 'Сначала отметьте файлы.',
+            'de': 'Zuerst Dateien markieren.',
+            'it': 'Contrassegna prima i file.',
+            'fr': 'Marquez d’abord les fichiers.',
+        },
+        'Mark more files\nor enable option:\n"Skip groups with invalid selection"': {
+            'pl': 'Zaznacz więcej plików\nlub włącz opcję:\n"Pomiń grupy z błędną selekcją"',
+            'es': 'Marca más archivos\no habilita la opción:\n"Omitir grupos con selección no válida"',
+            'ru': 'Отметьте больше файлов\nили включите опцию:\n"Пропустить группы с недопустимым выбором"',
+            'de': 'Markieren Sie mehr Dateien\noder aktivieren Sie die Option:\n"Gruppen mit ungültiger Auswahl überspringen"',
+            'it': 'Contrassegna più file\no abilita l’opzione:\n"Salta gruppi con selezione non valida"',
+            'fr': 'Marquez plus de fichiers\nou activez l’option :\n"Passer les groupes avec sélection invalide"',
+        },
+        'Mark on scan path': {
+            'pl': 'Zaznacz na wybranej ścieżce skanowania',
+            'es': 'Marcar en la ruta de escaneo',
+            'ru': 'Отметить на пути сканирования',
+            'de': 'Auf Scan-Pfad markieren',
+            'it': 'Contrassegna nel percorso di scansione',
+            'fr': 'Marquer sur le chemin de scan',
+        },
+        'Mark on specified directory ...': {
+            'pl': 'Zaznacz w wybranym katalogu ...',
+            'es': 'Marcar en el directorio especificado ...',
+            'ru': 'Отметить в указанной папке ...',
+            'de': 'Im angegebenen Verzeichnis markieren ...',
+            'it': 'Contrassegna nella directory specificata ...',
+            'fr': 'Marquer dans le répertoire spécifié ...',
+        },
+        'Marked files # ': {
+            'pl': 'Zaznaczone pliki #',
+            'es': 'Archivos marcados #',
+            'ru': 'Отмеченные файлы #',
+            'de': 'Markierte Dateien #',
+            'it': 'File contrassegnati #',
+            'fr': 'Fichiers marqués #',
+        },
+        'Marked files size: ': {
+            'pl': 'Wielkość zazn. plików: ',
+            'es': 'Tamaño de archivos marcados: ',
+            'ru': 'Размер отмеченных файлов: ',
+            'de': 'Größe markierter Dateien: ',
+            'it': 'Dimensione dei file contrassegnati: ',
+            'fr': 'Taille des fichiers marqués : ',
+        },
+        'Maximum file size': {
+            'pl': 'Maksymalna wielkość pliku',
+            'es': 'Tamaño máximo de archivo',
+            'ru': 'Максимальный размер файла',
+            'de': 'Maximale Dateigröße',
+            'it': 'Dimensione massima del file',
+            'fr': 'Taille maximale du fichier',
+        },
+        'Minimum file size.': {
+            'pl': 'Minimalna wielkość pliku.',
+            'es': 'Tamaño mínimo de archivo.',
+            'ru': 'Минимальный размер файла.',
+            'de': 'Minimale Dateigröße.',
+            'it': 'Dimensione minima del file.',
+            'fr': 'Taille minimale du fichier.',
+        },
+        'Name': {
+            'pl': 'Nazwa',
+            'es': 'Nombre',
+            'ru': 'Имя',
+            'de': 'Name',
+            'it': 'Nome',
+            'fr': 'Nom',
+        },
+        'Navigation': {
+            'pl': 'Nawigacja',
+            'es': 'Navegación',
+            'ru': 'Навигация',
+            'de': 'Navigation',
+            'it': 'Navigazione',
+            'fr': 'Navigation',
+        },
+        'No': {
+            'pl': 'Nie',
+            'es': 'No',
+            'ru': 'Нет',
+            'de': 'Nein',
+            'it': 'No',
+            'fr': 'Non',
+        },
+        'No Duplicates.': {
+            'pl': 'Brak duplikatów.',
+            'es': 'Sin duplicados.',
+            'ru': 'Дубликатов нет.',
+            'de': 'Keine Duplikate.',
+            'it': 'Nessun duplicato.',
+            'fr': 'Aucun doublon.',
+        },
+        'No Files Marked For Processing !': {
+            'pl': 'Nie ma zaznaczonych plików do przetworzenia!',
+            'es': '¡No hay archivos marcados para procesar!',
+            'ru': 'Нет файлов для обработки!',
+            'de': 'Keine Dateien zum Verarbeiten markiert!',
+            'it': 'Nessun file contrassegnato per l’elaborazione!',
+            'fr': 'Aucun fichier marqué pour le traitement !',
+        },
+        'No action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.': {
+            'pl': 'Nie podjęto żadnej akcji.\n\nAnulowanie. Powtórz skanowanie lub usuń zaznaczenie wszystkich plików i grup, których dotyczyły inne programy.',
+            'es': 'No se realizó ninguna acción.\n\nCancelando. Repite el escaneo o desmarca todos los archivos y grupos afectados por otros programas.',
+            'ru': 'Действие не выполнено.\n\nПрерывание. Повторите сканирование или снимите отметки со всех файлов и групп, затронутых другими программами.',
+            'de': 'Es wurden keine Aktionen durchgeführt.\n\nAbbruch. Wiederholen Sie den Scanvorgang oder heben Sie die Markierung aller Dateien und Gruppen auf, die von anderen Programmen betroffen sind.',
+            'it': 'Nessuna azione intrapresa.\n\nAnnullamento. Ripeti la scansione o deseleziona tutti i file e gruppi interessati da altri programmi.',
+            'fr': 'Aucune action n’a été entreprise.\n\nAnnulation. Veuillez relancer l’analyse ou désélectionner tous les fichiers et groupes affectés par d’autres programmes.',
+        },
+        'No empty subdirectories in:': {
+            'pl': 'Brak pustych podkatalogów w:',
+            'es': 'No hay subdirectorios vacíos en:',
+            'ru': 'Нет пустых подкаталогов в:',
+            'de': 'Keine leeren Unterverzeichnisse in:',
+            'it': 'Nessuna sottodirectory vuota in:',
+            'fr': 'Aucun sous-répertoire vide dans :',
+        },
+        'No files found.': {
+            'pl': 'Nie znaleziono plików.',
+            'es': 'No se encontraron archivos.',
+            'ru': 'Файлы не найдены.',
+            'de': 'Keine Dateien gefunden.',
+            'it': 'Nessun file trovato.',
+            'fr': 'Aucun fichier trouvé.',
+        },
+        'No files left for processing.\nFix files selection.': {
+            'pl': 'Nie pozostało plików do przetworzenia.\nSkoryguj zaznaczenie plików.',
+            'es': 'No quedan archivos para procesar.\nCorrige la selección de archivos.',
+            'ru': 'Не осталось файлов для обработки.\nИсправьте выбор файлов.',
+            'de': 'Keine Dateien mehr zum Verarbeiten übrig.\nKorrigieren Sie die Dateiauswahl.',
+            'it': 'Non ci sono più file da elaborare.\nCorreggi la selezione dei file.',
+            'fr': 'Aucun fichier restant à traiter.\nCorrigez la sélection des fichiers.',
+        },
+        'Number of groups with consideration of\n"Cross paths" or "Same directory" mode': {
+            'pl': 'Liczba grup z uwzględnieniem trybu\n"Różne Ścieżki" lub "Ten sam katalog"',
+            'es': 'Número de grupos considerando el modo\n"Caminos cruzados" o "Mismo directorio"',
+            'ru': 'Количество групп с учетом режима\n"Пересекающиеся пути" или "Одна и та же папка"',
+            'de': 'Anzahl der Gruppen unter Berücksichtigung des Modus\n"Überkreuzte Pfade" oder "Gleiches Verzeichnis"',
+            'it': 'Numero di gruppi considerando la modalità\n"Percorsi incrociati" o "Stessa directory"',
+            'fr': 'Nombre de groupes en prenant en compte le mode\n"Chemins croisés" ou "Même répertoire"',
+        },
+        'Open File': {
+            'pl': 'Otwórz Plik',
+            'es': 'Abrir archivo',
+            'ru': 'Открыть файл',
+            'de': 'Datei öffnen',
+            'it': 'Apri file',
+            'fr': 'Ouvrir le fichier',
+        },
+        'Open Folder(s)': {
+            'pl': 'Otwórz Folder(y)',
+            'es': 'Abrir carpeta(s)',
+            'ru': 'Открыть папку(и)',
+            'de': 'Ordner öffnen',
+            'it': 'Apri cartella/e',
+            'fr': 'Ouvrir dossier(s)',
+        },
+        'Open current Log': {
+            'pl': 'Otwórz log',
+            'es': 'Abrir registro actual',
+            'ru': 'Открыть текущий журнал',
+            'de': 'Aktuelles Protokoll öffnen',
+            'it': 'Apri log corrente',
+            'fr': 'Ouvrir le journal actuel',
+        },
+        'Open homepage': {
+            'pl': 'Otwórz stronę domową',
+            'es': 'Abrir página de inicio',
+            'ru': 'Открыть домашнюю страницу',
+            'de': 'Startseite öffnen',
+            'it': 'Apri pagina principale',
+            'fr': 'Ouvrir la page d’accueil',
+        },
+        'Open logs directory': {
+            'pl': 'Otwórz katalog z logami',
+            'es': 'Abrir directorio de registros',
+            'ru': 'Открыть каталог журналов',
+            'de': 'Protokollverzeichnis öffnen',
+            'it': 'Apri directory dei log',
+            'fr': 'Ouvrir le répertoire des journaux',
+        },
+        'Opening dialog ...': {
+            'pl': 'Otwieranie dialogu ...',
+            'es': 'Abriendo diálogo ...',
+            'ru': 'Открытие диалога ...',
+            'de': 'Dialog wird geöffnet ...',
+            'it': 'Apertura del dialogo ...',
+            'fr': 'Ouverture du dialogue ...',
+        },
+        'Opening folders(s)': {
+            'pl': 'Otwieranie folderów',
+            'es': 'Abriendo carpeta(s)',
+            'ru': 'Открытие папок',
+            'de': 'Ordner werden geöffnet',
+            'it': 'Apertura cartelle',
+            'fr': 'Ouverture des dossiers',
+        },
+        'Opening wrappers': {
+            'pl': 'Skrypty otwierające',
+            'es': 'Abriendo contenedores',
+            'ru': 'Открытие обёрток',
+            'de': 'Wrapper werden geöffnet',
+            'it': 'Apertura wrapper',
+            'fr': 'Ouverture des wrappers',
+        },
+        'Operation mode': {
+            'pl': 'Tryb działania',
+            'es': 'Modo de operación',
+            'ru': 'Режим работы',
+            'de': 'Betriebsmodus',
+            'it': 'Modalità operativa',
+            'fr': 'Mode de fonctionnement',
+        },
+        'Option "Skip groups with invalid selection" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:': {
+            'pl': 'Opcja "Pomiń grupy z błędną selekcją" jest włączona.\n\nNastępujące grupy NIE zostaną przetworzone i pozostaną z zaznaczeniami:',
+            'es': 'La opción "Omitir grupos con selección no válida" está habilitada.\n\nLos siguientes grupos NO serán procesados y permanecerán con marcas:',
+            'ru': 'Опция "Пропускать группы с недопустимым выбором" включена.\n\nСледующие группы НЕ будут обработаны и останутся с отметками:',
+            'de': 'Option "Gruppen mit ungültiger Auswahl überspringen" ist aktiviert.\n\nFolgende Gruppen werden NICHT verarbeitet und bleiben markiert:',
+            'it': 'L’opzione "Salta gruppi con selezione non valida" è abilitata.\n\nI seguenti gruppi NON verranno elaborati e rimarranno contrassegnati:',
+            'fr': 'L’option "Ignorer les groupes avec une sélection invalide" est activée.\n\nLes groupes suivants NE seront PAS traités et resteront marqués:',
+        },
+        "Option: 'Allow to delete all copies' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED": {
+            'pl': "Opcja: 'Zezwól na usunięcie wszystkich kopii' jest włączona.|RED\n\nMożna wybrać wszystkie kopie.|RED\n\nKontynuować?|RED",
+            'es': "Opción: 'Permitir eliminar todas las copias' está activada.|RED\n\nSe pueden seleccionar todas las copias.|RED\n\n¿Continuar?|RED",
+            'ru': "Опция: 'Разрешить удаление всех копий' установлена.|RED\n\nМожно выбрать все копии.|RED\n\nПродолжить?|RED",
+            'de': "Option: 'Löschen aller Kopien erlauben' ist aktiviert.|RED\n\nAlle Kopien können ausgewählt werden.|RED\n\nFortfahren?|RED",
+            'it': "Opzione: 'Consenti l’eliminazione di tutte le copie' è impostata.|RED\n\nTutte le copie possono essere selezionate.|RED\n\nProcedere?|RED",
+            'fr': "Option : 'Autoriser la suppression de toutes les copies' est activée.|RED\n\nToutes les copies peuvent être sélectionnées.|RED\n\nContinuer ?|RED",
+        },
+        'Options': {
+            'pl': 'Opcje',
+            'es': 'Opciones',
+            'ru': 'Опции',
+            'de': 'Optionen',
+            'it': 'Opzioni',
+            'fr': 'Options',
+        },
+        'Original files will be removed.': {
+            'pl': 'Oryginalne pliki zostaną usunięte.',
+            'es': 'Los archivos originales serán eliminados.',
+            'ru': 'Оригинальные файлы будут удалены.',
+            'de': 'Originaldateien werden entfernt.',
+            'it': 'I file originali saranno eliminati.',
+            'fr': 'Les fichiers originaux seront supprimés.',
+        },
+        'Parameters': {
+            'pl': 'Parametry',
+            'es': 'Parámetros',
+            'ru': 'Параметры',
+            'de': 'Parameter',
+            'it': 'Parametri',
+            'fr': 'Paramètres',
+        },
+        'Path does not exist': {
+            'pl': 'Ścieżka nie istnieje',
+            'es': 'La ruta no existe',
+            'ru': 'Путь не существует',
+            'de': 'Pfad existiert nicht',
+            'it': 'Il percorso non esiste',
+            'fr': 'Le chemin n’existe pas',
+        },
+        'Path to scan': {
+            'pl': 'Ścieżka do skanowania:',
+            'es': 'Ruta para escanear:',
+            'ru': 'Путь для сканирования:',
+            'de': 'Pfad zum Scannen:',
+            'it': 'Percorso da scansionare:',
+            'fr': 'Chemin à scanner :',
+        },
+        'Path:': {
+            'pl': 'Ścieżka:',
+            'es': 'Ruta:',
+            'ru': 'Путь:',
+            'de': 'Pfad:',
+            'it': 'Percorso:',
+            'fr': 'Chemin :',
+        },
+        'Paths To scan:': {
+            'pl': 'Ścieżki do skanowania:',
+            'es': 'Rutas a escanear:',
+            'ru': 'Пути для сканирования:',
+            'de': 'Pfade zum Scannen:',
+            'it': 'Percorsi da scansionare:',
+            'fr': 'Chemins à scanner :',
+        },
+        'Precalculating data...': {
+            'pl': 'Wstępne obliczanie danych...',
+            'es': 'Precalculando datos...',
+            'ru': 'Предварительный расчет данных...',
+            'de': 'Daten werden vorab berechnet...',
+            'it': 'Precalcolo dei dati...',
+            'fr': 'Pré-calcul des données...',
+        },
+        'Preview (no path)': {
+            'pl': 'Podgląd (brak ścieżki)',
+            'es': 'Vista previa (sin ruta)',
+            'ru': 'Предварительный просмотр (без пути)',
+            'de': 'Vorschau (kein Pfad)',
+            'it': 'Anteprima (nessun percorso)',
+            'fr': 'Aperçu (pas de chemin)',
+        },
+        'Preview auto update': {
+            'pl': 'Automatyczna aktualizacja podglądu',
+            'es': 'Actualización automática de vista previa',
+            'ru': 'Автоматическое обновление предварительного просмотра',
+            'de': 'Automatische Vorschauaktualisierung',
+            'it': 'Aggiornamento automatico anteprima',
+            'fr': 'Mise à jour automatique de l’aperçu',
+        },
+        'Proceed': {
+            'pl': 'Kontynuuj',
+            'es': 'Continuar',
+            'ru': 'Продолжить',
+            'de': 'Fortfahren',
+            'it': 'Procedi',
+            'fr': 'Continuer',
+        },
+        'Processed files size sum : ': {
+            'pl': 'Suma wielkości przetwarzanych plików : ',
+            'es': 'Suma del tamaño de archivos procesados : ',
+            'ru': 'Суммарный размер обработанных файлов : ',
+            'de': 'Summe der verarbeiteten Dateigrößen : ',
+            'it': 'Somma delle dimensioni dei file elaborati : ',
+            'fr': 'Somme de la taille des fichiers traités : ',
+        },
+        'Processing': {
+            'pl': 'Przetwarzanie',
+            'es': 'Procesando',
+            'ru': 'Обработка',
+            'de': 'Verarbeitung',
+            'it': 'Elaborazione',
+            'fr': 'Traitement',
+        },
+        'Ready': {
+            'pl': 'Gotowy',
+            'es': 'Listo',
+            'ru': 'Готово',
+            'de': 'Bereit',
+            'it': 'Pronto',
+            'fr': 'Prêt',
+        },
+        'Relative divergence': {
+            'pl': 'Relatywna rozbieżność',
+            'es': 'Divergencia relativa',
+            'ru': 'Относительное отклонение',
+            'de': 'Relative Abweichung',
+            'it': 'Divergenza relativa',
+            'fr': 'Divergence relative',
+        },
+        'Remove Marked Files ...': {
+            'pl': 'Usuń zaznaczone pliki',
+            'es': 'Eliminar archivos marcados ...',
+            'ru': 'Удалить отмеченные файлы ...',
+            'de': 'Markierte Dateien entfernen ...',
+            'it': 'Rimuovi file contrassegnati ...',
+            'fr': 'Supprimer les fichiers marqués ...',
+        },
+        'Remove Marked Files in Subdirectory Tree ...': {
+            'pl': 'Usuń zaznaczone pliki w poddrzewie katalogów ...',
+            'es': 'Eliminar archivos marcados en el árbol de subdirectorios ...',
+            'ru': 'Удалить отмеченные файлы в дереве подкаталогов ...',
+            'de': 'Markierte Dateien im Unterverzeichnisbaum entfernen ...',
+            'it': 'Rimuovi file contrassegnati nell’albero delle sottodirectory ...',
+            'fr': 'Supprimer les fichiers marqués dans l’arborescence des sous-répertoires ...',
+        },
+        'Remove empty folders in specified directory ...': {
+            'pl': 'Usuń puste foldery w wyspecyfikowanym katalogu ...',
+            'es': 'Eliminar carpetas vacías en el directorio especificado ...',
+            'ru': 'Удалить пустые папки в указанном каталоге ...',
+            'de': 'Leere Ordner im angegebenen Verzeichnis entfernen ...',
+            'it': 'Rimuovi cartelle vuote nella directory specificata ...',
+            'fr': 'Supprimer les dossiers vides dans le répertoire spécifié ...',
+        },
+        'Remove expression from list.': {
+            'pl': 'Usuń wyrażenie z listy',
+            'es': 'Eliminar expresión de la lista.',
+            'ru': 'Удалить выражение из списка.',
+            'de': 'Ausdruck aus der Liste entfernen.',
+            'it': 'Rimuovi espressione dall’elenco.',
+            'fr': 'Supprimer l’expression de la liste.',
+        },
+        'Remove path from list.': {
+            'pl': 'Usuń ścieżkę z listy.',
+            'es': 'Eliminar ruta de la lista.',
+            'ru': 'Удалить путь из списка.',
+            'de': 'Pfad aus der Liste entfernen.',
+            'it': 'Rimuovi percorso dall’elenco.',
+            'fr': 'Supprimer le chemin de la liste.',
+        },
+        'Removed empty directories': {
+            'pl': 'Usunięte puste katalogi',
+            'es': 'Directorios vacíos eliminados',
+            'ru': 'Удалены пустые каталоги',
+            'de': 'Leere Verzeichnisse entfernt',
+            'it': 'Directory vuote rimosse',
+            'fr': 'Répertoires vides supprimés',
+        },
+        'Rendering data...': {
+            'pl': 'Renderowanie danych ...',
+            'es': 'Procesando datos ...',
+            'ru': 'Отрисовка данных ...',
+            'de': 'Daten werden gerendert ...',
+            'it': 'Renderizzazione dei dati ...',
+            'fr': 'Rendu des données ...',
+        },
+        'Restart required.': {
+            'pl': 'Wymagany restart aplikacji.',
+            'es': 'Reinicio requerido.',
+            'ru': 'Требуется перезапуск.',
+            'de': 'Neustart erforderlich.',
+            'it': 'Riavvio richiesto.',
+            'fr': 'Redémarrage requis.',
+        },
+        'Results display mode': {
+            'pl': 'Tryb wyświetlania wyników',
+            'es': 'Modo de visualización de resultados',
+            'ru': 'Режим отображения результатов',
+            'de': 'Ergebnisse-Anzeigemodus',
+            'it': 'Modalità di visualizzazione dei risultati',
+            'fr': 'Mode d’affichage des résultats',
+        },
+        'Same directory': {
+            'pl': 'Ten sam katalog',
+            'es': 'El mismo directorio',
+            'ru': 'Та же директория',
+            'de': 'Gleiches Verzeichnis',
+            'it': 'Stessa directory',
+            'fr': 'Même répertoire',
+        },
+        'Save CSV': {
+            'pl': 'Zapisz CSV',
+            'es': 'Guardar CSV',
+            'ru': 'Сохранить CSV',
+            'de': 'CSV speichern',
+            'it': 'Salva CSV',
+            'fr': 'Enregistrer CSV',
+        },
+        'Scan': {
+            'pl': 'Skanuj',
+            'es': 'Escanear',
+            'ru': 'Сканировать',
+            'de': 'Scannen',
+            'it': 'Scansiona',
+            'fr': 'Analyser',
+        },
+        'Scanning': {
+            'pl': 'Skanowanie',
+            'es': 'Escaneando',
+            'ru': 'Сканирование',
+            'de': 'Scannen läuft',
+            'it': 'Scansione in corso',
+            'fr': 'Analyse en cours',
+        },
+        'Scanning for images': {
+            'pl': 'Poszukiwanie obrazów',
+            'es': 'Buscando imágenes',
+            'ru': 'Поиск изображений',
+            'de': 'Suche nach Bildern',
+            'it': 'Ricerca di immagini',
+            'fr': 'Recherche d’images',
+        },
+        'Scope: ': {
+            'pl': 'Zakres: ',
+            'es': 'Alcance: ',
+            'ru': 'Область: ',
+            'de': 'Umfang: ',
+            'it': 'Ambito: ',
+            'fr': 'Portée : ',
+        },
+        'Scope: All groups.': {
+            'pl': 'Zakres: Wszystkie grupy.',
+            'es': 'Alcance: Todos los grupos.',
+            'ru': 'Область: Все группы.',
+            'de': 'Umfang: Alle Gruppen.',
+            'it': 'Ambito: Tutti i gruppi.',
+            'fr': 'Portée : Tous les groupes.',
+        },
+        'Scope: Selected directory.': {
+            'pl': 'Zakres: Wybrany katalog.',
+            'es': 'Alcance: Directorio seleccionado.',
+            'ru': 'Область: Выбранный каталог.',
+            'de': 'Bereich: Ausgewähltes Verzeichnis.',
+            'it': 'Ambito: Directory selezionata.',
+            'fr': 'Portée : Répertoire sélectionné.',
+        },
+        'Select Directory': {
+            'pl': 'Wybierz katalog',
+            'es': 'Seleccionar directorio',
+            'ru': 'Выберите каталог',
+            'de': 'Verzeichnis auswählen',
+            'it': 'Seleziona directory',
+            'fr': 'Sélectionner un répertoire',
+        },
+        'Select File': {
+            'pl': 'Wybierz plik',
+            'es': 'Seleccionar archivo',
+            'ru': 'Выберите файл',
+            'de': 'Datei auswählen',
+            'it': 'Seleziona file',
+            'fr': 'Sélectionner un fichier',
+        },
+        'Select Next': {
+            'pl': 'Wybierz nast.',
+            'es': 'Seleccionar siguiente',
+            'ru': 'Выбрать следующий',
+            'de': 'Nächstes auswählen',
+            'it': 'Seleziona il prossimo',
+            'fr': 'Sélectionner suivant',
+        },
+        'Select Prev': {
+            'pl': 'Wybierz poprz.',
+            'es': 'Seleccionar anterior',
+            'ru': 'Выбрать предыдущий',
+            'de': 'Vorheriges auswählen',
+            'it': 'Seleziona il precedente',
+            'fr': 'Sélectionner précédent',
+        },
+        'Select device to scan.': {
+            'pl': 'Wybierz ścieżkę do skanowania.',
+            'es': 'Seleccionar dispositivo para escanear.',
+            'ru': 'Выберите устройство для сканирования.',
+            'de': 'Gerät zum Scannen auswählen.',
+            'it': 'Seleziona dispositivo da scansionare.',
+            'fr': 'Sélectionner un appareil à analyser.',
+        },
+        'Selected Directory.': {
+            'pl': 'Wybrany katalog.',
+            'es': 'Directorio seleccionado.',
+            'ru': 'Выбранный каталог.',
+            'de': 'Ausgewähltes Verzeichnis.',
+            'it': 'Directory selezionata.',
+            'fr': 'Répertoire sélectionné.',
+        },
+        'Selected Subdirectory': {
+            'pl': 'Wybrany podkatalog',
+            'es': 'Subdirectorio seleccionado',
+            'ru': 'Выбранный подкаталог',
+            'de': 'Ausgewähltes Unterverzeichnis',
+            'it': 'Sottodirectory selezionata',
+            'fr': 'Sous-répertoire sélectionné',
+        },
+        'Set defaults': {
+            'pl': 'Ustaw domyślne',
+            'es': 'Establecer valores predeterminados',
+            'ru': 'Установить настройки по умолчанию',
+            'de': 'Standardwerte festlegen',
+            'it': 'Imposta predefiniti',
+            'fr': 'Définir les valeurs par défaut',
+        },
+        'Set path to scan.': {
+            'pl': 'Ustaw ścieżkę do skanowania.',
+            'es': 'Establecer ruta para escanear.',
+            'ru': 'Установить путь для сканирования.',
+            'de': 'Pfad zum Scannen festlegen.',
+            'it': 'Imposta percorso da scansionare.',
+            'fr': 'Définir le chemin à analyser.',
+        },
+        'Settings': {
+            'pl': 'Ustawienia',
+            'es': 'Configuración',
+            'ru': 'Настройки',
+            'de': 'Einstellungen',
+            'it': 'Impostazioni',
+            'fr': 'Paramètres',
+        },
+        'Show CRC/GROUP and size': {
+            'pl': 'Pokaż CRC, grupę oraz rozmiar',
+            'es': 'Mostrar CRC/GRUPO y tamaño',
+            'ru': 'Показать CRC/ГРУППУ и размер',
+            'de': 'CRC/GRUPPE und Größe anzeigen',
+            'it': 'Mostra CRC/GRUPPO e dimensione',
+            'fr': 'Afficher CRC/GROUPE et taille',
+        },
+        'Show all results': {
+            'pl': 'Pokaż wszystkie wyniki',
+            'es': 'Mostrar todos los resultados',
+            'ru': 'Показать все результаты',
+            'de': 'Alle Ergebnisse anzeigen',
+            'it': 'Mostra tutti i risultati',
+            'fr': 'Afficher tous les résultats',
+        },
+        'Show full CRC': {
+            'pl': 'Pokaż pełne CRC',
+            'es': 'Mostrar CRC completo',
+            'ru': 'Показать полный CRC',
+            'de': 'Vollständiges CRC anzeigen',
+            'it': 'Mostra CRC completo',
+            'fr': 'Afficher le CRC complet',
+        },
+        'Show full scan paths': {
+            'pl': 'Pokaż pełne ścieżki skanowania',
+            'es': 'Mostrar rutas de escaneo completas',
+            'ru': 'Показать полные пути сканирования',
+            'de': 'Vollständige Scanpfade anzeigen',
+            'it': 'Mostra percorsi di scansione completi',
+            'fr': 'Afficher les chemins de balayage complets',
+        },
+        'Show help tooltips': {
+            'pl': 'Pokaż podpowiedzi z pomocą',
+            'es': 'Mostrar consejos de ayuda',
+            'ru': 'Показать подсказки помощи',
+            'de': 'Hilfetooltips anzeigen',
+            'it': 'Mostra suggerimenti di aiuto',
+            'fr': 'Afficher les info-bulles d’aide',
+        },
+        'Show info tooltips': {
+            'pl': 'Pokaż informacyjne podpowiedzi',
+            'es': 'Mostrar consejos informativos',
+            'ru': 'Показать информационные подсказки',
+            'de': 'Informationstooltips anzeigen',
+            'it': 'Mostra suggerimenti informativi',
+            'fr': 'Afficher les info-bulles informatives',
+        },
+        'Show soft links targets': {
+            'pl': 'Pokaż pliki docelowe dowiązań symbolicznych',
+            'es': 'Mostrar destinos de enlaces simbólicos',
+            'ru': 'Показать цели символических ссылок',
+            'de': 'Ziele symbolischer Links anzeigen',
+            'it': 'Mostra destinazioni dei collegamenti simbolici',
+            'fr': 'Afficher les cibles des liens symboliques',
+        },
+        'Show tooltips': {
+            'pl': 'Pokaż dymki z podpowiedziami',
+            'es': 'Mostrar consejos',
+            'ru': 'Показать подсказки',
+            'de': 'Tooltips anzeigen',
+            'it': 'Mostra suggerimenti',
+            'fr': 'Afficher les info-bulles',
+        },
+        'Show/Update Preview': {
+            'pl': 'Pokaż/Aktualizuj podgląd',
+            'es': 'Mostrar/Actualizar vista previa',
+            'ru': 'Показать/Обновить предварительный просмотр',
+            'de': 'Vorschau anzeigen/aktualisieren',
+            'it': 'Mostra/Aggiorna anteprima',
+            'fr': 'Afficher/Mettre à jour l’aperçu',
+        },
+        'Similarity mode !\nFiles in groups are not exact copies !': {
+            'pl': 'Tryb podobieństwa!\nPliki w grupach nie są dokładnymi kopiami!',
+            'es': 'Modo de similitud!\n¡Los archivos en los grupos no son copias exactas!',
+            'ru': 'Режим сходства!\nФайлы в группах не являются точными копиями!',
+            'de': 'Ähnlichkeitsmodus!\nDateien in Gruppen sind keine exakten Kopien!',
+            'it': 'Modalità di somiglianza!\nI file nei gruppi non sono copie esatte!',
+            'fr': 'Mode de similarité!\nLes fichiers dans les groupes ne sont pas des copies exactes!',
+        },
+        'Similarity mode options': {
+            'pl': 'Opcje trybu podobieństwa',
+            'es': 'Opciones de modo de similitud',
+            'ru': 'Параметры режима сходства',
+            'de': 'Ähnlichkeitsmodus Optionen',
+            'it': 'Opzioni modalità somiglianza',
+            'fr': 'Options du mode de similarité',
+        },
+        'Single file marked': {
+            'pl': 'Pojedynczy plik zaznaczony',
+            'es': 'Archivo único marcado',
+            'ru': 'Отметить один файл',
+            'de': 'Einzelne Datei markiert',
+            'it': 'File singolo marcato',
+            'fr': 'Fichier unique marqué',
+        },
+        'Single group.': {
+            'pl': 'Pojedyncza grupa.',
+            'es': 'Grupo único.',
+            'ru': 'Одиночная группа.',
+            'de': 'Einzelne Gruppe.',
+            'it': 'Gruppo singolo.',
+            'fr': 'Groupe unique.',
+        },
+        'Size': {
+            'pl': 'Wielkość',
+            'es': 'Tamaño',
+            'ru': 'Размер',
+            'de': 'Größe',
+            'it': 'Dimensione',
+            'fr': 'Taille',
+        },
+        'Skip groups with invalid selection': {
+            'pl': 'Pomiń grupy z błędną selekcją',
+            'es': 'Omitir grupos con selección inválida',
+            'ru': 'Пропустить группы с некорректным выбором',
+            'de': 'Gruppe mit ungültiger Auswahl überspringen',
+            'it': 'Salta gruppi con selezione non valida',
+            'fr': 'Ignorer les groupes avec une sélection invalide',
+        },
+        'Soft-Link marked files to the first unmarked file in the group ?': {
+            'pl': 'Utworzyć miękkie dowiązania z pierwszym nieoznaczonym plikiem w grupie?',
+            'es': '¿Crear enlaces simbólicos a los primeros archivos no marcados en el grupo?',
+            'ru': 'Создать символические ссылки на первый неотмеченный файл в группе?',
+            'de': 'Weiche Links zu der ersten nicht markierten Datei in der Gruppe erstellen?',
+            'it': 'Creare collegamenti simbolici al primo file non contrassegnato nel gruppo?',
+            'fr': 'Créer des liens symboliques vers le premier fichier non marqué du groupe ?',
+        },
+        'Softlink Marked Files ...': {
+            'pl': 'Utwórz miękkie dowiązania ...',
+            'es': 'Crear enlaces simbólicos ...',
+            'ru': 'Создать символические ссылки ...',
+            'de': 'Weiche Links erstellen ...',
+            'it': 'Crea collegamenti simbolici ...',
+            'fr': 'Créer des liens symboliques ...',
+        },
+        'Softlink Marked Files in Subdirectory Tree ...': {
+            'pl': 'Utwórz miękkie dowiązania w poddrzewie katalogów ...',
+            'es': 'Crear enlaces simbólicos en el árbol de subdirectorios ...',
+            'ru': 'Создать символические ссылки в подкаталоге ...',
+            'de': 'Weiche Links im Unterverzeichnisbaum erstellen ...',
+            'it': 'Crea collegamenti simbolici nell\'albero di sottodirectory ...',
+            'fr': 'Créer des liens symboliques dans l\'arborescence des sous-répertoires ...',
+        },
+        'Sorting...': {
+            'pl': 'Sortowanie...',
+            'es': 'Ordenando...',
+            'ru': 'Сортировка...',
+            'de': 'Sortieren...',
+            'it': 'Ordinamento...',
+            'fr': 'Tri...',
+        },
+        'Specify Exclude expression': {
+            'pl': 'Wyspecyfikuj wyrażenie wykluczające',
+            'es': 'Especificar expresión de exclusión',
+            'ru': 'Укажите выражение для исключения',
+            'de': 'Ausschlussausdruck angeben',
+            'it': 'Specifica l\'espressione di esclusione',
+            'fr': 'Spécifier l\'expression d\'exclusion',
+        },
+        'Specify expression for file names in selected directory.': {
+            'pl': 'Zdefiniuj wyrażenie dla nazw plików w wybranym katalogu.',
+            'es': 'Especificar expresión para los nombres de archivo en el directorio seleccionado.',
+            'ru': 'Укажите выражение для имен файлов в выбранном каталоге.',
+            'de': 'Geben Sie den Ausdruck für Dateinamen im ausgewählten Verzeichnis an.',
+            'it': 'Specifica l\'espressione per i nomi dei file nella directory selezionata.',
+            'fr': 'Spécifiez l\'expression pour les noms de fichiers dans le répertoire sélectionné.',
+        },
+        'Specify expression for full file path.': {
+            'pl': 'Zdefiniuj wyrażenie dla pełnej ścieżki do pliku.',
+            'es': 'Especificar expresión para la ruta completa del archivo.',
+            'ru': 'Укажите выражение для полного пути к файлу.',
+            'de': 'Geben Sie den Ausdruck für den vollständigen Dateipfad an.',
+            'it': 'Specifica l\'espressione per il percorso completo del file.',
+            'fr': 'Spécifiez l\'expression pour le chemin complet du fichier.',
+        },
+        'Specify manually, or drag and drop here, up to 8 paths to scan': {
+            'pl': 'Wyspecyfikuj ręcznie lub przeciągnij i upuść do 8 ścieżek do skanowania',
+            'es': 'Especificar manualmente o arrastrar y soltar hasta 8 rutas para escanear',
+            'ru': 'Укажите вручную или перетащите до 8 путей для сканирования',
+            'de': 'Manuell angeben oder bis zu 8 Pfade zum Scannen hierher ziehen',
+            'it': 'Specifica manualmente o trascina e rilascia fino a 8 percorsi da scansionare',
+            'fr': 'Spécifiez manuellement ou faites glisser et déposez jusqu\'à 8 chemins à analyser',
+        },
+        'Starting Images hashing ...': {
+            'pl': 'Rozpoczęcie hashowania obrazów ...',
+            'es': 'Comenzando el hash de imágenes ...',
+            'ru': 'Начало хеширования изображений ...',
+            'de': 'Beginn der Bild-Hashing ...',
+            'it': 'Inizio dell\'hashing delle immagini ...',
+            'fr': 'Début du hachage des images ...',
+        },
+        'Subpath': {
+            'pl': 'Podścieżka',
+            'es': 'Subruta',
+            'ru': 'Подпуть',
+            'de': 'Unterpfad',
+            'it': 'Sotto-percorso',
+            'fr': 'Sous-chemin',
+        },
+        'TOOLTIP_ABORT': {
+            'en': 'If you abort at this stage,\npartial results may be available\n(if any groups are found).',
+            'pl': 'Jeśli przerwiesz na tym etapie,\nmogą być dostępne częściowe wyniki\n(jeśli zostaną znalezione jakiekolwiek grupy).',
+            'es': 'Si se aborta en esta etapa,\npueden estar disponibles resultados parciales\n(si se encuentran grupos).',
+            'ru': 'Если вы прервете на этом этапе,\nмогут быть доступны частичные результаты\n(если будут найдены группы).',
+            'de': 'Wenn Sie an dieser Stelle abbrechen,\nkönnten teilweise Ergebnisse verfügbar sein\n(wenn Gruppen gefunden werden).',
+            'it': 'Se annulli a questo punto,\nrisultati parziali potrebbero essere disponibili\n(se vengono trovati gruppi).',
+            'fr': 'Si vous annulez à cette étape,\ndes résultats partiels peuvent être disponibles\n(si des groupes sont trouvés).',
+        },
+        'TOOLTIP_ADOAC': {
+            'en': 'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies',
+            'pl': 'Przed usunięciem wybranych plików, sprawdzany jest wybór plików w każdej grupie CRC,\nprzynajmniej jeden plik powinien pozostać niezaznaczony.\nJeśli ta opcja jest włączona, będzie możliwe usunięcie wszystkich kopii',
+            'es': 'Antes de eliminar los archivos seleccionados, se verifica la selección de archivos en cada grupo CRC,\ndebiendo permanecer al menos un archivo sin marcar.\nSi esta opción está habilitada, será posible eliminar todas las copias',
+            'ru': 'Перед удалением выбранных файлов проверяется выбор файлов в каждой группе CRC,\nдолжен остаться хотя бы один файл без пометки.\nЕсли эта опция включена, будет возможно удалить все копии',
+            'de': 'Vor dem Löschen ausgewählter Dateien wird die Dateiauswahl in jeder CRC-Gruppe überprüft,\nmindestens eine Datei sollte unmarkiert bleiben.\nWenn diese Option aktiviert ist, können alle Kopien gelöscht werden',
+            'it': 'Prima di eliminare i file selezionati, viene controllata la selezione dei file in ogni gruppo CRC,\ndove almeno un file deve rimanere non selezionato.\nSe questa opzione è attivata, sarà possibile eliminare tutte le copie',
+            'fr': 'Avant de supprimer les fichiers sélectionnés, la sélection des fichiers dans chaque groupe CRC est vérifiée,\nau moins un fichier doit rester non marqué.\nSi cette option est activée, il sera possible de supprimer toutes les copies',
+        },
+        'TOOLTIP_ALL_ROTATIONS': {
+            'en': 'calculate hashes for all (4) image rotations\nSignificantly increases searching time\nand resources consumption.',
+            'pl': 'oblicz hashe dla wszystkich (4) obrotów obrazu\nZnacznie zwiększa czas wyszukiwania\ni zużycie zasobów.',
+            'es': 'calcular hashes para todas las (4) rotaciones de imagen\nAumenta significativamente el tiempo de búsqueda\ny el consumo de recursos.',
+            'ru': 'вычислять хеши для всех (4) поворотов изображений\nЗначительно увеличивает время поиска\nи потребление ресурсов.',
+            'de': 'Berechne Hashes für alle (4) Bildrotationen\nErhöht signifikant die Suchzeit\nund den Ressourcenverbrauch.',
+            'it': 'calcolare gli hash per tutte le (4) rotazioni delle immagini\nAumenta significativamente il tempo di ricerca\ne il consumo di risorse.',
+            'fr': 'calculer les hachages pour toutes les (4) rotations d\'image\nAugmente considérablement le temps de recherche\net la consommation de ressources.',
+        },
+        'TOOLTIP_CP': {
+            'en': 'Ignore (hide) groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease',
+            'pl': 'Ignoruj \u200b\u200b(ukryj) grupy zawierające duplikaty tylko w jednej ścieżce wyszukiwania.\nPokaż tylko grupy zawierające pliki w różnych ścieżkach wyszukiwania.\nW tym trybie możesz traktować jedną ścieżkę wyszukiwania jako "referencje"\ni z łatwością usuwać duplikaty we wszystkich innych ścieżkach.',
+            'es': 'Ignorar (ocultar) grupos que contienen duplicados solo en una ruta de búsqueda.\nMostrar solo grupos con archivos en diferentes rutas de búsqueda.\nEn este modo, puede tratar una ruta de búsqueda como "referencia"\ny eliminar duplicados en todas las demás rutas fácilmente',
+            'ru': 'Игнорировать (скрыть) группы, содержащие дубликаты только в одном пути поиска.\nПоказывать только группы с файлами в разных путях поиска.\nВ этом режиме можно рассматривать один путь поиска как "ссылку"\nи легко удалять дубликаты во всех других путях.',
+            'de': 'Ignoriere (verstecke) Gruppen, die Duplikate nur in einem Suchpfad enthalten.\nZeige nur Gruppen mit Dateien in verschiedenen Suchpfaden.\nIn diesem Modus können Sie einen Suchpfad als "Referenz" behandeln\neinfach Duplikate in allen anderen Pfaden löschen.',
+            'it': 'Ignora (nascondi) gruppi contenenti duplicati in solo un percorso di ricerca.\nMostra solo gruppi con file in percorsi di ricerca diversi.\nIn questa modalità puoi trattare un percorso di ricerca come "riferimento"\ne cancellare facilmente i duplicati in tutti gli altri percorsi.',
+            'fr': 'Ignorer (masquer) les groupes contenant des doublons dans un seul chemin de recherche.\nAfficher uniquement les groupes avec des fichiers dans différents chemins de recherche.\nDans ce mode, vous pouvez traiter un chemin de recherche comme "référence"\net supprimer facilement les doublons dans tous les autres chemins.',
+        },
+        'TOOLTIP_CRC': {
+            'en': 'the classic CRC algorithm is applied\nto groups of files of the same size.',
+            'pl': 'klasyczny algorytm porównania CRC stosowany\ndo grup plików o tej samej wielkości',
+            'es': 'el algoritmo clásico CRC se aplica\na grupos de archivos del mismo tamaño.',
+            'ru': 'применяется классический алгоритм CRC\ndlya групп файлов одинакового размера.',
+            'de': 'Der klassische CRC-Algorithmus wird auf\ngruppen von Dateien mit gleicher Größe angewendet.',
+            'it': 'L\'algoritmo CRC classico viene applicato\ngruppi di file delle stesse dimensioni.',
+            'fr': 'L\'algorithme classique CRC est appliqué\ngroupes de fichiers de même taille.',
+        },
+        'TOOLTIP_DIV': {
+            'en': 'The larger the relative divergence value,\nthe more differences are allowed for\nimages to be identified as similar.\nThe default value is 5\n\nDistance in case of GPS proximity mode',
+            'pl': 'Im większa wartość względnej rozbieżności,\ntym więcej różnic jest dozwolonych, aby\nobrazy mogły zostać zidentyfikowane jako podobne.\nWartość domyślna wynosi 5\n\nOdległość w przypadku trybu odległości GPS',
+            'es': 'Cuanto mayor sea el valor de la divergencia relativa,\nse permiten más diferencias para\nque las imágenes sean identificadas como similares.\nEl valor predeterminado es 5\n\nDistancia en el caso del modo de proximidad GPS',
+            'ru': 'Чем больше значение относительного отклонения,\nтем больше различий допускается для\nопределения изображений как похожих.\nПо умолчанию значение равно 5\n\nРасстояние в случае режима близости GPS',
+            'de': 'Je größer der relative Abweichungswert,\n desto mehr Unterschiede sind erlaubt,\n um Bilder als ähnlich zu identifizieren.\n Der Standardwert ist 5\n\nEntfernung im Fall des GPS-Nähemodus',
+            'it': 'Maggiore è il valore di divergenza relativa,\nmaggiore è il numero di differenze consentite per\nidentificare le immagini come simili.\nIl valore predefinito è 5\n\nDistanza in caso di modalità di prossimità GPS',
+            'fr': 'Plus la valeur de divergence relative est grande,\nplus de différences sont autorisées pour\nidentifier les images comme similaires.\nLa valeur par défaut est de 5\n\nDistance en mode proximité GPS',
+        },
         'TOOLTIP_EXCLUDE_1':{
-                "en":'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.',
-                "pl":'Dodaj wyrażenie ...\npodczas skanowania cała ścieżka jest sprawdzana \npod kątem określonego wyrażenia,\np.'},
-        'TOOLTIP_EXCLUDE_WIN':{
-                "en":'*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)',
-                "pl":'*windows* itd. (bez wyrażenia regularnego)\nlub .*windows.*, itd. (z wyrażeniem regularnym)'},
+            'en': 'Add expression ...\nduring the scan, the entire path is checked \nagainst the specified expression,\ne.g.',
+            'pl': 'Dodaj wyrażenie ...\npodczas skanowania cała ścieżka jest sprawdzana \npod kątem określonego wyrażenia,\np.',
+            'es': 'Añadir expresión ...\ndurante el escaneo, toda la ruta se verifica\ncontra la expresión especificada,\np. ej.',
+            'ru': 'Добавить выражение ...\nво время сканирования весь путь проверяется\nпо указанному выражению,\nнапример.',
+            'de': 'Fügen Sie einen Ausdruck hinzu ...\nwährend des Scans wird der gesamte Pfad geprüft\ngegen den angegebenen Ausdruck,\nz.B.',
+            'it': 'Aggiungi espressione ...\nDurante la scansione, l\'intero percorso viene verificato\nrispetto all\'espressione specificata,\np. es.',
+            'fr': 'Ajouter une expression ...\npendant l\'analyse, tout le chemin est vérifié\npar rapport à l\'expression spécifiée,\npar exemple.',
+        },
         'TOOLTIP_EXCLUDE_LIN':{
-                "en":'*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)',
-                "pl":'*.git* itd. (bez wyrażenia regularnego)\nlub .*\\.git.* itd. (z wyrażeniem regularnym)'},
-        'Relative divergence':{
-                "pl":'Relatywna rozbieżność'},
-        'log skipped files':{
-                "pl":'loguj pominięte pliki'},
-        'Check all rotations':{
-                "pl":'Analizuj warianty obrócone'},
-        'Image size range (pixels)':{
-                "pl":'Zakres wielkości obrazów (piksele)'},
-        'Images GPS data proximity':{
-                "pl":'Bliska odległość z danych GPS'},
-        'Similarity mode options':{
-                "pl":'Opcje trybu podobieństwa'},
-        'File Mask':{
-                "pl":'Maska Plików'},
-        'File size range':{
-                "pl":'Zakres wielkości plików'},
-        'Images similarity':{
-                "pl":'Podobieństwo obrazów'},
-        'Parameters':{
-                "pl":'Parametry'},
-        'Maximum file size':{
-                "pl":'Maksymalna wielkość pliku'},
-        'Minimum file size.':{
-                "pl":'minimalna wielkość pliku'},
-        'Select Prev':{
-                "pl":'Wybierz poprz.'},
-        'Select Next':{
-                "pl":'Wybierz nast.'},
-        'Case Sensitive':{
-                "pl":'Uwzględnij wiellkość znaków'},
-        'Abort searching.':{
-                "pl":'Przerwij szukanie.'},
-        'Proceed':{
-                "pl":'Kontynuuj'},
-        'Close':{
-                "pl":'Zamknij'},
-        'prev':{
-                "pl":'poprz.'},
-        'next':{
-                "pl":'nast.'},
-        'Options':{
-                "pl":'Opcje'},
-        'Settings':{
-                "pl":'Ustawienia'},
-        'Show/Update Preview':{
-                "pl":'Pokazuj/Aktualizuj podgląd'},
-        'Hide Preview window':{
-                "pl":'Ukryj okno podglądu'},
-        'Remove empty folders in specified directory ...':{
-                "pl":'Usuń puste foldery w wyspecyfikowanym katalogu ...'},
-        'Show tooltips':{
-                "pl":'Pokaż dymki z podpowiedziami'},
-        'Save CSV':{
-                "pl":'Zapisz CSV'},
-        'Erase Cache':{
-                "pl":'Wyczyść Cache'},
-        'Cross paths':{
-                "pl":'Różne ścieżki'},
-        'Show info tooltips':{
-                "pl":'Pokazuj informacyjne podpowiedzi'},
-        'Show help tooltips':{
-                "pl":'Pokazuj podpowiedzi z pomocą'},
-        'Preview auto update':{
-                "pl":'Automatyczna aktualizacja podglądu'},
-        'Confirmation dialogs':{
-                "pl":'Dialogi potwierdzenia'},
-        'Skip groups with invalid selection':{
-                "pl":'Pomiń grupy z błędną selekcją'},
-        'Allow deletion of all copies':{
-                "pl":'Zezwól na usunięcie wszystkich kopii'},
-        'Show soft links targets':{
-                "pl":'Pokazuj pliki docelowe miękkich linków'},
-        'Show CRC/GROUP and size':{
-                "pl":'Pokazuj CRC, grupę oraz wielkość'},
-        "Processing":{
-                "pl":'Przetwarzanie'},
-        'No files left for processing.\nFix files selection.':{
-                "pl":'Nie pozosytało plików do przetworzenia\nPopraw selekcję plików.'},
-        'No Files Marked For Processing !':{
-                "pl":'Nie ma zaznaczonych plików do przetworzenia !'},
-        'Create relative symbolic links':{
-                "pl":'Twórz miękkie dowiązania ze ścieżką względną'},
-        'Erase remaining empty directories':{
-                "pl":'Usuwaj pozostające puste katalogi'},
-        'Abort on first error':{
-                "pl":'Przerywaj przy pierwszym błędzie'},
-        "Opening wrappers":{
-                "pl":'Skrypty otwierające'},
-        'parameters #':{
-                "pl":'liczba parametrów'},
-        'Folders: ':{
-                "pl":'Katalogi: '},
-        'Set defaults':{
-                "pl":'Ustaw domyślne'},
-        'TOOLTIP_PAU':{
-                "en":'If enabled, any change of the selection\nwill automatically update the preview\nwindow (if the format is supported)',
-                "pl":'Jeśli włączone, każda zmiana selekcji\nspowoduje automatyczną aktualizację okna podglądu\n(jeśli format jest obsługiwany)'},
-        'TOOLTIP_SGWIS':{
-                "en":'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.',
-                "pl":'Grupy z niepoprawnie ustawioną selekcją przerywają przetwarzanie.\nWłącz tę opcję, aby pominąć te grupy.\nW przypadku akcji usuwania lub miękkiego linkowania jeden plik w grupie \nmusi pozostać nieoznaczony (patrz poniżej). W przypadku akcji twardego linkowania\nwięcej niż jeden plik w grupie musi być oznaczony.'},
-        'TOOLTIP_ADOAC':{
-                "en":'Before deleting selected files, files selection in every CRC \ngroup is checked, at least one file should remain unmarked.\nIf This option is enabled it will be possible to delete all copies',
-                "pl":'Przed usunięciem wybranych plików, w każdej grupie CRC sprawdzany\njest wybór plików, przynajmniej jeden plik powinien pozostać niezaznaczony.\nJeśli ta opcja jest włączona, możliwe będzie usunięcie wszystkich kopii'},
-        'TOOLTIP_OW':{
-                "en":'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.',
-                "pl":'Polecenie wykonane na akcji "Otwórz plik" z pełną ścieżką do pliku jako parametrem.\nJeśli puste, zostanie uruchomiona domyślnie skojarzona aplikacja.'},
+            'en': '*.git* etc. (without regular expression)\nor .*\\.git.* etc. (with regular expression)',
+            'pl': '*.git* itd. (bez wyrażenia regularnego)\nlub .*\\.git.* itd. (z wyrażeniem regularnym)',
+            'es': '*.git* etc. (sin expresión regular)\no .*\\.git.* etc. (con expresión regular)',
+            'ru': '*.git* и т.д. (без регулярного выражения)\nили .*\\.git.* и т.д. (с регулярным выражением)',
+            'de': '*.git* usw. (ohne regulären Ausdruck)\noder .*\\.git.* usw. (mit regulärem Ausdruck)',
+            'it': '*.git* ecc. (senza espressione regolare)\no .*\\.git.* ecc. (con espressione regolare)',
+            'fr': '*.git* etc. (sans expression régulière)\no .*\\.git.* etc. (avec expression régulière)',
+        },
+        'TOOLTIP_EXCLUDE_WIN':{
+            'en': '*windows* etc. (without regular expression)\nor .*windows.*, etc. (with regular expression)',
+            'pl': '*windows* itd. (bez wyrażenia regularnego)\nlub .*windows.*, itd. (z wyrażeniem regularnym)',
+            'es': '*windows* etc. (sin expresión regular)\no .*windows.*, etc. (con expresión regular)',
+            'ru': '*windows* и т.д. (без регулярного выражения)\nили .*windows.*, и т.д. (с регулярным выражением)',
+            'de': '*windows* usw. (ohne regulären Ausdruck)\noder .*windows.*, usw. (mit regulärem Ausdruck)',
+            'it': '*windows* ecc. (senza espressione regolare)\no .*windows.*, ecc. (con espressione regolare)',
+            'fr': '*windows* etc. (sans expression régulière)\no .*windows.*, etc. (avec expression régulière)',
+        },
         'TOOLTIP_FOLDERS':{
-                "en":'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.',
-                "pl":'Polecenie wykonane na "Otwórz folder" z pełną ścieżką jako parametrem.\nJeśli puste, zostanie użyty domyślny menedżer plików systemu operacyjnego.'},
+            'en': 'Command executed on "Open Folder" with full path as parameter.\nIf empty, default os filemanager will be used.',
+            'pl': 'Polecenie wykonane na "Otwórz folder" z pełną ścieżką jako parametrem.\nJeśli puste, zostanie użyty domyślny menedżer plików systemu operacyjnego.',
+            'es': 'Comando ejecutado en "Abrir Carpeta" con la ruta completa como parámetro.\nSi está vacío, se utilizará el administrador de archivos predeterminado del sistema operativo.',
+            'ru': 'Команда выполняется при "Открытии папки" с полным путем в качестве параметра.\nЕсли поле пустое, будет использован стандартный файловый менеджер ОС.',
+            'de': 'Befehl ausgeführt bei "Ordner öffnen" mit vollständigem Pfad als Parameter.\nWenn leer, wird der Standard-Dateimanager des Betriebssystems verwendet.',
+            'it': 'Comando eseguito su "Apri Cartella" con il percorso completo come parametro.\nSe vuoto, verrà utilizzato il file manager predefinito del sistema operativo.',
+            'fr': 'Commande exécutée sur "Ouvrir le dossier" avec le chemin complet comme paramètre.\nSi vide, le gestionnaire de fichiers par défaut du système d\'exploitation sera utilisé.',
+        },
         'TOOLTIP_FOLDERS_NUMBER':{
-                "en":'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on groups\ndefault is 2',
-                "pl":'Liczba parametrów (ścieżek) przekazywanych do\nakcji "Skrypt Otwierający" (jeśli zdefiniowano), gdy akcja\njest wykonywana na grupach\nDomyślnie 2'},
-        'TOOLTIP_ABORT':{
-                "en":'If you abort at this stage,\npartial results may be available\n(if any groups are found).',
-                "pl":'Jeśli przerwiesz na tym etapie,\nmogą być dostępne częściowe wyniki\n(jeśli zostaną znalezione jakiekolwiek grupy).'},
-
-        'Go to dominant group (by size sum)':{
-                "pl":'Idź do dominującej grupy (po sumarycznej wielkości)'},
-        'Go to dominant group (by quantity)':{
-                "pl":'Idź do dominującej grupy (po ilości)'},
-        'Go to dominant folder (by size sum)':{
-                "pl":'Idź do dominującego folderu (po sumarycznej wielkości)'},
-        'Go to dominant folder (by quantity)':{
-                "pl":'Idź do dominującego folderu (po ilości)'},
-        'Go to next marked file':{
-                "pl":'Idź do następnego zaznaczonego pliku'},
-        'Go to previous marked file':{
-                "pl":'Idź do poprzedniego zaznaczonego pliku'},
-        'Go to next not marked file':{
-                "pl":'Idź do następnego nie zaznaczonego pliku'},
-        'Go to previous not marked file':{
-                "pl":'Idź do poprzedniego nie zaznaczonego pliku'},
-        'Go to next duplicate':{
-                "pl":'Przejdź do następnego duplikatu'},
-        'Go to previous duplicate':{
-                "pl":'Przejdź do poprzedniego duplikatu'},
-        'Go to first entry':{
-                "pl":'Przejdź do pierwszego'},
-        'Go to last entry':{
-                "pl":'Przejdź do ostatniego'},
-        "Mark All Duplicates in Subdirectory":{
-                "pl":'Zaznacz wszystkie duplikaty w podkatalogu'},
-        "Unmark All Duplicates in Subdirectory":{
-                "pl":'Odznacz wszystkie duplikaty w podkatalogu'},
-        'Remove Marked Files in Subdirectory Tree ...':{
-                "pl":'Usuń zaznaczone pliki w poddrzewie katalogów ...'},
-        'Softlink Marked Files in Subdirectory Tree ...':{
-                "pl":'Usuń zaznaczone pliki w poddrzewie katalogów ...'},
-        'Create *.lnk for Marked Files in Subdirectory Tree ...':{
-                "pl":'Zastąp zaznaczone pliki w poddrzewie katalogów plikami *.lnk ...'},
-        'Selected Subdirectory':{
-                "pl":'Wybrany podkatalog'},
-        'Removed empty directories':{
-                "pl":'Usuniete puste katalogi'},
-        'Sorting...':{
-                "pl":'Sortowanie...'},
-        'If you abort at this stage,\nyou will not get any results.':{
-                "pl":'Jeśli przerwiesz na tym etapie,\nnie uzyskasz żadnych rezultatów.'},
-        'Total space:':{
-                "pl":'Całkowita przestrzeń:'},
-        'Files number:':{
-                "pl":'Liczba plików:'},
-        'Scanning for images':{
-                "pl":'Poszukiwanie obrazów'},
-        'Scanning':{
-                "pl":'Skanowanie'},
-        'Cannot Proceed.':{
-                "pl":'Nie można kontynuować.'},
-        'No Duplicates.':{
-                "pl":'Brak duplikatów.'},
-        'Abort':{
-                "pl":'Przerwij'},
-        'Aborted':{
-                "pl":'Przerwano'},
-        'Images hashing':{
-                "pl":'Hashowanie obrazów'},
-        'GPS data extraction':{
-                "pl":'Wydobywanie danych GPS'},
-        'Starting Images hashing ...':{
-                "pl":'Rozpoczęcie hashowania obrazów ...'},
-        'Data clustering':{
-                "pl":'Klastrowanie danych'},
-        '... Clustering data ...':{
-                "pl":'... Klastrowanie danych ...'},
-        'Finished.':{
-                "pl":'Zakończono.'},
-        'Aborted.':{
-                "pl":'Przerwano.'},
-        '... Rendering data ...':{
-                "pl":'... Wizualizacja danych ...'},
-        'Rendering data...':{
-                "pl":'Wizualizacja danych ...'},
-        'ABORT_INFO':{
-                "en":'CRC Calculation aborted.',
-                "pl":'Obliczanie CRC przerwane.'},
-        'ABORT_INFO_FULL':{
-                "en":'\nResults are partial.\nSome files may remain unidentified as duplicates.',
-                "pl":'\nWyniki są niepełne.\nNiektóre pliki mogą pozostać niezidentyfikowane jako duplikaty.'},
-
-        'Add path ...':{
-                "pl":'Dodaj ścieżkę ...'},
-        'Remove expression from list.':{
-                "pl":'Usuń wyrażenie z listy'},
-        'Specify Exclude expression':{
-                "pl":'Wyspecyfikuj wyrażenie wykluczające'},
-        'expression:':{
-                "pl":'wyrażenie:'},
-        'Precalculating data...':{
-                "pl":'Prekalkulacja danych...'},
-        'GROUP/Scan Path':{
-                "pl":'GRUPA/Ścieżka skanowania'},
-        'GROUP':{
-                "pl":'GRUPA'},
-        'CRC/Scan Path':{
-                "pl":'CRC/Ścieżka skanowania'},
-        'Cleaning tree...':{
-                "pl":'Czyszczenie drzewa'},
-        'Updating items ...':{
-                "pl":'Aktualizacja obiektów ...'},
-        'All marked files.':{
-                "pl":'Wszystkie zaznaczone pliki.'},
-        'Single group.':{
-                "pl":'Pojedyncza grupa.'},
-        'All marked files on selected directory sub-tree.':{
-                "pl":'Wszystkie zaznaczone pliki w wybranym poddrzewie katalogów'},
-        'Selected Directory.':{
-                "pl":'Wybrany katalog.'},
-
-        "Opening dialog ...":{
-                "pl":'Otwieranie dialogu ...'},
-        'Select Directory':{
-                "pl":'Wybierz katalog'},
-        'Select File':{
-                "pl":'Wybierz plik'},
-        'All Files':{
-                "pl":'Wszystkie pliki'},
-        'Full path copied to clipboard':{
-                "pl":'Pełna ścieżka skopiowana do schowka'},
-        'Copied to clipboard:':{
-                "pl":'Skopiowana do schowka:'},
-        'No':{
-                "pl":'Nie'},
-        'Yes':{
-                "pl":'Tak'},
-        'Find':{
-                "pl":'Znajdź'},
-        'finding ...':{
-                "pl":'poszukiwanie ...'},
-        'No files found.':{
-                "pl":'nie znaleziono plików.'},
-        'Information':{
-                "pl":'Informacja'},
-        'Language Changed':{
-                "pl":'Język został zmieniony'},
-        'Restart required.':{
-                "pl":'Wymagany restart aplikacji.'},
-        'Language:':{
-                "pl":'Język:'},
-        'Opening folders(s)':{
-                "pl":'Otwieranie folderó(w)'},
-        'Copied to clipboard:':{
-                "pl":'Skopiowano do schowka:'},
-        'Scope: ':{
-                "pl":'Zakres: '},
-        'Mark files first.':{
-                "pl":'Zaznacz najpierw pliki.'},
-        'No empty subdirectories in:':{
-                "pl":'Brak pustych podkatalogów w:'},
-        'Confirmed.':{
-                "pl":'Potwierdzono.'},
-        'Hard-Link marked files together in groups ?':{
-                "pl":'Utworzyć wspólne twarde dowiązania ?'},
-        'replace marked files with .lnk files pointing to the first unmarked file in the group ?':{
-                "pl":'zamień oznaczone pliki na pliki .lnk wskazujące na pierwszy nieoznaczony plik w grupie ?'},
-        'Soft-Link marked files to the first unmarked file in the group ?':{
-                "pl":'Utworzyć miekkie dowiązania z pierwszym nieoznaczonym plikiem w grupie?'},
-        'Delete marked files ?':{
-                "pl":'Skasować zaznaczone pliki ?'},
-        "\nErase empty directories  : ":{
-                "pl":"\nSkasować puste katalogi  : "},
-        "\n\nSend to Trash            : ":{
-                "pl":"\nPrzenieść do kosza            : "},
-        "Processed files size sum : ":{
-                "pl":"Suma wielkości przetwarzanych plików : "},
-        "Yes":{
-                "pl":"Tak"},
-        "No":{
-                "pl":"Nie"},
-        'Yes|RED':{
-                "pl":"Tak|RED"},
-        'GROUP:':{
-                "pl":"GRUPA:"},
-        'Link files will be created with the names of the listed files with the ".lnk" suffix.':{
-                "pl":'Pliki linków zostaną utworzone z nazwami wymienionych plików z rozszerzeniem ".lnk".'},
-        'Original files will be removed.':{
-                "pl":'Oryginalne pliki zostaną usunięte.'},
-        'confirmation required...':{
-                "pl":'wymagane potwierdzenie...'},
-        'remaining files checking complete.':{
-                "pl":'sprawdzanie pozostającyh plików zakończone.'},
-        'No action was taken.\n\nAborting. Please repeat scanning or unmark all files and groups affected by other programs.':{
-                "pl":'Nie podjęto żadnej akcji.\n\nAnulowanie. Powtórz skanowanie lub usuń zaznaczenie wszystkich plików i grup, których dotyczyły inne programy.'},
-        "Files on multiple devices selected.":{
-                "pl":'Wybrano pliki na wielu urządzeniach.'},
-        "Can't create hardlinks.":{
-                "pl":'Nie można utworzyć twardych dowiązań.'},
-        'final checking selection correctness':{
-                "pl":'końcowe sprawdzenie popawności selekcji'},
-        'Warning !':{
-                "pl":'Uwaga !'},
-        'Similarity mode !\nFiles in groups are not exact copies !':{
-                "pl":'Tryb podobieństwa obrazów !\nPliki w grupach nie są dokładnymi kopiami !'},
-        'Error. Inconsistent data.':{
-                "pl":'Błąd. Niespójne dane.'},
-        'Current filesystem state is inconsistent with scanned data.\n\n':{
-                "pl":'Aktualny stan systemu plików jest niezgodny ze skanowanymi danymi.\n\n'},
-        '\n\nSelected group will be reduced. For complete results re-scanning is recommended.':{
-                "pl":'\n\nWybrana grupa zostanie zredukowana. Aby uzyskać kompletne wyniki, zaleca się ponowne zeskanowanie.'},
-        'Option: \'Allow to delete all copies\' is set.|RED\n\nAll copies may be selected.|RED\n\nProceed ?|RED':{
-                "pl":'Opcja: \'Zezwól na usunięcie wszystkich kopii\' jest włączona.|RED\n\nMożna wybrać wszystkie kopie.|RED\n\nKontynuować?|RED'},
-        'Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:':{
-                "pl":'Opcja "Pomiń grupy z błędną selekcją" jest włączona.\n\nNastępujące grupy NIE zostaną przetworzone i pozostaną z zaznaczeniami:'},
-        "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"\nor enable option:\n\"Allow deletion of all copies\"":{
-                "pl":'Zachowaj przynajmniej jeden plik nieoznaczony\nlub włącz opcję:\n"Pomiń grupy z błędną selekcją"\nlub włącz opcję:\n"Zezwól na usuwanie wszystkich kopii"'},
-        "Keep at least one file unmarked\nor enable option:\n\"Skip groups with invalid selection\"":{
-                "pl":"Zachowaj przynajmniej jeden plik nieoznaczony\nlub włącz opcję:\n\"Pomiń grupy z błędną selekcją\""},
-        "Option \"Skip groups with invalid selection\" is enabled.\n\nFollowing groups will NOT be processed and remain with markings:\n\n":{
-                "pl":"Opcja \"Pomiń grupy z błędną selekcją\" jest włączona.\n\nNastępujące grupy NIE zostaną przetworzone i pozostaną z oznaczeniami:\n\n"},
-        'All files marked':{
-                "pl":'Wszystkie pliki są zaznaczone'},
-        'Single file marked':{
-                "pl":'Pojedynczy plik zaznaczony'},
-        "Mark more files\nor enable option:\n\"Skip groups with invalid selection\"":{
-                "pl":"Zaznacz więcej plików\nlub włącz opcję:\n\"Pomiń grupy z błędną selekcją\""},
-        'checking selection correctness...':{
-                "pl":'sprawdzanie poprawności seleckji...'},
-        'checking data consistency with filesystem state ...':{
-                "pl":'sprawdzanie spójności danych ze stanem systemu plików'},
-        'unsopported format':{
-                "pl":'nieobsługiwany format'},
-        'lines:':{
-                "pl":'linie:'},
-        'Number of groups with consideration of\n"Cross paths" or "Same directory" mode':{
-                "pl":'Liczba grup z uwzględnieniem trybu\n"Różne Ścieżki" lub "Ten sam katalog"'},
-        'The full path of a directory\nshown in the bottom panel.':{
-                "pl":'Pełna ścieżka do katalogu\nwyświetlanego w dolnym panelu.'},
-
-        'Results display mode':{
-                "pl":'Tryb wyświetlania wyników'},
-        'Scope: All groups.':{
-                "pl":'Zakres: Wszystkie grupy.'},
-        'all groups':{
-                "pl":'wszystkie grupy'},
-        'selected group':{
-                "pl":'wybrana grupa'},
-        'Scope: Selected directory.':{
-                "pl":'Zakres: Wybrany katalog.'},
-        'All (default)':{
-                "pl":'Wszystkie (domyślnie)'},
-        'TOOLTIP_CP':{
-                "en":'Ignore (hide) groups containing duplicates in only one search path.\nShow only groups with files in different search paths.\nIn this mode, you can treat one search path as a "reference"\nand delete duplicates in all other paths with ease',
-                "pl":'Ignoruj ​​(ukryj) grupy zawierające duplikaty tylko w jednej ścieżce wyszukiwania.\nPokaż tylko grupy zawierające pliki w różnych ścieżkach wyszukiwania.\nW tym trybie możesz traktować jedną ścieżkę wyszukiwania jako "referencje"\ni z łatwością usuwać duplikaty we wszystkich innych ścieżkach.'},
-        'Show all results':{
-                "pl":'Pokaż wszystkie wyniki'},
-        'TOOLTIP_SD':{
-                "en":'Show only groups with result files in the same directory',
-                "pl":'Pokaż tylko grupy z plikami wyników w tym samym katalogu'},
-        'Same directory':{
-                "pl":'Ten sam katalog'},
-        "Main panels and dialogs":{
-                "pl":'Panele główne i dialogi'},
-        'Show full CRC':{
-                "pl":'Pokazuj pełne CRC'},
-        'Show full scan paths':{
-                "pl":'Pokazuj pełne ścieżki skanowania'},
-        'Specify expression for full file path.':{
-                "pl":'Zdefiniuj wyrażenie określające pełną ścieżkę do pliku.'},
-        'Specify expression for file names in selected directory.':{
-                "pl":'Zdefiniuj wyrażenie dla nazw plików w wybranym katalogu.'},
-        'TOOLTIP_SFC':{
-                "en":'If disabled, shortest necessary prefix of full CRC wil be shown',
-                "pl":'Jeśli wyłączone, zostanie wyświetlony najkrótszy niezbędny prefiks pełnego CRC'},
-        'TOOLTIP_SFSP':{
-                "en":'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips',
-                "pl":'Jeśli wyłączone, symbole ścieżki skanowania będą wyświetlane zamiast\npełnych ścieżek. Pełne ścieżki są zawsze wyświetlane jako podpowiedzi'},
-        ' Search:':{
-                "pl":' Szukaj:'}
+            'en': 'Number of parameters (paths) passed to\n"Opening wrapper" (if defined) when action\nis performed on groups\ndefault is 2',
+            'pl': 'Liczba parametrów (ścieżek) przekazywanych do\nakcji "Skrypt Otwierający" (jeśli zdefiniowano), gdy akcja\njest wykonywana na grupach\nDomyślnie 2',
+            'es': 'Número de parámetros (rutas) pasados al\n"Contenedor de apertura" (si está definido) cuando se realiza la acción\nsobre los grupos\nEl valor predeterminado es 2',
+            'ru': 'Количество параметров (путей), переданных в\n"Открытие обертки" (если определено), когда действие\nвыполняется над группами\nПо умолчанию 2',
+            'de': 'Anzahl der Parameter (Pfad) die an\n"Öffnungswrapper" (falls definiert) übergeben werden, wenn die Aktion\nauf Gruppen angewendet wird\nStandardmäßig 2',
+            'it': 'Numero di parametri (percorso) passati al\n"Wrapper di apertura" (se definito) quando viene eseguita l\'azione\ndei gruppi\nIl valore predefinito è 2',
+            'fr': 'Nombre de paramètres (chemin) passés à\n"Enveloppe d\'ouverture" (si défini) lors de l\'exécution de l\'action\nsur les groupes\nLa valeur par défaut est 2',
+        },
+        'TOOLTIP_GPS':{
+            'en': 'Only image files with EXIF GPS\ndata are processed. Identified groups\ncontain images with GPS coordinates\nwith close proximity to each other',
+            'pl': 'Przetwarzane są tylko pliki obrazów z danymi EXIF \u200b\u200bGPS.\nZidentyfikowane grupy\nzawierają obrazy z współrzędnymi GPS\nznajdującymi się blisko siebie',
+            'es': 'Solo se procesan archivos de imagen con\ndatos EXIF GPS.\nLos grupos identificados\ncontienen imágenes con coordenadas GPS\ncerca unas de otras',
+            'ru': 'Обрабатываются только изображения с данными EXIF GPS.\nИдентифицированные группы\nсодержат изображения с GPS координатами,\nрасположенные близко друг к другу',
+            'de': 'Nur Bilddateien mit EXIF GPS-Daten\nwerden verarbeitet. Identifizierte Gruppen\nenthalten Bilder mit GPS-Koordinaten,\ndie sich in unmittelbarer Nähe zueinander befinden',
+            'it': 'Vengono elaborati solo file immagine con\ndati EXIF GPS.\nI gruppi identificati\ncontengono immagini con coordinate GPS\nvicine tra loro',
+            'fr': 'Seuls les fichiers image avec des données EXIF GPS\nsont traités. Les groupes identifiés\ncontiennent des images avec des coordonnées GPS\ntrès proches les unes des autres',
+        },
+        'TOOLTIP_HASH': {
+            'en': 'The larger the hash size value,\nthe more details of the image\nare taken into consideration.\nThe default value is 6',
+            'pl': 'Im większa wartość rozmiaru skrótu,\ntym więcej szczegółów obrazu\njest branych pod uwagę.\nWartość domyślna to 6',
+            'es': 'Cuanto mayor sea el valor del tamaño del hash,\nse tendrán más en cuenta los detalles de la imagen.\nEl valor predeterminado es 6',
+            'ru': 'Чем больше значение размера хеша,\nтем больше деталей изображения\nучитывается.\nЗначение по умолчанию - 6',
+            'de': 'Je größer der Hash-Größenwert ist,\n desto mehr Details des Bildes\nwerden berücksichtigt.\nDer Standardwert ist 6',
+            'it': 'Maggiore è il valore della dimensione dell\'hash,\npiù dettagli dell\'immagine vengono presi in considerazione.\nIl valore predefinito è 6',
+            'fr': 'Plus la taille du hash est grande,\nplus de détails de l\'image\nsont pris en compte.\nLa valeur par défaut est 6',
+        },
+        'TOOLTIP_MAX_IMAGE': {
+            'en': 'Limit the search pool to images with\nboth dimensions (width and height)\nsmaller or equal to the specified value\nin pixels (e.g. 4096)',
+            'pl': 'Ogranicz pulę wyszukiwania do obrazów\nktórych wymiary (szerokość i wysokość)\nsą mniejsze od lub równe określonej\nwartości w pikselach (np. 512)',
+            'es': 'Limitar la búsqueda a imágenes con\nambas dimensiones (ancho y altura)\nmás pequeñas o iguales al valor especificado\nen píxeles (por ejemplo, 4096)',
+            'ru': 'Ограничьте поиск изображениями с\nобеими размерами (ширина и высота)\nменьшими или равными указанному значению\nв пикселях (например, 4096)',
+            'de': 'Beschränken Sie die Suchergebnisse auf Bilder mit\nbeiden Dimensionen (Breite und Höhe)\nkleiner oder gleich dem angegebenen Wert\nin Pixel (z.B. 4096)',
+            'it': 'Limita la ricerca a immagini con\nentrambe le dimensioni (larghezza e altezza)\npiccole o uguali al valore specificato\nin pixel (ad esempio, 4096)',
+            'fr': 'Limitez la recherche aux images ayant\nles deux dimensions (largeur et hauteur)\ninférieures ou égales à la valeur spécifiée\nen pixels (par exemple, 4096)',
+        },
+        'TOOLTIP_MAX_SIZE': {
+            'en': 'Limit the search pool to files with\nsize smaller or equal to the specified\n (e.g. 10MB, 1GB ...)',
+            'pl': 'Ogranicz pulę wyszukiwania do plików o rozmiarze\n mniejszym od lub równym określonemu\n (np. 112 kB, 1 MB ...)',
+            'es': 'Limitar la búsqueda a archivos con\nun tamaño menor o igual al especificado\n (por ejemplo, 10MB, 1GB ...)',
+            'ru': 'Ограничьте поиск файлами размером,\nменьше или равным указанному\n (например, 10 МБ, 1 ГБ ...)',
+            'de': 'Beschränken Sie die Suche auf Dateien mit\ngrößerem oder gleich angegebenem\nGröße (z.B. 10MB, 1GB ...)',
+            'it': 'Limita la ricerca a file con\ndimensione minore o uguale al valore specificato\n (ad esempio, 10MB, 1GB ...)',
+            'fr': 'Limitez la recherche aux fichiers ayant\nune taille inférieure ou égale à la valeur spécifiée\n (par exemple, 10MB, 1GB ...)',
+        },
+        'TOOLTIP_MIN_IMAGE': {
+            'en': 'Limit the search pool to images with\nboth dimensions (width and height)\nequal or greater to the specified value\nin pixels (e.g. 512)',
+            'pl': 'Ogranicz pulę wyszukiwania do obrazów\nktórych wymiary (szerokość i wysokość)\nsą równe lub większe od określonej\nwartości w pikselach (np. 512)',
+            'es': 'Limitar la búsqueda a imágenes con\nambas dimensiones (ancho y altura)\niguales o mayores que el valor especificado\nen píxeles (por ejemplo, 512)',
+            'ru': 'Ограничьте поиск изображениями с\nобеими размерами (ширина и высота)\nравными или большими указанного значения\nв пикселях (например, 512)',
+            'de': 'Beschränken Sie die Suche auf Bilder mit\nbeiden Dimensionen (Breite und Höhe)\n gleich oder größer als der angegebene Wert\n in Pixel (z.B. 512)',
+            'it': 'Limita la ricerca a immagini con\nentrambe le dimensioni (larghezza e altezza)\nuguali o maggiori del valore specificato\nin pixel (ad esempio, 512)',
+            'fr': 'Limitez la recherche aux images ayant\nles deux dimensions (largeur et hauteur)\négales ou supérieures à la valeur spécifiée\nen pixels (par exemple, 512)',
+        },
+        'TOOLTIP_MIN_SIZE': {
+            'en': 'Limit the search pool to files with\nsize equal or greater to the specified\n (e.g. 112kB, 1MB ...)',
+            'pl': 'Ogranicz pulę wyszukiwania do plików o rozmiarze\n równym lub większym od określonego\n (np. 112 kB, 1 MB ...)',
+            'es': 'Limitar la búsqueda a archivos con\nun tamaño igual o mayor al especificado\n (por ejemplo, 112kB, 1MB ...)',
+            'ru': 'Ограничьте поиск файлами с\nразмером равным или большим указанного\n (например, 112 КБ, 1 МБ ...)',
+            'de': 'Beschränken Sie die Suche auf Dateien mit\nGröße gleich oder größer als der angegebene\n (z.B. 112kB, 1MB ...)',
+            'it': 'Limita la ricerca a file con\ndimensione uguale o maggiore al valore specificato\n (ad esempio, 112kB, 1MB ...)',
+            'fr': 'Limitez la recherche aux fichiers ayant\nune taille égale ou supérieure à la valeur spécifiée\n (par exemple, 112kB, 1MB ...)',
+        },
+        'TOOLTIP_OW': {
+            'en': 'Command executed on "Open File" with full file path as parameter.\nIf empty, default os association will be executed.',
+            'pl': 'Polecenie wykonane na akcji "Otwórz plik" z pełną ścieżką do pliku jako parametrem.\nJeśli puste, zostanie uruchomiona domyślnie skojarzona aplikacja.',
+            'es': 'Comando ejecutado en "Abrir archivo" con la ruta completa del archivo como parámetro.\nSi está vacío, se ejecutará la asociación predeterminada del sistema operativo.',
+            'ru': 'Команда выполняется при "Открытии файла" с полным путем файла как параметром.\nЕсли пусто, будет выполнена ассоциация по умолчанию ОС.',
+            'de': 'Befehl wird bei "Datei öffnen" mit dem vollständigen Dateipfad als Parameter ausgeführt.\nWenn leer, wird die Standard-OS-Assoziation ausgeführt.',
+            'it': 'Comando eseguito su "Apri file" con il percorso completo del file come parametro.\nSe vuoto, verrà eseguita l\'associazione predefinita del sistema operativo.',
+            'fr': 'Commande exécutée sur "Ouvrir le fichier" avec le chemin complet du fichier en paramètre.\nSi vide, l\'association par défaut du système d\'exploitation sera exécutée.',
+        },
+        'TOOLTIP_PAU': {
+            'en': 'If enabled, any change of the selection\nwill automatically update the preview\nwindow (if the format is supported)',
+            'pl': 'Jeśli włączone, każda zmiana selekcji\nspowoduje automatyczną aktualizację okna podglądu\n(jeśli format jest obsługiwany)',
+            'es': 'Si está habilitado, cualquier cambio en la selección\nactualizará automáticamente la ventana de vista previa\n(si el formato es compatible)',
+            'ru': 'Если включено, любое изменение выбора\nавтоматически обновит окно предварительного просмотра\n(если формат поддерживается)',
+            'de': 'Wenn aktiviert, wird jede Änderung der Auswahl\nautomatisch das Vorschaufenster aktualisieren\n(wenn das Format unterstützt wird)',
+            'it': 'Se abilitato, qualsiasi modifica della selezione\naggiornerà automaticamente la finestra di anteprima\n(se il formato è supportato)',
+            'fr': 'Si activé, tout changement de sélection\nmettra à jour automatiquement la fenêtre de prévisualisation\n(si le format est pris en charge)',
+        },
+        'TOOLTIP_SD': {
+            'en': 'Show only groups with result files in the same directory',
+            'pl': 'Pokaż tylko grupy z plikami wyników w tym samym katalogu',
+            'es': 'Mostrar solo grupos con archivos de resultados en el mismo directorio',
+            'ru': 'Показывать только группы с результатами файлов в той же директории',
+            'de': 'Zeige nur Gruppen mit Ergebnisdateien im gleichen Verzeichnis',
+            'it': 'Mostra solo i gruppi con file di risultati nella stessa cartella',
+            'fr': 'Afficher uniquement les groupes avec des fichiers de résultats dans le même répertoire',
+        },
+        'TOOLTIP_SFC': {
+            'en': 'If disabled, shortest necessary prefix of full CRC wil be shown',
+            'pl': 'Jeśli wyłączone, zostanie wyświetlony najkrótszy niezbędny prefiks pełnego CRC',
+            'es': 'Si está deshabilitado, se mostrará el prefijo más corto necesario del CRC completo',
+            'ru': 'Если отключено, будет показан самый короткий необходимый префикс полного CRC',
+            'de': 'Wenn deaktiviert, wird das kürzeste notwendige Präfix des vollständigen CRC angezeigt',
+            'it': 'Se disabilitato, verrà mostrato il prefisso più breve necessario del CRC completo',
+            'fr': 'Si désactivé, le préfixe nécessaire le plus court du CRC complet sera affiché',
+        },
+        'TOOLTIP_SFSP': {
+            'en': 'If disabled, scan path symbols will be shown instead of full paths\nfull paths are always displayed as tooltips',
+            'pl': 'Jeśli wyłączone, symbole ścieżki skanowania będą wyświetlane zamiast\npełnych ścieżek. Pełne ścieżki są zawsze wyświetlane jako podpowiedzi',
+            'es': 'Si está deshabilitado, se mostrarán los símbolos de la ruta de escaneo en lugar de las rutas completas\nlas rutas completas siempre se muestran como descripciones emergentes',
+            'ru': 'Если отключено, будут показаны символы пути сканирования вместо полных путей\nполные пути всегда отображаются как подсказки',
+            'de': 'Wenn deaktiviert, werden die Symbole des Scanpfades anstelle der vollständigen Pfade angezeigt\nvollständige Pfade werden immer als Tooltips angezeigt',
+            'it': 'Se disabilitato, verranno mostrati i simboli del percorso di scansione invece dei percorsi completi\ni percorsi completi sono sempre visualizzati come suggerimenti',
+            'fr': 'Si désactivé, les symboles du chemin de numérisation seront affichés à la place des chemins complets\nles chemins complets sont toujours affichés sous forme d\'infobulles',
+        },
+        'TOOLTIP_SGWIS': {
+            'en': 'Groups with incorrect marks set will abort action.\nEnable this option to skip those groups.\nFor delete or soft-link action, one file in a group \nmust remain unmarked (see below). For hardlink action,\nmore than one file in a group must be marked.',
+            'pl': 'Grupy z niepoprawnie ustawioną selekcją przerywają przetwarzanie.\nWłącz tę opcję, aby pominąć te grupy.\nW przypadku akcji usuwania lub miękkiego linkowania jeden plik w grupie \nmusi pozostać nieoznaczony (patrz poniżej). W przypadku akcji twardego linkowania\nwięcej niż jeden plik w grupie musi być oznaczony.',
+            'es': 'Los grupos con marcas incorrectas abortarán la acción.\nHabilite esta opción para omitir esos grupos.\nPara la acción de eliminar o enlace suave, un archivo en un grupo\ndebe permanecer sin marcar (ver abajo). Para la acción de enlace duro,\nmás de un archivo en un grupo debe estar marcado.',
+            'ru': 'Группы с некорректно установленными метками прервут действие.\nВключите эту опцию, чтобы пропустить эти группы.\nДля действия удаления или мягкой привязки один файл в группе\nдолжен остаться без метки (см. ниже). Для действия жесткой привязки\nдолжно быть отмечено больше одного файла в группе.',
+            'de': 'Gruppen mit falsch gesetzten Markierungen brechen die Aktion ab.\nAktivieren Sie diese Option, um diese Gruppen zu überspringen.\nFür Lösch- oder Soft-Link-Aktionen muss eine Datei in einer Gruppe\nunmarkiert bleiben (siehe unten). Für Hardlink-Aktionen müssen\nmehr als eine Datei in einer Gruppe markiert sein.',
+            'it': 'I gruppi con marchi errati annulleranno l\'azione.\nAbilita questa opzione per saltare questi gruppi.\nPer l\'azione di eliminazione o collegamento morbido, un file in un gruppo\ndeve rimanere non contrassegnato (vedi sotto). Per l\'azione di hardlink,\npiù di un file in un gruppo deve essere contrassegnato.',
+            'fr': 'Les groupes avec des marques incorrectes arrêtent l\'action.\nActivez cette option pour ignorer ces groupes.\nPour l\'action de suppression ou de lien symbolique, un fichier dans un groupe\n doit rester non marqué (voir ci-dessous). Pour l\'action de lien dur,\nplus d\'un fichier dans un groupe doit être marqué.',
+        },
+        'TOOLTIP_SIMILARITY': {
+            'en': 'Only image files are processed\nIdentified groups contain\nimages with similar content',
+            'pl': 'Przetwarzane są tylko pliki z grafiką\nZidentyfikowane grupy zawierają\nobrazy o podobnej treści',
+            'es': 'Solo se procesan archivos de imagen\nLos grupos identificados contienen\nimágenes con contenido similar',
+            'ru': 'Обрабатываются только файлы изображений\nИдентифицированные группы содержат\nизображения с похожим содержанием',
+            'de': 'Es werden nur Bilddateien verarbeitet\nIdentifizierte Gruppen enthalten\nBilder mit ähnlichem Inhalt',
+            'it': 'Vengono elaborati solo file immagine\nI gruppi identificati contengono\nimmagini con contenuti simili',
+            'fr': 'Seuls les fichiers image sont traités\nLes groupes identifiés contiennent\n des images au contenu similaire',
+        },
+        'TOOLTIP_SKIP': {
+            'en': 'log every skipped file\n(softlinks, hardlinks, excluded, no permissions etc.)',
+            'pl': 'loguj każdy pominięty plik\n(miękkie linki, twarde linki, wykluczone pliki, pliki bez uprawnień itd.)',
+            'es': 'registrar cada archivo omitido\n(enlaces simbólicos, enlaces duros, archivos excluidos, sin permisos, etc.)',
+            'ru': 'логировать каждый пропущенный файл\n(мягкие ссылки, жесткие ссылки, исключенные файлы, без прав доступа и т.д.)',
+            'de': 'protokolliere jede übersprungene Datei\n(Symbollinks, Hardlinks, ausgeschlossene Dateien, keine Berechtigungen usw.)',
+            'it': 'registra ogni file saltato\n(link simbolici, hardlink, file esclusi, senza permessi ecc.)',
+            'fr': 'enregistrer chaque fichier ignoré\n(liens symboliques, liens durs, fichiers exclus, sans autorisations, etc.)',
+        },
+        'The full path of a directory\nshown in the bottom panel.': {
+            'pl': 'Pełna ścieżka do katalogu\nwyświetlanego w dolnym panelu.',
+            'es': 'La ruta completa de un directorio\nmostrada en el panel inferior.',
+            'ru': 'Полный путь к каталогу\nпоказанному в нижней панели.',
+            'de': 'Der vollständige Pfad eines Verzeichnisses\nwird im unteren Bereich angezeigt.',
+            'it': 'Il percorso completo di una directory\nvisualizzato nel pannello inferiore.',
+            'fr': 'Le chemin complet d\'un répertoire\naffiché dans le panneau inférieur.',
+        },
+        'Time': {
+            'pl': 'Czas',
+            'es': 'Tiempo',
+            'ru': 'Время',
+            'de': 'Zeit',
+            'it': 'Tempo',
+            'fr': 'Temps',
+        },
+        'Toggle Mark': {
+            'pl': 'Odwróć zaznaczenie',
+            'es': 'Invertir marca',
+            'ru': 'Переключить метку',
+            'de': 'Markierung umschalten',
+            'it': 'Inverti marca',
+            'fr': 'Inverser la marque',
+        },
+        'Toggle mark on oldest file': {
+            'pl': 'Odwróć zaznaczenie na najstarszym pliku',
+            'es': 'Invertir marca en el archivo más antiguo',
+            'ru': 'Переключить метку на самом старом файле',
+            'de': 'Markierung am ältesten File umschalten',
+            'it': 'Inverti marca sul file più vecchio',
+            'fr': 'Inverser la marque sur le fichier le plus ancien',
+        },
+        'Toggle mark on youngest file': {
+            'pl': 'Odwróć zaznaczenie na najnowszym pliku',
+            'es': 'Invertir marca en el archivo más reciente',
+            'ru': 'Переключить метку на самом новом файле',
+            'de': 'Markierung am neuesten File umschalten',
+            'it': 'Inverti marca sul file più recente',
+            'fr': 'Inverser la marque sur le fichier le plus récent',
+        },
+        'Total space:': {
+            'pl': 'Całkowita przestrzeń:',
+            'es': 'Espacio total:',
+            'ru': 'Общий объём:',
+            'de': 'Gesamtspeicher:',
+            'it': 'Spazio totale:',
+            'fr': 'Espace total :',
+        },
+        'Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.': {
+            'pl': 'Tłumaczenia wykonane są przy użyciu AI.\nJeśli konieczne są jakiekolwiek poprawki, prosimy o kontakt z autorem.',
+            'es': 'Las traducciones se realizan utilizando IA.\nSi se necesitan correcciones,\ncontacte con el autor.',
+            'ru': 'Переводы выполнены с использованием ИИ.\nЕсли необходимы исправления,\nпожалуйста, свяжитесь с автором.',
+            'de': 'Übersetzungen wurden mit KI erstellt.\nWenn Korrekturen erforderlich sind,\nwenden Sie sich bitte an den Autor.',
+            'it': 'Le traduzioni sono effettuate con l\'AI.\nSe sono necessarie correzioni,\ncontattare l\'autore.',
+            'fr': 'Les traductions sont effectuées à l\'aide de l\'IA.\nSi des corrections sont nécessaires,\nveuillez contacter l\'auteur.',
+        },
+        'Unmark All Duplicates in Subdirectory': {
+            'pl': 'Odznacz wszystkie duplikaty w podkatalogu',
+            'es': 'Desmarcar todos los duplicados en el subdirectorio',
+            'ru': 'Снять метку со всех дубликатов в подкаталоге',
+            'de': 'Alle Duplikate im Unterverzeichnis abwählen',
+            'it': 'Deseleziona tutti i duplicati nella sottocartella',
+            'fr': 'Désélectionner tous les doublons dans le sous-répertoire',
+        },
+        'Unmark By expression': {
+            'pl': 'Odznacz z użyciem wyrażenia',
+            'es': 'Desmarcar por expresión',
+            'ru': 'Снять метку по выражению',
+            'de': 'Durch Ausdruck abwählen',
+            'it': 'Deseleziona per espressione',
+            'fr': 'Désélectionner par expression',
+        },
+        'Unmark Oldest files': {
+            'pl': 'Odznacz najstarsze pliki',
+            'es': 'Desmarcar los archivos más antiguos',
+            'ru': 'Снять метку с самых старых файлов',
+            'de': 'Die ältesten Dateien abwählen',
+            'it': 'Deseleziona i file più vecchi',
+            'fr': 'Désélectionner les fichiers les plus anciens',
+        },
+        'Unmark Youngest files': {
+            'pl': 'Odznacz najmłodsze pliki',
+            'es': 'Desmarcar los archivos más recientes',
+            'ru': 'Снять метку с самых новых файлов',
+            'de': 'Die neuesten Dateien abwählen',
+            'it': 'Deseleziona i file più recenti',
+            'fr': 'Désélectionner les fichiers les plus récents',
+        },
+        'Unmark all files': {
+            'pl': 'Odznacz wszystkie pliki',
+            'es': 'Desmarcar todos los archivos',
+            'ru': 'Снять метку со всех файлов',
+            'de': 'Alle Dateien abwählen',
+            'it': 'Deseleziona tutti i file',
+            'fr': 'Désélectionner tous les fichiers',
+        },
+        'Unmark files': {
+            'pl': 'Odznacz pliki',
+            'es': 'Desmarcar archivos',
+            'ru': 'Снять метку с файлов',
+            'de': 'Dateien abwählen',
+            'it': 'Deseleziona i file',
+            'fr': 'Désélectionner les fichiers',
+        },
+        'Unmark on scan path': {
+            'pl': 'Odznacz na wybranej ścieżce skanowania',
+            'es': 'Desmarcar en la ruta de escaneo seleccionada',
+            'ru': 'Снять метку на выбранном пути сканирования',
+            'de': 'Auf dem ausgewählten Scanpfad abwählen',
+            'it': 'Deseleziona nel percorso di scansione selezionato',
+            'fr': 'Désélectionner sur le chemin de numérisation sélectionné',
+        },
+        'Unmark on specified directory ...': {
+            'pl': 'Odznacz z wybranego katalogu ...',
+            'es': 'Desmarcar en el directorio especificado ...',
+            'ru': 'Снять метку в указанной директории ...',
+            'de': 'Im angegebenen Verzeichnis abwählen ...',
+            'it': 'Deseleziona nella directory specificata ...',
+            'fr': 'Désélectionner dans le répertoire spécifié ...',
+        },
+        'Updating items ...': {
+            'pl': 'Aktualizacja obiektów ...',
+            'es': 'Actualizando elementos ...',
+            'ru': 'Обновление элементов ...',
+            'de': 'Objekte werden aktualisiert ...',
+            'it': 'Aggiornamento degli oggetti ...',
+            'fr': 'Mise à jour des éléments ...',
+        },
+        'Warning !': {
+            'pl': 'Uwaga !',
+            'es': '¡Advertencia!',
+            'ru': 'Внимание!',
+            'de': 'Warnung!',
+            'it': 'Attenzione!',
+            'fr': 'Attention !',
+        },
+        'Yes': {
+            'pl': 'Tak',
+            'es': 'Sí',
+            'ru': 'Да',
+            'de': 'Ja',
+            'it': 'Sì',
+            'fr': 'Oui',
+        },
+        'Yes|RED': {
+            'pl': 'Tak|RED',
+            'es': 'Sí|ROJO',
+            'ru': 'Да|КРАСНЫЙ',
+            'de': 'Ja|ROT',
+            'it': 'Sì|ROSSO',
+            'fr': 'Oui|ROUGE',
+        },
+        'all groups': {
+            'pl': 'wszystkie grupy',
+            'es': 'todas las grupos',
+            'ru': 'все группы',
+            'de': 'alle Gruppen',
+            'it': 'tutti i gruppi',
+            'fr': 'tous les groupes',
+        },
+        'checking data consistency with filesystem state ...': {
+            'pl': 'sprawdzanie spójności danych ze stanem systemu plików',
+            'es': 'comprobando la coherencia de los datos con el estado del sistema de archivos ...',
+            'ru': 'проверка согласованности данных с состоянием файловой системы ...',
+            'de': 'Überprüfe die Datenkonsistenz mit dem Zustand des Dateisystems ...',
+            'it': 'verifica della coerenza dei dati con lo stato del file system ...',
+            'fr': 'vérification de la cohérence des données avec l\'état du système de fichiers ...',
+        },
+        'checking selection correctness...': {
+            'pl': 'sprawdzanie poprawności selekcji...',
+            'es': 'comprobando la corrección de la selección...',
+            'ru': 'проверка корректности выбора...',
+            'de': 'Überprüfe die Richtigkeit der Auswahl...',
+            'it': 'verifica della correttezza della selezione...',
+            'fr': 'vérification de la validité de la sélection...',
+        },
+        'confirmation required...': {
+            'pl': 'wymagane potwierdzenie...',
+            'es': 'se requiere confirmación...',
+            'ru': 'требуется подтверждение...',
+            'de': 'Bestätigung erforderlich...',
+            'it': 'conferma richiesta...',
+            'fr': 'confirmation requise...',
+        },
+        'expression:': {
+            'pl': 'wyrażenie:',
+            'es': 'expresión:',
+            'ru': 'выражение:',
+            'de': 'Ausdruck:',
+            'it': 'espressione:',
+            'fr': 'expression :',
+        },
+        'final checking selection correctness': {
+            'pl': 'końcowe sprawdzenie poprawności selekcji',
+            'es': 'comprobación final de la corrección de la selección',
+            'ru': 'окончательная проверка правильности выбора',
+            'de': 'Endgültige Überprüfung der Auswahlgenauigkeit',
+            'it': 'verifica finale della correttezza della selezione',
+            'fr': 'vérification finale de la sélection',
+        },
+        'finding ...': {
+            'pl': 'poszukiwanie ...',
+            'es': 'buscando ...',
+            'ru': 'поиск ...',
+            'de': 'Suche ...',
+            'it': 'ricerca ...',
+            'fr': 'recherche ...',
+        },
+        'lines:': {
+            'pl': 'linie:',
+            'es': 'líneas:',
+            'ru': 'строки:',
+            'de': 'Zeilen:',
+            'it': 'linee:',
+            'fr': 'lignes :',
+        },
+        'log skipped files': {
+            'pl': 'loguj pominięte pliki',
+            'es': 'registrar archivos omitidos',
+            'ru': 'журнал пропущенных файлов',
+            'de': 'Übersprungene Dateien protokollieren',
+            'it': 'registra i file saltati',
+            'fr': 'journaliser les fichiers ignorés',
+        },
+        'next': {
+            'pl': 'nast.',
+            'es': 'siguiente',
+            'ru': 'след.',
+            'de': 'nächste',
+            'it': 'pross.',
+            'fr': 'suivant',
+        },
+        'parameters #': {
+            'pl': 'liczba parametrów',
+            'es': 'número de parámetros',
+            'ru': 'количество параметров',
+            'de': 'Anzahl der Parameter',
+            'it': 'numero di parametri',
+            'fr': 'nombre de paramètres',
+        },
+        'prev': {
+            'pl': 'poprz.',
+            'es': 'anterior',
+            'ru': 'пред.',
+            'de': 'vorherige',
+            'it': 'prec.',
+            'fr': 'précédent',
+        },
+        'remaining files checking complete.': {
+            'pl': 'sprawdzanie pozostałych plików zakończone.',
+            'es': 'comprobación de los archivos restantes completada.',
+            'ru': 'проверка оставшихся файлов завершена.',
+            'de': 'Überprüfung der verbleibenden Dateien abgeschlossen.',
+            'it': 'verifica dei file rimanenti completata.',
+            'fr': 'vérification des fichiers restants terminée.',
+        },
+        'replace marked files with .lnk files pointing to the first unmarked file in the group ?': {
+            'pl': 'zamień oznaczone pliki na pliki .lnk wskazujące na pierwszy nieoznaczony plik w grupie ?',
+            'es': '¿Reemplazar los archivos marcados por archivos .lnk que apuntan al primer archivo no marcado en el grupo?',
+            'ru': 'Заменить помеченные файлы на файлы .lnk, указывающие на первый немаркированный файл в группе?',
+            'de': 'Markierte Dateien durch .lnk-Dateien ersetzen, die auf die erste nicht markierte Datei in der Gruppe verweisen?',
+            'it': 'Sostituire i file contrassegnati con file .lnk che puntano al primo file non contrassegnato nel gruppo?',
+            'fr': 'Remplacer les fichiers marqués par des fichiers .lnk pointant vers le premier fichier non marqué dans le groupe ?',
+        },
+        'selected group': {
+            'pl': 'wybrana grupa',
+            'es': 'grupo seleccionado',
+            'ru': 'выбранная группа',
+            'de': 'ausgewählte Gruppe',
+            'it': 'gruppo selezionato',
+            'fr': 'groupe sélectionné',
+        },
+        'selecting next duplicate in folder': {
+            'pl': 'wybieranie następnego duplikatu w folderze',
+            'es': 'seleccionando el siguiente duplicado en la carpeta',
+            'ru': 'выбор следующего дубликата в папке',
+            'de': 'Auswahl des nächsten Duplikats im Ordner',
+            'it': 'selezionando il prossimo duplicato nella cartella',
+            'fr': 'sélection du prochain doublon dans le dossier',
+        },
+        'selecting next group': {
+            'pl': 'wybieranie następnego w grupie',
+            'es': 'seleccionando el siguiente en el grupo',
+            'ru': 'выбор следующей группы',
+            'de': 'Auswahl der nächsten Gruppe',
+            'it': 'selezionando il prossimo gruppo',
+            'fr': 'sélection du groupe suivant',
+        },
+        'selecting prev duplicate in folder': {
+            'pl': 'wybieranie poprzedniego duplikatu w grupie',
+            'es': 'seleccionando el duplicado anterior en la carpeta',
+            'ru': 'выбор предыдущего дубликата в папке',
+            'de': 'Auswahl des vorherigen Duplikats im Ordner',
+            'it': 'selezionando il duplicato precedente nella cartella',
+            'fr': 'sélection du doublon précédent dans le dossier',
+        },
+        'selecting prev group': {
+            'pl': 'wybieranie poprzedniego w grupie',
+            'es': 'seleccionando el anterior en el grupo',
+            'ru': 'выбор предыдущей группы',
+            'de': 'Auswahl der vorherigen Gruppe',
+            'it': 'selezionando il gruppo precedente',
+            'fr': 'sélection du groupe précédent',
+        },
+        'treat as a regular expression': {
+            'pl': 'traktuj jako wyrażenie regularne',
+            'es': 'tratar como una expresión regular',
+            'ru': 'обрабатывать как регулярное выражение',
+            'de': 'als regulären Ausdruck behandeln',
+            'it': 'trattare come espressione regolare',
+            'fr': 'traiter comme une expression régulière',
+        },
+        'unsupported format': {
+            'pl': 'nieobsługiwany format',
+            'es': 'formato no compatible',
+            'ru': 'неподдерживаемый формат',
+            'de': 'nicht unterstütztes Format',
+            'it': 'formato non supportato',
+            'fr': 'format non supporté',
+        }
     }
 
     def __init__(self):
-        try:
-            lang = getlocale()[0].split('_')[0]
-            #print(f'initial setting lang:{lang}')
-        except:
-            pass
+        pass
 
     def set(self,lang_id):
-        #print(f'setting lang:{lang_id}')
         self.lang_id=lang_id
 
-    def STR(self,str_par):
+    def STR(self,str_par,new_lang=None):
         try:
-            return self.STR_DICT[str_par][self.lang_id]
+            return self.STR_DICT[str_par][self.lang_dict[new_lang if new_lang else self.lang_id]]
         except:
             try:
                 return self.STR_DICT[str_par]["en"]

@@ -576,7 +576,7 @@ class Gui:
         self.cfg_get_bool=self.cfg.get_bool
         self.cfg_get=self.cfg.get
 
-        langs.set( self.lang_dict[self.cfg_get(CFG_lang)] )
+        langs.set( self.cfg_get(CFG_lang) )
 
         self.exclude_frames=[]
 
@@ -1776,7 +1776,7 @@ class Gui:
             Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=2, column=0, sticky='wens',padx=8,pady=4)
 
             self.lang_var = StringVar()
-            self.lang_cb = Combobox(lang_frame,values=('English','Polski'),textvariable=self.lang_var,state='readonly',width=16)
+            self.lang_cb = Combobox(lang_frame,values=list(langs.lang_dict.keys()),textvariable=self.lang_var,state='readonly',width=16)
             self.lang_cb.grid(row=2, column=1, sticky='news',padx=4,pady=4)
             lang_frame.grid_columnconfigure( 2, weight=1)
 
@@ -1858,7 +1858,7 @@ class Gui:
 
             Button(bfr, text=STR('Set defaults'),width=14, command=self.settings_reset).pack(side='left', anchor='n',padx=5,pady=5)
             Button(bfr, text='OK', width=14, command=self.settings_ok ).pack(side='left', anchor='n',padx=5,pady=5,fill='both')
-            self.cancel_button=Button(bfr, text='Cancel', width=14 ,command=self.settings_dialog.hide )
+            self.cancel_button=Button(bfr, text=STR('Cancel'), width=14 ,command=self.settings_dialog.hide )
             self.cancel_button.pack(side='right', anchor='n',padx=5,pady=5)
 
             self.settings_dialog.area_main.grid_columnconfigure(0, weight=1)
@@ -1872,8 +1872,9 @@ class Gui:
         return self.settings_dialog
 
     def lang_change(self,event):
-        self.cfg.set(CFG_lang,self.lang_var.get())
-        self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Restart required.') )
+        new_val=self.lang_var.get()
+        self.cfg.set(CFG_lang,new_val)
+        self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
 
     info_dialog_on_main_created = False
     @restore_status_line
@@ -3915,7 +3916,7 @@ class Gui:
 
         self.scan_dialog.widget.update()
         self.tooltip_message[str_self_progress_dialog_on_scan_abort_button]=STR('If you abort at this stage,\nyou will not get any results.')
-        self_progress_dialog_on_scan.abort_button.configure(image=self.ico['cancel'],text='Cancel',compound='left')
+        self_progress_dialog_on_scan.abort_button.configure(image=self.ico['cancel'],text=STR('Cancel'),compound='left')
         self_progress_dialog_on_scan.abort_button.pack(side='bottom', anchor='n',padx=5,pady=5)
 
         self.action_abort=False
