@@ -85,6 +85,7 @@ STR=langs.STR
 
 ###########################################################################################################################################
 
+CFG_KEY_DARK_THEME='dark_theme'
 CFG_KEY_FULL_CRC='show_full_crc'
 CFG_KEY_SHOW_TOOLTIPS_INFO='show_tooltips_info'
 CFG_KEY_SHOW_TOOLTIPS_HELP='show_tooltips_help'
@@ -130,6 +131,7 @@ CFG_KEY_SHOW_PREVIEW = 'preview_shown'
 CFG_lang = 'lang'
 
 cfg_defaults={
+    CFG_KEY_DARK_THEME:False,
     CFG_KEY_FULL_CRC:False,
     CFG_KEY_SHOW_TOOLTIPS_INFO:True,
     CFG_KEY_SHOW_TOOLTIPS_HELP:True,
@@ -613,6 +615,21 @@ class Gui:
         self_main.withdraw()
 
         ####################################
+        black_theme=self.cfg_get_bool(CFG_KEY_DARK_THEME)
+
+        if black_theme:
+            bg_sel='gray30'
+            bg_focus='dark green'
+            bg_focus_off='gray30'
+            self.bg_content='black'
+            self.fg_content='white'
+        else:
+            bg_sel='#AAAAAA'
+            bg_focus='#90DD90'
+            bg_focus_off='#90AA90'
+            self.bg_content='white'
+            self.fg_content='black'
+
         self.preview = preview = Toplevel(self_main,takefocus=False)
         preview_bind = preview.bind
         preview.minsize(200,200)
@@ -641,7 +658,7 @@ class Gui:
         preview_frame_txt.grid_columnconfigure(0, weight=1)
         preview_frame_txt.grid_rowconfigure(0, weight=1)
 
-        self.preview_text = Text(preview_frame_txt, bg='white',relief='groove',bd=2,wrap='none')
+        self.preview_text = Text(preview_frame_txt, bg=self.bg_content,fg=self.fg_content,relief='groove',bd=2,wrap='none')
         self.preview_text.grid(row=0,column=0,sticky='news')
 
         self.preview_text_vbar = Scrollbar(preview_frame_txt, orient='vertical', command=self.preview_text.yview)
@@ -703,6 +720,7 @@ class Gui:
         preview.iconphoto(True, *self.main_icon_tuple)
 
         self.MARK='M'
+        self.NOTAG='N'
         self.UPDIR='0'
         self.DIR='1'
         self.DIRLINK='2'
@@ -756,48 +774,40 @@ class Gui:
         style.theme_use("dummy")
         style_map = style.map
 
-        bg_focus='#90DD90'
-        bg_focus_off='#90AA90'
-        bg_sel='#AAAAAA'
+        style_configure = style.configure
 
-        if env_theme:
-            #bg_color = self.bg_color = 'white'
-            pass
-        else:
-            style_configure = style.configure
-
-            if windows:
-                #fix border problem ...
-                style_configure("TCombobox",padding=1)
-
-            style_map("TButton",  fg=[('disabled',"gray"),('',"black")] )
-
-            style_configure("Treeview",rowheight=18)
-
-            style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],relief=[('disabled',"flat"),('',"sunken")],foreground=[('disabled',"gray"),('',"black")])
-            style_map("Treeview.Heading",  relief=[('','raised')] )
-            style_configure("TCheckbutton",anchor='center',padding=(4, 0, 4, 0) )
-            style_configure("TButton", anchor = "center")
-            style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
-            style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('','white')])
-            style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
-
-            style_map("TEntry", foreground=[("disabled",'darkgray'),('','black')],relief=[("disabled",'flat'),('','sunken')],borderwidth=[("disabled",0),('',2)],fieldbackground=[("disabled",self.bg_color),('','white')])
-
+        if not env_theme:
+            style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_content)])
+            style_map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_content)] )
+            style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('',self.bg_content)])
             #works but not for every theme
-            #style_configure("Treeview", fieldbackground=self.bg_color)
+            style_configure("Treeview", fieldbackground=self.bg_content)
 
-            #else:
-                #self.bg_color = 'white'
+            style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],foreground=[('disabled',"gray"),('',"black")])
+            style_map("TEntry", foreground=[("disabled",'darkgray'),('','black')],fieldbackground=[("disabled",self.bg_color),('','white')])
 
-            style_configure("TButton", background = bg_color)
-            style_configure('TRadiobutton', background=bg_color)
-            style_configure("TCheckbutton", background = bg_color)
-            style_configure("TScale", background=bg_color)
-            style_configure('TScale.slider', background=bg_color)
-            style_configure('TScale.Horizontal.TScale', background=bg_color)
 
-        style_map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('','white')])
+        style_map("TButton",  fg=[('disabled',"gray"),('',"black")] )
+
+        style_configure("TButton", background = bg_color)
+        style_configure('TRadiobutton', background=bg_color)
+        style_configure("TCheckbutton", background = bg_color)
+        style_configure("TScale", background=bg_color)
+        style_configure('TScale.slider', background=bg_color)
+        style_configure('TScale.Horizontal.TScale', background=bg_color)
+
+        style_map("TEntry",relief=[("disabled",'flat'),('','sunken')],borderwidth=[("disabled",0),('',2)])
+        style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
+        style_map("TCheckbutton",relief=[('disabled',"flat"),('',"sunken")])
+        style_map("Treeview.Heading",  relief=[('','raised')] )
+        style_configure("Treeview",rowheight=18)
+        style_configure("TButton", anchor = "center")
+        style_configure("TCheckbutton",anchor='center',padding=(4, 0, 4, 0) )
+        if windows:
+            #fix border problem ...
+            style_configure("TCombobox",padding=1)
+
+
 
         #######################################################################
         self.menubar = Menu(self_main,bg=bg_color)
@@ -1022,20 +1032,50 @@ class Gui:
         self_folder_tree.bind('<Double-Button-1>', self.double_left_button)
 
         self_groups_tree_tag_configure = self_groups_tree.tag_configure
-
-        self_groups_tree_tag_configure(self.MARK, foreground='red')
-        self_groups_tree_tag_configure(self.MARK, background='red')
-        self_groups_tree_tag_configure(self.CRC, foreground='gray')
-
         self_folder_tree_tag_configure = self_folder_tree.tag_configure
 
-        self_folder_tree_tag_configure(self.MARK, foreground='red')
-        self_folder_tree_tag_configure(self.MARK, background='red')
+        if black_theme:
 
-        self_folder_tree_tag_configure(self.SINGLE, foreground='gray')
-        self_folder_tree_tag_configure(self.DIR, foreground='sienna4',font="TkDefaultFont 10 bold")
-        self_folder_tree_tag_configure(self.DIRLINK, foreground='sienna4',font="TkDefaultFont 10 bold")
-        self_folder_tree_tag_configure(self.LINK, foreground='darkgray')
+            self_groups_tree_tag_configure(self.NOTAG,foreground='white')
+            #self_groups_tree_tag_configure(self.FILE, foreground='white')
+            self_groups_tree_tag_configure(self.MARK, foreground='tomato')
+            #self_groups_tree_tag_configure(self.MARK, background='red')
+
+            self_groups_tree_tag_configure(self.CRC, foreground='white')
+
+
+            self_folder_tree_tag_configure(self.DIR,foreground='white',font="TkDefaultFont 10 bold")
+            self_folder_tree_tag_configure(self.DIRLINK,foreground='white',font="TkDefaultFont 10 bold")
+            self_folder_tree_tag_configure(self.UPDIR,foreground='white',font="TkDefaultFont 10 bold")
+
+            self_folder_tree_tag_configure(self.NOTAG,foreground='white')
+            self_folder_tree_tag_configure(self.LINK,foreground='white')
+            self_folder_tree_tag_configure(self.SINGLEHARDLINKED,foreground='white')
+
+            self_folder_tree_tag_configure(self.MARK, foreground='tomato')
+            self_folder_tree_tag_configure(self.MARK, background='tomato')
+
+            self_folder_tree_tag_configure(self.SINGLE, foreground='white')
+            self_folder_tree_tag_configure(self.DIR, foreground='white',font="TkDefaultFont 10 bold")
+            self_folder_tree_tag_configure(self.DIRLINK, foreground='white',font="TkDefaultFont 10 bold")
+            self_folder_tree_tag_configure(self.LINK, foreground='darkgray')
+        else:
+            self_groups_tree_tag_configure(self.NOTAG,foreground='black')
+
+            self_groups_tree_tag_configure(self.MARK, foreground='red')
+            self_groups_tree_tag_configure(self.MARK, background='red')
+            self_groups_tree_tag_configure(self.CRC, foreground='gray')
+
+            self_folder_tree_tag_configure = self_folder_tree.tag_configure
+
+            self_folder_tree_tag_configure(self.MARK, foreground='red')
+            self_folder_tree_tag_configure(self.MARK, background='red')
+
+            self_folder_tree_tag_configure(self.SINGLE, foreground='gray')
+            self_folder_tree_tag_configure(self.DIR, foreground='sienna4',font="TkDefaultFont 10 bold")
+            self_folder_tree_tag_configure(self.DIRLINK, foreground='sienna4',font="TkDefaultFont 10 bold")
+            self_folder_tree_tag_configure(self.LINK, foreground='darkgray')
+
 
         #bind_class breaks columns resizing
         self_folder_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
@@ -1699,6 +1739,9 @@ class Gui:
         dialog.find_prev_butt.configure(image=self.ico_left)
         dialog.find_next_butt.configure(image=self.ico_right)
 
+        dialog.text.configure(bg=self.bg_content,fg=self.fg_content)
+        dialog.text.configure(bg=self.bg_content,fg=self.fg_content)
+
         self.widget_tooltip(dialog.find_prev_butt,STR('Find prev') + ' (Shift+F3)')
         self.widget_tooltip(dialog.find_next_butt,STR('Find next') + ' (F3)')
         self.widget_tooltip(dialog.find_cs,STR('Case Sensitive'))
@@ -1721,6 +1764,7 @@ class Gui:
 
             self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Settings'),pre_show=self.pre_show_settings,post_close=self.post_close)
 
+            self.dark_theme = BooleanVar()
             self.show_full_crc = BooleanVar()
             self.show_tooltips_info = BooleanVar()
             self.show_tooltips_help = BooleanVar()
@@ -1746,6 +1790,7 @@ class Gui:
             self.folders_open_wrapper_params = StringVar()
 
             self.settings = [
+                (self.dark_theme,CFG_KEY_DARK_THEME),
                 (self.show_full_crc,CFG_KEY_FULL_CRC),
                 (self.show_tooltips_info,CFG_KEY_SHOW_TOOLTIPS_INFO),
                 (self.show_tooltips_help,CFG_KEY_SHOW_TOOLTIPS_HELP),
@@ -1773,12 +1818,15 @@ class Gui:
             lang_frame = Frame(self.settings_dialog.area_main)
             lang_frame.grid(row=row, column=0, sticky='news',padx=4,pady=4) ; row+=1
 
-            Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=2, column=0, sticky='wens',padx=8,pady=4)
+            Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=0, column=0, sticky='wens',padx=8,pady=4)
 
             self.lang_var = StringVar()
             self.lang_cb = Combobox(lang_frame,values=list(langs.lang_dict.keys()),textvariable=self.lang_var,state='readonly',width=16)
-            self.lang_cb.grid(row=2, column=1, sticky='news',padx=4,pady=4)
+            self.lang_cb.grid(row=0, column=1, sticky='news',padx=4,pady=4)
+
+            Checkbutton(lang_frame, text = STR('Dark Theme'), variable=self.dark_theme,command=self.dark_mode_change).grid(row=0,column=3,sticky='nsew',padx=20,pady=2)
             lang_frame.grid_columnconfigure( 2, weight=1)
+            lang_frame.grid_columnconfigure( 4, weight=1)
 
             self.lang_cb.bind('<<ComboboxSelected>>', self.lang_change)
 
@@ -1875,6 +1923,9 @@ class Gui:
         new_val=self.lang_var.get()
         self.cfg.set(CFG_lang,new_val)
         self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
+
+    def dark_mode_change(self):
+        self.get_info_dialog_on_settings().show(STR('Color Theme Changed'),STR('Application restart required\nfor changes to take effect'))
 
     info_dialog_on_main_created = False
     @restore_status_line
@@ -4492,6 +4543,9 @@ class Gui:
         update1=False
         update2=False
 
+        if self.cfg_get_bool(CFG_KEY_DARK_THEME)!=self.dark_theme.get():
+            self.cfg.set_bool(CFG_KEY_DARK_THEME,self.dark_theme.get())
+
         if self.cfg_get_bool(CFG_KEY_FULL_CRC)!=self.show_full_crc.get():
             self.cfg.set_bool(CFG_KEY_FULL_CRC,self.show_full_crc.get())
             update1=True
@@ -4824,7 +4878,7 @@ class Gui:
                                 size_h,\
                                 str(ctime),str(dev),str(inode),crc,\
                                 '','',\
-                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags='',text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
+                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags=self.NOTAG,text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
 
                     #kind,crc,index_tuple
                     #kind,crc,(pathnr,path,file,ctime,dev,inode)
@@ -4878,7 +4932,7 @@ class Gui:
                                 '',\
                                 str(ctime),str(dev),str(inode),crc,\
                                 '','',\
-                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags='',text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
+                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags=self.NOTAG,text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
 
                         #kind,crc,index_tuple
                         #kind,crc,(pathnr,path,file,ctime,dev,inode)
@@ -5002,6 +5056,7 @@ class Gui:
         self_SINGLEHARDLINKED = self.SINGLEHARDLINKED
         self_FILE = self.FILE
         self_MARK = self.MARK
+        self_NOTAG = self.NOTAG
 
         local_bytes_to_str = bytes_to_str
 
@@ -5067,7 +5122,7 @@ class Gui:
                                             self_current_folder_items_tagged_add(file_id)
                                             current_folder_items_tagged_size+=size_num
 
-                                        folder_items_add((non_dir_code,sort_val_func(values[sort_index_local]),file_id,crc if show_full_crc else crc[:dude_core_crc_cut_len],values,self_MARK if in_tagged else '',NONE_ICON))
+                                        folder_items_add((non_dir_code,sort_val_func(values[sort_index_local]),file_id,crc if show_full_crc else crc[:dude_core_crc_cut_len],values,self_MARK if in_tagged else self_NOTAG,NONE_ICON))
                                 else:
                                     item_rocognized=False
 
@@ -5141,6 +5196,8 @@ class Gui:
 
         self_MARK = self.MARK
         self_FILE = self.FILE
+        self_NOTAG = self.NOTAG
+
         self.current_folder_items_tagged_clear()
         self_current_folder_items_tagged_add=self.current_folder_items_tagged_add
 
@@ -5149,7 +5206,7 @@ class Gui:
             kind = self.current_folder_items_dict[item][1]
             if kind==self_FILE:
                 in_tagged=bool(item in self_tagged)
-                self_folder_tree_item( item,tags=self_MARK if in_tagged else '')
+                self_folder_tree_item( item,tags=self_MARK if in_tagged else self_NOTAG)
                 if in_tagged:
                     self_current_folder_items_tagged_add(item)
 
@@ -5246,19 +5303,19 @@ class Gui:
             self_current_folder_items_tagged_add(item)
 
     def unset_mark(self,item,tree):
-        tree.item(item,tags='')
+        tree.item(item,tags=self.NOTAG)
         self.tagged_discard(item)
         self.current_folder_items_tagged_discard(item)
 
     def invert_mark(self,item,tree):
-        if tree.item(item)['tags']:
-            tree.item(item,tags='')
-            self.tagged_discard(item)
-            self.current_folder_items_tagged_discard(item)
-        else:
+        if self.NOTAG in tree.item(item)['tags']:
             tree.item(item,tags=self.MARK)
             self.tagged_add(item)
             self.current_folder_items_tagged_add(item)
+        else:
+            tree.item(item,tags=self.NOTAG)
+            self.tagged_discard(item)
+            self.current_folder_items_tagged_discard(item)
 
     @block_and_log
     def action_on_path(self,path_param,action,all_groups=True):

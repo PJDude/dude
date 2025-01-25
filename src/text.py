@@ -787,6 +787,22 @@ class LANGUAGES:
             'it': 'Lascia almeno un file non contrassegnato\no abilita l’opzione:\n"Salta gruppi con selezione non valida"\no abilita l’opzione:\n"Consenti eliminazione di tutte le copie"',
             'fr': 'Laissez au moins un fichier non marqué\nou activez l’option :\n"Passer les groupes avec sélection invalide"\nou activez l’option :\n"Autoriser la suppression de toutes les copies"',
         },
+        'Dark Theme': {
+            'pl': 'Motyw ciemny',
+            'es': 'Tema oscuro',
+            'ru': 'Тёмная тема',
+            'de': 'Dunkles Thema',
+            'it': 'Tema scuro',
+            'fr': 'Thème sombre',
+        },
+        'Color Theme Changed': {
+            'pl': 'Motyw został zmieniony',
+            'es': 'El tema de color ha cambiado',
+            'ru': 'Тема изменена',
+            'de': 'Farbschema geändert',
+            'it': 'Il tema dei colori è stato cambiato',
+            'fr': 'Le thème des couleurs a été modifié',
+        },
         'Language Changed': {
             'pl': 'Język został zmieniony',
             'es': 'Idioma cambiado',
