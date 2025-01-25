@@ -3,7 +3,7 @@ appdirs==1.4.4
 send2trash==1.8.3
 zstandard==0.23.0
 tkinterdnd2==0.4.2
-numpy==2.2.1
+numpy==2.2.2
 scipy==1.15.1
 exifread==3.0.0
 imagehash==4.3.1
