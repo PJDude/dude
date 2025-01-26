@@ -795,13 +795,13 @@ class LANGUAGES:
             'it': 'Tema scuro',
             'fr': 'Thème sombre',
         },
-        'Color Theme Changed': {
-            'pl': 'Motyw został zmieniony',
-            'es': 'El tema de color ha cambiado',
+        'Theme Changed': {
+            'pl': 'został zmieniony',
+            'es': 'El tema ha cambiado',
             'ru': 'Тема изменена',
             'de': 'Farbschema geändert',
-            'it': 'Il tema dei colori è stato cambiato',
-            'fr': 'Le thème des couleurs a été modifié',
+            'it': 'Il tema è stato cambiato',
+            'fr': 'Le thème a été modifié',
         },
         'Language Changed': {
             'pl': 'Język został zmieniony',

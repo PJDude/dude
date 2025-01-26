@@ -85,7 +85,7 @@ STR=langs.STR
 
 ###########################################################################################################################################
 
-CFG_KEY_DARK_THEME='dark_theme'
+CFG_THEME='theme'
 CFG_KEY_FULL_CRC='show_full_crc'
 CFG_KEY_SHOW_TOOLTIPS_INFO='show_tooltips_info'
 CFG_KEY_SHOW_TOOLTIPS_HELP='show_tooltips_help'
@@ -128,10 +128,10 @@ CFG_KEY_MARK_RE_1 = 'mark_re_1'
 
 CFG_KEY_SHOW_PREVIEW = 'preview_shown'
 
-CFG_lang = 'lang'
+CFG_LANG = 'lang'
 
 cfg_defaults={
-    CFG_KEY_DARK_THEME:False,
+    CFG_THEME:'Vista Light' if windows else 'Clam Light',
     CFG_KEY_FULL_CRC:False,
     CFG_KEY_SHOW_TOOLTIPS_INFO:True,
     CFG_KEY_SHOW_TOOLTIPS_HELP:True,
@@ -163,7 +163,7 @@ cfg_defaults={
     CFG_KEY_MARK_RE_0:False,
     CFG_KEY_MARK_RE_1:False,
     CFG_KEY_SHOW_PREVIEW:False,
-    CFG_lang:'English'
+    CFG_LANG:'English'
 }
 
 NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink',WIN_LNK:'.lnk file'}
@@ -578,7 +578,7 @@ class Gui:
         self.cfg_get_bool=self.cfg.get_bool
         self.cfg_get=self.cfg.get
 
-        langs.set( self.cfg_get(CFG_lang) )
+        langs.set( self.cfg_get(CFG_LANG) )
 
         self.exclude_frames=[]
 
@@ -615,7 +615,21 @@ class Gui:
         self_main.withdraw()
 
         ####################################
-        black_theme=self.cfg_get_bool(CFG_KEY_DARK_THEME)
+        self.themes_combos={}
+        {'Clam Light':('clam',0),'Clam Dark':('clam',1),'Classic Light':('classic',0),'Classic Dark':('classic',1),'Vista Light':('vista',0),'Vista Dark':('vista',0)}
+
+        themes_names= [ 'Clam', 'Alt', 'Default', 'Classic']
+        if windows:
+            themes_names = ['Vista'] + themes_names
+
+        for name in themes_names:
+            for darkness,darknesscode in (('',0),('Dark',1)):
+                full_name = name + ' ' + darkness
+                self.themes_combos[full_name]=name.lower(),darknesscode
+
+        self.default_theme='vista' if windows else 'clam'
+
+        theme_name,black_theme=self.themes_combos.get(self.cfg_get(CFG_THEME),(self.default_theme,0))
 
         if black_theme:
             bg_sel='gray30'
@@ -752,20 +766,19 @@ class Gui:
         ####################################################################
         style = Style()
 
-        #('aqua', 'step', 'clam', 'alt', 'default', 'classic')
-
-        if env_theme:=os_environ.get('DUDE_THEME'):
-            print(f'{env_theme=}')
-            parent_theme=env_theme
-        else:
-            parent_theme = 'vista' if windows else 'clam'
+        parent_them = theme_name
 
         try:
-            style.theme_create( "dummy", parent=parent_theme )
+            style.theme_create( "dummy", parent=theme_name )
         except Exception as e:
             print(e)
-            print('Try one of: aqua,step,clam,alt,default,classic')
-            sys_exit(1)
+
+            try:
+                style.theme_create( "dummy", parent=self.default_theme )
+            except Exception as e2:
+                print(e2)
+
+                sys_exit(1)
 
         bg_color = self.bg_color = style.lookup('TFrame', 'background')
         preview.configure(bg=bg_color)
@@ -776,16 +789,14 @@ class Gui:
 
         style_configure = style.configure
 
-        if not env_theme:
-            style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_content)])
-            style_map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_content)] )
-            style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('',self.bg_content)])
-            #works but not for every theme
-            style_configure("Treeview", fieldbackground=self.bg_content)
+        style_map('no_focus.Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_content)])
+        style_map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_content)] )
+        style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('',self.bg_content)])
+        #works but not for every theme
+        style_configure("Treeview", fieldbackground=self.bg_content)
 
-            style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],foreground=[('disabled',"gray"),('',"black")])
-            style_map("TEntry", foreground=[("disabled",'darkgray'),('','black')],fieldbackground=[("disabled",self.bg_color),('','white')])
-
+        style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],foreground=[('disabled',"gray"),('',"black")])
+        style_map("TEntry", foreground=[("disabled",'darkgray'),('','black')],fieldbackground=[("disabled",self.bg_color),('','white')])
 
         style_map("TButton",  fg=[('disabled',"gray"),('',"black")] )
 
@@ -1764,7 +1775,7 @@ class Gui:
 
             self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Settings'),pre_show=self.pre_show_settings,post_close=self.post_close)
 
-            self.dark_theme = BooleanVar()
+            self.theme = StringVar()
             self.show_full_crc = BooleanVar()
             self.show_tooltips_info = BooleanVar()
             self.show_tooltips_help = BooleanVar()
@@ -1790,7 +1801,6 @@ class Gui:
             self.folders_open_wrapper_params = StringVar()
 
             self.settings = [
-                (self.dark_theme,CFG_KEY_DARK_THEME),
                 (self.show_full_crc,CFG_KEY_FULL_CRC),
                 (self.show_tooltips_info,CFG_KEY_SHOW_TOOLTIPS_INFO),
                 (self.show_tooltips_help,CFG_KEY_SHOW_TOOLTIPS_HELP),
@@ -1807,6 +1817,7 @@ class Gui:
                 (self.allow_delete_non_duplicates,CFG_ALLOW_DELETE_NON_DUPLICATES)
             ]
             self.settings_str = [
+                (self.theme,CFG_THEME),
                 (self.show_mode,CFG_KEY_SHOW_MODE),
                 (self.file_open_wrapper,CFG_KEY_WRAPPER_FILE),
                 (self.folders_open_wrapper,CFG_KEY_WRAPPER_FOLDERS),
@@ -1819,16 +1830,19 @@ class Gui:
             lang_frame.grid(row=row, column=0, sticky='news',padx=4,pady=4) ; row+=1
 
             Label(lang_frame,text=STR('Language:'),anchor='w').grid(row=0, column=0, sticky='wens',padx=8,pady=4)
-
             self.lang_var = StringVar()
             self.lang_cb = Combobox(lang_frame,values=list(langs.lang_dict.keys()),textvariable=self.lang_var,state='readonly',width=16)
             self.lang_cb.grid(row=0, column=1, sticky='news',padx=4,pady=4)
 
-            Checkbutton(lang_frame, text = STR('Dark Theme'), variable=self.dark_theme,command=self.dark_mode_change).grid(row=0,column=3,sticky='nsew',padx=20,pady=2)
+
+            Label(lang_frame,text=STR('Theme:'),anchor='w').grid(row=0, column=2, sticky='wens',padx=8,pady=4)
+            self.theme_var = StringVar()
+
+            self.theme_cb = Combobox(lang_frame,values=list(self.themes_combos.keys()),textvariable=self.theme_var,state='readonly',width=16)
+            self.theme_cb.grid(row=0, column=3, sticky='news',padx=4,pady=4)
+
             lang_frame.grid_columnconfigure( 2, weight=1)
             lang_frame.grid_columnconfigure( 4, weight=1)
-
-            self.lang_cb.bind('<<ComboboxSelected>>', self.lang_change)
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Results display mode"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
@@ -1913,19 +1927,12 @@ class Gui:
 
             self.settings_dialog.area_main.grid_rowconfigure(row, weight=1); row+=1
 
-            self.lang_var.set(self.cfg_get(CFG_lang))
-
             self.settings_dialog_created = True
 
+        self.lang_var.set(self.cfg_get(CFG_LANG))
+        self.theme_var.set(self.cfg_get(CFG_THEME))
+
         return self.settings_dialog
-
-    def lang_change(self,event):
-        new_val=self.lang_var.get()
-        self.cfg.set(CFG_lang,new_val)
-        self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
-
-    def dark_mode_change(self):
-        self.get_info_dialog_on_settings().show(STR('Color Theme Changed'),STR('Application restart required\nfor changes to take effect'))
 
     info_dialog_on_main_created = False
     @restore_status_line
@@ -4542,9 +4549,20 @@ class Gui:
         update0=False
         update1=False
         update2=False
+        update3=False
 
-        if self.cfg_get_bool(CFG_KEY_DARK_THEME)!=self.dark_theme.get():
-            self.cfg.set_bool(CFG_KEY_DARK_THEME,self.dark_theme.get())
+        if self.cfg_get(CFG_LANG)!=self.lang_var.get():
+            new_val = self.lang_var.get()
+            self.cfg.set(CFG_LANG,new_val)
+            self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
+
+            update3=True
+
+        if self.cfg_get(CFG_THEME)!=self.theme_var.get():
+            self.cfg.set(CFG_THEME,self.theme_var.get())
+
+            if not update3:
+                self.get_info_dialog_on_settings().show(STR('Theme Changed'),STR('Application restart required\nfor changes to take effect'))
 
         if self.cfg_get_bool(CFG_KEY_FULL_CRC)!=self.show_full_crc.get():
             self.cfg.set_bool(CFG_KEY_FULL_CRC,self.show_full_crc.get())
@@ -4621,6 +4639,9 @@ class Gui:
                 self.tree_folder_update()
             else:
                 self.tree_folder_update_none()
+
+        if update3:
+            CFG_THEME
 
     def settings_reset(self):
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
