@@ -619,14 +619,16 @@ class Gui:
 
         themes_names= ['Clam', 'Alt']
         if windows:
-            themes_names = ['Vista','Winnative','Xpnative'] + themes_names
-        else:
-            themes_names = themes_names + ['Classic','Default']
+            themes_names = ['Vista','Winnative'] + themes_names
+
+        #print('themes_names:',themes_names)
 
         for name in themes_names:
             for darkness,darknesscode in (('',0),('Dark',1)):
-                full_name = name + ' ' + darkness
+                full_name = name + ((' ' + darkness) if darknesscode else '')
                 self.themes_combos[full_name]=name.lower(),darknesscode
+
+        #print('themes_combos:',self.themes_combos)
 
         self.default_theme='vista' if windows else 'clam'
 
@@ -767,19 +769,22 @@ class Gui:
         ####################################################################
         style = Style()
 
-        parent_them = theme_name
-
         try:
             style.theme_create( "dummy", parent=theme_name )
         except Exception as e:
+            print("cannot set theme - setting default")
             print(e)
 
-            try:
-                style.theme_create( "dummy", parent=self.default_theme )
-            except Exception as e2:
-                print(e2)
+            self.cfg.set(CFG_THEME,self.default_theme)
 
-                sys_exit(1)
+            sys_exit(1)
+
+            #try:
+            #    style.theme_create( "dummy", parent=self.default_theme )
+            #except Exception as e2:
+            #    print(e2)
+
+            #    sys_exit(1)
 
         bg_color = self.bg_color = style.lookup('TFrame', 'background')
         preview.configure(bg=bg_color)
@@ -794,7 +799,7 @@ class Gui:
         style_map('Treeview', background=[('focus',bg_focus),('selected',bg_sel),('',self.bg_content)] )
         style_map('semi_focus.Treeview', background=[('focus',bg_focus),('selected',bg_focus_off),('',self.bg_content)])
         #works but not for every theme
-        style_configure("Treeview", fieldbackground=self.bg_content)
+        style_configure("Treeview", fieldbackground=self.bg_content,background = bg_color,borderwidth=0)
 
         style_map("TCheckbutton",indicatorbackground=[("disabled",self.bg_color),('','white')],indicatorforeground=[("disabled",'darkgray'),('','black')],foreground=[('disabled',"gray"),('',"black")])
         style_map("TEntry", foreground=[("disabled",'darkgray'),('','black')],fieldbackground=[("disabled",self.bg_color),('','white')])
@@ -815,11 +820,50 @@ class Gui:
         style_configure("Treeview",rowheight=18)
         style_configure("TButton", anchor = "center")
         style_configure("TCheckbutton",anchor='center',padding=(4, 0, 4, 0) )
+
         if windows:
             #fix border problem ...
             style_configure("TCombobox",padding=1)
 
+        #######################################################################
 
+        style.element_create("Treeheading.border", "from", "default")
+        style.layout("Treeview.Heading", [
+            ("Treeheading.cell", {'sticky': 'nswe'}),
+            ("Treeheading.border", {'sticky':'nswe', 'children': [
+                ("Treeheading.padding", {'sticky':'nswe', 'children': [
+                    ("Treeheading.image", {'side':'right', 'sticky':''}),
+                    ("Treeheading.text", {'sticky':'we'})
+                ]})
+            ]}),
+        ])
+
+        style_configure("Treeview.Heading",background=self.bg_color, foreground="black", relief="groove")
+        style_map("Treeview.Heading",relief=[('active','raised'),('pressed','sunken')])
+
+        style_configure("Treeview",background=self.bg_color, relief="flat",borderwidth=0)
+
+        #######################################################################
+        #style.element_create("Vertical.Scrollbar.trough", "from", "default")
+        #style.element_create("Vertical.Scrollbar.thumb", "from", "default")
+        #style.element_create("Vertical.Scrollbar.grip", "from", "default")
+        #style.element_create("Vertical.Scrollbar.uparrow", "from", "default")
+        #style.element_create("Vertical.Scrollbar.downarrow", "from", "default")
+
+
+        #style.layout("Vertical.TScrollbar", [
+        #    ("Vertical.Scrollbar.uparrow", {"side": "top", "sticky": "news"}),
+        #    ("Vertical.Scrollbar.downarrow", {"side": "bottom", "sticky": "news"}),
+        #    ("Vertical.Scrollbar.trough", {"sticky": "news", "children": [
+        #        ("Vertical.Scrollbar.thumb", {"sticky": "nswe", "children": [
+        #            ("Vertical.Scrollbar.grip", {"sticky": "news"})
+        #        ]})
+        #    ]})
+        #])
+
+        # Konfiguracja stylu Scrollbara
+        #style_configure("Vertical.TScrollbar",background=self.bg_color,troughcolor=self.bg_color,bordercolor='black',relief="raised")
+        #style_map("Vertical.TScrollbar", background=[("active", "lightgray")],relief=[("pressed", "sunken")])
 
         #######################################################################
         self.menubar = Menu(self_main,bg=bg_color)
@@ -856,24 +900,24 @@ class Gui:
         self.status_all_quant=Label(status_frame_groups,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_all_quant_configure = self.status_all_quant.configure
 
-        self.status_all_quant.pack(fill='x',expand=0,side='right')
-        Label(status_frame_groups,width=16,text=STR("All marked files # "),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        self.status_all_quant.pack(fill='both',expand=0,side='right')
+        Label(status_frame_groups,width=16,text=STR("All marked files # "),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
         self.status_all_size=Label(status_frame_groups,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
-        self.status_all_size.pack(fill='x',expand=0,side='right')
+        self.status_all_size.pack(fill='both',expand=0,side='right')
         self.status_all_size_configure=self.status_all_size.configure
 
-        Label(status_frame_groups,width=20,text=STR('All marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_groups,width=20,text=STR('All marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
         self.status_groups=Label(status_frame_groups,text='0',image=self.ico_empty,width=80,compound='right',borderwidth=2,bg=bg_color,relief='groove',anchor='e')
         self.status_groups_configure = self.status_groups.configure
 
-        self.status_groups.pack(fill='x',expand=0,side='right')
+        self.status_groups.pack(fill='both',expand=0,side='right')
 
         self.widget_tooltip(self.status_groups,STR('Number of groups with consideration of\n"Cross paths" or "Same directory" mode'))
 
-        Label(status_frame_groups,width=10,text=STR('Groups: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_groups,width=10,text=STR('Groups: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
 
-        self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=1,bg=bg_color,anchor='w')
-        self.status_path.pack(fill='x',expand=1,side='left')
+        self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=3,bg=bg_color,anchor='w')
+        self.status_path.pack(fill='both',expand=1,side='left')
         self.widget_tooltip(self.status_path,STR('The full path of a directory\nshown in the bottom panel.'))
 
         self.status_path_configure=self.status_path.configure
@@ -882,20 +926,20 @@ class Gui:
         (status_frame_folder := Frame(frame_folder,bg=bg_color)).pack(side='bottom',fill='both')
 
         self.status_line_lab=Label(status_frame_folder,width=30,image=self_ico['expression'],compound= 'left',text='',borderwidth=2,bg=bg_color,relief='groove',anchor='w')
-        self.status_line_lab.pack(fill='x',expand=1,side='left')
+        self.status_line_lab.pack(fill='both',expand=1,side='left')
         self.status_line_lab_configure = self.status_line_lab.configure
         self.status_line_lab_update = self.status_line_lab.update
 
         self.status_folder_quant=Label(status_frame_folder,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
-        self.status_folder_quant.pack(fill='x',expand=0,side='right')
+        self.status_folder_quant.pack(fill='both',expand=0,side='right')
         self.status_folder_quant_configure=self.status_folder_quant.configure
 
-        Label(status_frame_folder,width=16,text=STR('Marked files # '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
-        self.status_folder_size=Label(status_frame_folder,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
+        Label(status_frame_folder,width=16,text=STR('Marked files # '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
+        self.status_folder_size=Label(status_frame_folder,width=80,image=self.ico_empty,compound='right',borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_folder_size.pack(expand=0,side='right')
         self.status_folder_size_configure=self.status_folder_size.configure
 
-        Label(status_frame_folder,width=20,text=STR('Marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='x',expand=0,side='right')
+        Label(status_frame_folder,width=20,text=STR('Marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
 
         self_main_unbind_class = self.main_unbind_class = self_main.unbind_class
 
@@ -1046,47 +1090,24 @@ class Gui:
         self_groups_tree_tag_configure = self_groups_tree.tag_configure
         self_folder_tree_tag_configure = self_folder_tree.tag_configure
 
-        if black_theme:
-            self_groups_tree_tag_configure(self.NOTAG,foreground='white')
-            #self_groups_tree_tag_configure(self.FILE, foreground='white')
-            self_groups_tree_tag_configure(self.MARK, foreground='tomato')
-            #self_groups_tree_tag_configure(self.MARK, background='red')
+        self_groups_tree_tag_configure(self.NOTAG,foreground=self.fg_content)
+        self_folder_tree_tag_configure(self.NOTAG,foreground=self.fg_content)
+        self_groups_tree_tag_configure(self.CRC, foreground='gray')
+        self_folder_tree_tag_configure(self.LINK, foreground='darkgray')
+        self_folder_tree_tag_configure(self.SINGLEHARDLINKED,foreground='darkgray')
 
-            self_groups_tree_tag_configure(self.CRC, foreground='white')
+        mark_color = 'tomato' if black_theme else 'red'
+        folder_color = 'wheat1' if black_theme else 'wheat4'
 
+        self_groups_tree_tag_configure(self.MARK, foreground = mark_color)
 
-            self_folder_tree_tag_configure(self.DIR,foreground='white',font="TkDefaultFont 10 bold")
-            self_folder_tree_tag_configure(self.DIRLINK,foreground='white',font="TkDefaultFont 10 bold")
-            self_folder_tree_tag_configure(self.UPDIR,foreground='white',font="TkDefaultFont 10 bold")
+        self_folder_tree_tag_configure(self.DIR,foreground=folder_color,font="TkDefaultFont 10 bold")
+        self_folder_tree_tag_configure(self.DIRLINK,foreground=folder_color,font="TkDefaultFont 10 bold")
+        self_folder_tree_tag_configure(self.UPDIR,foreground=folder_color,font="TkDefaultFont 10 bold")
 
-            self_folder_tree_tag_configure(self.NOTAG,foreground='white')
-            self_folder_tree_tag_configure(self.LINK,foreground='white')
-            self_folder_tree_tag_configure(self.SINGLEHARDLINKED,foreground='white')
+        self_folder_tree_tag_configure(self.MARK, foreground=mark_color)
 
-            self_folder_tree_tag_configure(self.MARK, foreground='tomato')
-            self_folder_tree_tag_configure(self.MARK, background='tomato')
-
-            self_folder_tree_tag_configure(self.SINGLE, foreground='white')
-            self_folder_tree_tag_configure(self.DIR, foreground='white',font="TkDefaultFont 10 bold")
-            self_folder_tree_tag_configure(self.DIRLINK, foreground='white',font="TkDefaultFont 10 bold")
-            self_folder_tree_tag_configure(self.LINK, foreground='darkgray')
-        else:
-            self_groups_tree_tag_configure(self.NOTAG,foreground='black')
-
-            self_groups_tree_tag_configure(self.MARK, foreground='red')
-            self_groups_tree_tag_configure(self.MARK, background='red')
-            self_groups_tree_tag_configure(self.CRC, foreground='gray')
-
-            self_folder_tree_tag_configure = self_folder_tree.tag_configure
-
-            self_folder_tree_tag_configure(self.MARK, foreground='red')
-            self_folder_tree_tag_configure(self.MARK, background='red')
-
-            self_folder_tree_tag_configure(self.SINGLE, foreground='gray')
-            self_folder_tree_tag_configure(self.DIR, foreground='sienna4',font="TkDefaultFont 10 bold")
-            self_folder_tree_tag_configure(self.DIRLINK, foreground='sienna4',font="TkDefaultFont 10 bold")
-            self_folder_tree_tag_configure(self.LINK, foreground='darkgray')
-
+        self_folder_tree_tag_configure(self.SINGLE, foreground='gray')
 
         #bind_class breaks columns resizing
         self_folder_tree.bind('<ButtonPress-1>', self.tree_on_mouse_button_press)
