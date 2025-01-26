@@ -131,7 +131,7 @@ CFG_KEY_SHOW_PREVIEW = 'preview_shown'
 CFG_LANG = 'lang'
 
 cfg_defaults={
-    CFG_THEME:'Vista Light' if windows else 'Clam Light',
+    CFG_THEME:'Vista' if windows else 'Clam',
     CFG_KEY_FULL_CRC:False,
     CFG_KEY_SHOW_TOOLTIPS_INFO:True,
     CFG_KEY_SHOW_TOOLTIPS_HELP:True,
@@ -616,11 +616,12 @@ class Gui:
 
         ####################################
         self.themes_combos={}
-        {'Clam Light':('clam',0),'Clam Dark':('clam',1),'Classic Light':('classic',0),'Classic Dark':('classic',1),'Vista Light':('vista',0),'Vista Dark':('vista',0)}
 
-        themes_names= [ 'Clam', 'Alt', 'Default', 'Classic']
+        themes_names= ['Clam', 'Alt']
         if windows:
-            themes_names = ['Vista'] + themes_names
+            themes_names = ['Vista','Winnative','Xpnative'] + themes_names
+        else:
+            themes_names = themes_names + ['Classic','Default']
 
         for name in themes_names:
             for darkness,darknesscode in (('',0),('Dark',1)):
@@ -1046,7 +1047,6 @@ class Gui:
         self_folder_tree_tag_configure = self_folder_tree.tag_configure
 
         if black_theme:
-
             self_groups_tree_tag_configure(self.NOTAG,foreground='white')
             #self_groups_tree_tag_configure(self.FILE, foreground='white')
             self_groups_tree_tag_configure(self.MARK, foreground='tomato')
@@ -1835,14 +1835,13 @@ class Gui:
             self.lang_cb.grid(row=0, column=1, sticky='news',padx=4,pady=4)
 
 
-            Label(lang_frame,text=STR('Theme:'),anchor='w').grid(row=0, column=2, sticky='wens',padx=8,pady=4)
+            Label(lang_frame,text=STR('Theme:'),anchor='w').grid(row=0, column=3, sticky='wens',padx=8,pady=4)
             self.theme_var = StringVar()
 
             self.theme_cb = Combobox(lang_frame,values=list(self.themes_combos.keys()),textvariable=self.theme_var,state='readonly',width=16)
-            self.theme_cb.grid(row=0, column=3, sticky='news',padx=4,pady=4)
+            self.theme_cb.grid(row=0, column=4, sticky='news',padx=4,pady=4)
 
             lang_frame.grid_columnconfigure( 2, weight=1)
-            lang_frame.grid_columnconfigure( 4, weight=1)
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Results display mode"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
