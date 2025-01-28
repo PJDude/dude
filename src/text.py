@@ -796,7 +796,7 @@ class LANGUAGES:
             'fr': 'Thème sombre',
         },
         'Theme Changed': {
-            'pl': 'został zmieniony',
+            'pl': 'Motyw został zmieniony',
             'es': 'El tema ha cambiado',
             'ru': 'Тема изменена',
             'de': 'Farbschema geändert',
