@@ -817,7 +817,8 @@ class Gui:
         style_map("TButton",  relief=[('disabled',"flat"),('',"raised")] )
         style_map("TCheckbutton",relief=[('disabled',"flat"),('',"sunken")])
         style_map("Treeview.Heading",  relief=[('','raised')] )
-        style_configure("Treeview",rowheight=18)
+        self.rowhight = 18
+        style_configure("Treeview",rowheight=self.rowhight)
         style_configure("TButton", anchor = "center")
         style_configure("TCheckbutton",anchor='center',padding=(4, 0, 4, 0) )
 
@@ -871,6 +872,9 @@ class Gui:
         #######################################################################
 
         self_widget_leave = self.widget_leave
+        self_tree_configure = self.tree_configure
+        self_motion_on_folder_tree = self.motion_on_folder_tree
+        self_motion_on_groups_tree = self.motion_on_groups_tree
 
         self.my_next_dict={}
         self.my_prev_dict={}
@@ -1587,11 +1591,14 @@ class Gui:
 
         #######################################################################
 
-        self_groups_tree.bind("<Motion>", self.motion_on_groups_tree)
-        self_folder_tree.bind("<Motion>", self.motion_on_folder_tree)
+        self_groups_tree.bind("<Motion>", self_motion_on_groups_tree)
+        self_folder_tree.bind("<Motion>", self_motion_on_folder_tree)
 
         self_groups_tree.bind("<Leave>", lambda event : self_widget_leave())
         self_folder_tree.bind("<Leave>", lambda event : self_widget_leave())
+
+        self_groups_tree.bind("<Configure>", lambda event : self_tree_configure(event.widget))
+        self_folder_tree.bind("<Configure>", lambda event : self_tree_configure(event.widget))
 
         #######################################################################
 
@@ -1854,7 +1861,6 @@ class Gui:
             self.lang_var = StringVar()
             self.lang_cb = Combobox(lang_frame,values=list(langs.lang_dict.keys()),textvariable=self.lang_var,state='readonly',width=16)
             self.lang_cb.grid(row=0, column=1, sticky='news',padx=4,pady=4)
-
 
             Label(lang_frame,text=STR('Theme:'),anchor='w').grid(row=0, column=3, sticky='wens',padx=8,pady=4)
             self.theme_var = StringVar()
@@ -2316,6 +2322,13 @@ class Gui:
     tooltip_show_after_folder=''
     tooltip_show_after_widget=''
 
+    rows_offset={}
+    def tree_configure(self,tree):
+        try:
+            self.rows_offset[tree] = (tree.winfo_height() / self.rowhight) // 3
+        except :
+            self.rows_offset[tree] = 0
+
     def widget_leave(self):
         self.menubar_unpost()
         self.hide_tooltip()
@@ -2738,8 +2751,7 @@ class Gui:
             else:
                 self.semi_selection(self.find_tree,next_item)
 
-            self.find_tree.see(next_item)
-            self.find_tree.update()
+            self.tree_see_wrapper(self.find_tree,next_item)
 
             if self.find_tree==self.groups_tree:
                 self.groups_tree_sel_change(next_item)
@@ -2831,7 +2843,7 @@ class Gui:
 
             if tree_set(current_item,'kind')==self_FILE:
                 self.semi_selection(tree,current_item)
-                tree.see(current_item)
+                self.tree_see_wrapper(tree,current_item)
                 self.folder_tree_sel_change(current_item)
                 self.status(status,do_log=False)
                 break
@@ -2855,22 +2867,21 @@ class Gui:
                 self.folder_tree_see(next_item)
                 self.folder_tree.update()
 
-
     @catched
     def key_release(self,event):
         try:
             tree,key=event.widget,event.keysym
 
-            if key in ("Next"):
+            if key=="Next":
                 item=tree.focus()
                 #tree.yview_moveto(tree.bbox(item)[1] / tree.winfo_height())
                 children=tree.get_children(item)
                 children_len=len(children)
 
-                if children_len>=3:
-                    tree.see(children[2])
-                elif children_len:
-                    tree.see(children[-1])
+                #if children_len>=3:
+                #    tree.see(children[2])
+                #elif children_len:
+                #    tree.see(children[-1])
         except Exception as e :
             #print(e)
             pass
@@ -2895,11 +2906,12 @@ class Gui:
 
                 if key in ("Up","Down"):
                     if item:
+                        direction = 1 if key=='Down' else -1
                         new_item = self.my_next_dict[tree][item] if key=='Down' else self.my_prev_dict[tree][item]
 
                         if new_item:
                             tree.focus(new_item)
-                            tree.see(new_item)
+                            self.tree_see_wrapper(tree,new_item,direction)
 
                             if tree==self.groups_tree:
                                 self.groups_tree_sel_change(new_item)
@@ -3090,6 +3102,37 @@ class Gui:
                 self.enter_dir(normpath(str(Path(self.sel_path_full).parent.absolute())),tail)
 
 #################################################
+    def tree_see_wrapper(self,tree,node,direction=0):
+        offset = self.rows_offset[tree]
+
+        downnode=upnode=node
+
+        first = self.first_node[tree]
+
+        prev_d = self.my_prev_dict[tree]
+        next_d = self.my_next_dict[tree]
+
+        while offset:
+            offset-=1
+
+            if upnode!=first:
+                upnode = prev_d[upnode]
+            else:
+                direction=0
+
+            downcandidate = next_d[downnode]
+            if downcandidate!=first:
+                downnode = downcandidate
+            else:
+                direction=0
+
+        if direction<=0:
+            tree.see(upnode)
+            tree.update()
+        if direction>=0:
+            tree.see(downnode)
+            tree.update()
+
     def crc_select_and_focus(self,crc,try_to_show_all=False):
         if try_to_show_all:
             self.groups_tree_see(self.tree_children_sub[crc][-1])
@@ -3112,12 +3155,9 @@ class Gui:
         first_child = self.my_next_dict[tree][crc]
 
         self.selected[tree] = self.sel_item = first_child
-
         tree.focus(first_child)
-        tree.see(first_child)
         self.groups_tree_sel_change(first_child)
-
-        self.groups_tree.update()
+        self.tree_see_wrapper(tree,first_child)
 
     def tree_on_mouse_button_press(self,event,toggle=False):
         self.menubar_unpost()
@@ -4709,6 +4749,8 @@ class Gui:
             self.selected[self.groups_tree]=None
             l_error(f'crc_remove_callback,{crc},{e}')
 
+    first_node={}
+
     @catched
     def create_my_prev_next_dicts(self,tree):
         my_next_dict = self.my_next_dict[tree]={}
@@ -4721,7 +4763,7 @@ class Gui:
             self_tree_children_sub = self.tree_children_sub={}
 
         if top_nodes := children:
-            first=top_nodes[0]
+            self.first_node[tree]=first=top_nodes[0]
             tree_get_children = tree.get_children
             for top_node in top_nodes:
                 prev2,prev1 = prev1,top_node
@@ -4863,6 +4905,7 @@ class Gui:
 
         self_CRC = self.CRC
         self_FILE = self.FILE
+        self_NOTAG = self.NOTAG
         self_groups_tree_insert=self_groups_tree.insert
         self_groups_tree_item_to_data = self.groups_tree_item_to_data = {}
         self_iid_to_size=self.iid_to_size
@@ -4919,7 +4962,7 @@ class Gui:
                                 size_h,\
                                 str(ctime),str(dev),str(inode),crc,\
                                 '','',\
-                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags=self.NOTAG,text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
+                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags=self_NOTAG,text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
 
                     #kind,crc,index_tuple
                     #kind,crc,(pathnr,path,file,ctime,dev,inode)
@@ -4973,7 +5016,7 @@ class Gui:
                                 '',\
                                 str(ctime),str(dev),str(inode),crc,\
                                 '','',\
-                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags=self.NOTAG,text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
+                                strftime('%Y/%m/%d %H:%M:%S',localtime_catched_local(ctime//1000000000)),self_FILE),tags=self_NOTAG,text=dude_core_scanned_paths[pathnr] if show_full_paths else '',image=self_icon_nr[pathnr]) #DE_NANO= 1_000_000_000
 
                         #kind,crc,index_tuple
                         #kind,crc,(pathnr,path,file,ctime,dev,inode)
@@ -4997,6 +5040,8 @@ class Gui:
 
         #self.menu_enable()
         self_status('')
+
+        self.tree_configure(self_groups_tree)
 
     @block_and_log
     def groups_tree_update_crc_and_path(self,configure_icon=False):
@@ -5035,8 +5080,7 @@ class Gui:
 
         self.semi_selection(self_groups_tree,item)
 
-        self_groups_tree.see(item)
-        self_groups_tree.update()
+        self.tree_see_wrapper(self_groups_tree,item)
 
     current_folder_items=()
     current_folder_items_tagged=set()
@@ -5210,23 +5254,25 @@ class Gui:
             self.status(str(e))
             l_error(e)
 
+        self.create_my_prev_next_dicts(ftree)
+
         if not arbitrary_path:
             try:
                 self.semi_selection(ftree,self.sel_item)
-                ftree.see(self.sel_item)
-            except Exception:
+                self.tree_see_wrapper(ftree,self.sel_item)
+            except Exception as e:
+                print('e:',e)
                 pass
+        ftree.update()
 
         self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)))
         self.status_folder_size_configure(text=bytes_to_str(current_folder_items_tagged_size))
-
-        ftree.update()
 
         folder_items_len = len(self.current_folder_items)
 
         self.folder_tree_configure(takefocus=True)
 
-        self.create_my_prev_next_dicts(ftree)
+        self.tree_configure(ftree)
 
         return True
 
@@ -5273,10 +5319,9 @@ class Gui:
         if item:
             action(item,self_groups_tree)
             if select:
-                self_groups_tree.see(item)
                 self_groups_tree.focus(item)
                 self.groups_tree_sel_change(item)
-                self_groups_tree.update()
+                self.tree_see_wrapper(self_groups_tree,item)
 
     @block
     def mark_all_by_ctime(self,order_str, action):
@@ -5472,7 +5517,7 @@ class Gui:
                 first_item=items[0]
 
                 tree.focus(first_item)
-                tree.see(first_item)
+                self.tree_see_wrapper(tree,first_item)
 
                 if tree==self.groups_tree:
                     for item in items:
@@ -5531,7 +5576,7 @@ class Gui:
 
             if (item_taggged and not go_to_no_mark) or (go_to_no_mark and not item_taggged and current_item not in self_crc_to_size):
                 self.semi_selection(tree,current_item)
-                tree.see(current_item)
+                self.tree_see_wrapper(tree,current_item)
 
                 if tree==self.groups_tree:
                     self.groups_tree_sel_change(current_item)
