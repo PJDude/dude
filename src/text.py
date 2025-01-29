@@ -787,13 +787,13 @@ class LANGUAGES:
             'it': 'Lascia almeno un file non contrassegnato\no abilita l’opzione:\n"Salta gruppi con selezione non valida"\no abilita l’opzione:\n"Consenti eliminazione di tutte le copie"',
             'fr': 'Laissez au moins un fichier non marqué\nou activez l’option :\n"Passer les groupes avec sélection invalide"\nou activez l’option :\n"Autoriser la suppression de toutes les copies"',
         },
-        'Dark Theme': {
-            'pl': 'Motyw ciemny',
-            'es': 'Tema oscuro',
-            'ru': 'Тёмная тема',
-            'de': 'Dunkles Thema',
-            'it': 'Tema scuro',
-            'fr': 'Thème sombre',
+        'Theme': {
+            'pl': 'Motyw',
+            'es': 'Tema',
+            'ru': 'Тема',
+            'de': 'Thema',
+            'it': 'Tema',
+            'fr': 'Thème',
         },
         'Theme Changed': {
             'pl': 'Motyw został zmieniony',
@@ -2219,7 +2219,56 @@ class LANGUAGES:
             'de': 'nicht unterstütztes Format',
             'it': 'formato non supportato',
             'fr': 'format non supporté',
+        },
+        'Send Files to': {
+            'pl': 'Wyślij pliki do',
+            'es': 'Enviar archivos a',
+            'ru': 'Отправить файлы в',
+            'de': 'Dateien senden an',
+            'it': 'Invia file a',
+            'fr': 'Envoyer des fichiers à'
+        },
+        'Recycle Bin': {
+            'pl': 'Kosza',
+            'es': 'Papelera de reciclaje',
+            'ru': 'Корзина',
+            'de': 'Papierkorb',
+            'it': 'Cestino',
+            'fr': 'Corbeille'
+        },
+        'Trash': {
+            'pl': 'Kosza',
+            'es': 'Basura',
+            'ru': 'Мусор',
+            'de': 'Müll',
+            'it': 'Spazzatura',
+            'fr': 'Poubelle'
+        },
+        'instead of deleting them': {
+            'pl': 'zamiast je kasować',
+            'es': 'en lugar de eliminarlos',
+            'ru': 'вместо их удаления',
+            'de': 'anstatt sie zu löschen',
+            'it': 'invece di eliminarli',
+            'fr': 'au lieu de les supprimer'
+        },
+        'Calculating CRC': {
+            'pl': 'Obliczanie CRC',
+            'es': 'Calculando CRC',
+            'ru': 'Вычисление CRC',
+            'de': 'CRC wird berechnet',
+            'it': 'Calcolo del CRC',
+            'fr': 'Calcul du CRC'
+        },
+        'Starting CRC threads': {
+            'pl': 'Uruchamianie wątków CRC',
+            'es': 'Iniciando hilos de CRC',
+            'ru': 'Запуск потоков CRC',
+            'de': 'CRC-Threads werden gestartet',
+            'it': 'Avvio dei thread CRC',
+            'fr': 'Démarrage des threads CRC'
         }
+
     }
 
     def __init__(self):

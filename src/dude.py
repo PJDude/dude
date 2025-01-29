@@ -31,7 +31,7 @@ from re import search
 
 from signal import signal,SIGINT
 
-from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
+from tkinter import Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
 from tkinter.ttk import Checkbutton,Radiobutton,Treeview,Scrollbar,Button,Entry,Combobox,Scale,Style
 from tkinter.filedialog import askdirectory,asksaveasfilename
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -312,9 +312,11 @@ class Image_Cache:
         self.cache_scaled_file={}
 
     def read_ahead_threaded_loop(self,thread_id):
-        #self_cache_scaled_file = self.cache_scaled_file
-
         this_thread_pool = self.read_ahead_pools[thread_id]
+
+        self_BILINEAR = self.BILINEAR
+        self_image_open = self.image_open
+        self_cache_scaled_file = self.cache_scaled_file
 
         while self.threads_keep_looping:
             if not self.read_ahead_enabled:
@@ -338,7 +340,7 @@ class Image_Cache:
             window_width,window_height = self.window_size
 
             try:
-                timestamp_key_done,scaled_image_done,width_done,height_done,ratio_done,window_width_done,window_height_done = self.cache_scaled_file[path]
+                timestamp_key_done,scaled_image_done,width_done,height_done,ratio_done,window_width_done,window_height_done = self_cache_scaled_file[path]
 
                 if window_width==window_width_done and window_height==window_height_done:
                     continue
@@ -346,7 +348,7 @@ class Image_Cache:
                 pass
 
             try:
-                full_image = self.image_open(path)
+                full_image = self_image_open(path)
                 if full_image.mode != 'RGBA':
                     full_image = full_image.convert("RGBA")
 
@@ -358,13 +360,13 @@ class Image_Cache:
 
                 ratio = max(ratio_x,ratio_y,1)
 
-                scaled_image = full_image if ratio==1 else full_image.resize( ( int (width/ratio), int(height/ratio)) ,self.BILINEAR)
+                scaled_image = full_image if ratio==1 else full_image.resize( ( int (width/ratio), int(height/ratio)) ,self_BILINEAR)
 
-                self.cache_scaled_file[path] = first_timestamp_key,scaled_image,width,height,ratio,window_width,window_height
+                self_cache_scaled_file[path] = first_timestamp_key,scaled_image,width,height,ratio,window_width,window_height
 
             except Exception as e:
                 print('get_cached_full_image Error:',e)
-                self.cache_scaled_file[path] = first_timestamp_key,None,0,0,1,0,0
+                self_cache_scaled_file[path] = first_timestamp_key,None,0,0,1,0,0
 
         sys_exit()
 
@@ -381,27 +383,26 @@ class Image_Cache:
             self.txt_label_heigh = txt_label_heigh
 
     def get_photo_image(self,path,tkwindow):
+        self_cache_scaled_file = self.cache_scaled_file
+        self_ImageTk_PhotoImage = self.ImageTk_PhotoImage
         while True:
             try:
-                timestamp_key,scaled_image,width,height,ratio,window_width,window_height = self.cache_scaled_file[path]
+                timestamp_key,scaled_image,width,height,ratio,window_width,window_height = self_cache_scaled_file[path]
 
                 if scaled_image:
-                    self.scaled_photoimage = self.ImageTk_PhotoImage(scaled_image)
+                    self.scaled_photoimage = self_ImageTk_PhotoImage(scaled_image)
 
-                    #self ! - bo zniknie
-                    self.cache_scaled_file[path] = perf_counter_ns(),scaled_image,width,height,ratio,window_width,window_height
+                    #self ! - bo zniknie ?
+                    self_cache_scaled_file[path] = perf_counter_ns(),scaled_image,width,height,ratio,window_width,window_height
 
-                    if len(self.cache_scaled_file.items())>self.max_cache:
-                        temp_time_dict = {update_time:path for path,(update_time,scaled_image_var,width_var,height_var,ratio_var,window_width_var,window_height_var) in self.cache_scaled_file.items()}
-                        #min_time = min({update_time for update_time in temp_time_dict.keys()})
+                    if len(self_cache_scaled_file.items())>self.max_cache:
+                        temp_time_dict = {update_time:path for path,(update_time,scaled_image_var,width_var,height_var,ratio_var,window_width_var,window_height_var) in self_cache_scaled_file.items()}
                         min_time = min(temp_time_dict.keys())
                         oldest_path=temp_time_dict[min_time]
-
-                        del self.cache_scaled_file[oldest_path]
+                        del self_cache_scaled_file[oldest_path]
 
                     return self.scaled_photoimage,f'{width} x {height} pixels' + (f' ({round(100.0/ratio)}%)' if ratio>1 else '')
-                else:
-                    self.scaled_photoimage,width,height,ratio = None,0,0,1
+                self.scaled_photoimage,width,height,ratio = None,0,0,1
             except:
                 if any(self.read_ahead_pools):
                     tkwindow.after(10)
@@ -663,7 +664,7 @@ class Gui:
 
         preview.withdraw()
         preview.update()
-        preview.protocol("WM_DELETE_WINDOW", lambda : self.hide_preview())
+        preview.protocol("WM_DELETE_WINDOW", self.hide_preview)
 
         preview_frame_txt=self.preview_frame_txt=Frame(preview)
 
@@ -968,7 +969,7 @@ class Gui:
         self_groups_tree = self.groups_tree
 
         self.groups_tree_see = self_groups_tree.see
-        self.groups_tree_focus = lambda item : self.groups_tree.focus(item)
+        self.groups_tree_focus = self.groups_tree.focus
 
         self.tree_children[self.groups_tree]=[]
 
@@ -1482,8 +1483,8 @@ class Gui:
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = STR('Settings') + ' ...',command=lambda : self.get_settings_dialog().show(), accelerator="F2",image = self_ico['settings'],compound='left')
                 self_file_cascade_add_separator()
-                self_file_cascade_add_command(label = STR('Show/Update Preview'),  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
-                self_file_cascade_add_command(label = STR('Hide Preview window'),  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
+                self_file_cascade_add_command(label = STR('Show/Update Preview'),  command = self.show_preview,accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
+                self_file_cascade_add_command(label = STR('Hide Preview window'),  command = self.hide_preview,accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
                 self_file_cascade_add_separator()
                 self_file_cascade_add_command(label = STR('Remove empty folders in specified directory ...'),command=self.empty_folder_remove_ask,image = self.ico_empty,compound='left')
                 self_file_cascade_add_separator()
@@ -1862,7 +1863,7 @@ class Gui:
             self.lang_cb = Combobox(lang_frame,values=list(langs.lang_dict.keys()),textvariable=self.lang_var,state='readonly',width=16)
             self.lang_cb.grid(row=0, column=1, sticky='news',padx=4,pady=4)
 
-            Label(lang_frame,text=STR('Theme:'),anchor='w').grid(row=0, column=3, sticky='wens',padx=8,pady=4)
+            Label(lang_frame,text=STR('Theme') + ':',anchor='w').grid(row=0, column=3, sticky='wens',padx=8,pady=4)
             self.theme_var = StringVar()
 
             self.theme_cb = Combobox(lang_frame,values=list(self.themes_combos.keys()),textvariable=self.theme_var,state='readonly',width=16)
@@ -1874,13 +1875,13 @@ class Gui:
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
             self_widget_tooltip = self.widget_tooltip
-            (cb_30:=Radiobutton(label_frame, text = STR('All (default)'), variable=self.show_mode,value='0')).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            (cb_30:=Radiobutton(label_frame, text = ' ' + STR('All (default)'), variable=self.show_mode,value='0')).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_30,STR('Show all results'))
 
-            (cb_3:=Radiobutton(label_frame, text = STR('Cross paths'), variable=self.show_mode,value='1')).grid(row=0,column=1,sticky='wens',padx=3,pady=2)
+            (cb_3:=Radiobutton(label_frame, text = ' ' + STR('Cross paths'), variable=self.show_mode,value='1')).grid(row=0,column=1,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_3,STR('TOOLTIP_CP'))
 
-            (cb_3a:=Radiobutton(label_frame, text = STR('Same directory'), variable=self.show_mode,value='2')).grid(row=0,column=2,sticky='wens',padx=3,pady=2)
+            (cb_3a:=Radiobutton(label_frame, text = ' ' + STR('Same directory'), variable=self.show_mode,value='2')).grid(row=0,column=2,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_3a,STR('TOOLTIP_SD'))
 
             label_frame.grid_columnconfigure((0,1,2), weight=1)
@@ -1888,37 +1889,37 @@ class Gui:
             label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Main panels and dialogs"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-            (cb_1:=Checkbutton(label_frame, text = STR('Show full CRC'), variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            (cb_1:=Checkbutton(label_frame, text = ' ' + STR('Show full CRC'), variable=self.show_full_crc)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_1,STR('TOOLTIP_SFC'))
 
-            (cb_2:=Checkbutton(label_frame, text = STR('Show full scan paths'), variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+            (cb_2:=Checkbutton(label_frame, text = ' ' + STR('Show full scan paths'), variable=self.show_full_paths)).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_2,STR('TOOLTIP_SFSP'))
 
-            Checkbutton(label_frame, text = STR('Show info tooltips'), variable=self.show_tooltips_info).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = STR('Show help tooltips'), variable=self.show_tooltips_help).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = ' ' + STR('Show info tooltips'), variable=self.show_tooltips_info).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = ' ' + STR('Show help tooltips'), variable=self.show_tooltips_help).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
-            (preview_auto_update_cb:=Checkbutton(label_frame, text = STR('Preview auto update'), variable=self.preview_auto_update)).grid(row=4,column=0,sticky='wens',padx=3,pady=2)
+            (preview_auto_update_cb:=Checkbutton(label_frame, text = ' ' + STR('Preview auto update'), variable=self.preview_auto_update)).grid(row=4,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(preview_auto_update_cb,STR('TOOLTIP_PAU'))
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Confirmation dialogs"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-            (cb_3:=Checkbutton(label_frame, text = STR('Skip groups with invalid selection'), variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            (cb_3:=Checkbutton(label_frame, text = ' ' + STR('Skip groups with invalid selection'), variable=self.skip_incorrect_groups)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_3,STR('TOOLTIP_SGWIS'))
 
-            (cb_4:=Checkbutton(label_frame, text = STR('Allow deletion of all copies'), variable=self.allow_delete_all,image=self.ico_warning,compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+            (cb_4:=Checkbutton(label_frame, text = ' ' + STR('Allow deletion of all copies'), variable=self.allow_delete_all,image=self.ico_warning,compound='right')).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(cb_4,STR('TOOLTIP_ADOAC') )
 
-            Checkbutton(label_frame, text = STR('Show soft links targets'), variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = STR('Show CRC/GROUP and size'), variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = ' ' + STR('Show soft links targets'), variable=self.confirm_show_links_targets ).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = ' ' + STR('Show CRC/GROUP and size'), variable=self.confirm_show_crc_and_size ).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Processing"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
 
-            Checkbutton(label_frame, text = STR('Create relative symbolic links'), variable=self.create_relative_symlinks).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = 'Send Files to %s instead of deleting them' % ('Recycle Bin' if windows else 'Trash'), variable=self.send_to_trash ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = STR('Erase remaining empty directories'), variable=self.erase_empty_directories).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
-            Checkbutton(label_frame, text = STR('Abort on first error'), variable=self.abort_on_error).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = ' ' + STR('Create relative symbolic links'), variable=self.create_relative_symlinks).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = ' ' + STR('Send Files to') + ' ' + (STR('Recycle Bin') if windows else STR('Trash')) + ' ' + STR('instead of deleting them'), variable=self.send_to_trash ).grid(row=1,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = ' ' + STR('Erase remaining empty directories'), variable=self.erase_empty_directories).grid(row=2,column=0,sticky='wens',padx=3,pady=2)
+            Checkbutton(label_frame, text = ' ' + STR('Abort on first error'), variable=self.abort_on_error).grid(row=3,column=0,sticky='wens',padx=3,pady=2)
 
             #Checkbutton(fr, text = 'Allow to delete regular files (WARNING!)', variable=self.allow_delete_non_duplicates        ).grid(row=row,column=0,sticky='wens',padx=3,pady=2)
 
@@ -2337,7 +2338,7 @@ class Gui:
         widget = event.widget
 
         try:
-            if self.type_info_or_help[widget,message]==False:
+            if self.type_info_or_help[widget,message] is False:
                 #info
                 allowed=self.cfg_get_bool(CFG_KEY_SHOW_TOOLTIPS_INFO)
             else:
@@ -2803,7 +2804,7 @@ class Gui:
         tree_set = tree.set
 
         if not self.sel_item:
-            self.status('no items',do_log=False)
+            self.status('no items')
             return
 
         self_sel_item = current_item = self.sel_item if tree_set(self.sel_item,'kind')==self_CRC else self.sel_crc
@@ -2816,11 +2817,11 @@ class Gui:
             if tree_set(current_item,'kind')==self_CRC:
                 self.crc_select_and_focus_child(current_item)
 
-                self.status(status,do_log=False)
+                self.status(status)
 
                 break
             if current_item==self_sel_item:
-                self.status('%s ... (no file)' % status,do_log=False)
+                self.status('%s ... (no file)' % status)
                 break
 
     @block
@@ -2845,11 +2846,11 @@ class Gui:
                 self.semi_selection(tree,current_item)
                 self.tree_see_wrapper(tree,current_item)
                 self.folder_tree_sel_change(current_item)
-                self.status(status,do_log=False)
+                self.status(status)
                 break
 
             if current_item==self_sel_item:
-                self.status('%s ... (no file)' % status,do_log=False)
+                self.status('%s ... (no file)' % status)
                 break
 
     @catched
@@ -3082,7 +3083,7 @@ class Gui:
                         self.finder_wrapper_show()
                     elif key=='Return':
                         if item:
-                            self.tree_action(tree,item,alt_pressed)
+                            self.tree_action(alt_pressed)
                     elif key=='F1':
                         self.get_about_dialog().show()
                     elif key=='F2':
@@ -3465,7 +3466,7 @@ class Gui:
             if self.find_tree==self.folder_tree:
                 self.find_result=()
 
-            if pathnr!=None: #non crc node , may be 0
+            if pathnr is not None: #non crc node , may be 0
                 self.sel_pathnr,self.sel_path = pathnr,path
                 self.sel_path_set(dude_core.scanned_paths[pathnr]+path)
             else :
@@ -3527,23 +3528,23 @@ class Gui:
         self.set_full_path_to_file()
 
         if kind==self.FILE:
-            if change_status_line: self.status('',do_log=False)
+            if change_status_line: self.status('')
             self.groups_tree_update(item)
         else:
             if change_status_line:
                 if kind==self.LINK:
-                    self.status(readlink(self.sel_full_path_to_file),self.icon_softlink_target ,do_log=False)
+                    self.status(readlink(self.sel_full_path_to_file),self.icon_softlink_target)
                     #if windows:
                     #    dont work either
                     #    self.status(os.path.realpath(self.sel_full_path_to_file),self.icon_softlink_target ,do_log=False)
                     #else:
 
                 elif kind==self.SINGLEHARDLINKED:
-                    self.status('file with hardlinks',do_log=False)
+                    self.status('file with hardlinks')
                 elif kind==self.DIRLINK:
-                    self.status(readlink(self.sel_full_path_to_file),self.icon_softlink_dir_target ,do_log=False)
+                    self.status(readlink(self.sel_full_path_to_file),self.icon_softlink_dir_target)
                 else:
-                    self.status('',do_log=False)
+                    self.status('')
 
             self.folder_tree.update()
 
@@ -3831,8 +3832,8 @@ class Gui:
         pop_add_command(label = STR('Scan') + ' ...',  command = self.scan_dialog_show,accelerator='S',image = self.ico['scan'],compound='left')
         pop_add_command(label = STR('Settings') + ' ...',  command = lambda : self.get_settings_dialog().show(),accelerator='F2',image = self.ico['settings'],compound='left')
         pop_add_separator()
-        pop_add_command(label = STR('Show/Update Preview'),  command = lambda : self.show_preview(),accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
-        pop_add_command(label = STR('Hide Preview window'),  command = lambda : self.hide_preview(),accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
+        pop_add_command(label = STR('Show/Update Preview'),  command = self.show_preview, accelerator='F9',image = self.ico_empty,compound='left',state=('disabled','normal')[bool(not self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE) or not self.preview_shown )])
+        pop_add_command(label = STR('Hide Preview window'),  command = self.hide_preview, accelerator='F11',image = self.ico_empty,compound='left',state=('disabled','normal')[self.preview_shown])
         pop_add_separator()
         pop_add_command(label = STR('Copy full path'),command = self.clip_copy_full_path_with_file,accelerator='Ctrl+C',state = 'normal' if (self.sel_kind and self.sel_kind!=self.CRC) else 'disabled', image = self.ico_empty,compound='left')
         #pop_add_command(label = 'Copy only path',command = self.clip_copy_full,accelerator="C",state = 'normal' if self.sel_item!=None else 'disabled')
@@ -3979,7 +3980,7 @@ class Gui:
         self.update_scan_path_nr=True
 
     prev_status_progress_text=''
-    def status_progress(self,text='',do_log=False):
+    def status_progress(self,text=''):
         if text != self.prev_status_progress_text:
             self.progress_dialog_on_scan.lab[1].configure(text=text)
             self.progress_dialog_on_scan.area_main.update()
@@ -3990,7 +3991,7 @@ class Gui:
     def scan(self):
         from threading import Thread
 
-        self.status('Scanning...')
+        self.status(STR('Scanning') + '...')
         self.cfg.write()
 
         self.hide_preview(False)
@@ -4378,11 +4379,11 @@ class Gui:
             self.main.focus_set()
 
         else:
-            self_status('Calculating CRC ...')
+            self_status(STR('Calculating CRC') + ' ...')
 
-            self_progress_dialog_on_scan.widget.title('CRC calculation')
+            self_progress_dialog_on_scan.widget.title(STR('Calculating CRC'))
 
-            self_status('Starting CRC threads ...')
+            self_status(STR('Starting CRC threads') + ' ...')
             crc_thread=Thread(target=dude_core.crc_calc,daemon=True)
             crc_thread.start()
 
@@ -4609,19 +4610,19 @@ class Gui:
         update0=False
         update1=False
         update2=False
-        update3=False
+        need_restart=False
 
         if self.cfg_get(CFG_LANG)!=self.lang_var.get():
             new_val = self.lang_var.get()
             self.cfg.set(CFG_LANG,new_val)
             self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
 
-            update3=True
+            need_restart=True
 
         if self.cfg_get(CFG_THEME)!=self.theme_var.get():
             self.cfg.set(CFG_THEME,self.theme_var.get())
 
-            if not update3:
+            if not need_restart:
                 self.get_info_dialog_on_settings().show(STR('Theme Changed'),STR('Application restart required\nfor changes to take effect'))
 
         if self.cfg_get_bool(CFG_KEY_FULL_CRC)!=self.show_full_crc.get():
@@ -4699,9 +4700,6 @@ class Gui:
                 self.tree_folder_update()
             else:
                 self.tree_folder_update_none()
-
-        if update3:
-            CFG_THEME
 
     def settings_reset(self):
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
@@ -4978,7 +4976,7 @@ class Gui:
                 size_h = local_bytes_to_str(size)
                 size_str = str(size)
                 if not sizes_counter%128:
-                    self_status('Rendering data... (%s)' % size_h,do_log=False)
+                    self_status('Rendering data... (%s)' % size_h)
 
                 sizes_counter+=1
                 for crc,crc_dict in size_dict.items():
@@ -5262,7 +5260,7 @@ class Gui:
                 self.tree_see_wrapper(ftree,self.sel_item)
             except Exception as e:
                 print('e:',e)
-                pass
+
         ftree.update()
 
         self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)))
@@ -5583,12 +5581,12 @@ class Gui:
                 else:
                     self.folder_tree_sel_change(current_item)
 
-                self.status(status,do_log=False)
+                self.status(status)
 
                 break
 
             if current_item==self_sel_item:
-                self.status('%s ... (no file)' % status,do_log=False)
+                self.status('%s ... (no file)' % status)
                 break
 
     dominant_groups_index={0:-1,1:-1}
@@ -6310,7 +6308,7 @@ class Gui:
                 removed_append=removed.append
                 removal_func = send2trash if self.cfg_get_bool(CFG_SEND_TO_TRASH) else rmdir
 
-                for dir_tuple in sorted(directories_to_check_expanded,key=lambda p : len(p),reverse=True):
+                for dir_tuple in sorted(directories_to_check_expanded,key=len,reverse=True):
                     real_path = normpath(abspath(dude_core.scanned_paths[dir_tuple[0]] + sep + sep.join(dir_tuple[1:])))
 
                     info = self.empty_dirs_removal_single(real_path,removal_func)
@@ -6766,12 +6764,12 @@ class Gui:
             tree=event.widget
             if tree.identify("region", event.x, event.y) != 'heading':
                 if item:=tree.identify('item',event.x,event.y):
-                    self.main.after_idle(lambda : self.tree_action(tree,item))
+                    self.main.after_idle(lambda : self.tree_action())
 
         return "break"
 
     @logwrapper
-    def tree_action(self,tree,item,alt_pressed=False):
+    def tree_action(self,alt_pressed=False):
         if alt_pressed:
             self.open_folder()
         elif self.sel_kind == self.UPDIR:
