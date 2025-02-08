@@ -86,6 +86,7 @@ STR=langs.STR
 ###########################################################################################################################################
 
 CFG_THEME='theme'
+CFG_KEY_include_hidden = 'include_hidden'
 CFG_KEY_FULL_CRC='show_full_crc'
 CFG_KEY_SHOW_TOOLTIPS_INFO='show_tooltips_info'
 CFG_KEY_SHOW_TOOLTIPS_HELP='show_tooltips_help'
@@ -132,6 +133,7 @@ CFG_LANG = 'lang'
 
 cfg_defaults={
     CFG_THEME:'Vista' if windows else 'Clam',
+    CFG_KEY_include_hidden:False,
     CFG_KEY_FULL_CRC:False,
     CFG_KEY_SHOW_TOOLTIPS_INFO:True,
     CFG_KEY_SHOW_TOOLTIPS_HELP:True,
@@ -1805,6 +1807,7 @@ class Gui:
             self.settings_dialog=GenericDialog(self.main,self.main_icon_tuple,self.bg_color,STR('Settings'),pre_show=self.pre_show_settings,post_close=self.post_close)
 
             self.theme = StringVar()
+            self.scan_hidden_var = BooleanVar()
             self.show_full_crc = BooleanVar()
             self.show_tooltips_info = BooleanVar()
             self.show_tooltips_help = BooleanVar()
@@ -1830,6 +1833,7 @@ class Gui:
             self.folders_open_wrapper_params = StringVar()
 
             self.settings = [
+                (self.scan_hidden_var,CFG_KEY_include_hidden),
                 (self.show_full_crc,CFG_KEY_FULL_CRC),
                 (self.show_tooltips_info,CFG_KEY_SHOW_TOOLTIPS_INFO),
                 (self.show_tooltips_help,CFG_KEY_SHOW_TOOLTIPS_HELP),
@@ -1885,6 +1889,11 @@ class Gui:
             self_widget_tooltip(cb_3a,STR('TOOLTIP_SD'))
 
             label_frame.grid_columnconfigure((0,1,2), weight=1)
+
+            label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Scan options"),borderwidth=2,bg=self.bg_color)
+            label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
+
+            (cb_1:=Checkbutton(label_frame, text = ' ' + STR('Include hidden files / folders in scan'), variable=self.scan_hidden_var)).grid(row=0,column=0,sticky='wens',padx=3,pady=2)
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Main panels and dialogs"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
@@ -2664,8 +2673,9 @@ class Gui:
         self.select_find_result(-1)
 
     def find_prev(self):
-        if not self.find_result or self.find_tree!=self.sel_tree:
+        if not self.find_result or self.find_tree!=self.sel_tree or self.find_params_changed:
             self.find_params_changed=True
+            self.find_result_index=0
             self.finder_wrapper_show()
         else:
             self.select_find_result(-1)
@@ -2675,8 +2685,9 @@ class Gui:
         self.select_find_result(1)
 
     def find_next(self):
-        if not self.find_result or self.find_tree!=self.sel_tree:
+        if not self.find_result or self.find_tree!=self.sel_tree or self.find_params_changed:
             self.find_params_changed=True
+            self.find_result_index=0
             self.finder_wrapper_show()
         else:
             self.select_find_result(1)
@@ -2698,7 +2709,13 @@ class Gui:
     def find_items(self,expression,use_reg_expr):
         self.status(STR('finding ...'))
 
+        self_files_of_groups_filtered_by_mode = self.files_of_groups_filtered_by_mode
+
+        crc_shown = list(self_files_of_groups_filtered_by_mode.keys())
+
         if self.find_params_changed or self.find_tree != self.sel_tree:
+            self.find_result=()
+
             self.find_tree=self.sel_tree
 
             items=[]
@@ -2712,10 +2729,15 @@ class Gui:
 
                     try:
                         for crc_item in crc_range:
-                            for item in self.tree_children_sub[crc_item]:
-                                fullpath = self_item_full_path(item)
-                                if (use_reg_expr and search(expression,fullpath)) or (not use_reg_expr and fnmatch(fullpath,expression) ):
-                                    items_append(item)
+                            if crc_item in crc_shown:
+                                sub_items = self_files_of_groups_filtered_by_mode[crc_item]
+
+                                for item in self.tree_children_sub[crc_item]:
+                                    fullpath = self_item_full_path(item)
+                                    if (use_reg_expr and search(expression,fullpath)) or (not use_reg_expr and fnmatch(fullpath,expression) ):
+                                        kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self.groups_tree_item_to_data[item]
+                                        if (dev,inode) in sub_items:
+                                            items_append(item)
                     except Exception as e:
                         try:
                             self.info_dialog_on_find[self.find_tree].show('Error',str(e))
@@ -2742,15 +2764,12 @@ class Gui:
 
     def select_find_result(self,mod):
         if self.find_result:
+            #print(f'{self.find_result=}')
             items_len=len(self.find_result)
             self.find_result_index+=mod
             next_item=self.find_result[self.find_result_index%items_len]
 
-            if self.find_dialog_shown:
-                #focus is still on find dialog
-                self.semi_selection(self.find_tree,next_item)
-            else:
-                self.semi_selection(self.find_tree,next_item)
+            self.semi_selection(self.find_tree,next_item)
 
             self.tree_see_wrapper(self.find_tree,next_item)
 
@@ -2816,7 +2835,6 @@ class Gui:
 
             if tree_set(current_item,'kind')==self_CRC:
                 self.crc_select_and_focus_child(current_item)
-
                 self.status(status)
 
                 break
@@ -2875,14 +2893,8 @@ class Gui:
 
             if key=="Next":
                 item=tree.focus()
-                #tree.yview_moveto(tree.bbox(item)[1] / tree.winfo_height())
                 children=tree.get_children(item)
                 children_len=len(children)
-
-                #if children_len>=3:
-                #    tree.see(children[2])
-                #elif children_len:
-                #    tree.see(children[-1])
         except Exception as e :
             #print(e)
             pass
@@ -4114,8 +4126,11 @@ class Gui:
             file_max_size_int=0
 
         #################
+        include_hidden = self.cfg_get_bool(CFG_KEY_include_hidden)
 
-        scan_thread=Thread(target=lambda : dude_core.scan(operation_mode,file_min_size_int,file_max_size_int),daemon=True)
+        #################
+
+        scan_thread=Thread(target=lambda : dude_core.scan(operation_mode,file_min_size_int,file_max_size_int,include_hidden),daemon=True)
         scan_thread.start()
 
         self_progress_dialog_on_scan.lab_l1.configure(text=STR('Total space:'))
@@ -4625,6 +4640,9 @@ class Gui:
             if not need_restart:
                 self.get_info_dialog_on_settings().show(STR('Theme Changed'),STR('Application restart required\nfor changes to take effect'))
 
+        if self.cfg_get_bool(CFG_KEY_include_hidden)!=self.scan_hidden_var.get():
+            self.cfg.set_bool(CFG_KEY_include_hidden,self.scan_hidden_var.get())
+
         if self.cfg_get_bool(CFG_KEY_FULL_CRC)!=self.show_full_crc.get():
             self.cfg.set_bool(CFG_KEY_FULL_CRC,self.show_full_crc.get())
             update1=True
@@ -4647,6 +4665,8 @@ class Gui:
 
         if self.cfg_get(CFG_KEY_SHOW_MODE)!=self.show_mode.get():
             self.cfg.set(CFG_KEY_SHOW_MODE,self.show_mode.get())
+            self.find_params_changed=True
+            self.find_result_index=0
             update0=True
 
         if self.cfg_get_bool(CFG_KEY_REL_SYMLINKS)!=self.create_relative_symlinks.get():
@@ -4940,12 +4960,13 @@ class Gui:
                 #kind,crc,(pathnr,path,file,ctime,dev,inode)
                 self_groups_tree_item_to_data[group_item]=(self_CRC,size,crc,(None,None,None,None,None,None) )
 
+                files_of_groups_filtered_by_mode_group_index_add = files_of_groups_filtered_by_mode[group_index].add
                 for pathnr,path,file,ctime,dev,inode,size in sorted(items_set,key=lambda x : (x[6],x[0],x[1],x[2]),reverse=True):
                     if show_mode_same_dir:
                         if hist[(pathnr,path)]==1:
                             continue
 
-                    files_of_groups_filtered_by_mode[group_index].add( (dev,inode) )
+                    files_of_groups_filtered_by_mode_group_index_add( (dev,inode) )
 
                     #print(pathnr,path,file,mtime,ctime,dev,inode,size)
                     iid=self_idfunc(inode,dev)
@@ -4998,13 +5019,14 @@ class Gui:
                     #kind,crc,index_tuple
                     #kind,crc,(pathnr,path,file,ctime,dev,inode)
                     self_groups_tree_item_to_data[crc_item]=(self_CRC,size,crc,(None,None,None,None,None,None) )
+                    files_of_groups_filtered_by_mode_crc_add = files_of_groups_filtered_by_mode[crc].add
 
                     for pathnr,path,file,ctime,dev,inode in sorted(crc_dict,key = lambda x : x[0]):
                         if show_mode_same_dir:
                             if hist[(pathnr,path)]==1:
                                 continue
 
-                        files_of_groups_filtered_by_mode[crc].add( (dev,inode) )
+                        files_of_groups_filtered_by_mode_crc_add( (dev,inode) )
 
                         iid=self_idfunc(inode,dev)
                         self_iid_to_size[iid]=size
@@ -5105,8 +5127,6 @@ class Gui:
         self.folder_tree_configure(takefocus=False)
 
         current_path=arbitrary_path if arbitrary_path else self.sel_path_full
-
-        #print('current_path:',current_path)
 
         if not current_path:
             return False

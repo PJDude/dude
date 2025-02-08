@@ -411,7 +411,7 @@ class TextDialogInfo(GenericDialog):
         Label(self.area_dummy, width=22,bg=self.bg_color).pack(side='right', anchor='e',padx=5,pady=5)
         Label(self.area_dummy, width=8,bg=self.bg_color).pack(side='right', anchor='e',padx=5,pady=5)
 
-        self.focus=self.cancel_button
+        self.focus = self.cancel_button
 
     def key_press_f3(self,event):
         self.find_next_prev(1)
@@ -516,7 +516,7 @@ class TextDialogInfo(GenericDialog):
         self.copy_button.configure(state='normal')
 
         self.find_key_binding()
-        self.focus = self_text
+
         super().show()
 
 class TextDialogQuestion(TextDialogInfo):
@@ -529,7 +529,7 @@ class TextDialogQuestion(TextDialogInfo):
         self.ok_button=Button(self.area_buttons, text='OK', width=14, command=self.ok,image=image, compound='left' )
         self.ok_button.pack(side='right', anchor='n',padx=5,pady=5,fill='both')
 
-        self.focus=self.cancel_button
+        self.focus=self.ok_button
 
     def ok (self):
         self.res_bool=True

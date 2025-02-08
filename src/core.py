@@ -36,8 +36,9 @@ from re import search
 from time import sleep,strftime,localtime,time,perf_counter
 
 from os import stat,scandir,sep,symlink,link,cpu_count,name as os_name,rename as os_rename,remove as os_remove
+from stat import FILE_ATTRIBUTE_HIDDEN as stat_FILE_ATTRIBUTE_HIDDEN
 
-from os.path import dirname,relpath,normpath,join as path_join,abspath as abspath,exists as path_exists,isdir as path_isdir
+from os.path import dirname,relpath,normpath,basename,join as path_join,abspath as abspath,exists as path_exists,isdir as path_isdir
 
 if os_name=='nt':
     from subprocess import CREATE_NO_WINDOW
@@ -194,6 +195,16 @@ class CRCThreadedCalc:
         self.log.info('CRCThreadedCalc %s join',self)
         self.thread.join()
 
+windows = bool(os_name=='nt')
+
+def is_hidden_win(filepath):
+    return bool(stat(filepath).st_file_attributes & stat_FILE_ATTRIBUTE_HIDDEN)
+
+def is_hidden_lin(filepath):
+    return basename(abspath(filepath)).startswith('.')
+
+is_hidden = is_hidden_win if windows else is_hidden_lin
+
 MODE_CRC = 0
 MODE_SIMILARITY = 1
 MODE_GPS = 2
@@ -334,7 +345,7 @@ class DudeCore:
         return None
 
     scan_update_info_path_nr=None
-    def scan(self,operation_mode,file_min_size_int=0,file_max_size_int=0):
+    def scan(self,operation_mode,file_min_size_int=0,file_max_size_int=0,include_hidden=False):
         from PIL.Image import open as image_open
 
         self.log.info('')
@@ -369,6 +380,7 @@ class DudeCore:
         use_max_size = bool(file_max_size_int!=0)
         use_size = use_min_size or use_max_size
 
+        is_hidden_loc=is_hidden
         #############################################################################################
         if operation_mode in (MODE_SIMILARITY,MODE_GPS):
 
@@ -420,14 +432,18 @@ class DudeCore:
                                 if entry.is_symlink() :
                                     skipping_action('skippping link: %s / %s',path,entry.name)
                                 else:
+                                    fullpath=path_join(path,entry.name)
+                                    if not include_hidden and is_hidden_loc(fullpath):
+                                        skipping_action('skipping hidden Mask:%s',fullpath)
+                                        continue
+
                                     if any_exclude_list:
-                                        fullpath=path_join(path,entry.name)
                                         if any({self_excl_fn(expr,fullpath) for expr in self_exclude_list}):
                                             skipping_action('skipping by Exclude Mask:%s',fullpath)
                                             continue
 
                                     if entry.is_dir():
-                                        loop_list_append(path_join(path,entry.name))
+                                        loop_list_append(fullpath)
                                     elif entry.is_file():
                                         try:
                                             stat_res = stat(entry)
@@ -537,14 +553,18 @@ class DudeCore:
                                 if entry.is_symlink() :
                                     skipping_action('skippping link: %s / %s',path,entry.name)
                                 else:
+                                    fullpath=path_join(path,entry.name)
+                                    if not include_hidden and is_hidden_loc(fullpath):
+                                        skipping_action('skipping hidden Mask:%s',fullpath)
+                                        continue
+
                                     if any_exclude_list:
-                                        fullpath=path_join(path,entry.name)
                                         if any({self_excl_fn(expr,fullpath) for expr in self_exclude_list}):
                                             skipping_action('skipping by Exclude Mask:%s',fullpath)
                                             continue
 
                                     if entry.is_dir():
-                                        loop_list_append(path_join(path,entry.name))
+                                        loop_list_append(fullpath)
                                     elif entry.is_file():
                                         try:
                                             stat_res = stat(entry)

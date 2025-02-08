@@ -755,6 +755,14 @@ class LANGUAGES:
             'it': 'Somiglianza tra immagini',
             'fr': 'Similitude des images',
         },
+        'Include hidden files / folders in scan': {
+            'pl': "Uwzględniaj pliki/foldery ukryte",
+            'es': "Incluir archivos/carpetas ocultos en el escaneo",
+            'ru': "Включить скрытые файлы/папки в сканирование",
+            'de': "Versteckte Dateien/Ordner in den Scan einbeziehen",
+            'it': "Includi file/cartelle nascosti nella scansione",
+            'fr': "Inclure les fichiers/dossiers cachés dans l'analyse",
+        },
         'Information': {
             'pl': 'Informacja',
             'es': 'Información',
