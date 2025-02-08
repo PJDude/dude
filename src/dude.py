@@ -344,31 +344,31 @@ class Image_Cache:
             try:
                 timestamp_key_done,scaled_image_done,width_done,height_done,ratio_done,window_width_done,window_height_done = self_cache_scaled_file[path]
 
-                if window_width==window_width_done and window_height==window_height_done:
+                if (window_width==window_width_done and window_height==window_height_done) or scaled_image_done is None:
                     continue
             except:
-                pass
+                #pass
 
-            try:
-                full_image = self_image_open(path)
-                if full_image.mode != 'RGBA':
-                    full_image = full_image.convert("RGBA")
+                try:
+                    full_image = self_image_open(path)
+                    if full_image.mode != 'RGBA':
+                        full_image = full_image.convert("RGBA")
 
-                height = full_image.height
-                ratio_y = height/(window_height-self.txt_label_heigh)
+                    height = full_image.height
+                    ratio_y = height/(window_height-self.txt_label_heigh)
 
-                width = full_image.width
-                ratio_x = width/window_width
+                    width = full_image.width
+                    ratio_x = width/window_width
 
-                ratio = max(ratio_x,ratio_y,1)
+                    ratio = max(ratio_x,ratio_y,1)
 
-                scaled_image = full_image if ratio==1 else full_image.resize( ( int (width/ratio), int(height/ratio)) ,self_BILINEAR)
+                    scaled_image = full_image if ratio==1 else full_image.resize( ( int (width/ratio), int(height/ratio)) ,self_BILINEAR)
 
-                self_cache_scaled_file[path] = first_timestamp_key,scaled_image,width,height,ratio,window_width,window_height
+                    self_cache_scaled_file[path] = first_timestamp_key,scaled_image,width,height,ratio,window_width,window_height
 
-            except Exception as e:
-                print('get_cached_full_image Error:',e)
-                self_cache_scaled_file[path] = first_timestamp_key,None,0,0,1,0,0
+                except Exception as e:
+                    print('get_cached_full_image Error:',e)
+                    self_cache_scaled_file[path] = first_timestamp_key,None,0,0,1,0,0
 
         sys_exit()
 
@@ -404,7 +404,9 @@ class Image_Cache:
                         del self_cache_scaled_file[oldest_path]
 
                     return self.scaled_photoimage,f'{width} x {height} pixels' + (f' ({round(100.0/ratio)}%)' if ratio>1 else '')
+
                 self.scaled_photoimage,width,height,ratio = None,0,0,1
+                break
             except:
                 if any(self.read_ahead_pools):
                     tkwindow.after(10)
@@ -937,13 +939,13 @@ class Gui:
         self.status_line_lab_configure = self.status_line_lab.configure
         self.status_line_lab_update = self.status_line_lab.update
 
-        self.status_folder_quant=Label(status_frame_folder,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
+        self.status_folder_quant=Label(status_frame_folder,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w',   image=self.ico_empty,width=80,compound='left')
         self.status_folder_quant.pack(fill='both',expand=0,side='right')
         self.status_folder_quant_configure=self.status_folder_quant.configure
 
         Label(status_frame_folder,width=16,text=STR('Marked files # '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
-        self.status_folder_size=Label(status_frame_folder,width=80,image=self.ico_empty,compound='right',borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
-        self.status_folder_size.pack(expand=0,side='right')
+        self.status_folder_size=Label(status_frame_folder,width=80,image=self.ico_empty,compound='left',borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
+        self.status_folder_size.pack(fill='both',expand=0,side='right')
         self.status_folder_size_configure=self.status_folder_size.configure
 
         Label(status_frame_folder,width=20,text=STR('Marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
@@ -5113,8 +5115,8 @@ class Gui:
             self.folder_tree_delete(*self.current_folder_items)
             self.selected[self.folder_tree]=None
 
-        self.status_folder_size_configure(text='')
-        self.status_folder_quant_configure(text='')
+        self.status_folder_size_configure(text='',image=self.ico_empty,compound='left')
+        self.status_folder_quant_configure(text='',image=self.ico_empty,compound='left')
 
         self.status_path_configure(text='')
         self.current_folder_items=()
@@ -5283,8 +5285,8 @@ class Gui:
 
         ftree.update()
 
-        self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)))
-        self.status_folder_size_configure(text=bytes_to_str(current_folder_items_tagged_size))
+        self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)),image=self.ico_empty,compound='left')
+        self.status_folder_size_configure(text=bytes_to_str(current_folder_items_tagged_size),image=self.ico_empty,compound='left')
 
         folder_items_len = len(self.current_folder_items)
 
@@ -5323,10 +5325,10 @@ class Gui:
 
     def calc_mark_stats_folder(self):
         self_current_folder_items_tagged = self.current_folder_items_tagged
-        self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)))
+        self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)),image=self.ico_empty,compound='left')
 
         self_iid_to_size = self.iid_to_size
-        self.status_folder_size_configure(text=bytes_to_str(sum(self_iid_to_size[iid] for iid in self_current_folder_items_tagged)))
+        self.status_folder_size_configure(text=bytes_to_str(sum(self_iid_to_size[iid] for iid in self_current_folder_items_tagged)),image=self.ico_empty,compound='left')
 
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
         self_groups_tree = self.groups_tree
