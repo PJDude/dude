@@ -164,7 +164,7 @@ cfg_defaults={
     CFG_KEY_MARK_STRING_1:'*',
     CFG_KEY_MARK_RE_0:False,
     CFG_KEY_MARK_RE_1:False,
-    CFG_KEY_SHOW_PREVIEW:False,
+    CFG_KEY_SHOW_PREVIEW:True,
     CFG_LANG:'English'
 }
 
@@ -607,7 +607,6 @@ class Gui:
 
         self.operation_mode = MODE_CRC
         ####################################################################
-        #self_main = self.main = Tk()
         self_main = self.main = TkinterDnD.Tk()
 
         self_main.drop_target_register(DND_FILES)
@@ -626,14 +625,10 @@ class Gui:
         if windows:
             themes_names = ['Vista','Winnative'] + themes_names
 
-        #print('themes_names:',themes_names)
-
         for name in themes_names:
             for darkness,darknesscode in (('',0),('Dark',1)):
                 full_name = name + ((' ' + darkness) if darknesscode else '')
                 self.themes_combos[full_name]=name.lower(),darknesscode
-
-        #print('themes_combos:',self.themes_combos)
 
         self.default_theme='vista' if windows else 'clam'
 
@@ -907,15 +902,15 @@ class Gui:
         (status_frame_groups := Frame(frame_groups,bg=bg_color)).pack(side='bottom', fill='both')
 
         self.status_all_quant=Label(status_frame_groups,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
+        self.status_all_quant.pack(fill='both',expand=0,side='right')
         self.status_all_quant_configure = self.status_all_quant.configure
 
-        self.status_all_quant.pack(fill='both',expand=0,side='right')
         Label(status_frame_groups,width=16,text=STR("All marked files # "),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
         self.status_all_size=Label(status_frame_groups,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_all_size.pack(fill='both',expand=0,side='right')
         self.status_all_size_configure=self.status_all_size.configure
 
-        Label(status_frame_groups,width=20,text=STR('All marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
+        Label(status_frame_groups,width=160,text=STR('All marked files size: '),image=self.ico_empty,relief='groove',borderwidth=2,bg=bg_color,anchor='e',compound='left').pack(fill='both',expand=0,side='right')
         self.status_groups=Label(status_frame_groups,text='0',image=self.ico_empty,width=80,compound='right',borderwidth=2,bg=bg_color,relief='groove',anchor='e')
         self.status_groups_configure = self.status_groups.configure
 
@@ -925,7 +920,7 @@ class Gui:
 
         Label(status_frame_groups,width=10,text=STR('Groups: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
 
-        self.status_path = Label(status_frame_groups,text='',relief='flat',borderwidth=3,bg=bg_color,anchor='w')
+        self.status_path = Label(status_frame_groups,text='',relief='groove',borderwidth=2,bg=bg_color,anchor='w')
         self.status_path.pack(fill='both',expand=1,side='left')
         self.widget_tooltip(self.status_path,STR('The full path of a directory\nshown in the bottom panel.'))
 
@@ -934,21 +929,25 @@ class Gui:
 
         (status_frame_folder := Frame(frame_folder,bg=bg_color)).pack(side='bottom',fill='both')
 
-        self.status_line_lab=Label(status_frame_folder,width=30,image=self_ico['expression'],compound= 'left',text='',borderwidth=2,bg=bg_color,relief='groove',anchor='w')
+        self.status_mode = Label(status_frame_folder,text='MODE',relief='groove',borderwidth=2,bg=bg_color,anchor='w',width=20)
+        self.status_mode.pack(fill='both',expand=0,side='left')
+
+        self.status_line_lab=Label(status_frame_folder,image=self_ico['expression'],compound='left',text='',borderwidth=2,bg=bg_color,relief='groove',anchor='w')
         self.status_line_lab.pack(fill='both',expand=1,side='left')
         self.status_line_lab_configure = self.status_line_lab.configure
         self.status_line_lab_update = self.status_line_lab.update
 
-        self.status_folder_quant=Label(status_frame_folder,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w',   image=self.ico_empty,width=80,compound='left')
+        self.status_folder_quant=Label(status_frame_folder,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w',width=10)
         self.status_folder_quant.pack(fill='both',expand=0,side='right')
         self.status_folder_quant_configure=self.status_folder_quant.configure
 
         Label(status_frame_folder,width=16,text=STR('Marked files # '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
-        self.status_folder_size=Label(status_frame_folder,width=80,image=self.ico_empty,compound='left',borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
+        self.status_folder_size=Label(status_frame_folder,width=10,borderwidth=2,bg=bg_color,relief='groove',foreground='red',anchor='w')
         self.status_folder_size.pack(fill='both',expand=0,side='right')
         self.status_folder_size_configure=self.status_folder_size.configure
 
-        Label(status_frame_folder,width=20,text=STR('Marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e').pack(fill='both',expand=0,side='right')
+        Label(status_frame_folder,width=160,text=STR('Marked files size: '),relief='groove',borderwidth=2,bg=bg_color,anchor='e',image=self.ico_empty,compound='left').pack(fill='both',expand=0,side='right')
+
 
         self_main_unbind_class = self.main_unbind_class = self_main.unbind_class
 
@@ -4003,6 +4002,7 @@ class Gui:
     @restore_status_line
     @logwrapper
     def scan(self):
+        self.status_mode.configure(text='')
         from threading import Thread
 
         self.status(STR('Scanning') + '...')
@@ -4805,7 +4805,11 @@ class Gui:
         self.create_my_prev_next_dicts(self.groups_tree)
         self_tree_children = self.tree_children
 
-        self.status_groups_configure(text=fnumber(len(self_tree_children[self.groups_tree])) + ' ',image=self.ico['warning' if self.cfg_get(CFG_KEY_SHOW_MODE)!='0' else 'empty'],compound='right',width=80,anchor='w')
+        group_number=len(self_tree_children[self.groups_tree])
+
+        self.status_groups_configure(text=fnumber(group_number) + ' ',image=self.ico['warning' if self.cfg_get(CFG_KEY_SHOW_MODE)!='0' else 'empty'],compound='right',width=80,anchor='w')
+
+        self.status_mode.configure(text='SIMILARITY Mode' if self.operation_mode==MODE_SIMILARITY else 'GPS Mode' if self.operation_mode==MODE_GPS else 'CRC Mode' if group_number>0 else '')
 
         path_stat_size={}
         path_stat_size_get=path_stat_size.get
@@ -4895,6 +4899,7 @@ class Gui:
         if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
             self.groups_tree.heading('#0',text=STR('GROUP/Scan Path'),anchor='w')
             self.folder_tree.heading('#0',text=STR('GROUP'),anchor='w')
+
         else:
             self.groups_tree.heading('#0',text=STR('CRC/Scan Path'),anchor='w')
             self.folder_tree.heading('#0',text='CRC',anchor='w')
@@ -5115,8 +5120,8 @@ class Gui:
             self.folder_tree_delete(*self.current_folder_items)
             self.selected[self.folder_tree]=None
 
-        self.status_folder_size_configure(text='',image=self.ico_empty,compound='left')
-        self.status_folder_quant_configure(text='',image=self.ico_empty,compound='left')
+        self.status_folder_size_configure(text=' ')
+        self.status_folder_quant_configure(text=' ')
 
         self.status_path_configure(text='')
         self.current_folder_items=()
@@ -5285,8 +5290,8 @@ class Gui:
 
         ftree.update()
 
-        self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)),image=self.ico_empty,compound='left')
-        self.status_folder_size_configure(text=bytes_to_str(current_folder_items_tagged_size),image=self.ico_empty,compound='left')
+        self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)))
+        self.status_folder_size_configure(text=bytes_to_str(current_folder_items_tagged_size))
 
         folder_items_len = len(self.current_folder_items)
 
@@ -5325,10 +5330,10 @@ class Gui:
 
     def calc_mark_stats_folder(self):
         self_current_folder_items_tagged = self.current_folder_items_tagged
-        self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)),image=self.ico_empty,compound='left')
+        self.status_folder_quant_configure(text=fnumber(len(self_current_folder_items_tagged)))
 
         self_iid_to_size = self.iid_to_size
-        self.status_folder_size_configure(text=bytes_to_str(sum(self_iid_to_size[iid] for iid in self_current_folder_items_tagged)),image=self.ico_empty,compound='left')
+        self.status_folder_size_configure(text=bytes_to_str(sum(self_iid_to_size[iid] for iid in self_current_folder_items_tagged)))
 
     def mark_in_specified_group_by_ctime(self, action, crc, reverse,select=False):
         self_groups_tree = self.groups_tree
