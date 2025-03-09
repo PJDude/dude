@@ -91,6 +91,7 @@ CFG_KEY_FULL_CRC='show_full_crc'
 CFG_KEY_SHOW_TOOLTIPS_INFO='show_tooltips_info'
 CFG_KEY_SHOW_TOOLTIPS_HELP='show_tooltips_help'
 CFG_KEY_PREVIEW_AUTO_UPDATE='preview_auto_update'
+CFG_KEY_AUTO_MARK='auto_mark'
 CFG_KEY_FULL_PATHS='show_full_paths'
 CFG_KEY_SHOW_MODE='show_mode'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
@@ -138,6 +139,7 @@ cfg_defaults={
     CFG_KEY_SHOW_TOOLTIPS_INFO:True,
     CFG_KEY_SHOW_TOOLTIPS_HELP:True,
     CFG_KEY_PREVIEW_AUTO_UPDATE:True,
+    CFG_KEY_AUTO_MARK:True,
     CFG_KEY_FULL_PATHS:False,
     CFG_KEY_SHOW_MODE:'0',
     CFG_KEY_REL_SYMLINKS:True,
@@ -627,6 +629,8 @@ class Gui:
 
         for name in themes_names:
             for darkness,darknesscode in (('',0),('Dark',1)):
+                if name=='Vista' and darknesscode==1:
+                    continue
                 full_name = name + ((' ' + darkness) if darknesscode else '')
                 self.themes_combos[full_name]=name.lower(),darknesscode
 
@@ -1813,6 +1817,7 @@ class Gui:
             self.show_tooltips_info = BooleanVar()
             self.show_tooltips_help = BooleanVar()
             self.preview_auto_update = BooleanVar()
+            self.auto_mark = BooleanVar()
 
             self.show_full_paths = BooleanVar()
             self.show_mode = StringVar()
@@ -1839,6 +1844,7 @@ class Gui:
                 (self.show_tooltips_info,CFG_KEY_SHOW_TOOLTIPS_INFO),
                 (self.show_tooltips_help,CFG_KEY_SHOW_TOOLTIPS_HELP),
                 (self.preview_auto_update,CFG_KEY_PREVIEW_AUTO_UPDATE),
+                (self.auto_mark,CFG_KEY_AUTO_MARK),
                 (self.show_full_paths,CFG_KEY_FULL_PATHS),
                 (self.create_relative_symlinks,CFG_KEY_REL_SYMLINKS),
                 (self.erase_empty_directories,CFG_ERASE_EMPTY_DIRS),
@@ -1910,6 +1916,10 @@ class Gui:
 
             (preview_auto_update_cb:=Checkbutton(label_frame, text = ' ' + STR('Preview auto update'), variable=self.preview_auto_update)).grid(row=4,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(preview_auto_update_cb,STR('TOOLTIP_PAU'))
+
+            (auto_mark_cb:=Checkbutton(label_frame, text = ' ' + STR('Auto-mark behavior'), variable=self.auto_mark)).grid(row=5,column=0,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(auto_mark_cb,STR('TOOLTIP_AMB'))
+
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Confirmation dialogs"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
@@ -3233,7 +3243,8 @@ class Gui:
 
     def show_preview(self,user_action=True):
         self_preview = self.preview
-        self.preview_photo_image_cache = Image_Cache()
+        if not self.preview_photo_image_cache:
+            self.preview_photo_image_cache = Image_Cache()
 
         if self.preview_shown:
             self_preview.lift()
@@ -3308,19 +3319,24 @@ class Gui:
                 elif ext_lower in TEXT_EXTENSIONS:
                     self.preview_label_img.pack_forget()
                     self.preview_text.delete(1.0, 'end')
-                    try:
-                        with open(path,'rt', encoding='utf-8', errors='ignore') as file:
+                    if file_size<1024*1024*10:
+                        try:
+                            with open(path,'rt', encoding='utf-8', errors='ignore') as file:
 
-                            cont_lines=file.readlines()
-                            self.preview_label_txt_configure(text=STR('lines:') + f'{fnumber(len(cont_lines))}')
-                            self.preview_text.insert('end', ''.join(cont_lines))
-                    except Exception as e:
-                        self.preview_label_txt_configure(text=str(e))
+                                cont_lines=file.readlines()
+                                self.preview_label_txt_configure(text=STR('lines:') + f'{fnumber(len(cont_lines))}')
+                                self.preview_text.insert('end', ''.join(cont_lines))
+                        except Exception as e:
+                            self.preview_label_txt_configure(text=str(e))
+                            self.preview.title(path)
+                            self.preview_frame_txt.pack_forget()
+                        else:
+                            self.preview_frame_txt.pack(fill='both',expand=1)
+                            self.preview.title(path)
+                    else:
+                        self.preview_label_txt_configure(text='file size > 10MB')
                         self.preview.title(path)
                         self.preview_frame_txt.pack_forget()
-                    else:
-                        self.preview_frame_txt.pack(fill='both',expand=1)
-                        self.preview.title(path)
 
                 elif file_size<1024*1024*10:
                     self.preview_label_img.pack_forget()
@@ -3366,7 +3382,8 @@ class Gui:
                 self.cfg.set_bool(CFG_KEY_SHOW_PREVIEW,False)
 
             self.preview_photo_image_cache.end()
-            del self.preview_photo_image_cache
+
+            #del self.preview_photo_image_cache
             self.preview_photo_image_cache = None
 
         self.preview_label_txt_configure(text='')
@@ -4660,6 +4677,9 @@ class Gui:
             self.cfg.set_bool(CFG_KEY_PREVIEW_AUTO_UPDATE,self.preview_auto_update.get())
             self.preview_auto_update_bool = self.cfg_get_bool(CFG_KEY_PREVIEW_AUTO_UPDATE)
 
+        if self.cfg_get_bool(CFG_KEY_AUTO_MARK)!=self.auto_mark.get():
+            self.cfg.set_bool(CFG_KEY_AUTO_MARK,self.auto_mark.get())
+
         if self.cfg_get_bool(CFG_KEY_FULL_PATHS)!=self.show_full_paths.get():
             self.cfg.set_bool(CFG_KEY_FULL_PATHS,self.show_full_paths.get())
             update1=True
@@ -5702,6 +5722,20 @@ class Gui:
 
         return None
 
+    def check_and_auto_mark(self,action,tree):
+        #auto mark if nothing is selected
+        if not self.tagged and action!=HARDLINK and self.cfg_get_bool(CFG_KEY_AUTO_MARK):
+            item = self.sel_item
+
+            try:
+                kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self.groups_tree_item_to_data[item]
+                print(kind)
+                if inode:
+                    self.tag_toggle_selected(tree,item)
+            except:
+                #akcja na dolnym panelu na pliku "pojedynczym"
+                pass
+
     @block_and_log
     def process_files_in_groups_wrapper(self,action,all_groups):
         processed_items=defaultdict(dict)
@@ -5713,6 +5747,8 @@ class Gui:
 
         self_sel_crc = self.sel_crc
         self_tagged = self.tagged
+
+        self.check_and_auto_mark(action,self.groups_tree)
 
         self_tree_children_sub = self.tree_children_sub
 
@@ -5748,6 +5784,8 @@ class Gui:
                             index+=1
         else:
             scope_title=STR('Selected Directory.')
+
+            self.check_and_auto_mark(action,self.folder_tree)
 
             self_current_folder_items_tagged = self.current_folder_items_tagged
             self_groups_tree_item_to_data = self.groups_tree_item_to_data
@@ -6527,7 +6565,6 @@ class Gui:
             #kind,size_item,crc_item, (pathnr,path,file,ctime,dev,inode) = self_groups_tree_item_to_data[item] for index,item in items_dict.items()
             self.process_files_total_size = sum([self_groups_tree_item_to_data[item][1] for group,items_dict in processed_items.items() for item in items_dict.values()])
         else:
-
             self.process_files_total_size = sum([self.crc_to_size[crc] for crc,items_dict in processed_items.items() for item in items_dict.values()])
 
         self.process_files_total_size_str = bytes_to_str(self.process_files_total_size)

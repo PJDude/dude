@@ -123,6 +123,23 @@ class LANGUAGES:
             'it': 'Interrotto ... ',
             'fr': 'Annulation en cours ... ',
         },
+        'Auto-mark behavior': {
+            'pl': 'Auto zaznaczanie',
+            'es': 'Comportamiento de auto-marcado',
+            'ru': 'Автоматическая отметка',
+            'de': 'Automatisches Markierungsverhalten',
+            'it': 'Comportamento di auto-segnalazione',
+            'fr': 'Comportement de marquage automatique',
+        },
+        'TOOLTIP_AMB': {
+            'en': 'If no files are marked,\nthe action automatically marks the currently selected file.',
+            'pl': 'Jeżeli nie ma zaznaczonych plików,\nakcja automatycznie zaznacza aktualnie wybrany plik.',
+            'es': 'Si no hay archivos marcados,\nla acción marca automáticamente el archivo actualmente seleccionado.',
+            'ru': 'Если файлы не отмечены,\nдействие автоматически отмечает текущий выбранный файл.',
+            'de': 'Wenn keine Dateien markiert sind,\nmarkiert die Aktion automatisch die derzeit ausgewählte Datei.',
+            'it': 'Se nessun file è contrassegnato,\nl’azione contrassegna automaticamente il file attualmente selezionato.',
+            'fr': 'Si aucun fichier n’est marqué,\nl’action marque automatiquement le fichier actuellement sélectionné.',
+        },
         'Abort searching.': {
             'pl': 'Przerwij szukanie.',
             'es': 'Abortar búsqueda.',
