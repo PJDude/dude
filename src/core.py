@@ -113,7 +113,8 @@ class CRCThreadedCalc:
         self.source=[]
         self.source_other_data=[]
 
-        self.results=[]
+        #self.results=[]
+        self.results_dict={}
         self.file_info=(0,None)
         self.progress_info=0
         self.abort_action=False
@@ -140,13 +141,14 @@ class CRCThreadedCalc:
         self.started=True
 
         #preallocate
-        self.results=[None]*len(self.source)
-
-        self_results=self.results
+        #self.results=[None]*len(self.source)
+        self_results_dict = self.results_dict = {i:None for i in range(len(self.source))}
+        #self_results=self.results
 
         self.size_done = 0
         self.files_done = 0
 
+        #i=0
         for fullpath,size in self.source:
             try:
                 file_handle=open(fullpath,'rb')
@@ -182,10 +184,13 @@ class CRCThreadedCalc:
                     return
 
                 #only complete result
-                self_results[self.files_done]=hasher.hexdigest()
+                #self_results_dict[self.files_done]=self_results[self.files_done]=hasher.hexdigest()
+                self_results_dict[self.files_done]=hasher.hexdigest()
 
             self.size_done += size
             self.files_done += 1
+
+        sys_exit()  #thread
 
     def start(self):
         self.log.info('CRCThreadedCalc %s start',self)
@@ -1241,8 +1246,9 @@ class DudeCore:
 
                 fullpath=self.get_full_path_to_scan(pathnr,path,file_name)
 
-                crc_core[dev].source.append( (fullpath,size) )
-                crc_core[dev].source_other_data.append( (pathnr,path,file_name,mtime,ctime,inode) )
+                crc_core_dev = crc_core[dev]
+                crc_core_dev.source.append( (fullpath,size) )
+                crc_core_dev.source_other_data.append( (pathnr,path,file_name,mtime,ctime,inode) )
 
         self.info=''
         self.log.info('using cache done.')
@@ -1323,7 +1329,8 @@ class DudeCore:
                     crc_to_combo=defaultdict(set)
 
                     for dev in self_devs:
-                        for (fullpath,size),crc in zip(crc_core[dev].source,crc_core[dev].results):
+                        #for (fullpath,size),crc in zip(crc_core[dev].source,crc_core[dev].results):
+                        for (fullpath,size),crc in zip(crc_core[dev].source,[val for key,val in sorted(crc_core[dev].results_dict.items(), key = lambda x : x[0])] ):
                             if crc:
                                 crc_to_combo[crc].add( (size,dirname(fullpath)) )
 
@@ -1365,7 +1372,8 @@ class DudeCore:
             if crc_core_dev.started:
                 crc_core_dev.join()
 
-            for (fullpath,size),(pathnr,path,file_name,mtime,ctime,inode),crc in zip(crc_core_dev.source,crc_core_dev.source_other_data,crc_core_dev.results):
+            #for (fullpath,size),(pathnr,path,file_name,mtime,ctime,inode),crc in zip(crc_core_dev.source,crc_core_dev.source_other_data,crc_core_dev.results):
+            for (fullpath,size),(pathnr,path,file_name,mtime,ctime,inode),crc in zip(crc_core_dev.source,crc_core_dev.source_other_data,[val for key,val in sorted(crc_core_dev.results_dict.items(), key = lambda x : x[0])]):
                 if crc:
                     index_tuple=(pathnr,path,file_name,ctime,dev,inode)
 
