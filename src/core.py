@@ -110,11 +110,9 @@ def fnumber(num):
 class CRCThreadedCalc:
     def __init__(self,log):
         self.log=log
-        self.source=[]
-        self.source_other_data=[]
 
-        #self.results=[]
-        self.results_dict={}
+        self.data_dict={}
+
         self.file_info=(0,None)
         self.progress_info=0
         self.abort_action=False
@@ -134,61 +132,58 @@ class CRCThreadedCalc:
     def calc(self):
         from hashlib import sha1
 
-        CRC_BUFFER_SIZE=4*1024*1024
-        buf = bytearray(CRC_BUFFER_SIZE)
-        view = memoryview(buf)
+        size_threshold=8*1024*1024
+        block_size=1*1024*1024
 
         self.started=True
 
-        #preallocate
-        #self.results=[None]*len(self.source)
-        self_results_dict = self.results_dict = {i:None for i in range(len(self.source))}
-        #self_results=self.results
+        self_data_dict = self.data_dict
 
         self.size_done = 0
         self.files_done = 0
 
-        #i=0
-        for fullpath,size in self.source:
+        files_done_local = 0
+
+        for (size,fullpath),(pathnr,path,file_name,mtime,ctime,inode) in list(sorted(self_data_dict.items(),key = lambda x : int(x[0][0]),reverse=True)):
             try:
                 file_handle=open(fullpath,'rb')
-                file_handle_readinto=file_handle.readinto
             except Exception as e:
                 self.log.error(e)
 
                 if self.abort_action:
-                    return
+                    sys_exit()
             else:
-                hasher = sha1()
-                hasher_update=hasher.update
+                if size<size_threshold:
+                    self_data_dict[(size,fullpath)]=(pathnr,path,file_name,mtime,ctime,inode,sha1(file_handle.read()).hexdigest())
+                    file_handle.close()
 
-                #faster for smaller files
-                if size<CRC_BUFFER_SIZE:
-                    hasher_update(view[:file_handle_readinto(buf)])
+                    if self.abort_action:
+                        sys_exit()
                 else:
-                    while rsize := file_handle_readinto(buf):
-                        hasher_update(view[:rsize])
+                    hasher = sha1()
+                    hasher_update=hasher.update
 
-                        if rsize==CRC_BUFFER_SIZE:
-                            #still reading
-                            self.progress_info+=rsize
+                    file_handle_read_block_size=lambda : file_handle.read(block_size)
+                    while chunk := file_handle_read_block_size():
+                        hasher_update(chunk)
+
+                        self.progress_info+=len(chunk)
 
                         if self.abort_action:
                             break
 
                     self.progress_info=0
+                    file_handle.close()
 
-                file_handle.close()
+                    if self.abort_action:
+                        sys_exit()  #thread
 
-                if self.abort_action:
-                    return
-
-                #only complete result
-                #self_results_dict[self.files_done]=self_results[self.files_done]=hasher.hexdigest()
-                self_results_dict[self.files_done]=hasher.hexdigest()
+                    #only complete result
+                    self_data_dict[(size,fullpath)]=(pathnr,path,file_name,mtime,ctime,inode,hasher.hexdigest())
 
             self.size_done += size
-            self.files_done += 1
+            files_done_local += 1
+            self.files_done = files_done_local
 
         sys_exit()  #thread
 
@@ -1246,9 +1241,7 @@ class DudeCore:
 
                 fullpath=self.get_full_path_to_scan(pathnr,path,file_name)
 
-                crc_core_dev = crc_core[dev]
-                crc_core_dev.source.append( (fullpath,size) )
-                crc_core_dev.source_other_data.append( (pathnr,path,file_name,mtime,ctime,inode) )
+                crc_core[dev].data_dict[(size,fullpath)]=(pathnr,path,file_name,mtime,ctime,inode)
 
         self.info=''
         self.log.info('using cache done.')
@@ -1329,10 +1322,9 @@ class DudeCore:
                     crc_to_combo=defaultdict(set)
 
                     for dev in self_devs:
-                        #for (fullpath,size),crc in zip(crc_core[dev].source,crc_core[dev].results):
-                        for (fullpath,size),crc in zip(crc_core[dev].source,[val for key,val in sorted(crc_core[dev].results_dict.items(), key = lambda x : x[0])] ):
-                            if crc:
-                                crc_to_combo[crc].add( (size,dirname(fullpath)) )
+                        for (size,fullpath),val in crc_core[dev].data_dict.items():
+                            if len(val)==7:
+                                crc_to_combo[val[6]].add( (size,dirname(fullpath)) )
 
                     for size,size_dict in self_files_of_size_of_crc_items():
                         for crc,crc_dict in size_dict.items():
@@ -1345,8 +1337,7 @@ class DudeCore:
                     temp_info_folders_set=set()
 
                     for crc,crc_combo in crc_to_combo.items():
-                        len_crc_combo = len(crc_combo)
-                        if len_crc_combo>1:
+                        if len(crc_combo)>1:
                             temp_info_groups+=1
                             for size,dirpath in crc_combo:
                                 temp_info_dupe_space+=size
@@ -1372,15 +1363,13 @@ class DudeCore:
             if crc_core_dev.started:
                 crc_core_dev.join()
 
-            #for (fullpath,size),(pathnr,path,file_name,mtime,ctime,inode),crc in zip(crc_core_dev.source,crc_core_dev.source_other_data,crc_core_dev.results):
-            for (fullpath,size),(pathnr,path,file_name,mtime,ctime,inode),crc in zip(crc_core_dev.source,crc_core_dev.source_other_data,[val for key,val in sorted(crc_core_dev.results_dict.items(), key = lambda x : x[0])]):
-                if crc:
-                    index_tuple=(pathnr,path,file_name,ctime,dev,inode)
+            #for (size,fullpath),val in sorted(crc_core_dev.data_dict.items(), key = lambda x : int(x[0][0]), reverse=True):
+            for (size,fullpath),val in crc_core_dev.data_dict.items():
+                if len(val)==7:
+                    pathnr,path,file_name,mtime,ctime,inode,crc=val
+                    self_files_of_size_of_crc[size][crc].add( (pathnr,path,file_name,ctime,dev,inode) )
 
-                    self_files_of_size_of_crc[size][crc].add( index_tuple )
-
-                    cache_key=(inode,mtime)
-                    self.crc_cache[dev][cache_key]=crc
+                    self.crc_cache[dev][(inode,mtime)]=crc
         del crc_core
         ########################################################################
 
@@ -1682,7 +1671,6 @@ class DudeCore:
         (path_nr_keep,path_keep,file_keep,ctime_keep,dev_keep,inode_keep)=index_tuple_ref
 
         self_get_full_path_scanned = self.get_full_path_scanned
-        #self_files_of_size_of_crc_size_crc = self.files_of_size_of_crc[size][crc]
 
         if operation_mode in (MODE_SIMILARITY,MODE_GPS):
             print('imposible1')
