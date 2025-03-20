@@ -5845,13 +5845,13 @@ class Gui:
                 self.data_precalc()
 
                 newlist=self.tree_children[self.groups_tree]
-                item_to_sel = self.get_closest_in_group(orglist,group,newlist)
+                item_to_select = self.get_closest_in_groups(orglist,group,newlist)
 
                 self.reset_sels()
 
-                if item_to_sel:
+                if item_to_select:
                     #group node moze zniknac - trzeba zupdejtowac SelXxx
-                    self.crc_select_and_focus(item_to_sel,True)
+                    self.crc_select_and_focus(item_to_select,True)
                 else:
                     self.initial_focus()
 
@@ -5939,13 +5939,13 @@ class Gui:
                 self.data_precalc()
 
                 newlist=self.tree_children[self.groups_tree]
-                item_to_sel = self.get_closest_in_crc(orglist,crc,newlist)
+                item_to_select = self.get_closest_in_groups(orglist,crc,newlist)
 
                 self.reset_sels()
 
-                if item_to_sel:
+                if item_to_select:
                     #crc node moze zniknac - trzeba zupdejtowac SelXxx
-                    self.crc_select_and_focus(item_to_sel,True)
+                    self.crc_select_and_focus(item_to_select,True)
                 else:
                     self.initial_focus()
 
@@ -6457,6 +6457,7 @@ class Gui:
                         break
 
         self.process_files_result=(end_message_list,final_info)
+        sys_exit()
 
     @logwrapper
     def get_this_or_existing_parent(self,path):
@@ -6490,6 +6491,8 @@ class Gui:
 
         self_tagged = self.tagged
         self_tree_children_sub = self.tree_children_sub
+
+        org_sel_crc = self.sel_crc
 
         for crc in processed_items:
             remaining_items[crc]=dict(enumerate([item for item in self_tree_children_sub[crc] if item not in self_tagged]))
@@ -6535,6 +6538,8 @@ class Gui:
         processed_items_list = [item for crc,index_dict in processed_items.items() for index,item in index_dict.items()]
 
         if tree==self.groups_tree:
+            orglist=self.tree_children[self.groups_tree]
+
             item_to_select = self.sel_crc
 
             self_my_next_dict_tree = self.my_next_dict[tree]
@@ -6649,6 +6654,9 @@ class Gui:
         tree.selection_remove(*tree.selection())
 
         if tree==self.groups_tree:
+            newlist=self.tree_children[self.groups_tree]
+            item_to_select = self.get_closest_in_groups(orglist,crc,newlist)
+
             if self.sel_crc:
                 if tree.exists(self.sel_crc):
                     item_to_select=self.sel_crc
@@ -6675,16 +6683,16 @@ class Gui:
                     newlist=self.current_folder_items
 
                     try:
-                        item_to_sel = self.get_closest_in_folder(orglist,org_sel_item,org_sel_file,newlist)
+                        item_to_select = self.get_closest_in_folder(orglist,org_sel_item,org_sel_file,newlist)
                     except :
-                        item_to_sel = None
+                        item_to_select = None
 
-                    if item_to_sel:
+                    if item_to_select:
                         try:
                             self.folder_tree.focus_set()
-                            self.folder_tree.focus(item_to_sel)
-                            self.folder_tree_sel_change(item_to_sel)
-                            self.folder_tree_see(item_to_sel)
+                            self.folder_tree.focus(item_to_select)
+                            self.folder_tree_sel_change(item_to_select)
+                            self.folder_tree_see(item_to_select)
                             self.folder_tree.update()
 
                         except :
@@ -6730,7 +6738,7 @@ class Gui:
         return None
 
     @logwrapper
-    def get_closest_in_crc(self,prev_list,item,new_list):
+    def get_closest_in_groups(self,prev_list,item,new_list):
         if item in new_list:
             return item
 
