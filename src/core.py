@@ -508,7 +508,9 @@ class DudeCore:
 
             self.devs=tuple(list({dev for pathnr,path,file_name,mtime,ctime,dev,inode,size in self_scan_results_images}))
 
-            return True
+            sys_exit() #thread
+
+            #return True
             #############################################################################################
         else:
             self_scan_results_by_size.clear()
@@ -611,7 +613,8 @@ class DudeCore:
 
             if self.abort_action:
                 self.reset()
-                return False
+                sys_exit() #thread
+                #return False
 
             self.devs=tuple(list({dev for size,data in self_scan_results_by_size.items() for pathnr,path,file_name,mtime,ctime,dev,inode in data}))
 
@@ -646,7 +649,9 @@ class DudeCore:
 
             self.sum_size = sum_size
             ######################################################################
-            return True
+
+            sys_exit() #thread
+            #return True
 
     def crc_cache_read(self):
         self.info='Reading cache ...'
@@ -1386,6 +1391,8 @@ class DudeCore:
         self.log.info('total time = %s',end-start)
 
         self.calc_crc_min_len()
+
+        sys_exit() #thread
 
     def check_group_files_state(self,size,crc,operation_mode=MODE_CRC):
         self.log.info('check_group_files_state: %s %s',size,crc)
