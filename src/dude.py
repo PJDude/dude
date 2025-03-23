@@ -4649,7 +4649,7 @@ class Gui:
         if self.cfg_get(CFG_LANG)!=self.lang_var.get():
             new_val = self.lang_var.get()
             self.cfg.set(CFG_LANG,new_val)
-            self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) + '\n\n' + STR('Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.',new_val) )
+            self.get_info_dialog_on_settings().show(STR('Language Changed'),STR('Application restart required\nfor changes to take effect',new_val) )
 
             need_restart=True
 

@@ -1973,14 +1973,6 @@ class LANGUAGES:
             'it': 'Spazio totale:',
             'fr': 'Espace total :',
         },
-        'Translations are made using AI\nIf any corrections are necessary,\nplease contact the author.': {
-            'pl': 'Tłumaczenia wykonane są przy użyciu AI.\nJeśli konieczne są jakiekolwiek poprawki, prosimy o kontakt z autorem.',
-            'es': 'Las traducciones se realizan utilizando IA.\nSi se necesitan correcciones,\ncontacte con el autor.',
-            'ru': 'Переводы выполнены с использованием ИИ.\nЕсли необходимы исправления,\nпожалуйста, свяжитесь с автором.',
-            'de': 'Übersetzungen wurden mit KI erstellt.\nWenn Korrekturen erforderlich sind,\nwenden Sie sich bitte an den Autor.',
-            'it': 'Le traduzioni sono effettuate con l\'AI.\nSe sono necessarie correzioni,\ncontattare l\'autore.',
-            'fr': 'Les traductions sont effectuées à l\'aide de l\'IA.\nSi des corrections sont nécessaires,\nveuillez contacter l\'auteur.',
-        },
         'Unmark All Duplicates in Subdirectory': {
             'pl': 'Odznacz wszystkie duplikaty w podkatalogu',
             'es': 'Desmarcar todos los duplicados en el subdirectorio',
