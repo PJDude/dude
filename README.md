@@ -14,13 +14,13 @@ A cross-platform GUI utility for finding duplicated files, delete or link them t
 - Support for **regular expressions** or **glob** expressions syntax
 - Searching for duplicates based on the **hash** of the file content. Different filenames or extensions do not affect the search results
 - Works on **Linux** and **Windows**
- 
+
 
 ### 💥 Major news in 2.x version:
 - **Images similarity mode**, with caching, sensitivity parameters and rotated images detection
 - **preview window** for images and text files
 - **"Same directory"** display mode
- 
+
 ## Why another anti-duplicate application ?
 - Because you need to see the context of removed files, and use such application clearly,safely and easily.
 
@@ -30,6 +30,8 @@ A cross-platform GUI utility for finding duplicated files, delete or link them t
 ![image info](./info/dude.gif)
 #### immediate scanning start with CLI parameters example:
 ![image info](./info/cmd.gif)
+#### scan  dialog:
+![image info](./info/scan.png)
 #### settings  dialog:
 ![image info](./info/settings.png)
 
@@ -80,7 +82,7 @@ dude --help
 ## Portability
 **Dude** writes log files, configuration and cache files in runtime. Default location for these files is **dude.data** folder, created next to the **dude executable** file. If there are no write access rights to such folder, platform-specific folders are used for cache, settings and logs (provided by **appdirs** module). You can use --appdirs command line switch to force that behavior even when **dude.data** is accessible.
 
-## Dude is BIG 💥 
+## Dude is BIG 💥
 Well, unfortunately, the 2.x version has much larger distribution package than v1. This is mainly because necessity of importing [NumPy](https://numpy.org/) and [SciPy](https://scipy.org/) packages for image hashing and clustering. I apologize for the inconvenience.
 
 ## Technical information
