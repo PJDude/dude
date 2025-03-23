@@ -52,12 +52,10 @@ from zstandard import ZstdCompressor,ZstdDecompressor
 #from subprocess import run as subprocess_run
 #from send2trash import send2trash
 
-#from numpy import array as numpy_array
 #from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
 #from imagehash import average_hash,phash,dhash
 
 #from sklearn.cluster import DBSCAN
-#from numpy import array as numpy_array, radians
 
 DELETE=0
 SOFTLINK=1
@@ -310,8 +308,6 @@ class DudeCore:
 
     gps_keys = ('GPS GPSLatitudeRef', 'GPS GPSLatitude', 'GPS GPSLongitudeRef', 'GPS GPSLongitude')
     def get_gps_data(self,exif_data):
-        from numpy import array as numpy_array
-
         def convert_to_degrees(value):
             d = float(value[0].num) / float(value[0].den)
             #print(value[0],value[0].num,value[0].den)
@@ -339,7 +335,6 @@ class DudeCore:
             if gps_data['LongitudeRef'] != 'E':
                 lon = -lon
 
-            #return numpy_array([lat, lon])
             return (lat, lon)
 
         return None
@@ -616,7 +611,7 @@ class DudeCore:
                 sys_exit() #thread
                 #return False
 
-            self.devs=tuple(list({dev for size,data in self_scan_results_by_size.items() for pathnr,path,file_name,mtime,ctime,dev,inode in data}))
+            self.devs=list({dev for size,data in self_scan_results_by_size.items() for pathnr,path,file_name,mtime,ctime,dev,inode in data})
 
             ######################################################################
             #inodes collision detection
@@ -699,16 +694,17 @@ class DudeCore:
     def images_data_cache_read(self):
         self.info='image hashes cache read'
 
-        self.images_data_cache = defaultdict(dict)
-
         self.log.info('reading image hashes cache')
+
         try:
             with open(sep.join([self.cache_dir,'imagescache.dat']), "rb") as dat_file:
                 self.images_data_cache = loads(ZstdDecompressor().decompress(dat_file.read()))
         except Exception as e1:
             self.log.warning(e1)
+            self.images_data_cache = defaultdict(dict)
         else:
             self.log.info(f'image hashes cache loaded.')
+
         self.info=''
 
     def images_data_cache_write(self):
@@ -724,6 +720,7 @@ class DudeCore:
         except Exception as e:
             self.log.error(f'writing images hashes cache error: {e}.')
 
+        #!!!
         del self.images_data_cache
 
         self.info=''
@@ -731,30 +728,20 @@ class DudeCore:
     ##################################################################################################################
     def images_processing_in_thread(self,i,hash_size,all_rotations,source_dict,result_dict,image_min_size_pixels,image_max_size_pixels,gps_mode):
         #print('images_processing_in_thread',i,hash_size,all_rotations,image_min_size_pixels,image_max_size_pixels,gps_mode)
-        #result_dict_dimensions,result_dict_gps
 
         from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
-        from imagehash import average_hash,phash,dhash
-        from exifread import process_file as exifread_process_file
+
+        if gps_mode:
+            from exifread import process_file as exifread_process_file
+        else:
+            from imagehash import average_hash,phash,dhash
 
         use_min_size_pixels = bool(image_min_size_pixels!=0)
         use_max_size_pixels = bool(image_max_size_pixels!=0)
         use_size_pixels = use_min_size_pixels or use_max_size_pixels
 
         def my_hash_combo(file,hash_size):
-            seq_hash = []
-            seq_hash_extend = seq_hash.extend
-
-            for hash_row in average_hash(file,hash_size).hash:
-                seq_hash_extend(hash_row)
-
-                for hash_row in phash(file,hash_size).hash:
-                    seq_hash_extend(hash_row)
-
-                for hash_row in dhash(file,hash_size).hash:
-                    seq_hash_extend(hash_row)
-
-            return tuple(seq_hash)
+            return tuple([row_elem for hashkind in [average_hash(file,hash_size).hash,phash(file,hash_size).hash,dhash(file,hash_size).hash] for hashrow in hashkind for row_elem in hashrow])
 
         self_get_gps_data = self.get_gps_data
 
@@ -762,20 +749,15 @@ class DudeCore:
             if self.abort_action:
                 break
 
-            #width height gps hashes
+            #width,height,gps,hashes
             curr_res = result_dict[index_tuple]=[0,0,None,None]
 
             try:
-                #file = None
                 file = image_open(fullpath)
 
                 if use_size_pixels:
-
-                    width = file.width
-                    height = file.height
-
-                    curr_res[0]=width
-                    curr_res[1]=height
+                    curr_res[0] = width = file.width
+                    curr_res[1] = height = file.height
 
                     if use_min_size_pixels:
                         if min(width,height)<image_min_size_pixels:
@@ -794,9 +776,6 @@ class DudeCore:
 
                     continue
 
-                if not file:
-                    file = image_open(fullpath)
-
                 if file.mode != 'RGBA':
                     file = file.convert("RGBA")
 
@@ -813,6 +792,7 @@ class DudeCore:
 
                 except Exception as e:
                     self.log.error(f'hashing file: {fullpath} error: {e}.')
+                    print(e)
                     continue
             else:
                 try:
@@ -820,6 +800,7 @@ class DudeCore:
 
                 except Exception as e:
                     self.log.error(f'hashing file: {fullpath} error: {e}.')
+                    print(e)
                     continue
 
         sys_exit() #thread
@@ -829,7 +810,6 @@ class DudeCore:
     def images_processing(self,operation_mode,hash_size,all_rotations,image_min_size_pixels=0,image_max_size_pixels=0):
         #print('images_processing',operation_mode,hash_size,all_rotations,image_min_size_pixels,image_max_size_pixels)
         #musi tu byc - inaczej pyinstaller & nuitka nie dzialaja
-        from numpy import array as numpy_array
 
         use_min_size_pixels = bool(image_min_size_pixels!=0)
         use_max_size_pixels = bool(image_max_size_pixels!=0)
@@ -878,11 +858,16 @@ class DudeCore:
 
         self_get_full_path_to_scan = self.get_full_path_to_scan
 
-        for pathnr,path,file_name,mtime,ctime,dev,inode,size in sorted(self.scan_results_images, key = lambda x : x[6], reverse=True):
+        self_images_data_cache = self.images_data_cache
+        self_images_data_cache_dimensions=self_images_data_cache['dimensions']
+        self_images_data_cache_gps=self_images_data_cache['gps']
+        self_images_data_cache_hashes=self_images_data_cache['hashes']
+
+        for pathnr,path,file_name,mtime,ctime,dev,inode,size in sorted(self.scan_results_images, key = lambda x : x[7], reverse=True):
             if use_size_pixels:
                 dict_key_dimensions = (dev,inode,mtime)
-                if dict_key_dimensions in self.images_data_cache['dimensions']:
-                    if val := self.images_data_cache['dimensions'][dict_key_dimensions]:
+                if dict_key_dimensions in self_images_data_cache_dimensions:
+                    if val := self_images_data_cache_dimensions[dict_key_dimensions]:
                         width,height = val
                         if use_min_size_pixels:
                             if min(width,height)<image_min_size_pixels:
@@ -893,11 +878,9 @@ class DudeCore:
 
             if gps_mode:
                 dict_key_proximity = (dev,inode,mtime)
-                if dict_key_proximity in self.images_data_cache['gps']:
-                    if val := self.images_data_cache['gps'][dict_key_proximity]:
-                        #self_scan_results_image_to_gps[(dev,inode,mtime)] = val
+                if dict_key_proximity in self_images_data_cache_gps:
+                    if val := self_images_data_cache_gps[dict_key_proximity]:
                         self_scan_results_image_to_gps[(dev,inode)] = val
-                        #print('setting_1:',dev,inode,mtime,val)
 
                     images_quantity_cache_read+=1
                     size_from_cache += size
@@ -912,12 +895,15 @@ class DudeCore:
 
             elif similarity_mode:
                 all_rotations_from_cache = True
+                self_scan_results_images_hashes = self.scan_results_images_hashes
+
                 for rotation in rotations_list:
                     dict_key = (dev,inode,mtime,hash_size,rotation)
 
-                    if dict_key in self.images_data_cache['hashes']:
-                        if val := self.images_data_cache['hashes'][dict_key]:
-                            self.scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)] = val
+                    if dict_key in self_images_data_cache_hashes:
+                        #pass
+                        if val := self_images_data_cache_hashes[dict_key]:
+                            self_scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)] = val
                     else:
                         all_rotations_from_cache = False
                         break
@@ -949,49 +935,42 @@ class DudeCore:
         sto_by_self_info_total = 100.0/self.info_total if self.info_total else 0.0
         sto_by_self_sum_size = 100.0/self.sum_size if self.sum_size else 0.0
 
-        while True:
-            all_dead=True
-            for i in range(max_threads):
-                if images_processing_threads[i].is_alive():
-                    all_dead=False
-                    break
+        while any((images_processing_threads[i].is_alive() for i in range(max_threads) )):
+            self.info_size_done = size_from_cache + sum([size for pathnr,path,file_name,mtime,ctime,dev,inode,size in images_processing_threads_results[i] for i in range(max_threads)])
+            self.info_files_done = images_quantity_cache_read + sum([len(images_processing_threads_results[i]) for i in range(max_threads)])
 
-            if all_dead:
-                break
-            else:
-                self.info_size_done = size_from_cache + sum([size for pathnr,path,file_name,mtime,ctime,dev,inode,size in images_processing_threads_results[i] for i in range(max_threads)])
-                self.info_files_done = images_quantity_cache_read + sum([len(images_processing_threads_results[i]) for i in range(max_threads)])
-
-                self.info_size_done_perc = sto_by_self_sum_size*self.info_size_done
-                self.info_files_done_perc = sto_by_self_info_total*self.info_files_done
-                sleep(0.05)
+            self.info_size_done_perc = sto_by_self_sum_size*self.info_size_done
+            self.info_files_done_perc = sto_by_self_info_total*self.info_files_done
+            sleep(0.05)
 
         self.info = self.info_line = 'Joining threads ...'
 
         for i in range(max_threads):
             images_processing_threads[i].join()
 
+        del images_processing_threads
+
         self.info = self.info_line = 'Data merging ...'
+
+        self_images_data_cache = self.images_data_cache
 
         for i in range(max_threads):
             for (pathnr,path,file_name,mtime,ctime,dev,inode,size),(width,height,gps,ihash_rotations) in images_processing_threads_results[i].items():
                 if ihash_rotations:
                     for rotation,ihash in enumerate(ihash_rotations):
                         if (rotation in rotations_list) and ihash:
-                            self.scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)]=numpy_array(ihash)
-                            self.images_data_cache['hashes'][(dev,inode,mtime,hash_size,rotation)]=ihash
+                            self_scan_results_images_hashes[(pathnr,path,file_name,ctime,dev,inode,size,rotation)]=ihash
+                            self_images_data_cache_hashes[(dev,inode,mtime,hash_size,rotation)]=ihash
                             anything_new=True
                 if gps_mode: # and gps brak danych gps tez mozna cacheowac
-                    self.images_data_cache['gps'][(dev,inode,mtime)]=gps
+                    self_images_data_cache_gps[(dev,inode,mtime)]=gps
                     if gps:
                         #..ale nie ustawiać
-                        #self_scan_results_image_to_gps[(dev,inode,mtime)] = gps
                         self_scan_results_image_to_gps[(dev,inode)] = gps
-                        #print('setting_2:',dev,inode,mtime,gps)
                     anything_new=True
 
                 if width and height:
-                    self.images_data_cache['dimensions'][(dev,inode,mtime)]=(width,height)
+                    self_images_data_cache_dimensions[(dev,inode,mtime)]=(width,height)
                     anything_new=True
 
         if anything_new:
@@ -1000,18 +979,16 @@ class DudeCore:
 
         sys_exit() #thread
     ##################################################################################################################
-
     def similarity_clustering(self,hash_size,distance,all_rotations):
         from sklearn.cluster import DBSCAN
 
-        pool = []
-        keys = []
-
         self.info_line = self.info = 'Preparing data pool ...'
 
-        for key,imagehash in sorted(self.scan_results_images_hashes.items(), key=lambda x :x[0][6],reverse = True) :
-            pool.append(imagehash)
-            keys.append( key )
+        self_scan_results_images_hashes = self.scan_results_images_hashes
+
+        keys = list(sorted(self_scan_results_images_hashes, key=lambda x :x[6],reverse = True))
+        pool = [self_scan_results_images_hashes[key] for key in keys]
+        del self_scan_results_images_hashes
 
         self_files_of_images_groups = self.files_of_images_groups = {}
 
@@ -1022,7 +999,9 @@ class DudeCore:
 
             t0=perf_counter()
             self.log.info(f'start DBSCAN')
+
             labels = DBSCAN(eps=de_norm_distance, min_samples=2,n_jobs=-1,metric='manhattan',algorithm='kd_tree').fit(pool).labels_
+            del pool
 
             t1=perf_counter()
             self.log.info(f'DBSCAN end. Time:{t1-t0}')
@@ -1032,16 +1011,14 @@ class DudeCore:
 
             self.info_line = self.info = 'Separating groups ...'
 
-            groups_sorted_by_quantity_dict = defaultdict(int)
-
             for label,key in zip(labels,keys):
                 if label!=-1:
                     groups_dict[label].add(key)
-                    groups_sorted_by_quantity_dict[label]+=1
+
+            del labels
+            del keys
 
             ##############################################
-            groups_sorted_by_quantity = [ label for label,number in sorted(groups_sorted_by_quantity_dict.items(),key=lambda x : x[1], reverse=True) ]
-
             #kazdy plik tylko raz
             self.info_line = self.info = 'Pruning "multiple rotations" data ...'
 
@@ -1049,7 +1026,7 @@ class DudeCore:
             files_already_in_group_add = files_already_in_group.add
 
             pruned_groups_dict = defaultdict(set)
-            for label in groups_sorted_by_quantity:
+            for label in [ label for label,number in sorted(groups_dict.items(),key=lambda x : len(x[1]), reverse=True) ]:
                 #print(f'{label=}',type(label))
                 for key in groups_dict[label]:
                     #print(f'    {key=}')
@@ -1063,6 +1040,8 @@ class DudeCore:
                         pruned_groups_dict[label].add(key_without_rotation)
                     #else:
                         #print('pruning file',path,file_name,rotation)
+
+            del groups_dict
 
             ##############################################
 
@@ -1078,25 +1057,19 @@ class DudeCore:
 
     def gps_clustering(self,distance):
         from sklearn.cluster import DBSCAN
-        from numpy import array as numpy_array, radians
+        from math import radians
 
         self.scanned_paths=self.paths_to_scan.copy()
-
-        pool = []
-        keys = []
 
         self.info_line = self.info = 'Preparing data pool ...'
         #pathnr,path,file_name,ctime,dev,inode,size,
 
         self_scan_results_image_to_gps = self.scan_results_image_to_gps
-        #print(f'{self_scan_results_image_to_gps=}')
 
-        for (path_nr,subpath,name,mtime,ctime,dev,ino,size) in sorted(self.scan_results_images, key=lambda x :[6],reverse = True) :
-            #dict_key = (dev,ino,mtime)
-            dict_key = (dev,ino)
-            if dict_key in self_scan_results_image_to_gps:
-                pool.append( radians(numpy_array(self_scan_results_image_to_gps[dict_key] ) ) )
-                keys.append( (path_nr,subpath,name,ctime,dev,ino,size) )
+        keys=[(path_nr,subpath,name,ctime,dev,ino,size) for (path_nr,subpath,name,mtime,ctime,dev,ino,size) in sorted(self.scan_results_images, key=lambda x :[7],reverse = True) if (dev,ino) in self_scan_results_image_to_gps]
+        pool = [(radians(lo), radians(la)) for (_, _, _, _, dev, ino, _) in keys for lo, la in [self_scan_results_image_to_gps[(dev, ino)]]]
+
+        del self.scan_results_image_to_gps
 
         self_files_of_images_groups = self.files_of_images_groups = {}
 
@@ -1117,15 +1090,11 @@ class DudeCore:
 
             self.info_line = self.info = 'Separating groups ...'
 
-            groups_sorted_by_quantity_dict = defaultdict(int)
-
             for label,key in zip(labels,keys):
                 if label!=-1:
                     groups_dict[label].add(key)
-                    groups_sorted_by_quantity_dict[label]+=1
 
             ##############################################
-            groups_sorted_by_quantity = [ label for label,number in sorted(groups_sorted_by_quantity_dict.items(),key=lambda x : x[1], reverse=True) ]
 
             groups_digits=len(str(len(groups_dict)))
 
