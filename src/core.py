@@ -47,6 +47,9 @@ from sys import exit as sys_exit
 from pickle import dumps,loads
 from zstandard import ZstdCompressor,ZstdDecompressor
 
+from pillow_heif import register_heif_opener
+register_heif_opener()
+
 #lazyfied
 #from hashlib import sha1
 #from subprocess import run as subprocess_run
@@ -62,7 +65,7 @@ SOFTLINK=1
 HARDLINK=2
 WIN_LNK=3
 
-IMAGES_EXTENSIONS = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.gif','.tga','.tiff','.tif','.webp','.xbm','.ico')
+IMAGES_EXTENSIONS = ('.jpeg','.jpg','.jp2','.jpx','.j2k','.png','.bmp','.dds','.dib','.gif','.tga','.tiff','.tif','.webp','.xbm','.ico','.heic','.heif')
 
 def localtime_catched(t):
     try:
