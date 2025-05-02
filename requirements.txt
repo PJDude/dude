@@ -8,4 +8,5 @@ scipy==1.15.2
 exifread==3.0.0
 imagehash==4.3.2
 pillow==11.1.0
+pillow-heif==0.22.0
 scikit-learn==1.6.1
