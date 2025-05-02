@@ -41,7 +41,7 @@
 @echo|set /p="pillow      " >> distro.info.txt
 @python -c "import PIL; print(PIL.__version__)" >> distro.info.txt
 
-@echo|set /p="pi_heif " >> distro.info.txt
+@echo|set /p="pi_heif     " >> distro.info.txt
 @python -c "import pi_heif; print(pi_heif.__version__)" >> distro.info.txt
 
 @echo.

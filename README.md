@@ -130,6 +130,5 @@ python ./src/dude.py
 This project uses:
 **pi-heif** ([GitHub](https://github.com/bigcat88/pillow_heif)) - Licensed under the GNU LGPLv3.
 
-<br>
 ## Check out my [homepage](https://github.com/PJDude) for other projects.
 
