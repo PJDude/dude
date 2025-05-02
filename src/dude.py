@@ -292,7 +292,6 @@ class Image_Cache:
         self.txt_label_heigh = 0
 
         self.current_ratio = 1.0
-        self.read_ahead_enabled = True
         self.threads_keep_looping = True
 
         self.read_ahead_threads = {}
@@ -317,17 +316,14 @@ class Image_Cache:
 
     def read_ahead_threaded_loop(self,thread_id):
         this_thread_pool = self.read_ahead_pools[thread_id]
+        this_thread_pool_keys=this_thread_pool.keys
 
         self_BILINEAR = self.BILINEAR
         self_image_open = self.image_open
         self_cache_scaled_file = self.cache_scaled_file
 
         while self.threads_keep_looping:
-            if not self.read_ahead_enabled:
-                sleep(0.1)
-                continue
-
-            timestamp_keys=this_thread_pool.keys()
+            timestamp_keys=this_thread_pool_keys()
 
             if not timestamp_keys:
                 sleep(0.1)
@@ -3271,11 +3267,11 @@ class Gui:
         if self.preview_photo_image_cache:
             self.preview_photo_image_cache.read_ahead_pools_insert(path)
 
-            while True:
-                if path in self.preview_photo_image_cache.cache_scaled_file:
-                    break
+            self_preview_photo_image_cache_cache_scaled_file = self.preview_photo_image_cache.cache_scaled_file
+            self_preview_after=self.preview.after
 
-                self.preview.after(10)
+            while path not in self_preview_photo_image_cache_cache_scaled_file:
+                self_preview_after(10)
 
     def update_preview(self):
         if self.preview_shown:
@@ -3383,7 +3379,6 @@ class Gui:
 
             self.preview_photo_image_cache.end()
 
-            #del self.preview_photo_image_cache
             self.preview_photo_image_cache = None
 
         self.preview_label_txt_configure(text='')
@@ -3446,20 +3441,19 @@ class Gui:
 
     @catched
     def preview_preload_groups_tree(self,item):
+        #print('preview_preload_groups_tree')
+
         if self.preview_auto_update_bool:
             if self.preview_photo_image_cache:
                 self_my_next_dict_groups_tree = self.my_next_dict[self.groups_tree]
                 self_my_prev_dict_groups_tree = self.my_prev_dict[self.groups_tree]
 
                 self_read_ahead_by_image_cache = self.read_ahead_by_image_cache
-                #self.preview_photo_image_cache.reset_read_ahead()
 
                 path_full = self_read_ahead_by_image_cache(item)
 
                 if path_full:
                     self.read_image_now(path_full)
-
-                    #self.update_preview()
 
                 prev_item = next_item = item
                 for i in range(self.preview_photo_image_cache.pre_and_next_range):
@@ -3524,14 +3518,11 @@ class Gui:
                 self_my_prev_dict_folder_tree = self.my_prev_dict[self.folder_tree]
 
                 self_read_ahead_by_image_cache = self.read_ahead_by_image_cache
-                #self.preview_photo_image_cache.reset_read_ahead()
 
                 path_full = self_read_ahead_by_image_cache(item,False)
 
                 if path_full:
                     self.read_image_now(path_full)
-
-                    #self.update_preview()
 
                 prev_item = next_item = item
                 for i in range(self.preview_photo_image_cache.pre_and_next_range):
