@@ -47,7 +47,7 @@ from sys import exit as sys_exit
 from pickle import dumps,loads
 from zstandard import ZstdCompressor,ZstdDecompressor
 
-from pillow_heif import register_heif_opener
+from pi_heif import register_heif_opener
 register_heif_opener()
 
 #lazyfied

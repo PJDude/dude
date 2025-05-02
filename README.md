@@ -91,7 +91,7 @@ Well, unfortunately, the 2.x version has much larger distribution package than v
 - Calculated CRC is stored in **internal cache** which allows re-use it in future operation and speedup of searching of duplicates (e.g. with different set of search paths). Key of cache database is pair of inode of file and file modification time stored separately for every device-id, so any file modification or displacement will result in invalidation of obsolete data and recalculation of CRC.
 - Scanning or marking files does not cause any filesystem change. Any file deletion or linking needs confirmation and is logged.
 - Just before files processing, state of files (ctime) is compared with stored data. In case of inconsistency (state of files was changed somehow during operation between scanning/CRC calculation and files processing) action is aborted and data invalidated.
-- **Dude** is written in **python3** with **Tkinter** and packed with [PyInstaller](https://pyinstaller.org/en/stable) to portable distribution. GitHub release build for linux platform is done in **ubuntu-20.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**pyinstaller.run.sh**) or run python script (**dude.py**)
+- **Dude** is written in **python3** with **Tkinter** and packed with [PyInstaller](https://pyinstaller.org/en/stable) to portable distribution. GitHub release build for linux platform is done in **ubuntu-22.04** container. In case of **glibc** incompatibility it is always possible to build Your own binary (**pyinstaller.run.sh**) or run python script (**dude.py**)
 - **Dude** for **windows** is build as two binary executables: **dude.exe** and **dudecmd.exe**. They should be saved in the same path. **dudecmd.exe** is basically only to respond to the console to --help parameter or for passing command line parameters (if correct) to **dude.exe**. **dude.exe** will also accept parameters but will not respond to the console. **dudecmd.exe** will leave windows command line window open for time of operation.
 
 - ***Soft links*** to **directories** are skipped during the scanning process. ***Soft links*** to **files** are ignored during scanning. Both appear in the bottom "folders" pane.
@@ -125,4 +125,11 @@ python ./src/dude.py
 ## Licensing
 - **dude** is licensed under **[MIT license](./LICENSE)**
 
-### Check out my [homepage](https://github.com/PJDude) for other projects.
+## Third-Party Licenses
+
+This project uses:
+**pi-heif** ([GitHub](https://github.com/bigcat88/pillow_heif)) - Licensed under the GNU LGPLv3.
+
+<br>
+## Check out my [homepage](https://github.com/PJDude) for other projects.
+

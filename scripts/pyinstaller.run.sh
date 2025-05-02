@@ -27,6 +27,7 @@ echo "zstandard   " `python3 -c "import zstandard; print(zstandard.__version__)"
 echo "exifread    " `python3 -c "import exifread; print(exifread.__version__)"` >> distro.info.txt
 echo "imagehash   " `python3 -c "import imagehash; print(imagehash.__version__)"` >> distro.info.txt
 echo "pillow      " `python3 -c "import PIL; print(PIL.__version__)"` >> distro.info.txt
+echo "pi_heif     " `python3 -c "import pi_heif; print(pi_heif.__version__)"` >> distro.info.txt
 
 echo ''
 echo running-pyinstaller-stage_dude

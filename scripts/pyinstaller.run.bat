@@ -41,6 +41,9 @@
 @echo|set /p="pillow      " >> distro.info.txt
 @python -c "import PIL; print(PIL.__version__)" >> distro.info.txt
 
+@echo|set /p="pi_heif " >> distro.info.txt
+@python -c "import pi_heif; print(pi_heif.__version__)" >> distro.info.txt
+
 @echo.
 @echo running-pyinstaller-stage_dude
 pyinstaller --version-file=version.pi.dude.txt --noconfirm --clean --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." --icon=icon.ico --distpath=%OUTDIR% --windowed --contents-directory=internal --name dude --additional-hooks-dir=. --collect-binaries tkinterdnd2 --collect-binaries numpy --collect-binaries scipy --collect-data scipy --hidden-import="PIL._tkinter_finder" --optimize 2 dude.py || exit /b 2
