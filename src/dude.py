@@ -3611,13 +3611,26 @@ class Gui:
 
         if tree==self.groups_tree:
             self_tagged = self.tagged
+            anything_tagged = bool(self_tagged)
+            self_tree_children_sub = self.tree_children_sub\
 
-            any_mark_in_curr_crc = any( {True for item in self.tree_children_sub[self.sel_crc] if item in self_tagged} ) if self.sel_crc else False
+            any_not_marked_crc = bool(self.sel_crc) and any( {True for item in self_tree_children_sub[self.sel_crc] if item not in self_tagged} )
+            any_marked_crc = bool(self.sel_crc) and any( {True for item in self_tree_children_sub[self.sel_crc] if item in self_tagged} )
+            any_not_marked = any( {True for crc in self.tree_children[self.groups_tree] for item in self_tree_children_sub[crc] if item not in self_tagged} )
+
+            any_mark_in_curr_crc = bool(self.sel_crc) and any( {True for item in self.tree_children_sub[self.sel_crc] if item in self_tagged} )
             any_mark_in_curr_crc_state = ('disabled','normal')[any_mark_in_curr_crc]
             any_mark_in_curr_crc_state_and_crc = ('disabled','normal')[any_mark_in_curr_crc and not self.operation_mode]
 
-            any_not_mark_in_curr_crc = any( {True for item in self.tree_children_sub[self.sel_crc] if item not in self_tagged} ) if self.sel_crc else False
+            any_not_mark_in_curr_crc = bool(self.sel_crc) and any( {True for item in self.tree_children_sub[self.sel_crc] if item not in self_tagged} )
             any_not_mark_in_curr_crc_state = ('disabled','normal')[any_not_mark_in_curr_crc]
+
+
+            non_crc_mode_state_mark=('disabled','normal')[any_not_marked_crc and self.operation_mode in (MODE_SIMILARITY,MODE_GPS)]
+            non_crc_mode_state_unmark=('disabled','normal')[any_marked_crc and self.operation_mode in (MODE_SIMILARITY,MODE_GPS)]
+
+            non_crc_mode_state_mark_all=('disabled','normal')[any_not_marked and self.operation_mode in (MODE_SIMILARITY,MODE_GPS)]
+            non_crc_mode_state_unmark_all=('disabled','normal')[anything_tagged and self.operation_mode in (MODE_SIMILARITY,MODE_GPS)]
 
             c_local = Menu(pop,tearoff=0,bg=self.bg_color)
             c_local_add_command = c_local.add_command
@@ -3656,8 +3669,15 @@ class Gui:
             c_local_add_cascade(label = STR("Unmark on scan path"),             menu = unmark_cascade_path, image = self.ico_empty,compound='left')
             c_local_add_separator()
 
+            c_local_add_command(label = STR("Mark biggest files"),             command = lambda : self.mark_in_group_by_size(self.set_mark,True), image = self.ico_empty,compound='left',state = non_crc_mode_state_mark)
+            c_local_add_command(label = STR("Unmark biggest files"),             command = lambda : self.mark_in_group_by_size(self.unset_mark,True), image = self.ico_empty,compound='left',state =  non_crc_mode_state_unmark)
+            c_local_add_separator()
 
-            anything_tagged = bool(self_tagged)
+            c_local_add_command(label = STR("Mark smallest files"),             command = lambda : self.mark_in_group_by_size(self.set_mark,False), image = self.ico_empty,compound='left',state = non_crc_mode_state_mark)
+            c_local_add_command(label = STR("Unmark smallest files"),             command = lambda : self.mark_in_group_by_size(self.unset_mark,False), image = self.ico_empty,compound='left',state =  non_crc_mode_state_unmark_all)
+            c_local_add_separator()
+
+
             nothing_tagged = not anything_tagged
 
             anything_tagged_state=('disabled','normal')[anything_tagged]
@@ -3669,9 +3689,9 @@ class Gui:
 
             anything_not_tagged = any( {} )
 
-            self_tree_children_sub = self.tree_children_sub
 
-            any_not_marked = any( {True for crc in self.tree_children[self.groups_tree] for item in self_tree_children_sub[crc] if item not in self_tagged} )
+
+
             any_not_marked_state = ('disabled','normal')[any_not_marked]
 
             #nothing_tagged_state_local = ('disabled','normal')[no_mark_in_curr_crc]
@@ -3680,13 +3700,13 @@ class Gui:
             anything_tagged_state_win_local_and_crc=('disabled','normal')[any_mark_in_curr_crc_state and windows and not self.operation_mode] if self.sel_crc else 'disabled'
 
             c_local_add_command(label = STR('Remove Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=any_mark_in_curr_crc_state, image = self.ico_empty,compound='left')
-            c_local_entryconfig(19,foreground='red',activeforeground='red')
+            c_local_entryconfig(25,foreground='red',activeforeground='red')
             c_local_add_command(label = STR('Softlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
-            c_local_entryconfig(20,foreground='red',activeforeground='red')
+            c_local_entryconfig(26,foreground='red',activeforeground='red')
             c_local_add_command(label = STR('Create *.lnk for Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_local_and_crc, image = self.ico_empty,compound='left')
-            c_local_entryconfig(21,foreground='red',activeforeground='red')
+            c_local_entryconfig(27,foreground='red',activeforeground='red')
             c_local_add_command(label = STR('Hardlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
-            c_local_entryconfig(22,foreground='red',activeforeground='red')
+            c_local_entryconfig(28,foreground='red',activeforeground='red')
 
             pop_add_cascade(label = STR('Local (this group)'),menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
             pop_add_separator()
@@ -3725,14 +3745,22 @@ class Gui:
             c_all.add_cascade(label = STR("Unmark on scan path"),             menu = unmark_cascade_path, image = self.ico_empty,compound='left',state = anything_tagged_state)
             c_all.add_separator()
 
+            c_all.add_command(label = STR("Mark biggest files"),             command = lambda : self.mark_all_by_size(self.set_mark,True), image = self.ico_empty,compound='left',state = non_crc_mode_state_mark_all)
+            c_all.add_command(label = STR("Unmark biggest files"),             command = lambda : self.mark_all_by_size(self.unset_mark,True), image = self.ico_empty,compound='left',state =  non_crc_mode_state_unmark_all)
+            c_all.add_separator()
+
+            c_all.add_command(label = STR("Mark smallest files"),             command = lambda : self.mark_all_by_size(self.set_mark,False), image = self.ico_empty,compound='left',state = non_crc_mode_state_mark_all)
+            c_all.add_command(label = STR("Unmark smallest files"),             command = lambda : self.mark_all_by_size(self.unset_mark,False), image = self.ico_empty,compound='left',state =  non_crc_mode_state_unmark_all)
+            c_all.add_separator()
+
             c_all.add_command(label = STR('Remove Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(DELETE,1),accelerator="Ctrl+Delete",state=anything_tagged_state, image = self.ico_empty,compound='left')
-            c_all.entryconfig(21,foreground='red',activeforeground='red')
+            c_all.entryconfig(27,foreground='red',activeforeground='red')
             c_all.add_command(label = STR('Softlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,1),accelerator="Ctrl+Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
-            c_all.entryconfig(22,foreground='red',activeforeground='red')
+            c_all.entryconfig(28,foreground='red',activeforeground='red')
             c_all.add_command(label = STR('Create *.lnk for Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,1),accelerator="Ctrl+Alt+Shift+Insert",state=anything_tagged_state_win_and_crc, image = self.ico_empty,compound='left')
-            c_all.entryconfig(23,foreground='red',activeforeground='red')
+            c_all.entryconfig(29,foreground='red',activeforeground='red')
             c_all.add_command(label = STR('Hardlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(HARDLINK,1),accelerator="Ctrl+Shift+Insert",state=anything_tagged_state_and_crc, image = self.ico_empty,compound='left')
-            c_all.entryconfig(24,foreground='red',activeforeground='red')
+            c_all.entryconfig(30,foreground='red',activeforeground='red')
 
             pop_add_cascade(label = STR('All Files'),menu = c_all,state=item_actions_state, image = self.ico_empty,compound='left')
 
@@ -5359,6 +5387,20 @@ class Gui:
                 self.groups_tree_sel_change(item)
                 self.tree_see_wrapper(self_groups_tree,item)
 
+    def mark_in_specified_group_by_size(self, action, crc, reverse,select=False):
+        self_groups_tree = self.groups_tree
+        self_tree_children_sub = self.tree_children_sub
+        self_groups_tree_item_to_data = self.groups_tree_item_to_data
+
+        #kind,size,crc, (pathnr,path,file,ctime,dev,inode) = self_groups_tree_item_to_data[item]
+        item=sorted([ (item,self_groups_tree_item_to_data[item][1] ) for item in self_tree_children_sub[crc]],key=lambda x : int(x[1]),reverse=reverse)[0][0]
+        if item:
+            action(item,self_groups_tree)
+            if select:
+                self_groups_tree.focus(item)
+                self.groups_tree_sel_change(item)
+                self.tree_see_wrapper(self_groups_tree,item)
+
     @block
     def mark_all_by_ctime(self,order_str, action):
         self.status('Un/Setting marking on all files ...')
@@ -5372,10 +5414,31 @@ class Gui:
         self.calc_mark_stats_folder()
 
     @block
+    def mark_all_by_size(self, action, reverse):
+        self.status('Un/Setting marking on all files ...')
+
+        self_mark_in_specified_group_by_size = self.mark_in_specified_group_by_size
+        _ = { self_mark_in_specified_group_by_size(action, crc, reverse) for crc in self.tree_children[self.groups_tree] }
+
+        self.update_marks_folder()
+        self.calc_mark_stats_groups()
+        self.calc_mark_stats_folder()
+
+    @block
     def mark_in_group_by_ctime(self,order_str,action):
         self.status('Un/Setting marking in group ...')
         reverse=0 if order_str=='oldest' else 1
         self.mark_in_specified_group_by_ctime(action,self.sel_crc,reverse,True)
+        self.update_marks_folder()
+        self.calc_mark_stats_groups()
+        self.calc_mark_stats_folder()
+
+    @block
+    def mark_in_group_by_size(self,action,reverse):
+        self.status('Un/Setting marking in group ...')
+
+        self.mark_in_specified_group_by_size(action,self.sel_crc,reverse,True)
+
         self.update_marks_folder()
         self.calc_mark_stats_groups()
         self.calc_mark_stats_folder()
