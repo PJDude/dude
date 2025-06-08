@@ -10,3 +10,4 @@ imagehash==4.3.2
 pillow==11.2.1
 pi-heif==0.22.0
 scikit-learn==1.6.1
+pytest==8.4.0
