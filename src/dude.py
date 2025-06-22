@@ -3137,7 +3137,7 @@ class Gui:
                         self.get_about_dialog().show()
                     elif key=='F2':
                         self.get_settings_dialog().show()
-                    elif key=='F4':
+                    elif key=='F12':
                         if tree==self.groups_tree:
                             self.hide_group()
 
@@ -3725,7 +3725,7 @@ class Gui:
             c_local_add_command(label = STR("Unmark smallest files"),             command = lambda : self.mark_in_group_by_size(self.unset_mark,False), image = self.ico_empty,compound='left',state =  non_crc_mode_state_unmark_all)
             c_local_add_separator()
 
-            c_local_add_command(label = STR("Hide group"),             command = self.hide_group, image = self.ico_empty,compound='left',accelerator="F4")
+            c_local_add_command(label = STR("Hide group"),             command = self.hide_group, image = self.ico_empty,compound='left',accelerator="F12")
             c_local_add_separator()
 
 
