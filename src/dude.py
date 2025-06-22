@@ -76,6 +76,8 @@ from text import LANGUAGES
 
 from dude_images import dude_image
 
+from pypdf import PdfReader
+
 l_info = logging.info
 l_warning = logging.warning
 l_error = logging.error
@@ -92,6 +94,7 @@ CFG_KEY_SHOW_TOOLTIPS_INFO='show_tooltips_info'
 CFG_KEY_SHOW_TOOLTIPS_HELP='show_tooltips_help'
 CFG_KEY_PREVIEW_AUTO_UPDATE='preview_auto_update'
 CFG_KEY_AUTO_MARK='auto_mark'
+CFG_KEY_FORGET_DIALOG='forget_dialog'
 CFG_KEY_FULL_PATHS='show_full_paths'
 CFG_KEY_SHOW_MODE='show_mode'
 CFG_KEY_REL_SYMLINKS='relative_symlinks'
@@ -140,6 +143,7 @@ cfg_defaults={
     CFG_KEY_SHOW_TOOLTIPS_HELP:True,
     CFG_KEY_PREVIEW_AUTO_UPDATE:True,
     CFG_KEY_AUTO_MARK:True,
+    CFG_KEY_FORGET_DIALOG:True,
     CFG_KEY_FULL_PATHS:False,
     CFG_KEY_SHOW_MODE:'0',
     CFG_KEY_REL_SYMLINKS:True,
@@ -1814,6 +1818,7 @@ class Gui:
             self.show_tooltips_help = BooleanVar()
             self.preview_auto_update = BooleanVar()
             self.auto_mark = BooleanVar()
+            self.forget_dialog = BooleanVar()
 
             self.show_full_paths = BooleanVar()
             self.show_mode = StringVar()
@@ -1841,6 +1846,7 @@ class Gui:
                 (self.show_tooltips_help,CFG_KEY_SHOW_TOOLTIPS_HELP),
                 (self.preview_auto_update,CFG_KEY_PREVIEW_AUTO_UPDATE),
                 (self.auto_mark,CFG_KEY_AUTO_MARK),
+                (self.forget_dialog,CFG_KEY_FORGET_DIALOG),
                 (self.show_full_paths,CFG_KEY_FULL_PATHS),
                 (self.create_relative_symlinks,CFG_KEY_REL_SYMLINKS),
                 (self.erase_empty_directories,CFG_ERASE_EMPTY_DIRS),
@@ -1916,6 +1922,8 @@ class Gui:
             (auto_mark_cb:=Checkbutton(label_frame, text = ' ' + STR('Auto-mark behavior'), variable=self.auto_mark)).grid(row=5,column=0,sticky='wens',padx=3,pady=2)
             self_widget_tooltip(auto_mark_cb,STR('TOOLTIP_AMB'))
 
+            (confirm_forget_cb:=Checkbutton(label_frame, text = ' ' + STR('Show group hiding confirmation dialog'), variable=self.forget_dialog)).grid(row=6,column=0,sticky='wens',padx=3,pady=2)
+            self_widget_tooltip(confirm_forget_cb,STR('TOOLTIP_GF'))
 
             label_frame=LabelFrame(self.settings_dialog.area_main, text=STR("Confirmation dialogs"),borderwidth=2,bg=self.bg_color)
             label_frame.grid(row=row,column=0,sticky='wens',padx=3,pady=3) ; row+=1
@@ -2016,6 +2024,28 @@ class Gui:
             self.text_ask_dialog_created = True
 
         return self.text_ask_dialog
+
+    simple_question_dialog_created = False
+    @restore_status_line
+    @block
+    def get_simple_question_dialog(self):
+        if not self.simple_question_dialog_created:
+            self.status(STR("Creating dialog ..."))
+
+            self.simple_question_dialog = LabelDialogQuestion(self.main,(self.ico_warning,self.ico_warning),self.bg_color,pre_show=self.pre_show,post_close=self.post_close,image=self.ico_warning)
+
+            self.simple_question_dialog.cancel_button.configure(text=STR('Cancel'),compound='left')
+            try:
+                self.simple_question_dialog.label.configure(font=('Courier', 10))
+            except:
+                try:
+                    self.simple_question_dialog.label.configure(font=('TkFixedFont', 10))
+                except:
+                    pass
+
+            self.simple_question_dialog_created = True
+
+        return self.simple_question_dialog
 
     text_info_dialog_created = False
     @restore_status_line
@@ -3107,6 +3137,9 @@ class Gui:
                         self.get_about_dialog().show()
                     elif key=='F2':
                         self.get_settings_dialog().show()
+                    elif key=='F4':
+                        if tree==self.groups_tree:
+                            self.hide_group()
 
             except Exception as e:
                 l_error(f'key_press error:{e}')
@@ -3333,6 +3366,21 @@ class Gui:
                         self.preview_label_txt_configure(text='file size > 10MB')
                         self.preview.title(path)
                         self.preview_frame_txt.pack_forget()
+                elif ext_lower in ('.pdf'):
+                    self.preview_label_img.pack_forget()
+                    self.preview_text.delete(1.0, 'end')
+                    self.preview.title(path)
+                    try:
+                        reader = PdfReader(path)
+                        pages = len(reader.pages)
+                        text = reader.pages[0].extract_text().strip()
+                        self.preview_label_txt_configure(text=STR('pdf - pages:') + f'{fnumber(pages)}')
+                        self.preview_text.insert('end', text)
+
+                    except Exception as e:
+                        self.preview_label_txt_configure(text=str(e))
+
+                    self.preview_frame_txt.pack(fill='both',expand=1)
 
                 elif file_size<1024*1024*10:
                     self.preview_label_img.pack_forget()
@@ -3677,6 +3725,9 @@ class Gui:
             c_local_add_command(label = STR("Unmark smallest files"),             command = lambda : self.mark_in_group_by_size(self.unset_mark,False), image = self.ico_empty,compound='left',state =  non_crc_mode_state_unmark_all)
             c_local_add_separator()
 
+            c_local_add_command(label = STR("Hide group"),             command = self.hide_group, image = self.ico_empty,compound='left',accelerator="F4")
+            c_local_add_separator()
+
 
             nothing_tagged = not anything_tagged
 
@@ -3690,8 +3741,6 @@ class Gui:
             anything_not_tagged = any( {} )
 
 
-
-
             any_not_marked_state = ('disabled','normal')[any_not_marked]
 
             #nothing_tagged_state_local = ('disabled','normal')[no_mark_in_curr_crc]
@@ -3700,13 +3749,13 @@ class Gui:
             anything_tagged_state_win_local_and_crc=('disabled','normal')[any_mark_in_curr_crc_state and windows and not self.operation_mode] if self.sel_crc else 'disabled'
 
             c_local_add_command(label = STR('Remove Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(DELETE,0),accelerator="Delete",state=any_mark_in_curr_crc_state, image = self.ico_empty,compound='left')
-            c_local_entryconfig(25,foreground='red',activeforeground='red')
-            c_local_add_command(label = STR('Softlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
-            c_local_entryconfig(26,foreground='red',activeforeground='red')
-            c_local_add_command(label = STR('Create *.lnk for Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_local_and_crc, image = self.ico_empty,compound='left')
             c_local_entryconfig(27,foreground='red',activeforeground='red')
-            c_local_add_command(label = STR('Hardlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
+            c_local_add_command(label = STR('Softlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(SOFTLINK,0),accelerator="Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
             c_local_entryconfig(28,foreground='red',activeforeground='red')
+            c_local_add_command(label = STR('Create *.lnk for Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(WIN_LNK,0),accelerator="Alt+Shift+Insert",state=anything_tagged_state_win_local_and_crc, image = self.ico_empty,compound='left')
+            c_local_entryconfig(29,foreground='red',activeforeground='red')
+            c_local_add_command(label = STR('Hardlink Marked Files ...'),command=lambda : self.process_files_in_groups_wrapper(HARDLINK,0),accelerator="Shift+Insert",state=any_mark_in_curr_crc_state_and_crc, image = self.ico_empty,compound='left')
+            c_local_entryconfig(30,foreground='red',activeforeground='red')
 
             pop_add_cascade(label = STR('Local (this group)'),menu = c_local,state=item_actions_state, image = self.ico_empty,compound='left')
             pop_add_separator()
@@ -4605,6 +4654,7 @@ class Gui:
 
         row=0
 
+        self_ico_delete = self.ico['delete']
         for entry in self.cfg_get(CFG_KEY_EXCLUDE,'').split('|'):
             if entry:
                 (frame:=Frame(self.exclude_frame,bg=self.bg_color)).grid(row=row,column=0,sticky='news',columnspan=3)
@@ -4613,7 +4663,7 @@ class Gui:
                 self.exclude_entry_var[row]=StringVar(value=entry)
                 Entry(frame,textvariable=self.exclude_entry_var[row]).pack(side='left',expand=1,fill='both',pady=1,padx=(2,0))
 
-                remove_expression_button=Button(frame,image=self.ico['delete'],command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
+                remove_expression_button=Button(frame,image=self_ico_delete,command=lambda entrypar=entry: self.exclude_mask_remove(entrypar),width=3)
                 remove_expression_button.pack(side='right',padx=2,pady=1,fill='y')
 
                 self.widget_tooltip(remove_expression_button,STR('Remove expression from list.'))
@@ -4698,6 +4748,9 @@ class Gui:
 
         if self.cfg_get_bool(CFG_KEY_AUTO_MARK)!=self.auto_mark.get():
             self.cfg.set_bool(CFG_KEY_AUTO_MARK,self.auto_mark.get())
+
+        if self.cfg_get_bool(CFG_KEY_FORGET_DIALOG)!=self.forget_dialog.get():
+            self.cfg.set_bool(CFG_KEY_FORGET_DIALOG,self.forget_dialog.get())
 
         if self.cfg_get_bool(CFG_KEY_FULL_PATHS)!=self.show_full_paths.get():
             self.cfg.set_bool(CFG_KEY_FULL_PATHS,self.show_full_paths.get())
@@ -5790,6 +5843,78 @@ class Gui:
                 #akcja na dolnym panelu na pliku "pojedynczym"
                 pass
 
+    def hide_group (self):
+        crc = self.sel_crc
+        if not crc:
+            return
+
+        if self.cfg_get_bool(CFG_KEY_FORGET_DIALOG):
+            dialog = self.get_simple_question_dialog()
+            dialog.show(STR('Hide selected group?'),STR('No files will be modified or deleted.\n\nYou will be able to disable the display of this dialog in the settings.') + '\n\n' + STR('To see hidden groups, you will need to run the scan again.') )
+
+
+            if not dialog.res_bool:
+                return
+
+        self.mark_in_group(self.unset_mark)
+
+        #print(f'hide_group:{crc=}')
+
+        self_tree_children_sub = self.tree_children_sub
+        self_tagged = self.tagged
+
+        tuples_to_hide=set()
+        tuples_to_hide_add = tuples_to_hide.add
+
+        self_groups_tree_item_to_data = self.groups_tree_item_to_data
+
+        size=0
+
+        images_mode=(False,True)[self.operation_mode in (MODE_SIMILARITY,MODE_GPS)]
+
+        for item in self_tree_children_sub[crc]:
+            #print(f'{item}')
+            if images_mode:
+                kind,size,group, index_tuple = self_groups_tree_item_to_data[item]
+                (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+                index_tuple_extended = pathnr,path,file_name,ctime,dev,inode,size
+                tuples_to_hide_add(index_tuple_extended)
+
+            else:
+                size = self.crc_to_size[crc]
+                index_tuple=self_groups_tree_item_to_data[item][3]
+                tuples_to_hide_add(index_tuple)
+
+        self_file_remove_callback = self.file_remove_callback
+        self_crc_remove_callback = self.crc_remove_callback
+
+        orglist=self.tree_children[self.groups_tree]
+
+        dude_core.hide_group_core(size,crc,tuples_to_hide,self_file_remove_callback,self_crc_remove_callback,self.operation_mode)
+
+        self.data_precalc()
+        self.reset_sels()
+        #self.initial_focus()
+        self.calc_mark_stats_groups()
+
+        newlist=self.tree_children[self.groups_tree]
+        item_to_select = self.get_closest_in_groups(orglist,crc,newlist)
+
+        if item_to_select:
+            try:
+
+                self.selected[self.groups_tree] = item_to_select
+                self.groups_tree.focus(item_to_select)
+                self.groups_tree.focus_set()
+
+                self.groups_tree_sel_change(item_to_select)
+                self.groups_tree_see(item_to_select)
+            except :
+                self.initial_focus()
+        else:
+            self.initial_focus()
+
+
     @block_and_log
     def process_files_in_groups_wrapper(self,action,all_groups):
         processed_items=defaultdict(dict)
@@ -6370,7 +6495,9 @@ class Gui:
                             if path:
                                 directories_to_check_add( tuple( [pathnr] + path.strip(sep).split(sep) ) )
 
-                    if resmsg:=dude_core_delete_file_wrapper(size,group,tuples_to_delete,to_trash,self_file_remove_callback,self_crc_remove_callback,True):
+                    dummy_size=''
+
+                    if resmsg:=dude_core_delete_file_wrapper(dummy_size,group,tuples_to_delete,to_trash,self_file_remove_callback,self_crc_remove_callback,True):
                         resmsg_str='\n'.join(resmsg)
                         l_error(resmsg_str)
                         end_message_list_append(resmsg_str)
@@ -6807,10 +6934,21 @@ class Gui:
                 if (index_m_i:=sel_index-i) >=0:
                     nearest = prev_list[index_m_i]
                     if nearest in new_list:
+                        try:
+                            return self.groups_tree.get_children(nearest)[-1]
+                        except:
+                            pass
+
                         return nearest
+
                 elif (index_p_i:=sel_index+i) < new_list_len:
                     nearest = prev_list[index_p_i]
                     if nearest in new_list:
+                        try:
+                            return self.groups_tree.get_children(nearest)[0]
+                        except:
+                            pass
+
                         return nearest
                 else:
                     return None

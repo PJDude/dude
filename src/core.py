@@ -1598,6 +1598,40 @@ class DudeCore:
             else:
                 self.log.warning('remove_from_data_pool - size already removed')
 
+    def hide_group_core(self,size,crc,index_tuple_set,file_callback,crc_callback,operation_mode):
+        #print("hide_group_core:",size,crc,index_tuple_set,operation_mode)
+
+        messages=set()
+        messages_add = messages.add
+
+        index_tuples_list_done=[]
+        l_info = self.log.info
+        self_get_full_path_scanned = self.get_full_path_scanned
+
+        if operation_mode in (MODE_SIMILARITY,MODE_GPS):
+            pool = self.files_of_images_groups[crc]
+        else:
+            pool = self.files_of_size_of_crc[size][crc]
+
+        index_tuples_list_done_append = index_tuples_list_done.append
+
+        for index_tuple in index_tuple_set:
+            if operation_mode in (MODE_SIMILARITY,MODE_GPS):
+                (pathnr,path,file_name,ctime,dev,inode,size)=index_tuple
+            else:
+                (pathnr,path,file_name,ctime,dev,inode)=index_tuple
+
+            full_file_path=self_get_full_path_scanned(pathnr,path,file_name)
+
+            if index_tuple in pool:
+                index_tuples_list_done_append(index_tuple)
+            else:
+                messages_add('%s, hide_group_core - Internal Data Inconsistency:%s / %s' % (operation_mode,full_file_path,str(index_tuple)) )
+
+        self.remove_from_data_pool(size,crc,index_tuples_list_done,file_callback,crc_callback,operation_mode)
+
+        return messages
+
     def delete_file_wrapper(self,size,crc,index_tuple_set,to_trash,file_callback,crc_callback,operation_mode=MODE_CRC):
         messages=set()
         messages_add = messages.add

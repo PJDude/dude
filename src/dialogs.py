@@ -230,7 +230,7 @@ class LabelDialog(GenericDialog):
         super().show()
 
 class LabelDialogQuestion(LabelDialog):
-    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=200,image=''):
+    def __init__(self,parent,icon,bg_color,pre_show=None,post_close=None,min_width=300,min_height=100,image=''):
         super().__init__(parent,icon,bg_color,pre_show,post_close,min_width,min_height)
 
         self.cancel_button.configure(text='Cancel')
@@ -239,7 +239,7 @@ class LabelDialogQuestion(LabelDialog):
         self.ok_button=Button(self.area_buttons, text='OK', width=13, command=self.ok,image=image, compound='left' )
         self.ok_button.pack(side='right', anchor='n',padx=5,pady=5)
 
-        self.focus=self.cancel_button
+        self.focus=self.ok_button
 
     def ok (self):
         self.res_bool=True
