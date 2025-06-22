@@ -4,7 +4,7 @@ send2trash==1.8.3
 zstandard==0.23.0
 tkinterdnd2==0.4.3
 numpy==2.3.1
-scipy==1.16.0
+scipy==1.15.3
 exifread==3.3.1
 imagehash==4.3.2
 pillow==11.2.1
