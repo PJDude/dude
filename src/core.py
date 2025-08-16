@@ -1072,7 +1072,8 @@ class DudeCore:
         keys=[(path_nr,subpath,name,ctime,dev,ino,size) for (path_nr,subpath,name,mtime,ctime,dev,ino,size) in sorted(self.scan_results_images, key=lambda x :[7],reverse = True) if (dev,ino) in self_scan_results_image_to_gps]
         pool = [(radians(lo), radians(la)) for (_, _, _, _, dev, ino, _) in keys for lo, la in [self_scan_results_image_to_gps[(dev, ino)]]]
 
-        del self.scan_results_image_to_gps
+        #used in tooltips
+        #del self.scan_results_image_to_gps
 
         self_files_of_images_groups = self.files_of_images_groups = {}
 
