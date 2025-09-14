@@ -219,7 +219,7 @@ jobs:
       run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
 
     - name: rename linux distro
-      run: mv ./build-pyinstaller/dude.lin.zip ./dude.${{ steps.version.outputs.version }}.linux.portable.zip
+      run: mv ./build-pyinstaller/dude.lin.zip ./dude.${{ steps.version.outputs.version }}.lin.zip
 
     #####################################
     - name: download windows pyinstaller distro
@@ -229,7 +229,7 @@ jobs:
         path: ./
 
     - name: rename windows distro
-      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.windows.portable.zip
+      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.win.zip
 
 #    #####################################
 #    - name: download windows nuitka distro
@@ -239,7 +239,7 @@ jobs:
 #        path: ./
 #
 #    - name: rename windows distro
-#      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.windows.nuitka.portable.zip
+#      run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.win.nuitka.zip
 #
 #    #####################################
 #    - name: download linux nuitka distro
@@ -249,7 +249,7 @@ jobs:
 #        path: ./
 #
 #    - name: rename linux distro
-#      run: mv ./dude.lin.zip ./dude.${{ steps.version.outputs.version }}.linux.nuitka.portable.zip
+#      run: mv ./dude.lin.zip ./dude.${{ steps.version.outputs.version }}.lin.nuitka.zip
 #
 #    #####################################
     - name: Create GitHub release
@@ -262,5 +262,5 @@ jobs:
         draft: true
         prerelease: false
         files: |
-            dude.${{ steps.version.outputs.version }}.linux.portable.zip
-            dude.${{ steps.version.outputs.version }}.windows.portable.zip
+            dude.${{ steps.version.outputs.version }}.lin.zip
+            dude.${{ steps.version.outputs.version }}.win.zip
