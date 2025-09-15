@@ -49,7 +49,7 @@
 pyinstaller --noconfirm --clean ^
     --version-file=version.pi.dude.txt --icon=icon.ico --windowed ^
     --add-data="distro.info.txt:." --add-data="version.txt;." --add-data="../LICENSE;." ^
-    --contents-directory=internal --distpath=%OUTDIR% --name dude --additional-hooks-dir=. \
+    --contents-directory=internal --distpath=%OUTDIR% --name dude --additional-hooks-dir=. ^
     --collect-binaries tkinterdnd2 --hidden-import="PIL._tkinter_finder" ^
     ^
     --exclude-module sklearn.datasets ^
