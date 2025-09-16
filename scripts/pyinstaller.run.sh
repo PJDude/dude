@@ -31,7 +31,7 @@ echo "pi_heif     " `python3 -c "import pi_heif; print(pi_heif.__version__)"` >>
 
 echo ''
 echo running-pyinstaller-stage_dude
-pyinstaller --noconfirm --noconsole --clean --optimize 2 --noupx --strip \
+pyinstaller --noconfirm --noconsole --clean --optimize 2 --noupx \
     --add-data="distro.info.txt:." --add-data="version.txt:." --add-data="../LICENSE:." \
     --contents-directory=internal --distpath=$outdir --additional-hooks-dir=. \
     --collect-binaries tkinterdnd2 \
