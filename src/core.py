@@ -58,7 +58,7 @@ register_heif_opener()
 #from PIL.Image import open as image_open,new as image_new, alpha_composite as image_alpha_composite
 #from imagehash import average_hash,phash,dhash
 
-#from sklearn.cluster import DBSCAN
+from sklearn.cluster import DBSCAN
 
 DELETE=0
 SOFTLINK=1
@@ -983,7 +983,7 @@ class DudeCore:
         sys_exit() #thread
     ##################################################################################################################
     def similarity_clustering(self,hash_size,distance,all_rotations):
-        from sklearn.cluster import DBSCAN
+        #from sklearn.cluster import DBSCAN
 
         self.info_line = self.info = 'Preparing data pool ...'
 
@@ -1059,7 +1059,7 @@ class DudeCore:
         sys_exit() #thread
 
     def gps_clustering(self,distance):
-        from sklearn.cluster import DBSCAN
+        #from sklearn.cluster import DBSCAN
         from math import radians
 
         self.scanned_paths=self.paths_to_scan.copy()
