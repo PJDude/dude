@@ -3,11 +3,11 @@ appdirs==1.4.4
 send2trash==1.8.3
 zstandard==0.25.0
 tkinterdnd2==0.4.3
-numpy==2.3.3
-scipy==1.16.2
+numpy==2.3.4
+scipy==1.16.3
 exifread==3.5.1
 imagehash==4.3.2
-pillow==11.3.0
-pi-heif==1.1.0
+pillow==12.0.0
+pi-heif==1.1.1
 scikit-learn==1.7.2
-pypdf==6.0.0
+pypdf==6.1.3
