@@ -20,30 +20,6 @@
 @echo|set /p="pyinstaller " >> distro.info.txt
 @pyinstaller --version >> distro.info.txt
 
-@echo|set /p="numpy       " >> distro.info.txt
-@python -c "import numpy; print(numpy.__version__)" >> distro.info.txt
-
-@echo|set /p="scipy       " >> distro.info.txt
-@python -c "import scipy; print(scipy.__version__)" >> distro.info.txt
-
-@echo|set /p="sklearn     " >> distro.info.txt
-@python -c "import sklearn; print(sklearn.__version__)" >> distro.info.txt
-
-@echo|set /p="zstandard   " >> distro.info.txt
-@python -c "import zstandard; print(zstandard.__version__)" >> distro.info.txt
-
-@echo|set /p="exifread    " >> distro.info.txt
-@python -c "import exifread; print(exifread.__version__)" >> distro.info.txt
-
-@echo|set /p="imagehash   " >> distro.info.txt
-@python -c "import imagehash; print(imagehash.__version__)" >> distro.info.txt
-
-@echo|set /p="pillow      " >> distro.info.txt
-@python -c "import PIL; print(PIL.__version__)" >> distro.info.txt
-
-@echo|set /p="pi_heif     " >> distro.info.txt
-@python -c "import pi_heif; print(pi_heif.__version__)" >> distro.info.txt
-
 @echo.
 @echo running-pyinstaller-stage_dude
 pyinstaller --noconfirm --clean --optimize 2 --noupx ^

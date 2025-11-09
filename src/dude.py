@@ -31,10 +31,15 @@ from re import search
 
 from signal import signal,SIGINT
 
-from tkinter import Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar
+from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar,TclVersion,TkVersion
 from tkinter.ttk import Checkbutton,Radiobutton,Treeview,Scrollbar,Button,Entry,Combobox,Scale,Style
 from tkinter.filedialog import askdirectory,asksaveasfilename
-from tkinterdnd2 import DND_FILES, TkinterDnD
+
+if TkVersion<9.0:
+    print('drop active !')
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+else:
+    print('no drop !')
 
 from collections import defaultdict
 from traceback import format_stack
@@ -609,10 +614,15 @@ class Gui:
 
         self.operation_mode = MODE_CRC
         ####################################################################
-        self_main = self.main = TkinterDnD.Tk()
-
-        self_main.drop_target_register(DND_FILES)
-        self_main.dnd_bind('<<Drop>>', lambda e: self.main_drop(e.data) )
+        if TkVersion<9.0:
+            try:
+                self_main = self.main = TkinterDnD.Tk()
+                self_main.drop_target_register(DND_FILES)
+                self_main.dnd_bind('<<Drop>>', lambda e: self.main_drop(e.data) )
+            except Exception as dnd_e:
+                print("DND1 ERROR:",dnd_e)
+        else:
+            self_main = self.main = Tk()
 
         self.main_config = self.main.config
 
@@ -1189,8 +1199,12 @@ class Gui:
 
         self_scan_dialog_area_main = self_scan_dialog.area_main
 
-        self_scan_dialog_area_main.drop_target_register(DND_FILES)
-        self_scan_dialog_area_main.dnd_bind('<<Drop>>', lambda e: self.scan_dialog_drop(e.data) )
+        if TkVersion<9.0:
+            try:
+                self_scan_dialog_area_main.drop_target_register(DND_FILES)
+                self_scan_dialog_area_main.dnd_bind('<<Drop>>', lambda e: self.scan_dialog_drop(e.data) )
+            except Exception as dnd_e2:
+                print("DND2 ERROR:",dnd_e2)
 
         self_scan_dialog_area_main.grid_columnconfigure(0, weight=1)
         self_scan_dialog_area_main.grid_rowconfigure(0, weight=1)
@@ -7195,13 +7209,35 @@ if __name__ == "__main__":
         l_info('executable: %s',DUDE_EXECUTABLE_FILE)
         #l_debug('DEBUG LEVEL ENABLED')
 
+        from numpy import __version__ as numpy_version
+        from scipy import __version__ as scipy_version
+        from sklearn import __version__ as sklearn_version
+        from zstandard import __version__ as zstandard_version
+        from exifread import __version__ as exifread_version
+        from imagehash import __version__ as imagehash_version
+        from PIL import __version__ as pillow_version
+        from pi_heif import __version__ as pi_heif_version
+
+
         try:
             distro_info=Path(path_join(DUDE_DIR,'distro.info.txt')).read_text()
         except Exception as exception_1:
             l_error(exception_1)
             distro_info = 'Error. No distro.info.txt file.'
-        else:
-            l_info('distro info:\n%s',distro_info)
+
+        distro_info+= \
+             "\nnumpy        " + str(numpy_version) + \
+             "\nscipy        " + str(scipy_version) + \
+             "\nsklearn      " + str(sklearn_version) + \
+             "\nzsatndard    " + str(zstandard_version) + \
+             "\nexifread     " + str(exifread_version) + \
+             "\nimagehas     " + str(imagehash_version) + \
+             "\npillow       " + str(pillow_version) + \
+             "\npi_heif      " + str(pi_heif_version) + \
+             "\n\nTclVersion   " + str(TclVersion) + \
+             "\nTkVersion    " + str(TkVersion)
+
+        l_info('distro info:\n%s',distro_info)
 
         dude_core = DudeCore(CACHE_DIR,logging)
 
