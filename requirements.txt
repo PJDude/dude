@@ -1,13 +1,14 @@
-pyinstaller==6.16.0
+pyinstaller==6.17.0
 appdirs==1.4.4
 send2trash==1.8.3
 zstandard==0.25.0
 tkinterdnd2==0.4.3
-numpy==2.3.4
+#tkinterdnd2-universal==1.7.3
+numpy==2.3.5
 scipy==1.16.3
 exifread==3.5.1
 imagehash==4.3.2
 pillow==12.0.0
 pi-heif==1.1.1
 scikit-learn==1.7.2
-pypdf==6.1.3
+pypdf==6.4.0
