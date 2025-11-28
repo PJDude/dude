@@ -259,8 +259,8 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Dude ${{ steps.version.outputs.version }}
-        draft: true
-        prerelease: true
+        draft: false
+        prerelease: false
         files: |
             dude.${{ steps.version.outputs.version }}.lin.zip
             dude.${{ steps.version.outputs.version }}.win.zip
