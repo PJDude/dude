@@ -74,6 +74,7 @@ windows = bool(os_name=='nt')
 
 if windows:
     from os import startfile
+    from win32api import GetVolumeInformation
 
 from send2trash import send2trash
 
@@ -865,6 +866,7 @@ class Gui:
         style_configure("Treeview",rowheight=self.rowhight)
         style_configure("TButton", anchor = "center")
         style_configure("TCheckbutton",anchor='center',padding=(4, 0, 4, 0) )
+        style_configure('TMenubutton', background=self.bg_color)
 
         if windows:
             #fix border problem ...
