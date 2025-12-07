@@ -12,3 +12,4 @@ pillow==12.0.0
 pi-heif==1.1.1
 scikit-learn==1.7.2
 pypdf==6.4.0
+pywin32==311; sys.platform == 'win32'
