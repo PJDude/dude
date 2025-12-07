@@ -1563,17 +1563,18 @@ class DudeCore:
         self.log.info('remove_from_data_pool size:%s crc:%s tuples:%s',size,crc,index_tuple_list)
 
         if operation_mode in (MODE_SIMILARITY,MODE_GPS):
-            if crc in self.files_of_images_groups:
-                for pathnr,path,file,ctime,dev,inode,size_file in list(self.files_of_images_groups[crc]):
+            self_files_of_images_groups=self.files_of_images_groups
+            if crc in self_files_of_images_groups:
+                for pathnr,path,file,ctime,dev,inode,size_file in list(self_files_of_images_groups[crc]):
                     for index_tuple in index_tuple_list:
                         try:
-                            self.files_of_images_groups[crc].remove(index_tuple)
+                            self_files_of_images_groups[crc].remove(index_tuple)
                             file_callback(size_file,crc,index_tuple)
 
                         except Exception as e:
                             self.log.error('  %s',e)
                             self.log.error('  index_tuple: %s',index_tuple)
-                            self.log.error('  self.files_of_images_groups[%s]:%s',crc,self.files_of_images_groups[crc])
+                            self.log.error('  self.files_of_images_groups[%s]:%s',crc,self_files_of_images_groups[crc])
                 else:
                     self.log.warning('remove_from_data_pool - crc already removed')
 

@@ -32,7 +32,7 @@ from re import search
 from signal import signal,SIGINT
 
 from tkinter import Tk,Toplevel,PhotoImage,Menu,PanedWindow,Label,LabelFrame,Frame,StringVar,BooleanVar,IntVar,TclVersion,TkVersion
-from tkinter.ttk import Checkbutton,Radiobutton,Treeview,Scrollbar,Button,Entry,Combobox,Scale,Style
+from tkinter.ttk import Checkbutton,Radiobutton,Treeview,Scrollbar,Button,Entry,Combobox,Scale,Style,Menubutton
 from tkinter.filedialog import askdirectory,asksaveasfilename
 
 if TkVersion<9.0:
@@ -58,6 +58,9 @@ from os import sep,stat,scandir,readlink,rmdir,system,getcwd,name as os_name,env
 from gc import disable as gc_disable, enable as gc_enable,collect as gc_collect,set_threshold as gc_set_threshold, get_threshold as gc_get_threshold
 
 from os.path import abspath,normpath,dirname,join as path_join,isfile as path_isfile,split as path_split,exists as path_exists,isdir, splitext as path_splitext
+
+from collections import deque
+from psutil import disk_partitions
 
 #lazyfied
 #from configparser import ConfigParser
@@ -139,6 +142,7 @@ CFG_KEY_MARK_RE_1 = 'mark_re_1'
 CFG_KEY_SHOW_PREVIEW = 'preview_shown'
 
 CFG_LANG = 'lang'
+CFG_RECENTS = 'recents'
 
 cfg_defaults={
     CFG_THEME:'Vista' if windows else 'Clam',
@@ -176,7 +180,8 @@ cfg_defaults={
     CFG_KEY_MARK_RE_0:False,
     CFG_KEY_MARK_RE_1:False,
     CFG_KEY_SHOW_PREVIEW:True,
-    CFG_LANG:'English'
+    CFG_LANG:'English',
+    CFG_RECENTS:''
 }
 
 NAME={DELETE:'Delete',SOFTLINK:'Softlink',HARDLINK:'Hardlink',WIN_LNK:'.lnk file'}
@@ -186,6 +191,29 @@ HOMEPAGE='https://github.com/PJDude/dude'
 TEXT_EXTENSIONS = ('.txt','.bat','.sh','.md','.html','.py','.cpp','.h','.ini','.tcl','.xml','.url','.lnk','.diz','.lng','.log','.rc','.csv','.ps1','.js','.v','.sv','.do')
 
 #DE_NANO = 1_000_000_000
+
+def get_dev_labes_dict():
+    from subprocess import run as subprocess_run
+    from json import loads as json_loads
+
+    lsblk = subprocess_run(['lsblk','-fJ'],capture_output = True,text = True)
+    lsblk.dict = json_loads(lsblk.stdout)
+
+    res_map = {}
+    def dict_parse(src_dict,res_map):
+        if 'children' in src_dict:
+            for l_elem in src_dict['children']:
+                d_l_elem = dict(l_elem)
+                dict_parse(d_l_elem,res_map)
+
+        for mountpoint in src_dict['mountpoints']:
+            res_map[mountpoint] = src_dict['label']
+
+    for l_elem in lsblk.dict['blockdevices']:
+        d_l_elem = dict(l_elem)
+        dict_parse(d_l_elem,res_map)
+
+    return res_map
 
 class Config:
     def __init__(self,config_dir):
@@ -744,6 +772,8 @@ class Gui:
         self.ico_warning = self_ico['warning']
         self.ico_search_text = self_ico['search_text']
         self.ico_empty = self_ico['empty']
+        self.ico_drive = self_ico['drive']
+        self.ico_recent = self_ico['recent']
 
         self.main_icon_tuple = (self.ico_dude,self.ico_dude_small)
 
@@ -1233,9 +1263,23 @@ class Gui:
 
         Label(buttons_fr,relief='flat',text=STR('Specify manually, or drag and drop here, up to 8 paths to scan'),bg=bg_color,fg='gray').pack(side='right',pady=4,padx=4, fill='x',expand=True)
 
+
+        self.add_dev_button = Menubutton(buttons_fr,width=18,image = self.ico_drive,underline=0)
+        self.add_dev_button.pack(side='left',pady=4,padx=4)
+        self.widget_tooltip(self.add_dev_button,STR("Select device to scan."))
+
+        self.drives_menu = Menu(self.add_dev_button, tearoff=0,postcommand=self.set_dev_to_scan_menu)
+        self.add_dev_button["menu"] = self.drives_menu
+
+        self.add_rec_button = Menubutton(buttons_fr,width=18,image = self.ico_recent,underline=0)
+        self.add_rec_button.pack(side='left',pady=4,padx=4)
+        self.widget_tooltip(self.add_rec_button,STR("Select recent path to scan."))
+
+        self.recents_menu = Menu(self.add_rec_button, tearoff=0,postcommand=self.set_rec_to_scan_menu)
+        self.add_rec_button["menu"] = self.recents_menu
+
         self.add_path_button = Button(buttons_fr,width=18,image = self_ico['open'], command=self.path_to_scan_add_dialog,underline=0)
         self.add_path_button.pack(side='left',pady=4,padx=4)
-
         self.widget_tooltip(self.add_path_button,STR("Add path to scan"))
 
         self.paths_frame.grid_columnconfigure(1, weight=1)
@@ -1675,6 +1719,45 @@ class Gui:
 
         self_main.mainloop()
         #######################################################################
+
+    def set_dev_to_scan_menu(self):
+        self.drives_menu.delete(0,'end')
+
+        if not windows:
+            try:
+                labes_dict = get_dev_labes_dict()
+            except Exception as lsblk_ex:
+                print(lsblk_ex)
+
+        for part in disk_partitions(all=False):
+            filesystem_label=None
+
+            if windows:
+                if 'cdrom' in part.opts or part.fstype == '':
+                    # skip cd-rom drives with no disk in it; they may raise
+                    # ENOENT, pop-up a Windows GUI error for a non-ready
+                    # partition or just hang.
+                    continue
+
+                try:
+                    filesystem_label = GetVolumeInformation(part.mountpoint)[0]
+                except Exception as lab_ex:
+                    print(lab_ex)
+            else:
+                try:
+                    filesystem_label = labes_dict[part.mountpoint]
+                except Exception as lab_ex:
+                    print(lab_ex)
+
+            if part.fstype != 'squashfs':
+                self.drives_menu.add_command(label=f'{part.mountpoint} ({filesystem_label})' if filesystem_label else part.mountpoint,command = lambda dev=part.mountpoint,label=filesystem_label : self.path_to_scan_add(normpath(abspath(dev))) )
+
+    def set_rec_to_scan_menu(self):
+        self.recents_menu.delete(0,'end')
+
+        for path in self.cfg.get(CFG_RECENTS).split('|')[0:16]:
+            if path:
+                self.recents_menu.add_command(label=path,command = lambda path=path : self.path_to_scan_add(path) )
 
     hg_index = 0
 
@@ -4128,6 +4211,11 @@ class Gui:
             self.get_info_dialog_on_scan().show('Error. Fix paths selection.',res)
             return False
 
+        recents=set(self.cfg.get(CFG_RECENTS).split('|'))
+        recents.update(paths_to_scan_from_entry)
+
+        self.cfg.set(CFG_RECENTS,'|'.join(sorted(list(recents))))
+
         dude_core.scan_update_info_path_nr=self.scan_update_info_path_nr
 
         self.main_update()
@@ -4833,10 +4921,15 @@ class Gui:
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings}
         _ = {var.set(cfg_defaults[key]) for var,key in self.settings_str}
 
-    def file_remove_callback(self,size,crc,index_tuple):
-        #print('file_remove_callback',size,crc,index_tuple)
-        #l_info(f'file_remove_callback {size},{crc},{index_tuple}')
+    file_remove_callback_deque=deque()
+    file_remove_callback_deque_append=file_remove_callback_deque.append
 
+    @logwrapper
+    def file_remove_callback_schedule(self,size,crc,index_tuple):
+        self.file_remove_callback_deque_append( (size,crc,index_tuple) )
+
+    @logwrapper
+    def file_remove_callback(self,size,crc,index_tuple):
         try:
             if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
                 (pathnr,path,file_name,ctime,dev,inode,size_file)=index_tuple
@@ -4857,11 +4950,15 @@ class Gui:
             self.selected[self.groups_tree]=None
             l_error(f'file_remove_callback,{size},{crc},{index_tuple},{e}')
 
-        #l_info('file_remove_callback done')
+    crc_remove_callback_deque=deque()
+    crc_remove_callback_deque_append=crc_remove_callback_deque.append
 
+    @logwrapper
+    def crc_remove_callback_schedule(self,crc):
+        self.crc_remove_callback_deque_append(crc)
+
+    @logwrapper
     def crc_remove_callback(self,crc):
-        #print('crc_remove_callback',crc)
-
         try:
             self.groups_tree.delete(crc)
 
@@ -5899,7 +5996,7 @@ class Gui:
                 index_tuple=self_groups_tree_item_to_data[item][3]
                 tuples_to_hide_add(index_tuple)
 
-        self_file_remove_callback = self.file_remove_callback
+        self_file_remove_callback = self.file_remove_callback_schedule
         self_crc_remove_callback = self.crc_remove_callback
 
         orglist=self.tree_children[self.groups_tree]
@@ -6476,8 +6573,8 @@ class Gui:
         directories_to_check=set()
         directories_to_check_add = directories_to_check.add
 
-        self_file_remove_callback = self.file_remove_callback
-        self_crc_remove_callback = self.crc_remove_callback
+        self_file_remove_callback_schedule = self.file_remove_callback_schedule
+        self_crc_remove_callback_schedule=self.crc_remove_callback_schedule
 
         if action==DELETE:
             if self.operation_mode in (MODE_SIMILARITY,MODE_GPS):
@@ -6511,7 +6608,7 @@ class Gui:
 
                     dummy_size=''
 
-                    if resmsg:=dude_core_delete_file_wrapper(dummy_size,group,tuples_to_delete,to_trash,self_file_remove_callback,self_crc_remove_callback,True):
+                    if resmsg:=dude_core_delete_file_wrapper(dummy_size,group,tuples_to_delete,to_trash,self_file_remove_callback_schedule,self_crc_remove_callback_schedule,True):
                         resmsg_str='\n'.join(resmsg)
                         l_error(resmsg_str)
                         end_message_list_append(resmsg_str)
@@ -6544,7 +6641,7 @@ class Gui:
                             if path:
                                 directories_to_check_add( tuple( [pathnr] + path.strip(sep).split(sep) ) )
 
-                    if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash,self_file_remove_callback,self_crc_remove_callback):
+                    if resmsg:=dude_core_delete_file_wrapper(size,crc,tuples_to_delete,to_trash,self_file_remove_callback_schedule,self_crc_remove_callback_schedule):
                         resmsg_str='\n'.join(resmsg)
                         l_error(resmsg_str)
                         end_message_list_append(resmsg_str)
@@ -6596,7 +6693,7 @@ class Gui:
 
                 self.process_files_core_info1 = f'crc:{crc}'
 
-                if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(SOFTLINK, do_rel_symlink, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback_schedule,self_crc_remove_callback_schedule ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)
@@ -6620,7 +6717,7 @@ class Gui:
                 self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
                 self.process_files_core_info1 = f'crc:{crc}'
 
-                if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(WIN_LNK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for item in items_dict.values() ],to_trash,self_file_remove_callback_schedule,self_crc_remove_callback_schedule ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)
@@ -6643,7 +6740,7 @@ class Gui:
                 self.process_files_core_info0 = f'size:{bytes_to_str(size)}'
                 self.process_files_core_info1 = f'crc:{crc}'
 
-                if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],to_trash,self_file_remove_callback,self_crc_remove_callback ):
+                if resmsg:=dude_core_link_wrapper(HARDLINK, False, size,crc, index_tuple_ref, [self_groups_tree_item_to_data[item][3] for index,item in items_dict.items() if index!=0 ],to_trash,self_file_remove_callback_schedule,self_crc_remove_callback_schedule ):
                     l_error(resmsg)
 
                     end_message_list_append(resmsg)
@@ -6805,9 +6902,17 @@ class Gui:
 
         dialog_area_main_update = dialog.area_main.update
 
+        def something_to_delete_check():
+            while self.file_remove_callback_deque:
+                size,crc,index_tuple = self.file_remove_callback_deque.popleft()
+                self.file_remove_callback(size,crc,index_tuple)
+
+            while self.crc_remove_callback_deque:
+                crc = self.crc_remove_callback_deque.popleft()
+                self.crc_remove_callback(crc)
+
         #############################################
         while run_processing_thread_is_alive():
-
             dialog_update_lab_text(0,self.process_files_core_info0)
             dialog_update_lab_text(1,self.process_files_core_info1)
             dialog_update_lab_text(2, f'...{self.process_files_core_info2[-50:0]}')
@@ -6821,7 +6926,11 @@ class Gui:
             self_main_after(100,lambda : wait_var_set(not wait_var_get()))
             self_main_wait_variable(wait_var)
 
+            something_to_delete_check()
+
             dialog_area_main_update()
+
+        something_to_delete_check()
 
         #############################################
 
