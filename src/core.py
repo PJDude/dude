@@ -2,7 +2,7 @@
 
 ####################################################################################
 #
-#  Copyright (c) 2022-2025 Piotr Jochymek
+#  Copyright (c) 2022-2026 Piotr Jochymek
 #
 #  MIT License
 #
@@ -345,6 +345,11 @@ class DudeCore:
     scan_update_info_path_nr=None
     def scan(self,operation_mode,file_min_size_int=0,file_max_size_int=0,include_hidden=False):
         from PIL.Image import open as image_open
+
+        #workaround for:
+        #ERROR opening file: ...  error: Image size (200540160 pixels) exceeds limit of 178956970 pixels, could be decompression bomb DOS attack..
+        #from PIL import Image
+        #Image.MAX_IMAGE_PIXELS = None
 
         self.log.info('')
         self.log.info('SCANNING')
