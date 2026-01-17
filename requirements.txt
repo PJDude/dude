@@ -1,11 +1,11 @@
-pyinstaller==6.17.0
+pyinstaller==6.18.0
 appdirs==1.4.4
-send2trash==2.0.0
+send2trash==2.1.0
 zstandard==0.25.0
 tkinterdnd2==0.4.3
 psutil==7.2.1
-numpy==2.4.0
-scipy==1.16.3
+numpy==2.4.1
+scipy==1.17.0
 exifread==3.5.1
 imagehash==4.3.2
 pillow==12.1.0
