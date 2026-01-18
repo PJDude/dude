@@ -11,5 +11,5 @@ imagehash==4.3.2
 pillow==12.1.0
 pi-heif==1.1.1
 scikit-learn==1.8.0
-pypdf==6.5.0
+pypdf==6.6.0
 pywin32==311; sys.platform == 'win32'
