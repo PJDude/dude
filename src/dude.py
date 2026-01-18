@@ -527,14 +527,13 @@ class Gui:
     def catched(func):
         def catched_wrapp(self,*args,**kwargs):
             try:
-                res=func(self,*args,**kwargs)
+                return func(self,*args,**kwargs)
             except Exception as e:
                 self.status('catched_wrapp func:%s error:%s args:%s kwargs:%s' % (func.__name__,e,args,kwargs) )
                 l_error('catched_wrapp func:%s error:%s args:%s kwargs: %s',func.__name__,e,args,kwargs)
                 l_error(''.join(format_stack()))
                 self.get_info_dialog_on_main().show('INTERNAL ERROR catched_wrapp','%s %s' % (func.__name__,str(e)) )
-                res=None
-            return res
+                return None
         return catched_wrapp
 
     def logwrapper(func):
