@@ -3464,7 +3464,7 @@ class Gui:
                         self.preview_label_txt_configure(text='file size > 10MB')
                         self.preview.title(path)
                         self.preview_frame_txt.pack_forget()
-                elif ext_lower in ('.pdf'):
+                elif ext_lower in ('.pdf',):
                     self.preview_label_img.pack_forget()
                     self.preview_text.delete(1.0, 'end')
                     self.preview.title(path)
@@ -3476,9 +3476,10 @@ class Gui:
                         self.preview_text.insert('end', text)
 
                     except Exception as e:
-                        self.preview_label_txt_configure(text=str(e))
-
-                    self.preview_frame_txt.pack(fill='both',expand=1)
+                        self.preview_label_txt_configure(text="pdf read error:" + str(e))
+                        self.preview_frame_txt.pack_forget()
+                    else:
+                        self.preview_frame_txt.pack(fill='both',expand=1)
 
                 elif file_size<1024*1024*10:
                     self.preview_label_img.pack_forget()
@@ -3486,7 +3487,6 @@ class Gui:
 
                     try:
                         with open(path,'rt', encoding='utf-8') as file:
-
                             cont_lines=file.readlines()
                             self.preview_label_txt_configure(text=STR('lines:') + f'{fnumber(len(cont_lines))}')
                             self.preview_text.insert('end', ''.join(cont_lines))
