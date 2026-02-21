@@ -1,15 +1,15 @@
-pyinstaller==6.18.0
+pyinstaller==6.19.0
 appdirs==1.4.4
 send2trash==2.1.0
 zstandard==0.25.0
 tkinterdnd2==0.4.3
-psutil==7.2.1
-numpy==2.4.1
+psutil==7.2.2
+numpy==2.4.2
 scipy==1.17.0
 exifread==3.5.1
 imagehash==4.3.2
-pillow==12.1.0
-pi-heif==1.1.1
+pillow==12.1.1
+pi-heif==1.2.1
 scikit-learn==1.8.0
-pypdf==6.6.0
+pypdf==6.7.1
 pywin32==311; sys.platform == 'win32'
