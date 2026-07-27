@@ -175,7 +175,6 @@ modules:
       - echo stage_05
       - cp -v src/images.py /app/share/dude/images.py
       - echo stage_06
-
       - install -Dm644 src/icons/dude.png                                   /app/share/icons/hicolor/256x256/apps/io.github.pjdude.DuplicatesDetector.png
       - echo stage_07
       - install -Dm644 io.github.pjdude.DuplicatesDetector.desktop          /app/share/applications/io.github.pjdude.DuplicatesDetector.desktop

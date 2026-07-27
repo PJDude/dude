@@ -229,19 +229,19 @@ jobs:
         flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
         bash "scripts/flatpak-prepare.sh"
         flatpak-builder -v --force-clean --disable-cache --user --install-deps-from=flathub --repo=flatpak_repo_dir flatpak_build_dir io.github.pjdude.DuplicatesDetector.yml
-        flatpak build-bundle flatpak_repo_dir io.github.pjdude.Dude.flatpak io.github.pjdude.Dude
+        flatpak build-bundle flatpak_repo_dir io.github.pjdude.DuplicatesDetector.flatpak io.github.pjdude.DuplicatesDetector
 
     #####################################
     - name: upload flatpak local
       uses: actions/upload-artifact@v4
       with:
         name: flatpak-local
-        path: ./io.github.pjdude.Dude.flatpak
+        path: ./io.github.pjdude.DuplicatesDetector.flatpak
         if-no-files-found: error
 
     #####################################
     - name: rename linux flatpak
-      run: mv ./io.github.pjdude.Dude.flatpak ./dude.${{ steps.version.outputs.version }}.flatpak
+      run: mv ./io.github.pjdude.DuplicatesDetector.flatpak ./dude.${{ steps.version.outputs.version }}.flatpak
 
     #####################################
     - name: upload flatpak metainfo
