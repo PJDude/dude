@@ -19,32 +19,145 @@ finish-args:
   - --persist=.dude
 
 modules:
-  - name: python3-numpy
+  - name: python3-appdirs
     buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "appdirs==1.4.4" --no-build-isolation
     sources:
       - type: file
-        url: https://files.pythonhosted.org/packages/ed/a7/2bcd3fdbb87804755c35b729bf8709d62025c5f4cfd7d5b2415997097515/numpy-2.5.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-        sha256: 9726558e8db4a5bf7929a70ae50f63abda4daf0efe810e3bfbab95976f75fc1a
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} numpy==2.5.1
-
-  - name: python3-pillow
+        url: https://files.pythonhosted.org/packages/3b/00/2344469e2084fb287c2e0b57b72910309874c3245463acd6cf5e3db69324/appdirs-1.4.4-py2.py3-none-any.whl
+        sha256: a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128
+  - name: python3-send2trash
     buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "send2trash==2.1.0" --no-build-isolation
     sources:
       - type: file
-        url: https://files.pythonhosted.org/packages/f7/62/de5bdd77d935331f4f802edc11e4d82950f642caad6cb2f949837b8560e2/pillow-12.3.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-        sha256: 0847a763afefb695bc912d7c131e7e0632d4edc1d8698f58ddabec8e46b8b6d3
+        url: https://files.pythonhosted.org/packages/1c/78/504fdd027da3b84ff1aecd9f6957e65f35134534ccc6da8628eb71e76d3f/send2trash-2.1.0-py3-none-any.whl
+        sha256: 0da2f112e6d6bb22de6aa6daa7e144831a4febf2a87261451c4ad849fe9a873c
+  - name: python3-zstandard
+    buildsystem: simple
     build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} pillow==12.3.0
-
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "zstandard==0.25.0" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/fd/aa/3e0508d5a5dd96529cdc5a97011299056e14c6505b678fd58938792794b1/zstandard-0.25.0.tar.gz
+        sha256: 7713e1179d162cf5c7906da876ec2ccb9c3a9dcbdffef0cc7f70c3667a205f0b
+  - name: python3-tkinterdnd2
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "tkinterdnd2==0.6.2" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/33/1b/039642c212c24887a941af706b006365f3733d88aab383f0cf151768403c/tkinterdnd2-0.6.2-py3-none-any.whl
+        sha256: b6a8b229d26286c022bb2fbd311c2e431e4d9bbab8133be80e9c98e7bcf9fe59
   - name: python3-psutil
     buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "psutil==7.2.2" --no-build-isolation
     sources:
       - type: file
-        url: https://files.pythonhosted.org/packages/b5/70/5d8df3b09e25bce090399cf48e452d25c935ab72dad19406c77f4e828045/psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl
-        sha256: 076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9
+        url: https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz
+        sha256: 0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372
+  - name: python3-numpy
+    buildsystem: simple
     build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} numpy==2.5.1
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "numpy==2.5.1" --no-build-isolation
+    sources:
+      - &id001
+        type: file
+        url: https://files.pythonhosted.org/packages/22/fd/89965aa4ac08c74998539fcbf24fa3540f3e15237fbeb6bcf9c908f4aade/numpy-2.5.1.tar.gz
+        sha256: a48a113e6afea91f5608793bafa7ef2ad481fefbda87ec5069f483de61cb9fa3
+  - name: python3-scipy
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "scipy==1.18.0" --no-build-isolation
+    sources:
+      - *id001
+      - &id002
+        type: file
+        url: https://files.pythonhosted.org/packages/a7/25/c2700dfaf6442b4effaa91af24ebce5dc9d31bb4a69706313aae70d72cd0/scipy-1.18.0.tar.gz
+        sha256: 67b2ad2ad54c72ca6d04975a9b2df8c3638c34ddd5b28738e94fc2b57929d378
+  - name: python3-exifread
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "exifread==3.5.1" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/e2/a3/20e34a55c7b225110d3822d07c3cab9e8653d9c179e36783f2ed632a96a7/exifread-3.5.1-py3-none-any.whl
+        sha256: e5426ce2857423ad401e575ea9d159dc97449dc041fb6e61b35109caea72c311
+  - name: python3-imagehash
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "imagehash==4.3.2" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/31/2c/5f0903a53a62029875aaa3884c38070cc388248a2c1b9aa935632669e5a7/ImageHash-4.3.2-py2.py3-none-any.whl
+        sha256: 02b0f965f8c77cd813f61d7d39031ea27d4780e7ebcad56c6cd6a709acc06e5f
+      - *id001
+      - &id003
+        type: file
+        url: https://files.pythonhosted.org/packages/1c/3d/bb7fca845737cf9d7dbde16ed1843984665ff2e0a518f5db43e77ec540b9/pillow-12.3.0.tar.gz
+        sha256: 3b8182a766685eaa002637e28b4ec8d6b18819a0c71f579bf0dbaa5830297cce
+      - type: file
+        url: https://files.pythonhosted.org/packages/5a/75/50581633d199812205ea8cdd0f6d52f12a624886b74bf1486335b67f01ff/pywavelets-1.9.0.tar.gz
+        sha256: 148d12203377772bea452a59211d98649c8ee4a05eff019a9021853a36babdc8
+      - *id002
+  - name: python3-pillow
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "pillow==12.3.0" --no-build-isolation
+    sources:
+      - *id003
+  - name: python3-pi-heif
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "pi-heif==1.4.0" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/6a/a2/70168b601b41bdf5726dfc8dc110eb4052a2e851fed9c9bdae95910e401d/pi_heif-1.4.0.tar.gz
+        sha256: e1199d9d41d9ecc877cf3ae7322ff099f6404574f2e62da47590cd4ecb9ec554
+      - *id003
+  - name: python3-scikit-learn
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "scikit-learn==1.9.0" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/7b/91/984aca2ec129e2757d1e4e3c81c3fcda9d0f85b74670a094cc443d9ee949/joblib-1.5.3-py3-none-any.whl
+        sha256: 5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713
+      - type: file
+        url: https://files.pythonhosted.org/packages/7e/85/a5bfaebfd305ac18b57b0854d74e37e586809061a91fda62f0bd50c8518e/narwhals-2.24.0-py3-none-any.whl
+        sha256: 42fdedf44e5b2ca7505630d45b4ac3058f38d8485cba9fe1652ca23152df7489
+      - *id001
+      - type: file
+        url: https://files.pythonhosted.org/packages/fa/6f/37092bdb25f712817231799fc5674d8e704066a8a70c1d2d40517e18b4ab/scikit_learn-1.9.0.tar.gz
+        sha256: 8833266989d3a5110178a9fae30783675460724d0e1efb13b14901d2c660c557
+      - *id002
+      - type: file
+        url: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
+        sha256: 43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb
+  - name: python3-pypdf
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "pypdf==6.14.2" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/49/e6/136aa8993a2ae7214e0b0ef2edaa0d2e08d1d4e4982635b08a835ff31ec8/pypdf-6.14.2-py3-none-any.whl
+        sha256: 3f07891af76dc002657e04993ab9b4de81de29f9013b9761d0b7968bff12e946
 
   - name: dude
     buildsystem: simple
