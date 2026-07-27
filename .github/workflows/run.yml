@@ -228,7 +228,7 @@ jobs:
         sudo flatpak install -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
         flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
         bash "scripts/flatpak-prepare.sh"
-        flatpak-builder -v --force-clean --disable-cache --user --install-deps-from=flathub --repo=flatpak_repo_dir flatpak_build_dir io.github.pjdude.Dude.yml
+        flatpak-builder -v --force-clean --disable-cache --user --install-deps-from=flathub --repo=flatpak_repo_dir flatpak_build_dir io.github.pjdude.DuplicatesDetector.yml
         flatpak build-bundle flatpak_repo_dir io.github.pjdude.Dude.flatpak io.github.pjdude.Dude
 
     #####################################
@@ -249,8 +249,8 @@ jobs:
       with:
         name: flatpak-files-${{ steps.version.outputs.version }}
         path: |
-            ./io.github.pjdude.Dude.metainfo.xml
-            ./io.github.pjdude.Dude.git.yml
+            ./io.github.pjdude.DuplicatesDetector.metainfo.xml
+            ./io.github.pjdude.DuplicatesDetector.git.yml
         if-no-files-found: error
 
     #####################################
