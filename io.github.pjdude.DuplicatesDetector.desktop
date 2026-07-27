@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Duplicates Detector
-GenericName=Audio Frequency Response Analyzer
+GenericName=Duplicates Detector
 Comment=Duplicates Detector.
 Exec=dude
 Icon=io.github.pjdude.DuplicatesDetector
