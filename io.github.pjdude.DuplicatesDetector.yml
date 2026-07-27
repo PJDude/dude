@@ -1,0 +1,134 @@
+app-id: io.github.pjdude.SimpleAudioSweeper
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+command: dude
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+
+  - --socket=pulseaudio
+  - --device=all
+
+  - --filesystem=xdg-run/jack
+  - --filesystem=xdg-documents
+  - --filesystem=xdg-download
+  - --filesystem=home
+
+  - --persist=.dude
+
+modules:
+  - name: portaudio
+    buildsystem: autotools
+    config-opts:
+        - --disable-static
+        - --with-alsa
+    sources:
+        - type: git
+          url: https://github.com/PortAudio/portaudio.git
+          tag: v19.7.0
+          commit: 147dd722548358763a8b649b3e4b41dfffbcfbb6
+    cleanup:
+        - /include
+        - /lib/*.la
+        - /lib/pkgconfig
+
+  - name: python3-numpy
+    buildsystem: simple
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/ed/a7/2bcd3fdbb87804755c35b729bf8709d62025c5f4cfd7d5b2415997097515/numpy-2.5.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+        sha256: 9726558e8db4a5bf7929a70ae50f63abda4daf0efe810e3bfbab95976f75fc1a
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} numpy==2.5.1
+
+  - name: python3-sounddevice
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} "sounddevice==0.5.5" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/57/5f/ff100cae70ebe9d8df1c01a00e510e45d9adb5c1fdda84791b199141de97/cffi-2.1.0.tar.gz
+        sha256: efc1cdd798b1aaf39b4610bba7aad28c9bea9b910f25c784ccf9ec1fa719d1f9
+      - type: file
+        url: https://files.pythonhosted.org/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl
+        sha256: b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992
+      - type: file
+        url: https://files.pythonhosted.org/packages/1e/0a/478e441fd049002cf308520c0d62dd8333e7c6cc8d997f0dda07b9fbcc46/sounddevice-0.5.5-py3-none-any.whl
+        sha256: 30ff99f6c107f49d25ad16a45cacd8d91c25a1bcdd3e81a206b921a3a6405b1f
+
+  - name: python3-pillow
+    buildsystem: simple
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/f7/62/de5bdd77d935331f4f802edc11e4d82950f642caad6cb2f949837b8560e2/pillow-12.3.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+        sha256: 0847a763afefb695bc912d7c131e7e0632d4edc1d8698f58ddabec8e46b8b6d3
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} pillow==12.3.0
+
+  - name: python3-dearpygui
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} "dearpygui==2.3.1" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/cc/e0/df598671f40a7fffb8390946115d9e9cf12d3f4a52f5b9381bddc5699aee/dearpygui-2.3.1-cp313-cp313-manylinux1_x86_64.whl
+        sha256: e3f64c8d4cae68a3b5be1b7531d08400ccbf1e4ff03c7acfc85954f98993f864
+        only-arches:
+          - x86_64
+
+  - name: python3-psutil
+    buildsystem: simple
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/b5/70/5d8df3b09e25bce090399cf48e452d25c935ab72dad19406c77f4e828045/psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl
+        sha256: 076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} numpy==2.5.1
+
+  - name: dude
+    buildsystem: simple
+    build-commands:
+      - echo stage_00
+      - mkdir -p /app/share/dude
+      - echo stage_01
+      - install -Dm755 dude.sh /app/bin/dude
+      - echo stage_02
+      - cp -v src/dude.py /app/share/dude/dude.py
+      - echo stage_03
+      - cp -v src/version.txt /app/share/dude/version.txt
+      - echo stage_04
+      - echo "Flatpak Build" > /app/share/dude/distro.info.txt
+      - echo stage_05
+      - cp -v src/images.py /app/share/dude/images.py
+      - echo stage_06
+
+      - install -Dm644 src/icons/dude.png                                   /app/share/icons/hicolor/256x256/apps/io.github.pjdude.SimpleAudioSweeper.png
+      - echo stage_07
+      - install -Dm644 io.github.pjdude.SimpleAudioSweeper.desktop          /app/share/applications/io.github.pjdude.SimpleAudioSweeper.desktop
+      - echo stage_08
+      - install -Dm644 io.github.pjdude.SimpleAudioSweeper.metainfo.xml     /app/share/metainfo/io.github.pjdude.SimpleAudioSweeper.metainfo.xml
+      - echo stage_09
+
+    sources:
+       - type: file
+         path: dude.sh
+       - type: file
+         path: io.github.pjdude.SimpleAudioSweeper.desktop
+       - type: file
+         path: io.github.pjdude.SimpleAudioSweeper.metainfo.xml
+       - type: file
+         path: src/images.py
+         dest: src
+       - type: file
+         path: src/dude.py
+         dest: src
+       - type: file
+         path: src/version.txt
+         dest: src
+       - type: file
+         path: src/icons/dude.png
+         dest: src/icons
