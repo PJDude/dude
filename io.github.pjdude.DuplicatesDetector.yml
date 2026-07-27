@@ -173,7 +173,7 @@ modules:
       - echo stage_04
       - echo "Flatpak Build" > /app/share/dude/distro.info.txt
       - echo stage_05
-      - cp -v src/images.py /app/share/dude/images.py
+      - cp -v src/dude_images.py /app/share/dude/dude_images.py
       - echo stage_06
       - install -Dm644 src/icons/dude.png                                   /app/share/icons/hicolor/256x256/apps/io.github.pjdude.DuplicatesDetector.png
       - echo stage_07
@@ -190,7 +190,7 @@ modules:
        - type: file
          path: io.github.pjdude.DuplicatesDetector.metainfo.xml
        - type: file
-         path: src/images.py
+         path: src/dude_images.py
          dest: src
        - type: file
          path: src/dude.py
