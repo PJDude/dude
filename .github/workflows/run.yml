@@ -196,6 +196,12 @@ jobs:
         name: version
         path: ./src
 
+    #####################################
+    - name: version read
+      id: version
+      run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
+
+    #####################################
     - name: convert icons to python source
       working-directory: ./scripts
       run: bash "icons.convert.sh"
@@ -206,7 +212,7 @@ jobs:
       run: bash "pyinstaller.run.sh"
 
     #####################################
-    - name: upload lin distro
+    - name: upload lin pyinstaller distro
       uses: actions/upload-artifact@v4
       with:
         name: pyinstaller-lin
@@ -214,12 +220,38 @@ jobs:
         if-no-files-found: error
 
     #####################################
-    - name: version read
-      id: version
-      run: echo "version=$(cat ./src/version.txt)" >> $GITHUB_OUTPUT
+    - name: build flatpak
+      run: |
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y flatpak flatpak-builder xz-utils
+        sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+        sudo flatpak install -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+        flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+        bash "scripts/flatpak-prepare.sh"
+        flatpak-builder -v --force-clean --disable-cache --user --install-deps-from=flathub --repo=flatpak_repo_dir flatpak_build_dir io.github.pjdude.Dude.yml
+        flatpak build-bundle flatpak_repo_dir io.github.pjdude.Dude.flatpak io.github.pjdude.Dude
 
-    - name: rename linux distro
-      run: mv ./build-pyinstaller/dude.lin.zip ./dude.${{ steps.version.outputs.version }}.lin.zip
+    #####################################
+    - name: upload flatpak local
+      uses: actions/upload-artifact@v4
+      with:
+        name: flatpak-local
+        path: ./io.github.pjdude.Dude.flatpak
+        if-no-files-found: error
+
+    #####################################
+    - name: rename linux flatpak
+      run: mv ./io.github.pjdude.Dude.flatpak ./dude.${{ steps.version.outputs.version }}.flatpak
+
+    #####################################
+    - name: upload flatpak metainfo
+      uses: actions/upload-artifact@v4
+      with:
+        name: flatpak-files-${{ steps.version.outputs.version }}
+        path: |
+            ./io.github.pjdude.Dude.metainfo.xml
+            ./io.github.pjdude.Dude.git.yml
+        if-no-files-found: error
 
     #####################################
     - name: download windows pyinstaller distro
@@ -228,6 +260,11 @@ jobs:
         name: pyinstaller-win
         path: ./
 
+    #####################################
+    - name: rename linux distro
+      run: mv ./build-pyinstaller/dude.lin.zip ./dude.${{ steps.version.outputs.version }}.lin.zip
+
+    #####################################
     - name: rename windows distro
       run: mv ./dude.win.zip ./dude.${{ steps.version.outputs.version }}.win.zip
 
@@ -264,3 +301,4 @@ jobs:
         files: |
             dude.${{ steps.version.outputs.version }}.lin.zip
             dude.${{ steps.version.outputs.version }}.win.zip
+            dude.${{ steps.version.outputs.version }}.flatpak
