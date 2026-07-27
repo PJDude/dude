@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.pjdude.DuplicatesDetector</id>
+  <name>Simple Audio Sweeper</name>
+  <summary>DUDE (Duplicates Detector). A GUI utility for finding duplicated files, delete or link them to save space.</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.pjdude">
+    <name>Piotr Jochymek</name>
+  </developer>
+  <description>
+    <p>
+      Duplicates Detector is a cross-platform GUI utility for finding duplicate files, allowing you to delete or link them to save space. Duplicate files are displayed and processed on two synchronized panels for efficient and convenient operation.
+    </p>
+    <p>Main functions:</p>
+    <ul>
+      <li>Scanning for duplicate files in multiple designated folders (up to 8)</li>
+      <li>Two synchronized panels</li>
+      <li>Support for regular expressions or glob expressions syntax</li>
+      <li>Images similarity mode</li>
+      <li>preview window </li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.pjdude.DuplicatesDetector.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://github.com/PJDude/dude/raw/main/info/dude.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://github.com/PJDude/dude</url>
+  <url type="bugtracker">https://github.com/PJDude/dude/issues</url>
+  <url type="contact">https://github.com/PJDude</url>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="VERSION_TO_REPLACE" date="DATE_TO_REPLACE"/>
+  </releases>
+</component>
