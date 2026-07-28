@@ -225,7 +225,7 @@ jobs:
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y flatpak flatpak-builder xz-utils
         sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-        sudo flatpak install -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+        sudo flatpak install -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
         flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
         bash "scripts/flatpak-prepare.sh"
         flatpak-builder -v --force-clean --disable-cache --user --install-deps-from=flathub --repo=flatpak_repo_dir flatpak_build_dir io.github.pjdude.DuplicatesDetector.yml
@@ -301,4 +301,4 @@ jobs:
         files: |
             dude.${{ steps.version.outputs.version }}.lin.zip
             dude.${{ steps.version.outputs.version }}.win.zip
-            dude.${{ steps.version.outputs.version }}.flatpak
+            dude.${{ steps.version.outputs.version }}.lin.flatpak
