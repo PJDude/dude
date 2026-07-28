@@ -64,6 +64,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz
         sha256: 0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372
+
   - name: python3-numpy
     buildsystem: simple
     build-commands:
@@ -161,27 +162,6 @@ modules:
 
   - name: dude
     buildsystem: simple
-    build-commands:
-      - echo stage_00
-      - mkdir -p /app/share/dude
-      - echo stage_01
-      - install -Dm755 dude.sh /app/bin/dude
-      - echo stage_02
-      - cp -v src/dude.py /app/share/dude/dude.py
-      - echo stage_03
-      - cp -v src/version.txt /app/share/dude/version.txt
-      - echo stage_04
-      - echo "Flatpak Build" > /app/share/dude/distro.info.txt
-      - echo stage_05
-      - cp -v src/dude_images.py /app/share/dude/dude_images.py
-      - echo stage_06
-      - install -Dm644 src/icons/dude.png                                   /app/share/icons/hicolor/256x256/apps/io.github.pjdude.DuplicatesDetector.png
-      - echo stage_07
-      - install -Dm644 io.github.pjdude.DuplicatesDetector.desktop          /app/share/applications/io.github.pjdude.DuplicatesDetector.desktop
-      - echo stage_08
-      - install -Dm644 io.github.pjdude.DuplicatesDetector.metainfo.xml     /app/share/metainfo/io.github.pjdude.DuplicatesDetector.metainfo.xml
-      - echo stage_09
-
     sources:
        - type: file
          path: dude.sh
@@ -196,8 +176,38 @@ modules:
          path: src/dude.py
          dest: src
        - type: file
+         path: src/core.py
+         dest: src
+       - type: file
+         path: src/text.py
+         dest: src
+
+       - type: file
          path: src/version.txt
          dest: src
        - type: file
          path: src/icons/dude.png
          dest: src/icons
+    build-commands:
+      - echo stage_00
+      - mkdir -p /app/share/dude
+      - echo stage_01
+      - install -Dm755 dude.sh /app/bin/dude
+      - echo stage_02
+      - cp -v src/dude.py /app/share/dude/dude.py
+      - cp -v src/core.py /app/share/dude/core.py
+      - cp -v src/text.py /app/share/dude/text.py
+      - echo stage_03
+      - cp -v src/version.txt /app/share/dude/version.txt
+      - echo stage_04
+      - echo "Flatpak Build" > /app/share/dude/distro.info.txt
+      - echo stage_05
+      - cp -v src/dude_images.py /app/share/dude/dude_images.py
+      - echo stage_06
+      - install -Dm644 src/icons/dude.png                                   /app/share/icons/hicolor/256x256/apps/io.github.pjdude.DuplicatesDetector.png
+      - echo stage_07
+      - install -Dm644 io.github.pjdude.DuplicatesDetector.desktop          /app/share/applications/io.github.pjdude.DuplicatesDetector.desktop
+      - echo stage_08
+      - install -Dm644 io.github.pjdude.DuplicatesDetector.metainfo.xml     /app/share/metainfo/io.github.pjdude.DuplicatesDetector.metainfo.xml
+      - echo stage_09
+
