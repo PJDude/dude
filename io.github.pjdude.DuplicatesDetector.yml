@@ -28,6 +28,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/3b/00/2344469e2084fb287c2e0b57b72910309874c3245463acd6cf5e3db69324/appdirs-1.4.4-py2.py3-none-any.whl
         sha256: a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128
+
   - name: python3-send2trash
     buildsystem: simple
     build-commands:
@@ -37,6 +38,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/1c/78/504fdd027da3b84ff1aecd9f6957e65f35134534ccc6da8628eb71e76d3f/send2trash-2.1.0-py3-none-any.whl
         sha256: 0da2f112e6d6bb22de6aa6daa7e144831a4febf2a87261451c4ad849fe9a873c
+
   - name: python3-zstandard
     buildsystem: simple
     build-commands:
@@ -46,6 +48,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/fd/aa/3e0508d5a5dd96529cdc5a97011299056e14c6505b678fd58938792794b1/zstandard-0.25.0.tar.gz
         sha256: 7713e1179d162cf5c7906da876ec2ccb9c3a9dcbdffef0cc7f70c3667a205f0b
+
   - name: python3-tkinterdnd2
     buildsystem: simple
     build-commands:
@@ -55,6 +58,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/33/1b/039642c212c24887a941af706b006365f3733d88aab383f0cf151768403c/tkinterdnd2-0.6.2-py3-none-any.whl
         sha256: b6a8b229d26286c022bb2fbd311c2e431e4d9bbab8133be80e9c98e7bcf9fe59
+
   - name: python3-psutil
     buildsystem: simple
     build-commands:
@@ -67,14 +71,13 @@ modules:
 
   - name: python3-numpy
     buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} "numpy==2.5.1" --no-build-isolation
     sources:
-      - &id001
-        type: file
-        url: https://files.pythonhosted.org/packages/22/fd/89965aa4ac08c74998539fcbf24fa3540f3e15237fbeb6bcf9c908f4aade/numpy-2.5.1.tar.gz
-        sha256: a48a113e6afea91f5608793bafa7ef2ad481fefbda87ec5069f483de61cb9fa3
+      - type: file
+        url: https://files.pythonhosted.org/packages/ed/a7/2bcd3fdbb87804755c35b729bf8709d62025c5f4cfd7d5b2415997097515/numpy-2.5.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+        sha256: 9726558e8db4a5bf7929a70ae50f63abda4daf0efe810e3bfbab95976f75fc1a
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} numpy==2.5.1
+
   - name: python3-scipy
     buildsystem: simple
     build-commands:
@@ -86,6 +89,7 @@ modules:
         type: file
         url: https://files.pythonhosted.org/packages/a7/25/c2700dfaf6442b4effaa91af24ebce5dc9d31bb4a69706313aae70d72cd0/scipy-1.18.0.tar.gz
         sha256: 67b2ad2ad54c72ca6d04975a9b2df8c3638c34ddd5b28738e94fc2b57929d378
+
   - name: python3-exifread
     buildsystem: simple
     build-commands:
@@ -95,6 +99,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/e2/a3/20e34a55c7b225110d3822d07c3cab9e8653d9c179e36783f2ed632a96a7/exifread-3.5.1-py3-none-any.whl
         sha256: e5426ce2857423ad401e575ea9d159dc97449dc041fb6e61b35109caea72c311
+
   - name: python3-imagehash
     buildsystem: simple
     build-commands:
@@ -113,6 +118,7 @@ modules:
         url: https://files.pythonhosted.org/packages/5a/75/50581633d199812205ea8cdd0f6d52f12a624886b74bf1486335b67f01ff/pywavelets-1.9.0.tar.gz
         sha256: 148d12203377772bea452a59211d98649c8ee4a05eff019a9021853a36babdc8
       - *id002
+
   - name: python3-pillow
     buildsystem: simple
     build-commands:
@@ -120,6 +126,7 @@ modules:
         --prefix=${FLATPAK_DEST} "pillow==12.3.0" --no-build-isolation
     sources:
       - *id003
+
   - name: python3-pi-heif
     buildsystem: simple
     build-commands:
@@ -130,6 +137,7 @@ modules:
         url: https://files.pythonhosted.org/packages/6a/a2/70168b601b41bdf5726dfc8dc110eb4052a2e851fed9c9bdae95910e401d/pi_heif-1.4.0.tar.gz
         sha256: e1199d9d41d9ecc877cf3ae7322ff099f6404574f2e62da47590cd4ecb9ec554
       - *id003
+
   - name: python3-scikit-learn
     buildsystem: simple
     build-commands:
@@ -150,6 +158,7 @@ modules:
       - type: file
         url: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
         sha256: 43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb
+
   - name: python3-pypdf
     buildsystem: simple
     build-commands:
@@ -181,6 +190,9 @@ modules:
        - type: file
          path: src/text.py
          dest: src
+       - type: file
+         path: src/dialogs.py
+         dest: src
 
        - type: file
          path: src/version.txt
@@ -188,26 +200,32 @@ modules:
        - type: file
          path: src/icons/dude.png
          dest: src/icons
+
     build-commands:
       - echo stage_00
       - mkdir -p /app/share/dude
+
       - echo stage_01
       - install -Dm755 dude.sh /app/bin/dude
+
       - echo stage_02
       - cp -v src/dude.py /app/share/dude/dude.py
       - cp -v src/core.py /app/share/dude/core.py
       - cp -v src/text.py /app/share/dude/text.py
+      - cp -v src/dialogs.py /app/share/dude/dialogs.py
+      - cp -v src/dude_images.py /app/share/dude/dude_images.py
+
       - echo stage_03
       - cp -v src/version.txt /app/share/dude/version.txt
+
       - echo stage_04
       - echo "Flatpak Build" > /app/share/dude/distro.info.txt
-      - echo stage_05
-      - cp -v src/dude_images.py /app/share/dude/dude_images.py
-      - echo stage_06
-      - install -Dm644 src/icons/dude.png                                   /app/share/icons/hicolor/256x256/apps/io.github.pjdude.DuplicatesDetector.png
-      - echo stage_07
-      - install -Dm644 io.github.pjdude.DuplicatesDetector.desktop          /app/share/applications/io.github.pjdude.DuplicatesDetector.desktop
-      - echo stage_08
-      - install -Dm644 io.github.pjdude.DuplicatesDetector.metainfo.xml     /app/share/metainfo/io.github.pjdude.DuplicatesDetector.metainfo.xml
-      - echo stage_09
 
+      - echo stage_05
+      - install -Dm644 src/icons/dude.png                                   /app/share/icons/hicolor/256x256/apps/io.github.pjdude.DuplicatesDetector.png
+
+      - echo stage_06
+      - install -Dm644 io.github.pjdude.DuplicatesDetector.desktop          /app/share/applications/io.github.pjdude.DuplicatesDetector.desktop
+
+      - echo stage_07
+      - install -Dm644 io.github.pjdude.DuplicatesDetector.metainfo.xml     /app/share/metainfo/io.github.pjdude.DuplicatesDetector.metainfo.xml
