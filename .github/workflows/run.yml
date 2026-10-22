@@ -18,7 +18,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v5
       with:
-        python-version: "3.14"
+        python-version: "3.15"
         cache: 'pip'
         check-latest: true
 
@@ -174,7 +174,7 @@ jobs:
     - name: python setup
       uses: actions/setup-python@v5
       with:
-        python-version: "3.14"
+        python-version: "3.15"
         cache: 'pip'
         check-latest: true
 
@@ -297,7 +297,7 @@ jobs:
         tag_name: ${{ steps.version.outputs.version }}
         name: Dude ${{ steps.version.outputs.version }}
         draft: true
-        prerelease: false
+        prerelease: true
         files: |
             dude.${{ steps.version.outputs.version }}.lin.zip
             dude.${{ steps.version.outputs.version }}.win.zip
