@@ -8,8 +8,8 @@ numpy==2.5.4
 scipy==1.18.1
 exifread==3.5.1
 imagehash==4.3.2
-pillow==12.3.0
+pillow==13.0.0
 pi-heif==1.4.0
 scikit-learn==1.9.1
-pypdf==6.20.0
+pypdf==6.21.2
 pywin32==312; sys.platform == 'win32'
